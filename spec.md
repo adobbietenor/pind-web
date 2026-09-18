@@ -376,6 +376,16 @@ Universal links open a crowd URL in the app when installed, the web page when no
 
 ## 6 · Open items
 
+### Where we are
+- **Phase 0 complete** (commit `8f32061`): npm + pinned Supabase CLI, `supabase init`/link
+  to pind-staging, `20260918033807_initial_schema.sql` applied — 25 tables, RLS on all,
+  no policies, 30 neighbourhoods seeded; spec and decisions updated with Phase 0 answers.
+- **Next milestone:** RLS policies, with the policy harness in `tests/policies` written
+  and passing against staging first. Test 0 visitors use anonymous sign-in (decisions Part 5).
+- **Deferred** to retention and account deletion (detail below): gathering delete must
+  not cascade pins and survey responses; person delete must not remove confirmations.
+
+### Deferred cascades
 Deferred to the retention and account-deletion milestone. The initial schema does not
 yet satisfy these; they must be fixed there.
 
