@@ -4,7 +4,7 @@
 // Map images go in the PUBLIC venue-maps bucket (decisions Part 5): a public building
 // and its public spots, never a person (H1). Only this admin writes there.
 import type { AdminHandler } from "./context";
-import { adminPage, back, e, here, must, notFound, postButton, str } from "./ui";
+import { adminPage, back, e, here, link, must, notFound, postButton, str } from "./ui";
 
 const MAPS = "venue-maps";
 const MAP_TYPES: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
@@ -61,7 +61,7 @@ export const venueDetail: AdminHandler = async (request, ctx) => {
     must(db.from("meeting_spots").select("*").eq("venue_id", id).order("sort_order").order("created_at")),
     must(db.from("spot_suggestions").select("*").eq("venue_id", id).eq("status", "pending").order("created_at")),
     must(db.from("venue_aliases").select("id, alias").eq("venue_id", id).order("alias")),
-    must(db.from("venue_external_ids").select("source, external_id").eq("venue_id", id)),
+    must(db.from("venue_external_ids").select("source, external_id, needs_review").eq("venue_id", id)),
   ]);
   const backTo = here(request);
   const approved = spots.filter((s: any) => s.active).length;
@@ -86,13 +86,24 @@ order <input name="sort_order" type="number" style="width:4em" value="${e(s.sort
 <input name="description" size="40" value="${e(s.description)}">
 <button>Approve</button></form>
 ${postButton(`/admin/suggestions/${s.id}/reject`, "Reject", backTo, { cls: "plain" })}
-<br><span class="muted">AI: ${e(s.reason ?? "")}</span></td></tr>`,
+<br><span class="muted">AI: ${e(s.reason ?? "")}${s.address ? ` · ${e(s.address)}` : ""}</span>${s.evidence_url ? ` · ${link(s.evidence_url, "page it checked")}` : ""}</td></tr>`,
     )
     .join("");
+  const review = externals.some((x: any) => x.needs_review)
+    ? `<p class="bad">New from Ticketmaster: check it isn't a venue you already have. Use the draft queue's "New venues" list to merge it,
+or ${postButton(`/admin/venues/${id}/confirm`, "Looks right", backTo, { cls: "plain" })}</p>`
+    : "";
+  const suggest =
+    approved < 3
+      ? postButton(`/admin/venues/${id}/suggest`, suggestions.length ? "Suggest again" : "Suggest spots now (AI, ~1 minute)", backTo, {
+          cls: "plain",
+        })
+      : "";
 
   const mapUrl = v.map_image_path ? db.storage.from(MAPS).getPublicUrl(v.map_image_path).data.publicUrl : null;
 
   const body = `
+${review}
 <form method="post" action="/admin/venues/${e(id)}"><input type="hidden" name="back" value="${e(backTo)}">
 <label>Name<br><input name="name" required maxlength="200" size="40" value="${e(v.name)}"></label>
 <label>Address<br><input name="address" maxlength="300" size="60" value="${e(v.address)}"></label>
@@ -108,8 +119,9 @@ ${postButton(`/admin/suggestions/${s.id}/reject`, "Reject", backTo, { cls: "plai
 <button class="plain">Add spot</button></form>
 
 <h2>AI-suggested spots awaiting approval (${suggestions.length})</h2>
-<p class="muted">Not public until approved. Edit the name or description before approving if needed.</p>
+<p class="muted">Not public until approved. Edit the name or description before approving if needed. Check the page each one links to.</p>
 <table>${suggestionRows || `<tr><td class="muted">None pending.</td></tr>`}</table>
+<p>${suggest}</p>
 
 <h2>Static map image</h2>
 <p class="muted">Public: the venue and its meeting spots, never people (H1). PNG, JPEG or WebP, up to 2 MB.</p>

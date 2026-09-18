@@ -1,0 +1,1963 @@
+{
+ "_note": "Real Ticketmaster Discovery API listings, Toronto, fetched 2026-09-18, cut to the fields the importer reads (no images, descriptions or promoter data). Test data only.",
+ "events": [
+  {
+   "id": "177Zv0G6CMpWoFq",
+   "name": "Toronto Maple Leafs vs. Montreal Canadiens",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/toronto-maple-leafs-vs-montreal-canadiens-toronto-ontario-09-19-2026/event/100064EDD6F5121D",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-19",
+     "localTime": "19:00:00",
+     "dateTime": "2026-09-19T23:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Sports"
+     },
+     "genre": {
+      "name": "Hockey"
+     },
+     "type": {
+      "name": "Group"
+     },
+     "subType": {
+      "name": "Team"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAFFE1A",
+      "name": "Scotiabank Arena",
+      "postalCode": "M5J 2L2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "50 Bay Street, Suite 500"
+      },
+      "location": {
+       "latitude": "43.64392540",
+       "longitude": "-79.37832340"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1A8ZkffGkdCpb1S",
+   "name": "Toronto Raptors vs. New York Knicks",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/toronto-raptors-vs-new-york-knicks-toronto-ontario-10-13-2026/event/10006514CE5982B3",
+   "dates": {
+    "start": {
+     "localDate": "2026-10-13",
+     "localTime": "19:00:00",
+     "dateTime": "2026-10-13T23:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Sports"
+     },
+     "genre": {
+      "name": "Basketball"
+     },
+     "type": {
+      "name": "Group"
+     },
+     "subType": {
+      "name": "Team"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAFFE1A",
+      "name": "Scotiabank Arena",
+      "postalCode": "M5J 2L2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "50 Bay Street, Suite 500"
+      },
+      "location": {
+       "latitude": "43.64392540",
+       "longitude": "-79.37832340"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "16vZZbykAG7WKwJ",
+   "name": "Toronto Blue Jays vs. Reds (Delgado Short-Sleeved Retro Windbreaker)",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/toronto-blue-jays-vs-reds-delgado-toronto-ontario-09-25-2026/event/1000639185F53CA6",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-25",
+     "localTime": "19:07:00",
+     "dateTime": "2026-09-25T23:07:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Sports"
+     },
+     "genre": {
+      "name": "Baseball"
+     },
+     "type": {
+      "name": "Group"
+     },
+     "subType": {
+      "name": "Team"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpa3Bbe",
+      "name": "Rogers Centre",
+      "postalCode": "M5V 1J3",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "1 Blue Jays Way"
+      },
+      "location": {
+       "latitude": "43.64173840",
+       "longitude": "-79.39174470"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1A8ZkCeGkegRI4F",
+   "name": "Zach Bryan - With Heaven On Tour",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/zach-bryan-with-heaven-on-tour-toronto-ontario-09-21-2026/event/10006382B5BE8548",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-21",
+     "localTime": "19:00:00",
+     "dateTime": "2026-09-21T23:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Music"
+     },
+     "genre": {
+      "name": "Rock"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpa3Bbe",
+      "name": "Rogers Centre",
+      "postalCode": "M5V 1J3",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "1 Blue Jays Way"
+      },
+      "location": {
+       "latitude": "43.64173840",
+       "longitude": "-79.39174470"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1A8Zko7Gkd-ut-8",
+   "name": "Toronto FC v CF Montréal",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/toronto-fc-v-cf-montreal-toronto-ontario-10-10-2026/event/10006444E1369850",
+   "dates": {
+    "start": {
+     "localDate": "2026-10-10",
+     "localTime": "13:00:00",
+     "dateTime": "2026-10-10T17:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Sports"
+     },
+     "genre": {
+      "name": "Soccer"
+     },
+     "type": {
+      "name": "Group"
+     },
+     "subType": {
+      "name": "Team"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAE77aA",
+      "name": "BMO Field",
+      "postalCode": "M6K 3C3",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "170 Princes' Blvd"
+      },
+      "location": {
+       "latitude": "43.63264890",
+       "longitude": "-79.42029240"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "rZ7HnEZ1Af-N_d",
+   "name": "Next Music from Tokyo vol 18",
+   "test": false,
+   "url": "https://www.ticketweb.ca/event/next-music-from-tokyo-vol-the-horseshoe-tavern-tickets/14863643",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-19",
+     "localTime": "21:00:00",
+     "dateTime": "2026-09-20T01:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Music"
+     },
+     "genre": {
+      "name": "Alternative"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "rZ7HnEZae-Z",
+      "name": "The Horseshoe Tavern",
+      "postalCode": "M5V 2A2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "370 Queen Street West"
+      },
+      "location": {
+       "latitude": "43.649110",
+       "longitude": "-79.395880"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "177Zv0G6ClCBdOK",
+   "name": "Noah Rinker",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/noah-rinker-toronto-ontario-09-20-2026/event/100064EACEE83813",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-20",
+     "localTime": "19:00:00",
+     "dateTime": "2026-09-20T23:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Music"
+     },
+     "genre": {
+      "name": "Folk"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAdt7JA",
+      "name": " Horseshoe Tavern",
+      "postalCode": "M5V 2A2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "370 Queen St. W."
+      },
+      "location": {
+       "latitude": "43.64904380",
+       "longitude": "-79.39591300"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "rZ7HnEZ1Af-NbS",
+   "name": "Next Music from Tokyo vol 18",
+   "test": false,
+   "url": "https://www.ticketweb.ca/event/next-music-from-tokyo-vol-the-horseshoe-tavern-tickets/14863633",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-18",
+     "localTime": "21:00:00",
+     "dateTime": "2026-09-19T01:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "offsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Music"
+     },
+     "genre": {
+      "name": "Alternative"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "rZ7HnEZae-Z",
+      "name": "The Horseshoe Tavern",
+      "postalCode": "M5V 2A2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "370 Queen Street West"
+      },
+      "location": {
+       "latitude": "43.649110",
+       "longitude": "-79.395880"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1k7ZvP78GA5d5fQ",
+   "name": "Leafs Fan Access Plus Ups: Post-Game Bench Access",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/leafs-fan-access-plus-ups-postgame-toronto-ontario-09-29-2026/event/100065110B0CB51A",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-29",
+     "localTime": "19:00:00",
+     "dateTime": "2026-09-29T23:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Miscellaneous"
+     },
+     "genre": {
+      "name": "Undefined"
+     },
+     "type": {
+      "name": "Upsell"
+     },
+     "subType": {
+      "name": "Special Entry"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAFFE1A",
+      "name": "Scotiabank Arena",
+      "postalCode": "M5J 2L2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "50 Bay Street, Suite 500"
+      },
+      "location": {
+       "latitude": "43.64392540",
+       "longitude": "-79.37832340"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AvZZ_8Gkl589-5",
+   "name": "Guided Tours of Scotiabank Arena",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/guided-tours-of-scotiabank-arena-toronto-ontario-09-18-2026/event/1000650ACB41784B",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-18",
+     "localTime": "23:59:00",
+     "dateTime": "2026-09-19T03:59:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Miscellaneous"
+     },
+     "genre": {
+      "name": "Undefined"
+     },
+     "type": {
+      "name": "Event Style"
+     },
+     "subType": {
+      "name": "Sightseeing/Facility"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAFFE1A",
+      "name": "Scotiabank Arena",
+      "postalCode": "M5J 2L2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "50 Bay Street, Suite 500"
+      },
+      "location": {
+       "latitude": "43.64392540",
+       "longitude": "-79.37832340"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1k7Zv0GwGA5C2qn",
+   "name": "Rogers Centre Ballpark Tours",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/rogers-centre-ballpark-tours-toronto-ontario-09-25-2026/event/100064332B38F76A",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-25",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": true,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Miscellaneous"
+     },
+     "genre": {
+      "name": "Undefined"
+     },
+     "type": {
+      "name": "Event Style"
+     },
+     "subType": {
+      "name": "Sightseeing/Facility"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpa3Bbe",
+      "name": "Rogers Centre",
+      "postalCode": "M5V 1J3",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "1 Blue Jays Way"
+      },
+      "location": {
+       "latitude": "43.64173840",
+       "longitude": "-79.39174470"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AtZkfEGkd6uvQE",
+   "name": "Legends of Horror",
+   "test": false,
+   "url": "https://www.ticketweb.ca/event/legends-of-horror-casa-loma-tickets/14306364?REFERRAL_ID=tmfeed",
+   "dates": {
+    "start": {
+     "localDate": "2026-10-02",
+     "localTime": "20:00:00",
+     "dateTime": "2026-10-03T00:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Arts & Theatre"
+     },
+     "genre": {
+      "name": "Miscellaneous Theatre"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAkAnAA",
+      "name": "Casa Loma",
+      "postalCode": "M5R 1X8",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "1 Austin Terrace"
+      },
+      "location": {
+       "latitude": "43.67813770",
+       "longitude": "-79.40961500"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AtZkfEGkd6Gs9E",
+   "name": "Legends of Horror",
+   "test": false,
+   "url": "https://www.ticketweb.ca/event/legends-of-horror-casa-loma-tickets/14306394?REFERRAL_ID=tmfeed",
+   "dates": {
+    "start": {
+     "localDate": "2026-10-02",
+     "localTime": "20:30:00",
+     "dateTime": "2026-10-03T00:30:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Arts & Theatre"
+     },
+     "genre": {
+      "name": "Miscellaneous Theatre"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAkAnAA",
+      "name": "Casa Loma",
+      "postalCode": "M5R 1X8",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "1 Austin Terrace"
+      },
+      "location": {
+       "latitude": "43.67813770",
+       "longitude": "-79.40961500"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AtZkfEGkd6uvho",
+   "name": "Legends of Horror",
+   "test": false,
+   "url": "https://www.ticketweb.ca/event/legends-of-horror-casa-loma-tickets/14306374?REFERRAL_ID=tmfeed",
+   "dates": {
+    "start": {
+     "localDate": "2026-10-02",
+     "localTime": "21:00:00",
+     "dateTime": "2026-10-03T01:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Arts & Theatre"
+     },
+     "genre": {
+      "name": "Miscellaneous Theatre"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAkAnAA",
+      "name": "Casa Loma",
+      "postalCode": "M5R 1X8",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "1 Austin Terrace"
+      },
+      "location": {
+       "latitude": "43.67813770",
+       "longitude": "-79.40961500"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AtZkfEGkd6uohj",
+   "name": "Legends of Horror",
+   "test": false,
+   "url": "https://www.ticketweb.ca/event/legends-of-horror-casa-loma-tickets/14306404?REFERRAL_ID=tmfeed",
+   "dates": {
+    "start": {
+     "localDate": "2026-10-02",
+     "localTime": "21:30:00",
+     "dateTime": "2026-10-03T01:30:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Arts & Theatre"
+     },
+     "genre": {
+      "name": "Miscellaneous Theatre"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAkAnAA",
+      "name": "Casa Loma",
+      "postalCode": "M5R 1X8",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "1 Austin Terrace"
+      },
+      "location": {
+       "latitude": "43.67813770",
+       "longitude": "-79.40961500"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AtZkfEGkd6uohP",
+   "name": "Legends of Horror",
+   "test": false,
+   "url": "https://www.ticketweb.ca/event/legends-of-horror-casa-loma-tickets/14306384?REFERRAL_ID=tmfeed",
+   "dates": {
+    "start": {
+     "localDate": "2026-10-02",
+     "localTime": "22:00:00",
+     "dateTime": "2026-10-03T02:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Arts & Theatre"
+     },
+     "genre": {
+      "name": "Miscellaneous Theatre"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAkAnAA",
+      "name": "Casa Loma",
+      "postalCode": "M5R 1X8",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "1 Austin Terrace"
+      },
+      "location": {
+       "latitude": "43.67813770",
+       "longitude": "-79.40961500"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1718v0G6CBHh8EL",
+   "name": "Casa Loma General Admission",
+   "test": false,
+   "url": "https://www.ticketweb.ca/event/casa-loma-general-admission-casa-loma-tickets/14258254?REFERRAL_ID=tmfeed",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-19",
+     "localTime": "09:30:00",
+     "dateTime": "2026-09-19T13:30:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Miscellaneous"
+     },
+     "genre": {
+      "name": "Undefined"
+     },
+     "type": {
+      "name": "Event Style"
+     },
+     "subType": {
+      "name": "Sightseeing/Facility"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAkAnAA",
+      "name": "Casa Loma",
+      "postalCode": "M5R 1X8",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "1 Austin Terrace"
+      },
+      "location": {
+       "latitude": "43.67813770",
+       "longitude": "-79.40961500"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AvZZ_8GkcAcRp1",
+   "name": "Short Cuts 2026 Programme 05",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/short-cuts-2026-programme-05-toronto-ontario-09-18-2026/event/1000650B45B6F58A",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-18",
+     "localTime": "14:45:00",
+     "dateTime": "2026-09-18T18:45:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Arts & Theatre"
+     },
+     "genre": {
+      "name": "Miscellaneous"
+     },
+     "type": {
+      "name": "Event Style"
+     },
+     "subType": {
+      "name": "Festival"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZ917A5OV",
+      "name": "Scotiabank Theatre Cinema 9",
+      "postalCode": "M5V 3M6",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "259 Richmond Street West"
+      },
+      "location": {
+       "latitude": "43.64877764",
+       "longitude": "-79.39093702"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AvZZ_3GkRdo-SD",
+   "name": "MISAFF: Gymnasts of Fisherman Colony",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/misaff-gymnasts-of-fisherman-colony-mississauga-ontario-10-01-2026/event/1000652BC3461CFB",
+   "dates": {
+    "start": {
+     "localDate": "2026-10-01",
+     "localTime": "17:00:00",
+     "dateTime": "2026-10-01T21:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Film"
+     },
+     "genre": {
+      "name": "Miscellaneous"
+     },
+     "type": {
+      "name": "Event Style"
+     },
+     "subType": {
+      "name": "Festival"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZ917ARpe",
+      "name": "Screening Room LAC",
+      "postalCode": "L5B 4B8",
+      "city": {
+       "name": "Mississauga"
+      },
+      "address": {
+       "line1": "4141 Living Arts Dr."
+      },
+      "location": {
+       "latitude": "43.58863610",
+       "longitude": "-79.64592050"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "177Zv0G6u7eg2f1",
+   "name": "VIP2: Epik High HQ UPGRADE [DOES NOT INCLUDE TICKET]",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/vip2-epik-high-hq-upgrade-does-toronto-ontario-10-04-2026/event/100064D102D4F50A",
+   "dates": {
+    "start": {
+     "localDate": "2026-10-04",
+     "localTime": "19:00:00",
+     "dateTime": "2026-10-04T23:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Miscellaneous"
+     },
+     "genre": {
+      "name": "Undefined"
+     },
+     "type": {
+      "name": "Upsell"
+     },
+     "subType": {
+      "name": "Special Entry"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZ917AJ4f",
+      "name": "History Toronto",
+      "postalCode": "M4L1G5",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "1663 Queen St. East"
+      },
+      "location": {
+       "latitude": "43.66684147",
+       "longitude": "-79.31351149"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AvZZ_8GkiOfpI7",
+   "name": "Dev Lemons - Special Stuff Package - DOES NOT INCLUDE A TICKET",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/dev-lemons-special-stuff-package-does-toronto-ontario-11-03-2026/event/1000650B20516A04",
+   "dates": {
+    "start": {
+     "localDate": "2026-11-03",
+     "localTime": "19:00:00",
+     "dateTime": "2026-11-04T00:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Miscellaneous"
+     },
+     "genre": {
+      "name": "Undefined"
+     },
+     "type": {
+      "name": "Upsell"
+     },
+     "subType": {
+      "name": "Special Entry"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAFlvdA",
+      "name": "Rivoli",
+      "postalCode": "M5V 2A2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "334 Queen St. W."
+      },
+      "location": {
+       "latitude": "43.64906940",
+       "longitude": "-79.39485450"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "rZ7HnEZ1AfkoGf",
+   "name": "Kontravoid & Buzz Kull w/ VIPERBLOND",
+   "test": false,
+   "url": "https://www.ticketweb.ca/event/kontravoid-buzz-kull-w-cafeteria-tickets/14191314",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-24",
+     "localTime": "21:00:00",
+     "dateTime": "2026-09-25T01:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Music"
+     },
+     "genre": {
+      "name": "Rock"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "rZ7HnEZ17r6J7",
+      "name": "Cafeteria",
+      "postalCode": " M6P 3T2",
+      "city": {
+       "name": "Toronto "
+      },
+      "address": {
+       "line1": "1650 Dupont St"
+      },
+      "location": {
+       "latitude": "43.664695739746094",
+       "longitude": "-79.45601654052734"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "168ZkokjUZA2da5k",
+   "name": "2026 AFC Toronto Season Tickets",
+   "test": false,
+   "url": "https://am.ticketmaster.com/afctoronto/buy",
+   "dates": {
+    "start": {
+     "localDate": "2026-10-31",
+     "localTime": "23:59:00",
+     "dateTime": "2026-11-01T03:59:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": true
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Sports"
+     },
+     "genre": {
+      "name": "Soccer"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAE77aA",
+      "name": "BMO Field",
+      "postalCode": "M6K 3C3",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "170 Princes' Blvd"
+      },
+      "location": {
+       "latitude": "43.63264890",
+       "longitude": "-79.42029240"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "rZ7HnEZ1AfGKxf",
+   "name": "TMU Bold Women's Hockey - 2026-27 Season Pass",
+   "test": false,
+   "url": "https://www.ticketweb.ca/event/tmu-bold-womens-hockey-mattamy-athletic-centre-tickets/14313894",
+   "dates": {
+    "start": {
+     "localDate": "2026-10-23",
+     "localTime": "11:00:00",
+     "dateTime": "2026-10-23T15:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Sports"
+     },
+     "genre": {
+      "name": "Hockey"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "rZ7HnEZ17odj4",
+      "name": "Mattamy Athletic Centre",
+      "postalCode": "M5B 1J2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "50 Carlton Street"
+      },
+      "location": {
+       "latitude": "43.662302",
+       "longitude": "-79.379993"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1A8ZkuvGkdseTS1",
+   "name": "Moein Live in Toronto",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/moein-live-in-toronto-toronto-ontario-09-26-2026/event/10006341F10BFCCA",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-26",
+     "localTime": "20:00:00",
+     "dateTime": "2026-09-27T00:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "rescheduled"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Music"
+     },
+     "genre": {
+      "name": "World"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAFFE1A",
+      "name": "Scotiabank Arena",
+      "postalCode": "M5J 2L2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "50 Bay Street, Suite 500"
+      },
+      "location": {
+       "latitude": "43.64392540",
+       "longitude": "-79.37832340"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AvZZ_kGkXiAFJK",
+   "name": "Dua Saleh",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/dua-saleh-toronto-ontario-09-20-2026/event/1000646FAC148993",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-20",
+     "localTime": "19:00:00",
+     "dateTime": "2026-09-20T23:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "cancelled"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Music"
+     },
+     "genre": {
+      "name": "Hip-Hop/Rap"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAFlF1A",
+      "name": "The Mod Club",
+      "postalCode": "M6G1C4",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "722 College St."
+      },
+      "location": {
+       "latitude": "43.65516550",
+       "longitude": "-79.41906360"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1A8ZkoAGkdNmejf",
+   "name": "Ben Schwartz & Friends",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/ben-schwartz-friends-toronto-ontario-09-18-2026/event/10006445E3B82714",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-18",
+     "localTime": "19:00:00",
+     "dateTime": "2026-09-18T23:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Arts & Theatre"
+     },
+     "genre": {
+      "name": "Comedy"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAFFEJA",
+      "name": "Meridian Hall",
+      "postalCode": "M5E 1B2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "1 Front Street East"
+      },
+      "location": {
+       "latitude": "43.64681820",
+       "longitude": "-79.37666570"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1A8ZkoVGkeSl5Ja",
+   "name": "Ben Schwartz & Friends",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/ben-schwartz-friends-toronto-ontario-09-18-2026/event/10006474B3ACB989",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-18",
+     "localTime": "21:30:00",
+     "dateTime": "2026-09-19T01:30:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Arts & Theatre"
+     },
+     "genre": {
+      "name": "Comedy"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAFFEJA",
+      "name": "Meridian Hall",
+      "postalCode": "M5E 1B2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "1 Front Street East"
+      },
+      "location": {
+       "latitude": "43.64681820",
+       "longitude": "-79.37666570"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "177Zv0G62Z6WW_C",
+   "name": "Punjabi Virsa Radio And Television Inc Presents Hans Raj Hans LIVE ",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/punjabi-virsa-radio-and-television-inc-mississauga-ontario-09-18-2026/event/100064F007F7D64E",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-18",
+     "localTime": "20:00:00",
+     "dateTime": "2026-09-19T00:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Music"
+     },
+     "genre": {
+      "name": "World"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZ917AR40",
+      "name": "Living Arts Centre Auditorium",
+      "postalCode": "L5B 4B8",
+      "city": {
+       "name": "Mississauga"
+      },
+      "address": {
+       "line1": "4141 Living Arts Dr"
+      },
+      "location": {
+       "latitude": "43.58962100",
+       "longitude": "-79.64564900"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1A8Zkf_GkeJxhv3",
+   "name": "Brampton Steelheads vs. Oshawa Generals",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/brampton-steelheads-vs-oshawa-generals-brampton-ontario-09-18-2026/event/10006519A689B052",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-18",
+     "localTime": "19:00:00",
+     "dateTime": "2026-09-18T23:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Sports"
+     },
+     "genre": {
+      "name": "Hockey"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpa3BCe",
+      "name": "CAA Centre",
+      "postalCode": "L6W 4T2",
+      "city": {
+       "name": "Brampton"
+      },
+      "address": {
+       "line1": "7575 Kennedy Road South"
+      },
+      "location": {
+       "latitude": "43.66775360",
+       "longitude": "-79.71119690"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AvZZ_7GkizBcn4",
+   "name": "Thee Sacred Souls, LA LOM, & The Womack Sisters",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/thee-sacred-souls-la-lom-the-toronto-ontario-09-20-2026/event/1000644B38EADA95",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-20",
+     "localTime": "18:30:00",
+     "dateTime": "2026-09-20T22:30:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Music"
+     },
+     "genre": {
+      "name": "R&B"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAEkkIA",
+      "name": "RBC Amphitheatre",
+      "postalCode": "M6K3L3",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "909 Lakeshore Blvd. W."
+      },
+      "location": {
+       "latitude": "43.62945440",
+       "longitude": "-79.41491930"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1A8ZkfIGkdeVhDQ",
+   "name": "Cyrus The Great II",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/cyrus-the-great-ii-toronto-ontario-09-19-2026/event/10006528C2D1BEDA",
+   "dates": {
+    "start": {
+     "localDate": "2026-09-19",
+     "localTime": "14:30:00",
+     "dateTime": "2026-09-19T18:30:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Miscellaneous"
+     },
+     "genre": {
+      "name": "Community/Civic"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAFFEJA",
+      "name": "Meridian Hall",
+      "postalCode": "M5E 1B2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "1 Front Street East"
+      },
+      "location": {
+       "latitude": "43.64681820",
+       "longitude": "-79.37666570"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AvZZ_aGkmWmyKb",
+   "name": "Olivia Rodrigo: The Unraveled Tour",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/olivia-rodrigo-the-unraveled-tour-toronto-ontario-10-26-2026/event/1000649BBDBB94D8",
+   "dates": {
+    "start": {
+     "localDate": "2026-10-26",
+     "localTime": "19:00:00",
+     "dateTime": "2026-10-26T23:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Music"
+     },
+     "genre": {
+      "name": "Pop"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAFFE1A",
+      "name": "Scotiabank Arena",
+      "postalCode": "M5J 2L2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "50 Bay Street, Suite 500"
+      },
+      "location": {
+       "latitude": "43.64392540",
+       "longitude": "-79.37832340"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AvZZ_aGkVCvOgJ",
+   "name": "Olivia Rodrigo: The Unraveled Tour",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/olivia-rodrigo-the-unraveled-tour-toronto-ontario-10-27-2026/event/1000649D0E060D66",
+   "dates": {
+    "start": {
+     "localDate": "2026-10-27",
+     "localTime": "19:00:00",
+     "dateTime": "2026-10-27T23:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Music"
+     },
+     "genre": {
+      "name": "Pop"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAFFE1A",
+      "name": "Scotiabank Arena",
+      "postalCode": "M5J 2L2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "50 Bay Street, Suite 500"
+      },
+      "location": {
+       "latitude": "43.64392540",
+       "longitude": "-79.37832340"
+      }
+     }
+    ]
+   }
+  },
+  {
+   "id": "1AvZZ_kGkmJanvt",
+   "name": "Disney Descendants, ZOMBIES & Camp Rock: Worlds Collide Concert Tour",
+   "test": false,
+   "url": "https://www.ticketmaster.ca/disney-descendants-zombies-camp-rock-worlds-toronto-ontario-11-01-2026/event/1000646BA626A069",
+   "dates": {
+    "start": {
+     "localDate": "2026-11-01",
+     "localTime": "19:00:00",
+     "dateTime": "2026-11-02T00:00:00Z",
+     "dateTBD": false,
+     "dateTBA": false,
+     "timeTBA": false,
+     "noSpecificTime": false
+    },
+    "status": {
+     "code": "onsale"
+    },
+    "spanMultipleDays": false
+   },
+   "classifications": [
+    {
+     "segment": {
+      "name": "Music"
+     },
+     "genre": {
+      "name": "Other"
+     },
+     "type": {
+      "name": "Undefined"
+     },
+     "subType": {
+      "name": "Undefined"
+     }
+    }
+   ],
+   "_embedded": {
+    "venues": [
+     {
+      "id": "KovZpZAFFE1A",
+      "name": "Scotiabank Arena",
+      "postalCode": "M5J 2L2",
+      "city": {
+       "name": "Toronto"
+      },
+      "address": {
+       "line1": "50 Bay Street, Suite 500"
+      },
+      "location": {
+       "latitude": "43.64392540",
+       "longitude": "-79.37832340"
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

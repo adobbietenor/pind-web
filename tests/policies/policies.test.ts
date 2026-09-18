@@ -1,7 +1,8 @@
 // Policy harness — Phase 1 M1.1. Run with `npm run test:policies`.
 //
 // Every case is an approved "X CAN / X CANNOT" pair from docs/visibility.md, numbered
-// P01–P47, with the rule it proves (V1–V12). P38–P47 arrive with M1.2 (admin). Each person queries with their own
+// P01–P54, with the rule it proves (V1–V13). P38–P47 arrive with M1.2 (admin); P48–P54
+// with M1.3 (import, flags, withdrawn). Each person queries with their own
 // session through the same REST and Storage APIs the Worker uses, so what passes
 // here is what RLS lets through. The service key only builds and sweeps the world.
 //
@@ -777,5 +778,216 @@ describe("Moderation actions — V6, V8, V10 after admin review", () => {
     assert.ok(await serviceRow("people", "id", id("Nia"), "id"));
     const log = await rows(w.service.from("moderation_log").select("pin_id").eq("action", "pin_delete").eq("actor", ACTOR));
     assert.ok(log.some((r: { pin_id: string }) => r.pin_id === w.pin["Nia@G"]));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M1.3 — Ticketmaster import, flags and the withdrawn state (V12, V13)
+// ---------------------------------------------------------------------------
+
+const IMPORTER = "importer:ticketmaster";
+
+async function startRun(): Promise<number> {
+  return ok(w.service.rpc("admin_start_import_run", { p_source: "ticketmaster", p_trigger: "manual", p_actor: ACTOR, p_city: "toronto" }));
+}
+
+async function finishRun(run: number): Promise<void> {
+  await ok(w.service.from("import_runs").update({ status: "ok", finished_at: new Date().toISOString() }).eq("id", run));
+}
+
+function apply(run: number, plan: Record<string, unknown>) {
+  return w.service.rpc("admin_import_apply", { p_run: run, p_plan: plan });
+}
+
+async function gatheringRow(g: string): Promise<any> {
+  return ok(w.service.from("gatherings").select("status, starts_at, dismissed_at, event_url, venue_id").eq("id", g).single());
+}
+
+describe("Import data and actions — V12 (M1.3)", () => {
+  it("P48 anon and Ava CANNOT read or write import runs, flags or withdrawal reasons / CANNOT call any M1.3 admin action", async () => {
+    for (const client of [w.anon, c(M("Ava"))]) {
+      for (const table of ["import_runs", "gathering_flags", "gathering_withdrawals"]) await noAccess(client, table);
+      await denied(client.from("gathering_flags").insert({ gathering_id: w.G, kind: "cancelled", source: "ticketmaster" }), "42501");
+      const calls: [string, Record<string, unknown>][] = [
+        ["admin_start_import_run", { p_source: "ticketmaster", p_trigger: "manual", p_actor: "x", p_city: "toronto" }],
+        ["admin_ai_spend_today", { p_city: "toronto" }],
+        ["admin_import_apply", { p_run: 1, p_plan: {} }],
+        ["admin_purge_ticketmaster_data", { p_days: 30 }],
+        ["admin_withdraw_gathering", { p_gathering: w.G, p_reason: "takedown", p_note: "x", p_actor: "x" }],
+        ["admin_unwithdraw_gathering", { p_gathering: w.G, p_actor: "x" }],
+        ["admin_resolve_flag", { p_flag: w.G, p_resolution: "ignored", p_actor: "x" }],
+        ["admin_confirm_venue", { p_venue: w.venue, p_actor: "x" }],
+        ["admin_merge_venues", { p_from: w.venue2, p_into: w.venue, p_actor: "x" }],
+      ];
+      for (const [fn, args] of calls) await denied(client.rpc(fn, args), "42501");
+    }
+    assert.equal(await readable(w.anon, w.G), true, "G got withdrawn");
+  });
+});
+
+describe("Withdrawn — V13 (Alex, M1.3)", () => {
+  it("P49 before: Wil CAN see Wyn at W / after withdrawing W (it has pins): anon and Hana CANNOT read W, its spot options or its counts, and it leaves the published list / Wil and Wes (pinned) CAN read W, its counts and their own pins", async () => {
+    assert.equal(await seesPeople(c(M("Wil")), "Wyn"), 1);
+    await ok(admin("admin_withdraw_gathering", { p_gathering: w.W, p_reason: "takedown", p_note: "pindhx request" }));
+    assert.equal((await gatheringRow(w.W)).status, "withdrawn");
+
+    for (const client of [w.anon, c(M("Hana"))]) {
+      assert.equal(await readable(client, w.W), false);
+      assert.equal((await rows(client.from("gathering_spots").select("id").eq("gathering_id", w.W))).length, 0);
+      assert.equal((await rows(client.rpc("gathering_counts", { gathering_ids: [w.W] }))).length, 0);
+      const listed = await rows(client.from("gatherings").select("id").like("name", `pindhx ${w.run} %`));
+      assert.ok(!listed.some((g: { id: string }) => g.id === w.W), "W is still in a public list");
+      assert.ok(listed.some((g: { id: string }) => g.id === w.G));
+    }
+    for (const name of ["Wil", "Wes"]) {
+      assert.equal(await readable(c(M(name)), w.W), true, `${name} cannot read W`);
+      assert.equal((await counts(c(M(name)), w.W)).pinned, 3);
+      assert.equal(await seesPins(c(M(name)), name, w.W), 1);
+    }
+    const reason = await serviceRow("gathering_withdrawals", "gathering_id", w.W, "reason, note");
+    assert.deepEqual(reason, { reason: "takedown", note: "pindhx request" });
+  });
+
+  it("P50 withdrawn W: Wil CANNOT see Wyn or his pin, the WhatsApp link, the spot options or poll counts, and CANNOT vote or submit the survey / Hana CANNOT pin / Wes CAN remove his own pin", async () => {
+    const wil = c(M("Wil"));
+    assert.equal(await seesPeople(wil, "Wyn"), 0);
+    assert.equal(await seesPins(wil, "Wyn", w.W), 0);
+    assert.equal(await links(wil, w.W, "everyone"), 0);
+    assert.equal((await rows(wil.from("gathering_spots").select("id").eq("gathering_id", w.W))).length, 0);
+    assert.equal((await poll(wil, w.W)).size, 0);
+    const option = await ok(w.service.from("gathering_spots").select("id").eq("gathering_id", w.W).limit(1).single());
+    await denied(wil.from("spot_votes").insert({ gathering_id: w.W, gathering_spot_id: option.id, person_id: id("Wil") }), "42501");
+    await denied(
+      wil.from("survey_responses").insert({ gathering_id: w.W, person_id: id("Wil"), met: "none", would_have_gone: "yes" }),
+      "42501",
+    );
+    await denied(c(M("Hana")).from("pins").insert({ gathering_id: w.W, person_id: id("Hana"), open_to_meeting: true }), "42501");
+    await ok(c(M("Wes")).from("pins").delete().eq("id", w.pin["Wes@W"]));
+    assert.equal(await serviceRow("pins", "id", w.pin["Wes@W"], "id"), null, "Wes's pin was not removed");
+    assert.ok(await serviceRow("pins", "id", w.pin["Wil@W"], "id"), "Wil's pin was not kept");
+  });
+
+  it("P51 un-withdrawing restores it: anon CAN read W, Wil CAN see Wyn, Hana CAN pin / a draft CANNOT be withdrawn / both actions are logged", async () => {
+    await ok(admin("admin_unwithdraw_gathering", { p_gathering: w.W }));
+    assert.equal(await readable(w.anon, w.W), true);
+    assert.equal(await seesPeople(c(M("Wil")), "Wyn"), 1);
+    await ok(c(M("Hana")).from("pins").insert({ gathering_id: w.W, person_id: id("Hana"), open_to_meeting: false }));
+    assert.equal(await serviceRow("gathering_withdrawals", "gathering_id", w.W, "reason"), null);
+    assert.match(
+      (await admin("admin_withdraw_gathering", { p_gathering: w.D.manual, p_reason: "other", p_note: "" })).error?.message ?? "",
+      /Only a published gathering/,
+    );
+    const log = await rows(w.service.from("moderation_log").select("action, note").eq("gathering_id", w.W));
+    assert.ok(log.some((r: { action: string; note: string }) => r.action === "withdraw" && r.note.startsWith("takedown")));
+    assert.ok(log.some((r: { action: string }) => r.action === "unwithdraw"));
+  });
+});
+
+describe("Importer rights, enforced in the database (decisions Part 5, M1.3)", () => {
+  it("P52 one run at a time / an import CANNOT dismiss or move a published gathering, or restore a draft Alex dismissed / it CAN dismiss a draft and restore it itself / flags on published gatherings only, one open per kind / applying a new date moves the spot poll", async () => {
+    const run = await startRun();
+    assert.match(
+      (await w.service.rpc("admin_start_import_run", { p_source: "ticketmaster", p_trigger: "cron", p_actor: ACTOR, p_city: "toronto" })).error?.message ?? "",
+      /already running/,
+    );
+    try {
+      const g0 = await gatheringRow(w.G);
+      const later = new Date(Date.parse(g0.starts_at) + 86_400_000).toISOString();
+      const res = await apply(run, {
+        dismiss: [
+          { gatheringId: w.G, reason: "cancelled" },
+          { gatheringId: w.D.ticketmaster, reason: "postponed" },
+        ],
+        draftUpdates: [{ gatheringId: w.G, startsAt: later }],
+        restore: [{ gatheringId: w.X, startsAt: later }],
+        flags: [
+          { gatheringId: w.G, kind: "date_changed", oldStartsAt: g0.starts_at, newStartsAt: later, status: "onsale" },
+          { gatheringId: w.D.manual, kind: "cancelled", oldStartsAt: null, newStartsAt: null, status: "cancelled" },
+        ],
+      });
+      assert.equal(res.error, null, res.error?.message);
+      const g1 = await gatheringRow(w.G);
+      assert.equal(g1.status, "published");
+      assert.equal(Date.parse(g1.starts_at), Date.parse(g0.starts_at), "a published gathering's date moved");
+      assert.equal((await gatheringRow(w.X)).status, "dismissed", "restored a draft the importer never dismissed");
+      assert.equal((await gatheringRow(w.D.ticketmaster)).status, "dismissed");
+      const flags = await rows(w.service.from("gathering_flags").select("id, gathering_id, kind").in("gathering_id", [w.G, w.D.manual]));
+      assert.deepEqual(flags.map((f: { gathering_id: string; kind: string }) => [f.gathering_id, f.kind]), [[w.G, "date_changed"]]);
+
+      // Same change again: still one open flag. The importer restores its own dismissal.
+      await ok(apply(run, {
+        flags: [{ gatheringId: w.G, kind: "date_changed", oldStartsAt: g0.starts_at, newStartsAt: later, status: "onsale" }],
+        restore: [{ gatheringId: w.D.ticketmaster, startsAt: later }],
+      }));
+      assert.equal((await rows(w.service.from("gathering_flags").select("id").eq("gathering_id", w.G).is("resolved_at", null))).length, 1);
+      const restored = await gatheringRow(w.D.ticketmaster);
+      assert.equal(restored.status, "draft");
+      assert.equal(Date.parse(restored.starts_at), Date.parse(later));
+      const log = await rows(w.service.from("moderation_log").select("actor, action").eq("gathering_id", w.D.ticketmaster));
+      assert.ok(log.some((r: { actor: string; action: string }) => r.actor === IMPORTER && r.action === "dismiss"));
+      assert.ok(log.some((r: { actor: string; action: string }) => r.actor === IMPORTER && r.action === "restore"));
+
+      // Alex dismisses it: the importer can no longer bring it back.
+      await ok(admin("admin_dismiss_gathering", { p_gathering: w.D.ticketmaster }));
+      await ok(apply(run, { restore: [{ gatheringId: w.D.ticketmaster, startsAt: later }] }));
+      assert.equal((await gatheringRow(w.D.ticketmaster)).status, "dismissed");
+
+      // Ignore G's flag; apply a new date to H (moves its spot option by the same amount).
+      await ok(admin("admin_resolve_flag", { p_flag: flags[0].id, p_resolution: "ignored" }));
+      const h0 = await gatheringRow(w.H);
+      const opt0 = await serviceRow("gathering_spots", "id", w.hs, "meet_at");
+      const hLater = new Date(Date.parse(h0.starts_at) + 2 * 3_600_000).toISOString();
+      await ok(apply(run, { flags: [{ gatheringId: w.H, kind: "rescheduled", oldStartsAt: h0.starts_at, newStartsAt: hLater, status: "rescheduled" }] }));
+      const hFlag = await ok(w.service.from("gathering_flags").select("id").eq("gathering_id", w.H).is("resolved_at", null).single());
+      await ok(admin("admin_resolve_flag", { p_flag: hFlag.id, p_resolution: "applied" }));
+      assert.equal(Date.parse((await gatheringRow(w.H)).starts_at), Date.parse(hLater));
+      const opt1 = await serviceRow("gathering_spots", "id", w.hs, "meet_at");
+      assert.equal(Date.parse(opt1.meet_at) - Date.parse(opt0.meet_at), 2 * 3_600_000);
+
+      // A new draft at a new venue; applying the same plan twice makes no copy.
+      const plan = {
+        newVenues: [{ key: "pindhx venue", name: `pindhx ${w.run} Venue`, address: "1 Test St, Toronto", lat: 43.65, lng: -79.39, externalIds: [`pindhx-${w.run}-venue`] }],
+        newDrafts: [{
+          name: `pindhx ${w.run} New`, startsAt: later, eventUrl: "https://www.ticketmaster.ca/event/pindhx-new",
+          venueNameRaw: "pindhx Venue", venueId: null, newVenue: "pindhx venue",
+          sources: [{ externalId: `pindhx-${w.run}-new1`, url: "https://www.ticketmaster.ca/event/pindhx-new", snapshot: { name: "New", startsAt: later, status: "onsale", url: null } }],
+        }],
+      };
+      await ok(apply(run, plan));
+      await ok(apply(run, plan));
+      const made = await rows(w.service.from("gatherings").select("id, status, venue_id").eq("name", `pindhx ${w.run} New`));
+      assert.equal(made.length, 1);
+      assert.equal(made[0].status, "draft");
+      const ext = await serviceRow("venue_external_ids", "external_id", `pindhx-${w.run}-venue`, "venue_id, needs_review");
+      assert.deepEqual(ext, { venue_id: made[0].venue_id, needs_review: true });
+    } finally {
+      await finishRun(run);
+    }
+  });
+
+  it("P53 retention: 30 days after the end, Ticketmaster's ids and links are deleted and a Ticketmaster-only draft goes / our published record stays / upcoming gatherings are untouched", async () => {
+    const purge = await w.service.rpc("admin_purge_ticketmaster_data", { p_days: 30 });
+    assert.equal(purge.error, null, purge.error?.message);
+    assert.equal(await serviceRow("gatherings", "id", w.OldDraft, "id"), null, "the old Ticketmaster draft was kept");
+    const old = await gatheringRow(w.Old);
+    assert.equal(old.status, "published");
+    assert.equal(old.event_url, null);
+    assert.equal(await serviceRow("gathering_sources", "gathering_id", w.Old, "id"), null);
+    assert.ok(await serviceRow("gathering_sources", "external_id", `pindhx-${w.run}-tm1`, "id"), "an upcoming source was deleted");
+  });
+
+  it("P54 a venue the importer created can be confirmed, or merged into the real one (drafts, Ticketmaster id and old name move) / merging a venue with spots is REFUSED", async () => {
+    const made = await ok(w.service.from("gatherings").select("venue_id").eq("name", `pindhx ${w.run} New`).single());
+    const created = made.venue_id as string;
+    await ok(admin("admin_confirm_venue", { p_venue: created }));
+    assert.equal((await serviceRow("venue_external_ids", "external_id", `pindhx-${w.run}-venue`, "needs_review")).needs_review, false);
+
+    assert.match((await admin("admin_merge_venues", { p_from: w.venue, p_into: w.venue2 })).error?.message ?? "", /published gathering|meeting spots/);
+    await ok(admin("admin_merge_venues", { p_from: created, p_into: w.venue2 }));
+    assert.equal(await serviceRow("venues", "id", created, "id"), null);
+    assert.equal((await ok(w.service.from("gatherings").select("venue_id").eq("name", `pindhx ${w.run} New`).single())).venue_id, w.venue2);
+    assert.equal((await serviceRow("venue_external_ids", "external_id", `pindhx-${w.run}-venue`, "venue_id")).venue_id, w.venue2);
+    const aliases = await rows(w.service.from("venue_aliases").select("alias").eq("venue_id", w.venue2));
+    assert.ok(aliases.some((a: { alias: string }) => a.alias === `pindhx ${w.run} Venue`));
   });
 });

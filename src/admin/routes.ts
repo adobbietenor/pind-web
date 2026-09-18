@@ -3,6 +3,7 @@ import { serviceClient } from "../supabase";
 import type { AdminHandler } from "./context";
 import * as g from "./gatherings";
 import { requireAdmin } from "./guard";
+import * as i from "./imports";
 import * as m from "./moderation";
 import { AdminError, adminPage, notFound, UUID } from "./ui";
 import * as v from "./venues";
@@ -35,6 +36,16 @@ const ROUTES: [string, AdminHandler][] = [
   ["POST /admin/spots/:id", v.saveSpot],
   ["POST /admin/suggestions/:id/approve", v.approveSuggestion],
   ["POST /admin/suggestions/:id/reject", v.rejectSuggestion],
+  // M1.3 — Ticketmaster import, flags, withdrawn, importer-made venues
+  ["POST /admin/import/run", i.runNow],
+  ["GET /admin/imports", i.runsPage],
+  ["POST /admin/flags/:id/apply", i.applyFlag],
+  ["POST /admin/flags/:id/ignore", i.ignoreFlag],
+  ["POST /admin/gatherings/:id/withdraw", i.withdrawGathering],
+  ["POST /admin/gatherings/:id/unwithdraw", i.unwithdrawGathering],
+  ["POST /admin/venues/:id/confirm", i.confirmVenue],
+  ["POST /admin/venues/:id/merge", i.mergeVenue],
+  ["POST /admin/venues/:id/suggest", i.suggestSpotsNow],
   ["GET /admin/photos", m.photoQueue],
   ["POST /admin/photos/:id", m.decidePhoto],
   ["GET /admin/reports", m.reportQueue],

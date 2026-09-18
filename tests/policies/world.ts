@@ -72,6 +72,11 @@ export interface World {
   X: string; // dismissed draft
   Dup: string; // draft duplicate of G, found by AI — merged into G in P43
   Q: string; // draft at venue2, 12 days out — the publish-rule case (P42)
+  // M1.3 — withdrawn, import and retention
+  W: string; // published, 6 days out, withdrawn in P49: Wil and Wyn opted in, Wes pinned only
+  Old: string; // published, ended 40 days ago, from Ticketmaster — keeps our record (P53)
+  OldDraft: string; // Ticketmaster-only draft, 40 days ago — deleted by the purge (P53)
+  hs: string; // H's spot option — moves with H's date (P52)
   m: Record<string, Member>;
   pin: Record<string, string>; // "Dev@G" → pin id
 }
@@ -114,8 +119,22 @@ export async function sweep(service: SupabaseClient): Promise<void> {
     await must(service.from("reports").delete().in("reporter_id", ids), "sweep: reports by");
     await must(service.from("reports").delete().in("target_person_id", ids), "sweep: reports on");
   }
-  // Cascades to pins, spot options, votes, survey responses, group links.
+  // The importer logs under its own actor; its rows on harness gatherings go too.
+  const harnessGatherings = await must(
+    service.from("gatherings").select("id").like("name", `${PREFIX} %`),
+    "sweep: find gatherings",
+  );
+  const gatheringIds = harnessGatherings.map((g: { id: string }) => g.id);
+  for (let i = 0; i < gatheringIds.length; i += 100) {
+    await must(
+      service.from("moderation_log").delete().in("gathering_id", gatheringIds.slice(i, i + 100)),
+      "sweep: gathering log",
+    );
+  }
+  // Cascades to pins, spot options, votes, survey responses, group links, sources,
+  // AI scores, flags and withdrawals.
   await must(service.from("gatherings").delete().like("name", `${PREFIX} %`), "sweep: gatherings");
+  await must(service.from("import_runs").delete().eq("actor", ACTOR), "sweep: import runs");
   if (ids.length) await must(service.from("people").delete().in("id", ids), "sweep: people");
 
   const venues = await must(service.from("venues").select("id").like("name", `${PREFIX} %`), "sweep: find venues");
@@ -481,6 +500,43 @@ async function populate(env: HarnessEnv, service: SupabaseClient): Promise<World
   await must(
     service.from("gathering_group_links").insert({ gathering_id: w.D.ai, kind: "everyone", url: "https://chat.whatsapp.com/pindhx-draft" }),
     "draft group link",
+  );
+
+  // M1.3 — W is withdrawn in P49 (its own cast, so earlier cases are untouched); Old
+  // and OldDraft are for the retention purge; H gets a spot option that must move
+  // when a new date is applied.
+  w.W = await gathering(w, "W", 6, true);
+  await must(
+    service
+      .from("gathering_spots")
+      .insert(spots.map((s: { id: string }) => ({ gathering_id: w.W, spot_id: s.id, meet_at: inDays(6 - 1 / 24) }))),
+    "W spot options",
+  );
+  await must(
+    service.from("gathering_group_links").insert({ gathering_id: w.W, kind: "everyone", url: "https://chat.whatsapp.com/pindhx-w" }),
+    "W group link",
+  );
+  await person(w, "Wil", { gender: "woman", session: true });
+  await person(w, "Wyn", { gender: "man", session: true });
+  await person(w, "Wes", { gender: "man", session: true });
+  await pinIn(w, "Wil", w.W, "W", true);
+  await pinIn(w, "Wyn", w.W, "W", true);
+  await pinIn(w, "Wes", w.W, "W", false);
+
+  const hs = await must(
+    service.from("gathering_spots").insert({ gathering_id: w.H, spot_id: spots[1].id, meet_at: inDays(8 - 1 / 24) }).select("id").single(),
+    "H spot option",
+  );
+  w.hs = hs.id;
+
+  w.Old = await gathering(w, "Old", -40, true, { source: "ticketmaster", event_url: "https://www.ticketmaster.ca/event/pindhx-old" });
+  w.OldDraft = await gathering(w, "OldDraft", -40, false, { source: "ticketmaster" });
+  await must(
+    service.from("gathering_sources").insert([
+      { gathering_id: w.Old, source: "ticketmaster", external_id: `${PREFIX}-${w.run}-old`, urls: ["https://www.ticketmaster.ca/event/pindhx-old"] },
+      { gathering_id: w.OldDraft, source: "ticketmaster", external_id: `${PREFIX}-${w.run}-olddraft`, urls: [] },
+    ]),
+    "old sources",
   );
 
   return w;

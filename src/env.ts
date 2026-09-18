@@ -17,4 +17,11 @@ export interface Env {
   ACCESS_AUD?: string;
   // Comma-separated emails allowed into the admin.
   ADMIN_EMAILS?: string;
+  // Ticketmaster Discovery API key (M1.3). Secret.
+  TICKETMASTER_CONSUMER_KEY?: string;
+  // Anthropic API key (M1.3: AI vetting and spot suggestions; T3: photo checks). Secret.
+  ANTHROPIC_API_KEY?: string;
+  // Hard daily AI spend cap in US dollars, per Toronto calendar day (M1.3). Not a
+  // secret: set in wrangler.jsonc "vars".
+  AI_DAILY_CAP_USD?: string;
 }
