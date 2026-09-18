@@ -34,7 +34,11 @@ import {
 } from "./ticketmaster";
 
 export const IMPORTER = "importer:ticketmaster";
-export const SCORE_THRESHOLD = 40; // decisions Part 5: below this, collapsed in the queue
+// decisions Part 5. Drafts whose final score (after the distance adjustment) is below
+// FOLD_THRESHOLD are collapsed in the draft queue (Alex, M1.3: raised from 40 to 70).
+// SCORE_THRESHOLD still decides which venues count as needing spots.
+export const FOLD_THRESHOLD = 70;
+export const SCORE_THRESHOLD = 40;
 const SCORE_BATCH = 25;
 const SCORE_PARALLEL = 4;
 const SPOT_VENUES_PER_NIGHT = 10;

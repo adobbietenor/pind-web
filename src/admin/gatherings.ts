@@ -2,7 +2,7 @@
 // CSV export. Lifecycle changes go through the admin_* database functions, which
 // enforce the rules (3 approved spots to publish, zero pins to unpublish) and write
 // the moderation log (decisions.md Part 5, docs/visibility.md V11/V12).
-import { IMPORTER, SCORE_THRESHOLD } from "../import/run";
+import { FOLD_THRESHOLD, IMPORTER } from "../import/run";
 import type { AdminHandler } from "./context";
 import { toCsv } from "./csv";
 import {
@@ -170,7 +170,7 @@ ${postButton(`/admin/gatherings/${g.id}/dismiss`, "Dismiss", backTo, { cls: "pla
     .map(([day, list]) => {
       const low = (g: any) => {
         const final = p.rank(g.venue_id, one<{ score: number | null }>(g.gathering_triage)?.score ?? null).final;
-        return !showAll && final !== null && final < SCORE_THRESHOLD;
+        return !showAll && final !== null && final < FOLD_THRESHOLD;
       };
       const shown = list.filter((g) => !low(g));
       const folded = list.filter(low);
@@ -178,7 +178,7 @@ ${postButton(`/admin/gatherings/${g.id}/dismiss`, "Dismiss", backTo, { cls: "pla
       const label = formatLocal(list[0].starts_at, p.tz(list[0].venue_id)).replace(/,?\s*\d{1,2}:\d{2}.*$/, "");
       return `<h3>${e(label)} <span class="muted">(${list.length})</span></h3>
 ${shown.length ? `<table>${HEAD}${shown.map(row).join("")}</table>` : ""}
-${folded.length ? `<details><summary class="muted">${folded.length} scoring under ${SCORE_THRESHOLD}</summary><table>${HEAD}${folded.map(row).join("")}</table></details>` : ""}`;
+${folded.length ? `<details><summary class="muted">${folded.length} scoring under ${FOLD_THRESHOLD}</summary><table>${HEAD}${folded.map(row).join("")}</table></details>` : ""}`;
     })
     .join("");
 
@@ -204,7 +204,7 @@ ${folded.length ? `<details><summary class="muted">${folded.length} scoring unde
   const toggles = [
     wide ? view(null, showAll ? "all" : null, "Next 14 days") : `<strong>Next 14 days</strong>`,
     wide ? `<strong>Next 8 weeks</strong>` : view("8w", showAll ? "all" : null, "Next 8 weeks"),
-    showAll ? view(wide ? "8w" : null, null, `Fold scores under ${SCORE_THRESHOLD}`) : view(wide ? "8w" : null, "all", "Show all scores"),
+    showAll ? view(wide ? "8w" : null, null, `Fold scores under ${FOLD_THRESHOLD}`) : view(wide ? "8w" : null, "all", "Show all scores"),
   ].join(" · ");
 
   const body = `

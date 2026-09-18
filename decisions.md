@@ -199,9 +199,11 @@ profile.
   people going alone or in small groups (0–20), time and place to meet before (0–15),
   shared identity (0–10). Hard caps: kids' and family shows, and audiences mostly under
   19, at most 10 (H8); seated theatre and classical at most 35; not an event, 0. Drafts
-  below **40** after the distance adjustment are collapsed in the queue (to be tuned
-  after the first real run). Only new drafts are scored; a failed score leaves the draft
-  unscored and it is retried next run. **Hard AI spend cap: $3 per Toronto calendar day.**
+  below **70** after the distance adjustment are collapsed in the queue (Alex, M1.3,
+  after the first real run: at 40, 79% of the next 14 days' drafts showed; raised from
+  40 to 70). "Venues needing spots" still lists venues with a draft at 40+. Only new
+  drafts are scored; a failed score leaves the draft unscored and it is retried next
+  run. **Hard AI spend cap: $3 per Toronto calendar day.**
 - **AI spot suggestions** (Alex, Phase 1 M1.3). Sonnet 5 with web search proposes 3
   public, staffed spots (bars, patios, landmarks) a short walk from the entrance, each
   with an address, a one-line reason and the page it checked. Only for venues with fewer
@@ -237,6 +239,16 @@ profile.
   covers Ticketmaster data, the automated photo checks and gender. Ticketmaster's
   terms also require the policy (or a footer on every page) to say how we collect,
   use, store and disclose data.
+- **Community gatherings are first-class** (Alex, after Phase 1 M1.3). Small community
+  gatherings are a core part of Pin'd, not an afterthought: wellness and social events
+  such as run clubs are growing (research assessment). The next sourcing milestone adds
+  a separate **"Community & free"** tab in the admin, fed by Claude searching the web
+  for publicly listed free and community gatherings — run clubs, markets, street
+  festivals, socials, wellness events. It has **its own rubric**, which rewards events
+  built around meeting people — social by design, solo-friendly, free or low-cost,
+  recurring — rather than crowd size, and it is **ranked separately** from the
+  Ticketmaster queue. Manual add stays for gatherings found by word of mouth. **Test
+  0's crowds include at least one small community gathering.** No code yet.
 - **Meeting spots stay curated** (Alex, Phase 1 M1.2). AI proposes 3 spots per venue;
   Alex approves or edits each one before it exists. **A gathering cannot be published
   until its venue has 3 approved spots** — enforced in the database. At publish the

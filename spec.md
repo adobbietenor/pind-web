@@ -454,10 +454,18 @@ Universal links open a crowd URL in the app when installed, the web page when no
   only, Ticketmaster's data deleted 30 days after effective end; no revenue from
   Ticketmaster data during Test 0 (any paid feature needs a terms review first); a
   privacy policy before public pages go live; the import filter; Sonnet 5 scoring with
-  the approved rubric, 40 threshold and a $3/day cap; AI spot suggestions (10 venues
+  the approved rubric, a queue fold threshold of 70 (raised from 40 after the first
+  run) and a $3/day cap; AI spot suggestions (10 venues
   a night); importer-dismissed drafts restore themselves, Alex-dismissed never do;
   flags on published gatherings; the **withdrawn** state; Worker cron on Workers Paid.
-- **Next: M1.3b, AI spot suggestions** (split from M1.3 by Alex). The code is built but
+- **Next milestones, in order (Alex, after M1.3):**
+  1. **Public pages** — T9 this week's crowds and T2 the crowd page (pre-pin).
+  2. **"Community & free" sourcing** — a separate admin tab fed by Claude web search for
+     free and community gatherings, with its own rubric (decisions Part 5, "Community
+     gatherings are first-class").
+  3. **Pin-in** — T3 the pin-in form and T4 confirmation.
+- **M1.3b, AI spot suggestions — parked** (split from M1.3 by Alex; not yet
+  scheduled). The code is built but
   **off** (`AI_SPOT_SUGGESTIONS` in `wrangler.jsonc`, off unless `"on"`; the "Suggest
   spots now" button is hidden while off). Until then spots are added by hand in the
   admin; "Venues needing spots" on the draft queue lists where they are needed. What
@@ -493,7 +501,7 @@ Universal links open a crowd URL in the app when installed, the web page when no
   date changes.** Applying a new date from a flag updates the page only; Test 0 sends
   just two messages (T5, T8). Decide before the first real crowd whether a date change
   needs a message.
-- **For M1.3 (Ticketmaster import), recorded now (Alex, M1.2):** the importer must detect
+- **Done in M1.3** (recorded by Alex in M1.2): the importer must detect
   date or status changes (cancelled, postponed, rescheduled) on **published**
   gatherings and flag them in the admin for Alex. It never changes a published
   gathering silently.
@@ -518,10 +526,12 @@ All must be true before real Test 0 visitors can see each other:
 - [ ] pind.social is live and email sending is set up on it (decisions Part 5)
 - [ ] an independent adversarial review of the visibility rules: a fresh Claude Code
   session with no prior context, tasked only with finding leaks, using
-  `docs/m1.1-review-brief.md` (including its M1.2 section) as its input
+  `docs/m1.1-review-brief.md` (including its M1.2 and M1.3 sections) as its input
 - [ ] Alex's own read of `docs/visibility.md`
 - [ ] a decision on whether real Test 0 data lives on pind-staging or a production project
 - [ ] T5 new-device sign-in is decided
+- [ ] a decision on whether people pinned to a published gathering get a message when
+  its date changes (open item above, Alex M1.3)
 - [ ] a privacy policy is published covering Ticketmaster data, the automated photo
   checks and gender (decisions Part 5, Alex M1.3)
 
