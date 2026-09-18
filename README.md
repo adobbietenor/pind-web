@@ -22,7 +22,9 @@ Requires Node from `.nvmrc`, then `npm install`.
    ```
 
    The URL and service_role key are in the Supabase dashboard → pind-staging →
-   Project Settings → API. For `SESSION_SECRET`, generate one in PowerShell:
+   Project Settings → API. `SUPABASE_URL` is the bare project URL, with no
+   `/rest/v1` on the end. Use the **secret** key (`sb_secret_…`), not the
+   publishable one. For `SESSION_SECRET`, generate one in PowerShell:
 
    `$b = New-Object byte[] 32; [Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b); [Convert]::ToBase64String($b)`
 

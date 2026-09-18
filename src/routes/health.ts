@@ -6,7 +6,7 @@ import { serviceClient } from "../supabase";
 // neighbourhoods (reference data, not people), so serviceClient is fine here.
 export async function health(_request: Request, env: Env): Promise<Response> {
   const supabase = serviceClient(env);
-  const { count, error } = await supabase
+  const { count, error, status } = await supabase
     .from("neighbourhoods")
     .select("*", { count: "exact", head: true });
 
@@ -20,5 +20,15 @@ export async function health(_request: Request, env: Env): Promise<Response> {
     );
   }
 
-  return page("Health", `<h1>Health</h1><p>neighbourhoods: ${escape(count ?? 0)}</p>`);
+  // No count is not zero (H6). supabase-js turns an empty 404 into "no error,
+  // no count", so a missing count means the request never reached the table.
+  if (count === null) {
+    return page(
+      "Health",
+      `<h1>Health</h1><p class="error">Supabase returned no count (status ${escape(status)}) — check SUPABASE_URL</p>`,
+      502,
+    );
+  }
+
+  return page("Health", `<h1>Health</h1><p>neighbourhoods: ${escape(count)}</p>`);
 }
