@@ -1,5 +1,6 @@
 import type { Env } from "../env";
 import { accessConfig, unverifiedClaims, verifyAccessToken, type SigningKey } from "./access";
+import { sameOriginWrite } from "./origin";
 import { forbidden } from "./ui";
 
 // The team's public signing keys, cached per Worker instance for 10 minutes. An
@@ -32,10 +33,13 @@ export async function requireAdmin(request: Request, env: Env): Promise<{ email:
   const result = await verifyAccessToken(token, config, (refresh) => signingKeys(config.teamDomain, refresh));
   if (!result.ok) return refuse(result.reason, result);
 
-  // Your Access cookie is sent even when another site submits a form here, so
-  // every change must come from the admin's own pages.
-  if (request.method !== "GET" && request.method !== "HEAD") {
-    if (request.headers.get("Origin") !== new URL(request.url).origin) return refuse("cross-site request");
+  // Every change must come from the admin's own pages (src/admin/origin.ts).
+  const write = sameOriginWrite(request.method, request.url, request.headers);
+  if (!write.ok) {
+    console.warn(
+      JSON.stringify({ admin: "refused", reason: write.reason, origin: write.origin, secFetchSite: write.secFetchSite }),
+    );
+    return forbidden();
   }
   return { email: result.email };
 }

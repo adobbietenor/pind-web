@@ -34,13 +34,15 @@ const NAV: [string, string][] = [
   ["/admin/reports", "Reports"],
 ];
 
-// Admin responses are never cached or indexed, never framed, and never send a
-// referrer (photo pages carry short-lived signed links).
+// Admin responses are never cached or indexed, and never framed. Referrer policy
+// "same-origin": admin URLs are never sent to other sites (photo pages carry
+// short-lived signed links), while the admin's own form posts keep a real Origin.
+// ("no-referrer" made browsers send Origin: null on every admin form.)
 const HEADERS = {
   "content-type": "text/html; charset=utf-8",
   "cache-control": "no-store",
   "x-robots-tag": "noindex, nofollow",
-  "referrer-policy": "no-referrer",
+  "referrer-policy": "same-origin",
   "x-content-type-options": "nosniff",
   "content-security-policy": "frame-ancestors 'none'",
 };

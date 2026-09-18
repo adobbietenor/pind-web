@@ -102,7 +102,7 @@ export const draftQueue: AdminHandler = async (request, ctx) => {
       const dups = (byKey.get(dupKey(p, g)) ?? []).filter((o: any) => o.id !== g.id);
       const candidates = (byDay.get(localDate(g.starts_at, tz)) ?? []).filter((o: any) => o.id !== g.id);
       const merge = candidates.length
-        ? `<form class="inline" method="post" action="/admin/gatherings/${e(g.id)}/merge" onsubmit="return confirm(${e(JSON.stringify("Merge this draft into the selected gathering? The draft is dismissed."))})">` +
+        ? `<form class="inline" method="post" action="/admin/gatherings/${e(g.id)}/merge">` +
           `<input type="hidden" name="back" value="${e(backTo)}"><select name="into">` +
           candidates
             .map((o: any) => `<option value="${e(o.id)}"${dups.some((d: any) => d.id === o.id) ? " selected" : ""}>${e(o.name)} (${e(o.status)})</option>`)
@@ -463,10 +463,41 @@ export const unpublishGathering = lifecycle("admin_unpublish_gathering", "Unpubl
 export const dismissGathering = lifecycle("admin_dismiss_gathering", "Dismissed");
 export const restoreGathering = lifecycle("admin_restore_gathering", "Restored to draft");
 
+// Merging cannot be undone with Restore, and the queue pre-selects a likely
+// duplicate, so the first POST only shows a confirmation page naming both events.
+// Nothing changes until "Confirm merge" posts again with confirm=yes.
 export const mergeGathering: AdminHandler = async (request, ctx) => {
   const form = await request.formData();
   const into = str(form, "into");
   if (!UUID.test(into)) return back(form, { err: "Choose a gathering to merge into" });
+
+  if (str(form, "confirm") !== "yes") {
+    const [pair, p] = await Promise.all([
+      must(
+        ctx.db
+          .from("gatherings")
+          .select("id, name, starts_at, status, source, venue_id, venue_name_raw, event_url, gathering_sources(source)")
+          .in("id", [ctx.params.id!, into]),
+      ),
+      places(ctx.db),
+    ]);
+    const loser = pair.find((x: any) => x.id === ctx.params.id);
+    const survivor = pair.find((x: any) => x.id === into);
+    if (!loser || !survivor) return back(form, { err: "Gathering not found" });
+    const describe = (x: any) => `<td><strong>${e(x.name)}</strong><br>${e(formatLocal(x.starts_at, p.tz(x.venue_id)))}
+<br>${venueCell(p, x)}<br>source: ${e(sourcesOf(x))} · ${e(x.status)}<br>${link(x.event_url, "event link")}</td>`;
+    const backTo = str(form, "back") || "/admin";
+    const body = `<p><strong>Merge "${e(loser.name)}" into "${e(survivor.name)}"?</strong></p>
+<p class="bad">This can't be undone with Restore. The first event is dismissed for good; its source records move to the second,
+so future imports of it land on the second.</p>
+<table><tr><th>Dismissed (merged away)</th><th>Kept</th></tr><tr>${describe(loser)}${describe(survivor)}</tr></table>
+<form class="inline" method="post" action="/admin/gatherings/${e(loser.id)}/merge">
+<input type="hidden" name="into" value="${e(survivor.id)}"><input type="hidden" name="confirm" value="yes">
+<input type="hidden" name="back" value="${e(backTo)}"><button class="danger">Confirm merge</button></form>
+<a href="${e(backTo.startsWith("/admin") ? backTo : "/admin")}">Cancel</a>`;
+    return adminPage(request, ctx.email, "Confirm merge", body);
+  }
+
   const { error } = await ctx.db.rpc("admin_merge_gatherings", {
     p_loser: ctx.params.id,
     p_survivor: into,
