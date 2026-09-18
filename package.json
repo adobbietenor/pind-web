@@ -4,6 +4,16 @@
   "private": true,
   "description": "Pin'd public web surfaces (Cloudflare Worker) and shared Supabase schema",
   "devDependencies": {
-    "supabase": "2.117.0"
+    "supabase": "2.117.0",
+    "typescript": "7.0.2",
+    "wrangler": "4.134.0"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.116.0"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "dev": "wrangler dev",
+    "types": "wrangler types"
   }
 }

@@ -1,0 +1,16 @@
+{
+  // Type-checking only (`npm run typecheck`). Wrangler bundles src/ itself;
+  // there is no build step and tsc never emits files.
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["es2022", "es2021.string"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "types": [],
+    "strict": true,
+    "noEmit": true,
+    "isolatedModules": true,
+    "skipLibCheck": true
+  },
+  "include": ["src", "worker-configuration.d.ts"]
+}

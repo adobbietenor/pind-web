@@ -1,0 +1,15 @@
+{
+  // Staging only. Deploy under this name and no other.
+  // No routes and no custom domains: this worker lives on workers.dev only.
+  // PindScene.com is a separate worker and is never touched from this repo.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pind-web-staging",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-18",
+  "workers_dev": true,
+  "preview_urls": false
+
+  // Secrets (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SESSION_SECRET) are never
+  // written here. Locally they come from .dev.vars; deployed, from
+  // `npx wrangler secret put NAME`. See README.
+}
