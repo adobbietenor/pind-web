@@ -409,9 +409,9 @@ Universal links open a crowd URL in the app when installed, the web page when no
   gathering, privileges + policies, private `photos` bucket, report auto-hide (H9).
   `npm run test:policies` passes 38/38 (P01–P37 plus P07b) on pind-staging. Anonymous
   sign-ins are on for pind-staging.
-  **Developer review by Max's team is pending** (`docs/m1.1-review-brief.md`). It is
-  **not** a blocker for building. It is a gate before any real crowd sees each other
-  (T6 with real people). Fixes from the review come as new migrations.
+  **The independent adversarial review is pending** (`docs/m1.1-review-brief.md`). It
+  is **not** a blocker for building. It is a gate before any real crowd sees each
+  other (T6 with real people). Fixes from the review come as new migrations.
 - **Phase 1 M1.2 complete** (branch `phase1/m1.2-admin`, merged to `main`): the admin.
   Gatherings arrive as drafts from Ticketmaster, the AI run or manual entry; AI vets and
   scores them; Alex publishes a handful per week (decisions Part 5). Four migrations on
@@ -458,9 +458,10 @@ Universal links open a crowd URL in the app when installed, the web page when no
 ### Before the first real crowd
 All must be true before real Test 0 visitors can see each other:
 - [ ] pind.social is live and email sending is set up on it (decisions Part 5)
-- [ ] the visibility rules are reviewed by someone other than their author
-  (Max's team, `docs/m1.1-review-brief.md`, including its M1.2 section: V11/V12 SQL
-  and the Worker's Access token check)
+- [ ] an independent adversarial review of the visibility rules: a fresh Claude Code
+  session with no prior context, tasked only with finding leaks, using
+  `docs/m1.1-review-brief.md` (including its M1.2 section) as its input
+- [ ] Alex's own read of `docs/visibility.md`
 - [ ] a decision on whether real Test 0 data lives on pind-staging or a production project
 - [ ] T5 new-device sign-in is decided
 

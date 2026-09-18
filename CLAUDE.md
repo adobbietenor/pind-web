@@ -94,4 +94,4 @@ one of these is the next step rather than trying to work around it.
 - Test 0 pin-in accepts EITHER an uploaded photo OR an Instagram handle; at least one is required.
 - Test 0 threshold and follow-up messages go by email (Resend) first; SMS (Twilio) is added later as a second channel.
 - Phase 1: web visitors get a Supabase anonymous sign-in at pin-in, and people lists are read as that visitor so RLS policies decide visibility, the same as the app. The service key is used server-side only, for admin, cron jobs and sending messages, and never to read people on behalf of a visitor. RLS policies and their test harness (spec §6) are built and pass before T6.
-- Flag anything touching visibility for developer review before real users see it.
+- Flag anything touching visibility for the independent review before real users see it.

@@ -195,3 +195,10 @@ profile.
   the 19+ rule (H8) stays with the person's attestation, reports and admin review.
   Reports and auto-hide (H9) remain the backstop. **The privacy policy must say that
   photos are checked automatically.**
+- **Review of the visibility rules** (Alex, after Phase 1 M1.2). Max's team is not
+  reviewing Pin'd. Before the first real crowd, two things replace a developer
+  review: (1) an **independent adversarial review** by a fresh Claude Code session
+  with no prior context, tasked only with finding leaks, using
+  `docs/m1.1-review-brief.md` as its input; and (2) **Alex's own read** of
+  `docs/visibility.md`. Leaks it finds are fixed as new migrations, each with a
+  harness case.

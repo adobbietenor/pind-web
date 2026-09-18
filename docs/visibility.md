@@ -2,10 +2,13 @@
 
 The plain-English rules that the privileges, RLS policies, storage policies and
 database functions in `supabase/migrations/` implement. Agreed with Alex on
-2026-09-18. Max's team reviews the SQL and the harness (`tests/policies`) against
-this file: every rule has an ID (V1–V12), and §16 maps each rule to the SQL that
-enforces it and the harness cases (P01–P47) that prove it. M1.2 (admin) added V12,
-the draft/dismissed states in V11, and cases P38–P47.
+2026-09-18. Before the first real crowd (decisions.md Part 5), an independent
+adversarial review — a fresh Claude Code session with no prior context, using
+`docs/m1.1-review-brief.md` — checks the SQL and the harness (`tests/policies`)
+against this file for leaks, and Alex gives this file their own read. Every rule has
+an ID (V1–V12), and §16 maps each rule to the SQL that enforces it and the harness
+cases (P01–P47) that prove it. M1.2 (admin) added V12, the draft/dismissed states in
+V11, and cases P38–P47.
 
 Binding sources: `decisions.md` H3 (reciprocal reveal), H6 (honest counts), H7
 (women-only), H9 (block/report), H11 (visibility in the database), Q1, Q3, Q9, and
