@@ -4,7 +4,7 @@ These are binding product rules, not suggestions. They come from the design boar
 and the research assessment. If an implementation seems to require breaking one,
 stop and ask — do not work around it.
 
-Last updated: 18 September 2026.
+Last updated: 18 September 2026 (Phase 1 M1.2).
 
 ---
 
@@ -139,7 +139,7 @@ profile.
 
 - **Test 0 identity.** Web visitors use Supabase anonymous sign-in, so every session
   has a real JWT and RLS applies identically to web and app (H11). The Worker uses
-  `service_role` only for admin, cron and the Ticketmaster import — never to read
+  `service_role` only for admin, cron, the Ticketmaster import and the AI discovery run — never to read
   people on behalf of a visitor. `people.auth_user_id` stays nullable.
 - **Admin** sits behind Cloudflare Access. There is no admin table.
 - **"Suggest a gathering"** is a mailto link. Nothing is stored.
@@ -157,3 +157,28 @@ profile.
   but not yet set up in Cloudflare or the Worker. The switch happens at M1.6
   (threshold email) or the first public crowd page, whichever comes first. No work
   on it before then.
+- **Gathering sourcing** (Alex, Phase 1 M1.2). Gatherings are not typed in by hand.
+  They arrive as **drafts** from three sources: a nightly Ticketmaster Discovery API
+  import (M1.3); a weekly AI discovery run — Claude with web search — for free and
+  non-Ticketmaster events such as festivals, markets, run clubs and club nights
+  (M1.4); and manual entry, as a fallback only. AI vets and scores every draft with a
+  one-line reason. Alex publishes a handful per week with one click. **Publishing
+  selectively is deliberate: pins must concentrate so crowds reach 5.** A draft is
+  published, dismissed or merged into a duplicate found by another source; an
+  importer never changes a gathering's status, and a dismissed or merged event is
+  never re-created by a later import.
+- **Meeting spots stay curated** (Alex, Phase 1 M1.2). AI proposes 3 spots per venue;
+  Alex approves or edits each one before it exists. **A gathering cannot be published
+  until its venue has 3 approved spots** — enforced in the database. At publish the
+  spot poll gets the venue's first 3 spots, each defaulting to start time minus 60
+  minutes, editable.
+- **Unpublishing** (Alex, Phase 1 M1.2) is allowed only while a gathering has zero
+  pins. Enforced in the database.
+- **Pin-in button for free events** (Alex, Phase 1 M1.2). Ticketed gatherings keep
+  "Pin in — I've got a ticket". Gatherings with `is_free = true` use **"Pin in — I'm
+  going"**. The crowd-page milestone implements it.
+- **Admin CSV export** (Alex, Phase 1 M1.2) has one row per pin and never includes
+  contact details or gender.
+- **Venue map images are public** (Alex, Phase 1 M1.2), in their own public bucket
+  `venue-maps`, uploaded by admin only. They show a public building and its public
+  spots, never a person (H1). Pin photos stay private (V6).

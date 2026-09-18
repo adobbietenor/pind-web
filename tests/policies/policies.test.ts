@@ -1,7 +1,7 @@
 // Policy harness — Phase 1 M1.1. Run with `npm run test:policies`.
 //
 // Every case is an approved "X CAN / X CANNOT" pair from docs/visibility.md, numbered
-// P01–P37, with the rule it proves (V1–V11). Each person queries with their own
+// P01–P47, with the rule it proves (V1–V12). P38–P47 arrive with M1.2 (admin). Each person queries with their own
 // session through the same REST and Storage APIs the Worker uses, so what passes
 // here is what RLS lets through. The service key only builds and sweeps the world.
 //
@@ -11,7 +11,7 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEnv } from "./env.ts";
-import { BUCKET, PNG, buildWorld, handleFor, newClient, sweep, type Member, type World } from "./world.ts";
+import { ACTOR, BUCKET, MAPS, PNG, buildWorld, handleFor, newClient, sweep, type Member, type World } from "./world.ts";
 
 interface Result {
   data: any;
@@ -576,5 +576,206 @@ describe("After the gathering — V1 (list closes 24h after effective end)", () 
     const row = await counts(w.anon, w.P);
     assert.equal(row.pinned, 2);
     assert.equal(row.open_to_meeting, 2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 1 M1.2 — drafts, admin-only data, admin actions (V11, V12)
+// ---------------------------------------------------------------------------
+
+const admin = (fn: string, args: Record<string, unknown>) => w.service.rpc(fn, { ...args, p_actor: ACTOR });
+
+async function readable(client: SupabaseClient, gathering: string): Promise<boolean> {
+  return (await rows(client.from("gatherings").select("id").eq("id", gathering))).length === 1;
+}
+
+describe("Drafts and dismissed gatherings — V11", () => {
+  it("P38 anon and Ava CANNOT read drafts from any source, or a dismissed gathering, or their spot options, links or counts / CAN still read published G", async () => {
+    const hidden = [w.D.ticketmaster, w.D.ai, w.D.manual, w.X, w.Dup, w.Q];
+    for (const client of [w.anon, c(M("Ava"))]) {
+      assert.equal(await readable(client, w.G), true);
+      for (const g of hidden) assert.equal(await readable(client, g), false, `draft ${g} was readable`);
+      assert.equal((await rows(client.from("gathering_spots").select("id").eq("gathering_id", w.D.ai))).length, 0);
+      assert.equal((await rows(client.rpc("gathering_counts", { gathering_ids: hidden }))).length, 0);
+    }
+    assert.equal(await links(c(M("Ava")), w.D.ai, "everyone"), 0);
+  });
+
+  it("P39 Ava CANNOT pin to a draft or a dismissed gathering", async () => {
+    const ava = c(M("Ava"));
+    for (const g of [w.D.ai, w.X]) {
+      await denied(ava.from("pins").insert({ gathering_id: g, person_id: id("Ava"), open_to_meeting: true }), "42501");
+    }
+  });
+});
+
+describe("Admin-only data — V12", () => {
+  const ADMIN_TABLES = [
+    "gathering_sources",
+    "gathering_triage",
+    "spot_suggestions",
+    "venue_aliases",
+    "venue_external_ids",
+    "moderation_log",
+  ];
+
+  it("P40 anon and Ava CANNOT read or write sources, AI scores, spot suggestions, aliases, external ids or the log / CAN read cities, not write them", async () => {
+    for (const client of [w.anon, c(M("Ava"))]) {
+      for (const table of ADMIN_TABLES) await noAccess(client, table);
+      await denied(client.from("spot_suggestions").insert({ venue_id: w.venue2, name: "Sneaky" }), "42501");
+      await denied(client.from("gathering_triage").insert({ gathering_id: w.G, score: 100 }), "42501");
+      const cities = await rows(client.from("cities").select("slug, timezone"));
+      assert.deepEqual(cities.find((r: { slug: string }) => r.slug === "toronto"), { slug: "toronto", timezone: "America/Toronto" });
+      await denied(client.from("cities").insert({ slug: "pindhx", name: "Pindhx", timezone: "UTC" }), "42501");
+    }
+    // A pending suggestion is not a meeting spot: nobody sees "Front Steps" at venue2.
+    const spots = await rows(w.anon.from("meeting_spots").select("name").eq("venue_id", w.venue2));
+    assert.deepEqual(spots.map((r: { name: string }) => r.name).sort(), ["Box Office", "Coat Check"]);
+  });
+
+  it("P41 anon and Ava CANNOT call any admin action", async () => {
+    const calls: [string, Record<string, unknown>][] = [
+      ["admin_publish_gathering", { p_gathering: w.D.ai, p_actor: "x" }],
+      ["admin_unpublish_gathering", { p_gathering: w.G, p_actor: "x" }],
+      ["admin_dismiss_gathering", { p_gathering: w.D.ai, p_actor: "x" }],
+      ["admin_restore_gathering", { p_gathering: w.X, p_actor: "x" }],
+      ["admin_merge_gatherings", { p_loser: w.Dup, p_survivor: w.G, p_actor: "x" }],
+      ["admin_set_photo_status", { p_person: id("Eve"), p_photo_path: M("Eve").photoPath, p_status: "approved", p_actor: "x" }],
+      ["admin_unhide_person", { p_person: id("Ivy1"), p_actor: "x" }],
+      ["admin_keep_hidden", { p_person: id("Ivy1"), p_actor: "x" }],
+      ["admin_hide_person", { p_person: id("Ben"), p_actor: "x" }],
+      ["admin_dismiss_reports", { p_person: id("c5m2"), p_actor: "x" }],
+      ["admin_delete_pin", { p_pin: w.pin["Ben@G"], p_actor: "x" }],
+      ["admin_approve_spot", { p_suggestion: w.venue2, p_name: "x", p_description: "x", p_actor: "x" }],
+      ["admin_reject_spot", { p_suggestion: w.venue2, p_actor: "x" }],
+    ];
+    for (const client of [w.anon, c(M("Ava"))]) {
+      for (const [fn, args] of calls) await denied(client.rpc(fn, args), "42501");
+    }
+    assert.equal(await readable(w.anon, w.D.ai), false, "a draft got published");
+    assert.equal(await seesPeople(c(M("Ava")), "Ben"), 1, "Ben got hidden");
+  });
+});
+
+describe("Publishing rules — decisions Part 5 (enforced in the database)", () => {
+  it("P42 the database REFUSES to publish at a venue with 2 approved spots, even with the service key / publishes once a 3rd is approved, poll at start minus 60 min / unpublish works at zero pins, REFUSED at G with pins", async () => {
+    const refused = await w.service.rpc("admin_publish_gathering", { p_gathering: w.Q, p_actor: ACTOR });
+    assert.match(refused.error?.message ?? "", /3 approved meeting spots/);
+    await denied(w.service.from("gatherings").update({ published_at: new Date().toISOString() }).eq("id", w.Q), "23514");
+    assert.equal(await readable(w.anon, w.Q), false);
+
+    // Approve venue2's pending suggestion, edited: now 3 approved spots.
+    const suggestion = await ok(w.service.from("spot_suggestions").select("id").eq("venue_id", w.venue2).single());
+    await ok(admin("admin_approve_spot", { p_suggestion: suggestion.id, p_name: "Front Steps (south)", p_description: "" }));
+    await ok(admin("admin_publish_gathering", { p_gathering: w.Q }));
+    assert.equal(await readable(w.anon, w.Q), true);
+    const q = await ok(w.service.from("gatherings").select("starts_at, status").eq("id", w.Q).single());
+    assert.equal(q.status, "published");
+    const options = await rows(w.anon.from("gathering_spots").select("meet_at").eq("gathering_id", w.Q));
+    assert.equal(options.length, 3);
+    for (const o of options) assert.equal(Date.parse(o.meet_at), Date.parse(q.starts_at) - 60 * 60 * 1000);
+
+    await ok(admin("admin_unpublish_gathering", { p_gathering: w.Q }));
+    assert.equal(await readable(w.anon, w.Q), false);
+    const g = await admin("admin_unpublish_gathering", { p_gathering: w.G });
+    assert.match(g.error?.message ?? "", /pinned in/);
+    assert.equal(await readable(w.anon, w.G), true);
+
+    // Already started: refused.
+    const past = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} past-draft`, starts_at: new Date(Date.now() - 3600_000).toISOString(), venue_id: w.venue })
+        .select("id")
+        .single(),
+    );
+    assert.match((await admin("admin_publish_gathering", { p_gathering: past.id })).error?.message ?? "", /already started/);
+  });
+
+  it("P43 merging the AI duplicate into G moves its source record to G and hides it / a published gathering CANNOT be merged away / dismiss and restore work on a draft", async () => {
+    await ok(admin("admin_merge_gatherings", { p_loser: w.Dup, p_survivor: w.G }));
+    const dup = await ok(w.service.from("gatherings").select("status, merged_into_id").eq("id", w.Dup).single());
+    assert.deepEqual(dup, { status: "dismissed", merged_into_id: w.G });
+    const src = await ok(
+      w.service.from("gathering_sources").select("gathering_id").eq("external_id", `pindhx-${w.run}-dup`).single(),
+    );
+    assert.equal(src.gathering_id, w.G);
+    const g = await ok(w.service.from("gatherings").select("event_url").eq("id", w.G).single());
+    assert.equal(g.event_url, "https://example.com/pindhx-dup", "survivor's blank link filled from the duplicate");
+    assert.equal(await readable(w.anon, w.Dup), false);
+    assert.match((await admin("admin_restore_gathering", { p_gathering: w.Dup })).error?.message ?? "", /unmerged/);
+    assert.ok((await admin("admin_merge_gatherings", { p_loser: w.G, p_survivor: w.D.ai })).error, "merged a published gathering away");
+
+    await ok(admin("admin_dismiss_gathering", { p_gathering: w.D.manual }));
+    assert.equal((await ok(w.service.from("gatherings").select("status").eq("id", w.D.manual).single())).status, "dismissed");
+    await ok(admin("admin_restore_gathering", { p_gathering: w.D.manual }));
+    assert.equal((await ok(w.service.from("gatherings").select("status").eq("id", w.D.manual).single())).status, "draft");
+    assert.ok((await admin("admin_dismiss_gathering", { p_gathering: w.G })).error, "dismissed a published gathering");
+
+    const log = await rows(w.service.from("moderation_log").select("action").eq("actor", ACTOR));
+    for (const action of ["merge", "dismiss", "restore", "publish", "unpublish", "spot_approve"]) {
+      assert.ok(log.some((r: { action: string }) => r.action === action), `no ${action} in the moderation log`);
+    }
+  });
+});
+
+describe("Venue maps — V12 (public bucket, admin-written)", () => {
+  it("P44 anon CAN load a venue map by its public URL / Ava CANNOT upload, overwrite or delete one", async () => {
+    const path = `${w.venue}/map.png`;
+    await ok(w.service.storage.from(MAPS).upload(path, PNG, { contentType: "image/png" }), "service upload");
+    const url = w.anon.storage.from(MAPS).getPublicUrl(path).data.publicUrl;
+    const res = await fetch(url);
+    assert.equal(res.status, 200);
+    assert.equal(Buffer.from(await res.arrayBuffer()).equals(PNG), true);
+
+    const ava = c(M("Ava"));
+    await denied(ava.storage.from(MAPS).upload(`${w.venue}/evil.png`, PNG, { contentType: "image/png" }));
+    await denied(ava.storage.from(MAPS).upload(path, PNG, { contentType: "image/png", upsert: true }));
+    await ava.storage.from(MAPS).remove([path]);
+    const still = await ok(w.service.storage.from(MAPS).list(w.venue));
+    assert.ok(still.some((f: { name: string }) => f.name === "map.png"), "Ava deleted the map");
+  });
+});
+
+describe("Moderation actions — V6, V8, V10 after admin review", () => {
+  it("P45 admin unhides Ivy1: Ava CAN see her again, Cal still CANNOT, her reports are dismissed / Hide now hides her again", async () => {
+    const before = (await counts(w.anon, w.G)).open_to_meeting;
+    await ok(admin("admin_unhide_person", { p_person: id("Ivy1"), p_note: "pindhx review" }));
+    assert.equal(await seesPeople(c(M("Ava")), "Ivy1"), 1);
+    assert.equal(await seesPeople(c(M("Cal")), "Ivy1"), 0);
+    assert.equal((await counts(w.anon, w.G)).open_to_meeting, before + 1);
+    const reports = await rows(w.service.from("reports").select("status").eq("target_person_id", id("Ivy1")));
+    assert.ok(reports.length > 0 && reports.every((r: { status: string }) => r.status === "dismissed"));
+
+    await ok(admin("admin_hide_person", { p_person: id("Ivy1") }));
+    assert.equal(await seesPeople(c(M("Ava")), "Ivy1"), 0);
+    await ok(admin("admin_keep_hidden", { p_person: id("Ivy1") }));
+    assert.ok((await admin("admin_dismiss_reports", { p_person: id("Ivy1") })).error, "dismissed reports on a hidden person");
+  });
+
+  it("P46 approving Eve's photo lets Ava get it; a stale photo path is REFUSED / rejecting hides it again", async () => {
+    const eve = M("Eve");
+    await cannotSign(c(M("Ava")), eve.photoPath);
+    const stale = await admin("admin_set_photo_status", {
+      p_person: eve.personId,
+      p_photo_path: `${eve.authId}/old.png`,
+      p_status: "approved",
+    });
+    assert.ok(stale.error, "approved a photo the admin never saw");
+    await cannotSign(c(M("Ava")), eve.photoPath);
+    await ok(admin("admin_set_photo_status", { p_person: eve.personId, p_photo_path: eve.photoPath, p_status: "approved" }));
+    await canSign(c(M("Ava")), eve.photoPath);
+    await ok(admin("admin_set_photo_status", { p_person: eve.personId, p_photo_path: eve.photoPath, p_status: "rejected" }));
+    await cannotSign(c(M("Ava")), eve.photoPath);
+  });
+
+  it("P47 admin deletes Nia's pin at G: Ava CANNOT see Nia or her pin / Nia's person row stays / the deletion is logged", async () => {
+    assert.equal(await seesPeople(c(M("Ava")), "Nia"), 1);
+    await ok(admin("admin_delete_pin", { p_pin: w.pin["Nia@G"], p_note: "pindhx on request" }));
+    assert.equal(await seesPeople(c(M("Ava")), "Nia"), 0);
+    assert.equal(await seesPins(c(M("Ava")), "Nia", w.G), 0);
+    assert.ok(await serviceRow("people", "id", id("Nia"), "id"));
+    const log = await rows(w.service.from("moderation_log").select("pin_id").eq("action", "pin_delete").eq("actor", ACTOR));
+    assert.ok(log.some((r: { pin_id: string }) => r.pin_id === w.pin["Nia@G"]));
   });
 });

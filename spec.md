@@ -31,9 +31,13 @@ Two versions of this exist:
 ## 1 · Core objects and lifecycles
 
 ### gathering
-A real public event. Imported from the Ticketmaster Discovery API or entered by hand
-(teams, festivals, club nights). Fields: name, starts_at, `ends_at` (nullable), venue,
-ticket_url, a static map image showing the venue and its meeting spots, `featured` flag.
+A real public event. Arrives as a **draft** from the nightly Ticketmaster import, the
+weekly AI discovery run, or manual entry (fallback), and is public only once admin
+publishes it (decisions Part 5, "Gathering sourcing"). Fields: name, starts_at,
+`ends_at` (nullable), venue, `event_url` (tickets or event info; optional), `is_free`,
+`featured` flag, status (draft / published / dismissed). The static map image showing
+the venue and its meeting spots belongs to the **venue**. Venues have a city (Toronto
+now; Vancouver and Montreal possible).
 
 **Effective end** = `ends_at`, or `starts_at + 180 minutes` when `ends_at` is null.
 Admin can set `ends_at` per gathering; festival days and club nights get it set by
@@ -155,7 +159,8 @@ Public, no account, shareable. Contains:
   1. Meet in public — named spots only, before the event.
   2. You see people only after they can see you.
   3. Leave any time. Block & report are one tap away.
-- Primary action: **"Pin in — I've got a ticket"**
+- Primary action: **"Pin in — I've got a ticket"**; for free gatherings, **"Pin in —
+  I'm going"** (§5)
 - Footnote: names and photos unlock after you pin in and opt to meet
 - Footer: block · report · leave any time · 19+
 
@@ -225,9 +230,13 @@ Optionally adds an email or phone to receive the crews-open message.
 
 ### Also required, not a board screen
 - **`/spot` share page** — read-only: gathering, spot, time. No names, no join link.
-- **Admin** — behind Cloudflare Access (no admin table). Create a gathering (name,
-  date, optional end time, venue, 3 spots, ticket link, map image),
-  paste WhatsApp group links, view pins and opt-ins, export CSV, delete a pin on request.
+- **Admin** — behind Cloudflare Access, and the Worker verifies the Access token on
+  every admin request (no admin table). Draft queue (source, AI score and reason;
+  publish / dismiss / merge / edit), gathering edit (times, venue, event link, free,
+  spot-poll times, main and women-only WhatsApp links), manual add as a fallback,
+  venues with their spots and map image, approve or edit AI-suggested spots, per-gathering
+  counts and pins, photo approval queue, reports and hidden people, delete a pin on
+  request, CSV export (no contact details, no gender).
 
 ---
 
@@ -371,7 +380,8 @@ Universal links open a crowd URL in the app when installed, the web page when no
 
 - Tagline: "Know where you're headed, find what you're looking for."
 - One-liner: "See who's going, meet them there."
-- Primary action: **"Pin in — I've got a ticket"**
+- Primary action: **"Pin in — I've got a ticket"**. For gatherings with `is_free = true`:
+  **"Pin in — I'm going"** (Alex, Phase 1 M1.2).
 - Threshold explanation: "Crews open when 5 people opt in."
 - The three house rules, verbatim, on every crowd surface (see T2).
 - Never use the phrase "not a dating app" in user-facing copy except the single
@@ -402,7 +412,12 @@ Universal links open a crowd URL in the app when installed, the web page when no
   **Developer review by Max's team is pending** (`docs/m1.1-review-brief.md`). It is
   **not** a blocker for building. It is a gate before any real crowd sees each other
   (T6 with real people). Fixes from the review come as new migrations.
-- **Next milestone: M1.2, the admin page.**
+- **Phase 1 M1.2 in progress** (branch `phase1/m1.2-admin`): admin, draft queue, venues
+  and moderation.
+- **For M1.3 (Ticketmaster import), recorded now (Alex, M1.2):** the importer must detect
+  date or status changes (cancelled, postponed, rescheduled) on **published**
+  gatherings and flag them in the admin for Alex. It never changes a published
+  gathering silently.
 - **Open, to be decided in their own milestones:** T5 new-device sign-in (Supabase Auth email sign-in
   linked to the anonymous user, or a narrow service-key exception); T10 +1 claim;
   the anonymous sign-in per-IP rate limit when the Worker signs visitors in (T3).

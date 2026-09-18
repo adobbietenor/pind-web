@@ -4,6 +4,8 @@
 //   - auth users:   email "pindhx-…@example.com", or (anonymous) user_metadata.harness = "pindhx"
 //   - people:       instagram_handle "pindhx_…"
 //   - gatherings, venues: name "pindhx …"
+//   - venue maps:   venue-maps/<harness venue id>/…
+//   - moderation log rows: actor "pindhx@example.com"
 // Nothing else in staging is touched.
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -12,6 +14,9 @@ import type { HarnessEnv } from "./env.ts";
 
 export const PREFIX = "pindhx";
 export const BUCKET = "photos";
+export const MAPS = "venue-maps";
+// The admin identity the harness acts as when it calls admin_* functions.
+export const ACTOR = `${PREFIX}@example.com`;
 
 // A 1×1 PNG.
 export const PNG = Buffer.from(
@@ -61,6 +66,12 @@ export interface World {
   C5: string; // counts: 5 open, only women and men
   C6: string; // counts: 6 open, two neither woman nor man
   gs: string[]; // G's three spot options
+  // M1.2 — drafts and admin
+  venue2: string; // only 2 approved spots, 1 pending suggestion: cannot publish there
+  D: { ticketmaster: string; ai: string; manual: string }; // drafts, one per source
+  X: string; // dismissed draft
+  Dup: string; // draft duplicate of G, found by AI — merged into G in P43
+  Q: string; // draft at venue2, 12 days out — the publish-rule case (P42)
   m: Record<string, Member>;
   pin: Record<string, string>; // "Dev@G" → pin id
 }
@@ -109,10 +120,17 @@ export async function sweep(service: SupabaseClient): Promise<void> {
 
   const venues = await must(service.from("venues").select("id").like("name", `${PREFIX} %`), "sweep: find venues");
   const venueIds = venues.map((v: { id: string }) => v.id);
+  for (const id of venueIds) {
+    const { data } = await service.storage.from(MAPS).list(id);
+    if (data?.length) await service.storage.from(MAPS).remove(data.map((f) => `${id}/${f.name}`));
+  }
+  // Aliases, external ids and spot suggestions cascade with their venue.
   if (venueIds.length) {
     await must(service.from("meeting_spots").delete().in("venue_id", venueIds), "sweep: meeting spots");
     await must(service.from("venues").delete().in("id", venueIds), "sweep: venues");
   }
+
+  await must(service.from("moderation_log").delete().eq("actor", ACTOR), "sweep: moderation log");
 
   for (const id of authIds) {
     const { error } = await service.auth.admin.deleteUser(id);
@@ -221,7 +239,13 @@ async function pinIn(w: World, name: string, gathering: string, key: string, ope
   w.pin[`${name}@${key}`] = row.id;
 }
 
-async function gathering(w: World, label: string, startsInDays: number, published: boolean): Promise<string> {
+async function gathering(
+  w: World,
+  label: string,
+  startsInDays: number,
+  published: boolean,
+  extra: Record<string, unknown> = {},
+): Promise<string> {
   const row = await must(
     w.service
       .from("gatherings")
@@ -230,6 +254,7 @@ async function gathering(w: World, label: string, startsInDays: number, publishe
         starts_at: inDays(startsInDays),
         venue_id: w.venue,
         published_at: published ? new Date().toISOString() : null,
+        ...extra,
       })
       .select("id")
       .single(),
@@ -405,6 +430,57 @@ async function populate(env: HarnessEnv, service: SupabaseClient): Promise<World
   await must(
     service.from("outbound_messages").insert({ gathering_id: w.G, person_id: ben, kind: "threshold", channel: "email" }),
     "outbound message",
+  );
+
+  // M1.2 — drafts from each source, a dismissed draft, a duplicate, and a venue that
+  // cannot take a published gathering yet.
+  w.venue2 = (
+    await must(service.from("venues").insert({ name: `${PREFIX} ${w.run} Hall` }).select("id").single(), "venue2")
+  ).id;
+  await must(
+    service.from("meeting_spots").insert(["Box Office", "Coat Check"].map((name) => ({ venue_id: w.venue2, name }))),
+    "venue2 spots",
+  );
+  await must(
+    service.from("spot_suggestions").insert({ venue_id: w.venue2, name: "Front Steps", reason: "pindhx suggestion" }),
+    "venue2 suggestion",
+  );
+  await must(service.from("venue_aliases").insert({ venue_id: w.venue2, alias: `${PREFIX} ${w.run} The Hall` }), "alias");
+  await must(
+    service.from("venue_external_ids").insert({ venue_id: w.venue2, source: "ticketmaster", external_id: `${PREFIX}-${w.run}-v2` }),
+    "venue external id",
+  );
+  w.D = {
+    ticketmaster: await gathering(w, "D-tm", 11, false, { source: "ticketmaster" }),
+    ai: await gathering(w, "D-ai", 11, false, { source: "ai", is_free: true }),
+    manual: await gathering(w, "D-manual", 11, false, { source: "manual" }),
+  };
+  w.X = await gathering(w, "X", 11, false, { source: "ai", dismissed_at: new Date().toISOString() });
+  w.Dup = await gathering(w, "Dup", 7, false, { source: "ai", event_url: "https://example.com/pindhx-dup" });
+  w.Q = await gathering(w, "Q", 12, false, { venue_id: w.venue2 });
+  await must(
+    service.from("gathering_sources").insert([
+      { gathering_id: w.D.ticketmaster, source: "ticketmaster", external_id: `${PREFIX}-${w.run}-tm1`, urls: ["https://example.com/tm1"] },
+      { gathering_id: w.D.ai, source: "ai", urls: ["https://example.com/ai1"] },
+      { gathering_id: w.Dup, source: "ai", external_id: `${PREFIX}-${w.run}-dup`, urls: ["https://example.com/dup"] },
+    ]),
+    "gathering sources",
+  );
+  await must(
+    service.from("gathering_triage").insert([
+      { gathering_id: w.D.ai, score: 72, reason: "pindhx: free market, big crowd" },
+      { gathering_id: w.Dup, score: 60, reason: "pindhx: duplicate" },
+    ]),
+    "triage",
+  );
+  // A draft may already have spot options chosen; they stay private until publish.
+  await must(
+    service.from("gathering_spots").insert({ gathering_id: w.D.ai, spot_id: spots[0].id, meet_at: inDays(11) }),
+    "draft spot option",
+  );
+  await must(
+    service.from("gathering_group_links").insert({ gathering_id: w.D.ai, kind: "everyone", url: "https://chat.whatsapp.com/pindhx-draft" }),
+    "draft group link",
   );
 
   return w;
