@@ -22,9 +22,11 @@ open: a **crew** is 3–8 people who agree a **curated public spot** and a time 
 the event, meet there, and go in together. Afterwards they confirm they met and can
 choose to keep in touch. The company never hosts or attends (H10).
 
-Two versions of this exist:
-- **Test 0** — mobile web pages plus a WhatsApp group per gathering. No accounts, no app.
-- **iOS app** — the same journey, owned end to end.
+One product (Alex, revised build plan, 18 Sept 2026; `docs/build-plan.md`):
+- **The product** — built once in Expo for iOS and web (screens A1–A29). The web build
+  is the complete product, not a preview; the first real crowds run on it.
+- **The public web layer** — the Worker's fast public pages (W1–W4, §2) that a Reddit
+  or Discord link lands on, leading into the product.
 
 ---
 
@@ -32,15 +34,22 @@ Two versions of this exist:
 
 ### gathering
 A real public event. Arrives as a **draft** from the nightly Ticketmaster import, the
-weekly AI discovery run, or manual entry (fallback), and is public only once admin
-publishes it (decisions Part 5, "Gathering sourcing"). Fields: name, starts_at,
+weekly Community & free run (M4.4), or manual entry (fallback), and is public only once
+it is published — by the auto-publisher (§8) or by Alex (decisions Part 5, "Gathering
+sourcing"). Fields: name, starts_at,
 `ends_at` (nullable), venue, `event_url` (tickets or event info; optional), `is_free`,
-`featured` flag, status (draft / published / dismissed / withdrawn). **Withdrawn**
+`featured` flag, status (draft / published / dismissed / withdrawn),
+`publish_mark` (null / publish / never — Alex's marks for the auto-publisher, §8), and
+`review_only` (boolean, default false). A **review-only** gathering exists only for
+App Review: it is visible only to review-only people and admin, and never appears in
+lists, counts or the digest. Nothing in it is ever visible to a real person, so H6
+holds (decisions Part 5, "Review-only gatherings"). **Withdrawn**
 (Alex, M1.3) applies only to a published gathering that is off — cancelled, postponed,
 a takedown request or other — even with pins: it leaves every public list, pins are
 kept, and pinned people see a short neutral notice ("This gathering is no longer on
 Pin'd. Your pin is kept; there's nothing you need to do.") instead of a dead page.
-The static map image showing the venue and its meeting spots belongs to the **venue**. Venues have a city (Toronto
+The map showing the venue and its meeting spots belongs to the **venue**: generated
+from their coordinates, with an uploaded image as an optional override. Venues have a city (Toronto
 now; Vancouver and Montreal possible).
 
 **Effective end** = `ends_at`, or `starts_at + 180 minutes` when `ends_at` is null.
@@ -59,24 +68,50 @@ Derived counts:
 - Crews forming.
 
 ### person
-Self-declared `gender`: woman / man / nonbinary / undisclosed. Collected at T3 and A2.
+**Anonymous person:** created at quick pin (A26) with a first name and the 19+
+attestation, as a Supabase anonymous user. It becomes **permanent at opt-in** (A27) by
+linking an email (one-time code), Apple or Google identity; the id never changes, so
+the pin survives. A person who never opts in is deleted with their last pin.
+Date of birth, gender and the face photo are collected at opt-in (A27) on the link
+path, and at A2 on the store path.
+Self-declared `gender`: woman / man / nonbinary / undisclosed.
 `include_in_women_only` (default false) is offered **only** to nonbinary people; when
-set, they are eligible for women-only crews and the women-only WhatsApp group.
+set, they are eligible for women-only crews.
 Gender is a protected attribute: its purpose is stated in the privacy policy, and it
 is **never shown on a profile** or anywhere per-person — it appears only in the
-aggregate mix chip and in women-only eligibility.
+aggregate mix chip and in women-only eligibility (crews, and solo's "women only").
 Date of birth is used for the 19+ check, then only the year is kept.
+`hidden_from_solo` (default false): set at insert by **any** report on the person,
+whatever the reason; it removes them from every solo list (§1 block / report).
+**Instagram handle** (Alex, revised build plan): optional on the profile, never
+required, and never a substitute for the face photo. Visible **only** to the person's
+crewmates, their solo-plan partner and their connections — never on the "going & open
+to meeting" list, never on any public page, never in link previews (H2, and solo's
+mutual accept). Enforced in the database with harness cases when the profile is built
+(M3.1; `docs/visibility.md`, pending rule V17).
 
 ### pin
 A person saying they are going. Fields: gathering, person, `party_total` (integer
-1–10, default 1), `open_to_meeting` boolean, created_at.
+1–10, default 1), `open_to_meeting` boolean, `solo_opt_in` boolean (default false),
+`solo_visibility` (everyone | women_only; chosen on the solo opt-in sheet, A28),
+created_at.
 The UI offers alone / +1 / +2 / a group (enter a number); all map to `party_total`.
+`open_to_meeting` requires a permanent identity and a submitted photo (A27); a pin
+without them still counts in N pinned.
 A +1 never counts toward "open to meeting" or the threshold, and never appears in the
-reciprocal list until they claim (Q1, T10).
+reciprocal list. There is no claim page: a +1 who wants to be seen pins in themselves
+through the share link (Q1).
 A pin can be edited or removed by its owner at any time.
 Deleted 30 days after the gathering's effective end.
 
 ### crew
+`kind`: **crew** (the default) or **solo**. Everything below about sizes — "3–8",
+"locks at 3", requests, sibling crews — applies to `kind = 'crew'`. A **solo plan**
+(`kind = 'solo'`) has exactly 2 seats, is created by an accepted proposal (below),
+takes no join requests, and is invisible to everyone but its two members. It inherits
+every state, the thread, "I'm here" and the confirmations unchanged (decisions Part 1,
+decided exception). A person may be in one crew and one solo plan at the same gathering.
+
 States: **forming → spot set → live → done**, or **forming → dissolved**.
 - `forming` — created by one person; visible to others as joinable. No spot or time
   agreed yet. Any member may propose. Cannot move to `spot set` until it has 3
@@ -92,7 +127,7 @@ States: **forming → spot set → live → done**, or **forming → dissolved**
 `starts_at` auto-dissolves; its members get one notification (A18 #3) pointing at the
 other crews on that gathering. Only `forming` crews dissolve. `dissolved` is terminal
 and the row is kept, never deleted — reports on it survive, and the rate at which
-crews fail to form is a Test 0 metric. Dissolved crews disappear from A10 and the
+crews fail to form is a beta metric (§7). Dissolved crews disappear from A10 and the
 crowd page; they stay visible to their own members and to admin.
 
 **Capacity counts bodies:** a member may bring at most one +1, so a member occupies
@@ -103,6 +138,13 @@ person has not left. Leaving a crew, or its dissolving, frees the person to join
 At 8/8 a request offers a prefilled **sibling crew**, same spot, 15 minutes later (Q5).
 A crew may be flagged **women-only**: open to `gender = woman` plus anyone with
 `include_in_women_only` set, and invisible to everyone else (H7).
+
+### proposal
+How a solo plan starts (A29). Fields: gathering, from person, to person, spot (from
+the venue's list only), time, preset line (one of five; §5), status: **open →
+accepted / declined / expired**. Accept creates a solo plan; a decline sends nothing
+(as Q4). Limits: 3 open proposals per person per gathering, 1 per pair. Every open
+proposal expires at the gathering's `starts_at`. There is no free-text field.
 
 ### neighbourhood
 A fixed list, in this order: Liberty Village, King West, CityPlace, Fort York, Queen
@@ -135,31 +177,42 @@ stored on the report, set from the reason at insert:
 - **uncomfortable**, **under 19** → `is_safety = true` → the target is auto-hidden
   immediately, pending human review.
 - **not who they said**, **spam** → the target is auto-hidden at two reports.
+Separately, **any** report on a person sets `hidden_from_solo` immediately, whatever
+its reason and independent of `is_safety`.
 A report on a message snapshots the message body at insert, so the report stays
 reviewable for its full 12 months after the thread is deleted.
 
 ---
 
-## 2 · Test 0 — web + WhatsApp (T1–T10)
+## 2 · The public web layer on the Worker (W1–W4)
 
 The dark, on-brand look (Alex, after M1.3): near-black background, purple `#582883`,
 white text, the logo — matching the app and pindscene.com. Mobile-first. Must load in
 under a second inside a Reddit tab and feel legitimate in a fan thread, not like a
-startup. (Previously "white pages"; see decisions Part 5, "Look". Test 0's own
-screens T3–T8 and T10 are superseded by the build direction in decisions Part 5.)
-No account exists anywhere in Test 0; state is carried by a signed session cookie set
-at pin-in, re-establishable by a magic link.
+startup. (Previously "white pages"; see decisions Part 5, "Look".)
+These pages need no account. Everything with a session — pinning in, opting in, the
+reciprocal list, crews — is the Expo product (§3), served from the same host (§4).
+The Test 0 screens T3–T8 and T10 are deleted (decisions Part 5, "Build direction").
+Built in M2.1.
 
 ### T1 — Fan-channel post *(off-product artifact)*
-A native Reddit or Discord post, not an ad. Honest count in the title, one link.
+A native Reddit or Discord post, not an ad. Honest count in the title, one link to W2.
 Example: "Going to Leafs vs Bruins Saturday alone? 23 others are — see who, pick a
 spot, go in together" → the crowd page URL, with "23 pinned · 11 open to meeting".
 The founder answers "is this a dating thing?" in the comments with the house rules.
 
-### T2 — Crowd page, pre-pin
+### W1 — This week's crowds *(landing; was T9)*
+The public browse surface. Grouped by day, **ordered by date, never by size** (Q10).
+Published gatherings: name, venue, time, pin count, and either "crews forming" or
+"crews open at 5"; community gatherings marked. Small counts shown, never hidden,
+including zero. Footer: suggest a gathering (a mailto link, nothing stored) · about · 19+.
+
+### W2 — Crowd page, pre-pin *(was T2)*
 Public, no account, shareable. Contains:
 - Event name, date, time, venue; share and report links
-- The static map: **venue and its 3 meeting spots, never people** (H1)
+- The generated map: **venue and its meeting spots, never people** (H1) — a schematic
+  SVG drawn from the venue's and spots' coordinates (decisions Part 5, "Maps generated
+  automatically"); an uploaded image is an optional override
 - Counts: pinned, open to meeting, gender mix (Women · Men, plus Other when above zero;
   only at 5+ opted in — Q3)
 - **House rules**, verbatim:
@@ -167,94 +220,53 @@ Public, no account, shareable. Contains:
   2. You see people only after they can see you.
   3. Leave any time. Block & report are one tap away.
 - Primary action: **"Pin in — I've got a ticket"**; for free gatherings, **"Pin in —
-  I'm going"** (§5)
+  I'm going"** (§5). It opens the product's quick pin (A26) at `/g/<slug>/pin`. If a
+  signed-in session exists in this browser, a small script swaps the button to
+  "Open"; the page still works with JavaScript off.
 - Footnote: names and photos unlock after you pin in and opt to meet
 - Footer: block · report · leave any time · 19+
+A withdrawn gathering shows a short neutral "no longer on Pin'd" and no counts.
 
-### T3 — Pin-in form
-One screen, no account, no password:
-- First name
-- Photo **or** Instagram handle (Q2)
-- Gender: woman / man / nonbinary / prefer not to say (needed for the women-only group,
-  Q9). Nonbinary additionally offers "include me in women-only groups". Never shown to others.
-- Neighbourhood — optional dropdown from the fixed list (see below)
-- Who's coming: alone / +1 / +2 / a group (enter a number) → `party_total` (Q1)
-- Checkbox: "I'd like to meet up with others going"
-- Email **or** phone — one field, either works (Q8) — for one message when crews open
-- Checkbox: "I'm 19 or older" (H8)
-Copy: visible to others only after they pin in and opt to meet.
+### W3 — Share card (`/g/<slug>/spot`)
+Read-only: gathering, spot, time. No names, no join link.
 
-### T4 — Confirmation
-"You're #14 pinned." Threshold explained plainly, with progress ("4 of 5 opted in ·
-1 to go"). Actions: share this page, add to calendar, edit my pin, **remove my pin**.
+### W4 — Link machinery
+- OG tags and a generated, dark, branded OG image per gathering: event, date, venue,
+  "See who's going, meet them there." **No counts** — a preview is cached at post
+  time and a stale number would be a dishonest one (H6).
+- `/.well-known/apple-app-site-association` with the app's IDs (universal links).
+- An `.ics` route for "add to calendar".
 
-### T5 — Threshold message *(off-product artifact)*
-Sent **once per gathering**, when opt-ins reach 5, to every opted-in pinner, by SMS or
-email depending on what they gave. Contains a magic link that re-establishes the
-session on any device. SMS includes STOP opt-out.
-This and the next-morning survey link are the **only two messages Test 0 sends**.
-
-### T6 — Crowd page, pinned *(reciprocal state)*
-Renders only behind a session that pinned **and** opted in (H3). Adds:
-- "Going & open to meeting" list: first name · neighbourhood · alone/with friends.
-  No tags in Test 0 — tags are app-only. **Never ordered by join time** (Q3). Closes
-  24h after the gathering's effective end; counts stay readable.
-- **Spot poll**: up to 3 curated spots with times and vote counts (H5; Alex, M1.3 — spots
-  are optional to publish and needed when crews open); one vote per
-  person per gathering, changeable
-- "Join the WhatsApp group (14)" — link pasted by admin at threshold
-- At 3+ eligible people opted in (women, plus nonbinary people who opted into
-  women-only): a separate **women-only group** offer, shown only to eligible people.
-  No number is ever displayed with it (Q9, H7)
-- Footer: block · report · remove my pin
-
-### T7 — WhatsApp group *(off-product artifact)*
-One group per gathering (Q9). The company posts **once** — the seed message — and
-leaves. Seed contains: member count and mix, the voted spot and time, house rules
-(public spot only; everyone here pinned in and opted to meet; leave any time;
-block/report on the crowd page), the finding-each-other convention ("first person
-there posts 'I'm here' + what you're wearing"), the share-the-spot link, and
-"We're not attending — have a great night."
-Known cost: phone numbers are visible to all members. This is the app's opening argument.
-
-### T8 — Next-day survey
-Two questions plus a free-text escape hatch:
-1. "Did you meet up with anyone from Pin'd?" — No / 1 or 2 / 3 to 5 / 6 or more
-2. "Would you have gone alone anyway?" — Yes / No / I wasn't going to go at all
-3. "Anything feel off?" (free text, emailed to a human)
-These two questions measure the entire test: did strangers meet, and did Pin'd create
-attendance or only company.
-
-### T9 — This week's crowds *(landing)*
-The only browse surface in Test 0. Grouped by day, **ordered by date, never by size**
-(Q10). 10–20 gatherings over the next 14 days: name, venue, time, pin count, and
-either "crews forming" or "crews open at 5". Small counts shown, never hidden.
-Footer: suggest a gathering (a mailto link, nothing stored) · about · 19+.
-
-### T10 — +1 claim page
-Reached from a share link minted when someone pins with `party_total` > 1 (Q1). The friend adds a
-first name and confirms 19+; no account. They then appear as "Rohan · with Dev".
-Optionally adds an email or phone to receive the crews-open message.
-
-### Also required, not a board screen
-- **`/spot` share page** — read-only: gathering, spot, time. No names, no join link.
-- **Admin** — behind Cloudflare Access, and the Worker verifies the Access token on
-  every admin request (no admin table). Draft queue (source, AI score and reason;
-  publish / dismiss / merge / edit), gathering edit (times, venue, event link, free,
-  spot-poll times, main and women-only WhatsApp links), manual add as a fallback,
-  venues with their spots and map image, approve or edit AI-suggested spots, per-gathering
-  counts and pins, photo approval queue, reports and hidden people, delete a pin on
-  request, CSV export (no contact details, no gender).
+### Admin *(not a board screen)*
+Behind Cloudflare Access, and the Worker verifies the Access token on every admin
+request (no admin table). Draft queue (source, AI score and reason; publish / dismiss /
+merge / edit; "publish" and "never" marks, M2.2), the Publishing panel (M2.2),
+gathering edit (times, venue, event link, free, spot-poll times), manual add as a
+fallback, venues with their spots and map image, approve or edit AI-suggested spots,
+per-gathering counts and pins, photo queue, reports and hidden people, delete a pin on
+request, CSV export (no contact details, no gender), and later the Metrics page (M4.5).
+The gathering edit's **main and women-only WhatsApp link fields are unused leftovers
+from Test 0**: built in M1.2, left in place for now, removed in a later code milestone.
+Moves from workers.dev to `pind.social/admin` in M2.1.
 
 ---
 
-## 3 · iOS app (A1–A25)
+## 3 · The product — Expo for iOS and web (A1–A29)
 
+One codebase for the iOS app and the web build (decisions Part 5, "Build direction").
 Dark mode primary, light mode follows the system setting. Poppins headlines, SF Pro
-body, SF Symbols icons, purple `#582883`. Four tabs: **Crowds · My Events ·
-Connections · Profile**.
+body (system font on the web), SF Symbols icons, purple `#582883`. Four tabs:
+**Crowds · My Events · Connections · Profile**.
 
-### A1–A4 — Onboarding (4 steps, under 90 seconds)
+**Two doors, one product** (Alex, revised build plan):
+- **Link path** (most people at first): crowd page W2 → **A26 quick pin** (~30 s, no
+  account, no photo) → **A27 opt in**, only if they ticked "I'd like to meet up" →
+  one safety sheet → crews or solo. Neighbourhood and tags are optional here, nudged
+  later ("add 3 tags so your crew has something to say").
+- **Store path** (after launch): install → A1–A4 onboarding → this week's crowds → pin
+  in with one tap. The store path keeps A1–A4 as designed.
+
+### A1–A4 — Onboarding, store path (4 steps, under 90 seconds)
 - **A1 sign in** — Continue with Apple / Continue with Google / Email me a code. No
   password path. Three positioning lines on screen one: "19+ · no location permission,
   ever · not a dating app".
@@ -262,10 +274,15 @@ Connections · Profile**.
   (woman / man / nonbinary / prefer not to say; nonbinary is offered "include me in
   women-only crews"; never shown on a profile); **face
   photo required** (Q2) with one line of why: "your crew looks for a face at a patio
-  table". Photo passes the moderation gate before it is visible to anyone.
+  table". Photo passes the automated check (decisions Part 5, "Automated photo
+  moderation") before it is visible to anyone. Optional Instagram handle, never a
+  substitute for the photo, shown only to crewmates, a solo-plan partner and
+  connections (§1 person).
 - **A3 neighbourhood + 3 tags** — neighbourhood from a fixed list, shown instead of
   location ("Pin'd never asks where you are"). Exactly 3 tags from a fixed list. Tags
   are conversation handles, **not match criteria** — there is no matching anywhere.
+  "Exactly 3" defines a complete profile; on the link path neighbourhood and tags are
+  optional and nudged later, never a gate before a pin.
 - **A4 how Pin'd works** — three cards: (1) Pin in; (2) Crews; (3) You're in control
   (leave any time, block & report two taps, no location, no DMs, women-only crews,
   share your crew's spot with a friend). The safety card is part of onboarding, never
@@ -280,7 +297,7 @@ link out, pins, opt-ins, gender mix, crews badge. **No map, no feed, no algorith
 - **A7 populated** — crews badge is the only purple element per row.
 
 ### A8–A10 — Crowd page
-- **A8 pre-pin** — same anatomy as T2 so a shared link feels continuous. Facts, the
+- **A8 pre-pin** — same anatomy as W2 so a shared link feels continuous. Facts, the
   **only map in the app** (venue + named spots, never people, H1), counts, house rules,
   one button: "Pin in — I've got a ticket". Works logged-out via the share link.
 - **A9 pinned, below threshold** — "Open to meeting" toggle; reciprocal list already
@@ -288,8 +305,12 @@ link out, pins, opt-ins, gender mix, crews badge. **No map, no feed, no algorith
   go · we'll push you the moment it happens"); nudge to share the page.
 - **A10 pinned, crews open** — **crews sit above the people list**: the point is joining
   a plan, not browsing people. Each crew card: women-only flag, N/8, spot, time,
-  members, "Request to join". Below: "Going & open to meeting" list. Tapping a person
-  opens A22, **never a chat**.
+  members, "Request to join". **"Put me in a crew"** (Alex, revised build plan; M3.3):
+  one button that places the person in the open crew with the most room, respecting
+  women-only. Below: "Going & open to meeting" list. Tapping a person opens A22,
+  **never a chat**. Below that, the **1-on-1 section** (A29), rendered only for
+  solo-opted people; the crew list is untouched by it. "Get the app" is offered once,
+  here, when crews open.
 
 ### A11–A13, A15, A17 — Crew
 - **A11 forming** — 3/8, spot selection from **the venue's curated list only** ("there
@@ -319,18 +340,26 @@ Per crew member: **"we met"**, then **"keep in touch"** unlocked only once both 
 they met. Ticks invisible until mutual; nobody learns they were ticked and not ticked
 back (Q6). A mutual we-met mints the **"showed up"** badge for both. A mutual
 keep-in-touch creates a connection and offers "Pin in to the next one together".
+The same screen serves a solo plan's two members.
+**One question for everyone who was opted in** (moved from Test 0's T8): "Would you
+have gone alone anyway?" — Yes / No / I wasn't going to go at all. It is the
+**attendance metric** (§7): did Pin'd create attendance, or only company.
 
 ### A18 — Notifications (exactly five)
 1. **Monday 6:00 PM** — this week's crowds digest → A7
 2. **Threshold** — "5 people going to X want to meet up — crews are open" → A10
-3. **Crew status** — formed / spot set / dissolved. Deep-links to the crew, or to the
-   crowd page (A10) when dissolved.
+3. **Plan status** — formed / spot set / dissolved / **gathering date changed or
+   withdrawn** (Alex, revised build plan). Deep-links to the crew, or to the crowd page
+   (A10) when dissolved, changed or withdrawn.
 4. **Day-of, ~3h before** — "Tonight: your crew meets at [spot] at [time] — tap when
    you're there" → A13
 5. **Next morning** — "Did you meet up?" → A16
 
 Nothing else. Never "someone viewed your profile". The rule is five moments, all
 about a plan — a ban on engagement bait, not a count to defend.
+**Every notification is mirrored by email to people without a device token** (web-only
+people), through Resend on pind.social; the digest email has an unsubscribe link.
+SMS is never used (decisions Part 5, "Email delivery", "Notification delivery").
 
 ### A19 — My Events
 Upcoming (pinned, with crew and spot if any; one day-of reminder toggle) and past
@@ -343,11 +372,15 @@ that connections come from crews.
 
 ### A21–A22 — Profile
 - **A21 self** — face, first name + initial, neighbourhood, 3 tags, gatherings count,
-  crews-met count, the **"showed up" badge** (the only badge in Pin'd). Edit profile;
-  preview what others see. No followers, no grids, no bio.
+  crews-met count, the **"showed up" badge** (the only badge in Pin'd), and the
+  optional Instagram handle (add, edit, remove). Edit profile; preview what others
+  see — the preview shows that the handle is visible only to crewmates, a solo-plan
+  partner and connections. No followers, no grids, no bio.
 - **A22 someone else** — visible only reciprocally. Shared context ("you're both pinned
-  to Leafs vs Bruins"). **No message button, no like, no follow** — the absence is the
-  design. "⋯" opens report and block.
+  to Leafs vs Bruins"). The Instagram handle appears **only** when the viewer shares a
+  crew or a solo plan with the person, or is a connection — never from the "going &
+  open to meeting" list alone. **No message button, no like, no follow** — the absence
+  is the design. "⋯" opens report and block.
 
 ### A23 — Safety & settings
 Safety: blocked people, my reports, "women-only crews only" toggle.
@@ -356,6 +389,9 @@ show my neighbourhood. There is no "count me in the gender mix" setting (Alex, P
 M1.1): anyone who doesn't want to be counted as a woman or man chooses "Prefer not to
 say", which counts as Other, so Women + Men + Other always equals the open-to-meeting
 count (Q3).
+"Meet 1-on-1" appears here only as a summary of the per-gathering setting (on at which
+gatherings, and who can see you); it is switched on and off on the pinned crowd page
+(A28), never here.
 Notifications: the five, toggleable.
 Data: export my data, delete account (in-app, required by both stores).
 Note on screen: no location permission exists to manage — the app never asks.
@@ -368,19 +404,82 @@ spam. Confirmation states a human reviews within 24h. Blocking never notifies (H
 ### A25 — Light mode
 Same anatomy and the same purple; light surfaces for daytime browsing.
 
+### A26 — Quick pin *(link path; new)*
+Reached from W2's button at `/g/<slug>/pin`. One screen, no account, no photo:
+- First name
+- Who's coming: alone / +1 / +2 / a group (enter a number) → `party_total` (Q1)
+- Checkbox: "I'd like to meet up with others going" (unticked)
+- Checkbox: "I'm 19 or older" (H8 attestation; the date-of-birth hard stop comes at A27)
+→ pinned, as a Supabase anonymous user; the pin is a real row under RLS. About 30
+seconds. Then: "You're #14 pinned", the threshold with progress ("4 of 5 opted in · 1
+to go"), share this page, add to calendar, edit my pin, remove my pin.
+
+### A27 — Opt in *(link path; new)*
+Only for someone who ticked "meet up" (or turns it on later). One screen more:
+- Date of birth — **under 19 stops here**, no soft fail (H8); only the year is kept
+- Gender: woman / man / nonbinary / prefer not to say; nonbinary is offered "include me
+  in women-only crews"; never shown to others
+- A face photo (Q2), with the automated check and its pending state
+- A way to reach you: email me a code, or Continue with Google (Apple later on the web;
+  in the app, Apple and Google)
+- Optional Instagram handle (§1 person)
+→ the anonymous user becomes permanent with the same id; the pin, party size and
+opt-in survive. Then **one safety sheet** (the link path's version of A4): *crews are
+3–8 people at a public spot before the event; leave any time; block and report are two
+taps away; women-only crews on every gathering.* Accepting the privacy policy and terms
+happens here.
+
+### A28 — Solo opt-in sheet *(new)*
+A second toggle on the **pinned** crowd page, below the crews section, labelled
+**"Meet 1-on-1"** ("solo crew" is the internal name only). Off by default, separate from
+the crew opt-in. Tapping it opens a sheet: what it is, that it is optional, that
+meetings happen only at the venue's public spots, and a **forced choice** of who can
+see you — "everyone who opted in" or "women only" (no default). Never in onboarding,
+never in the digest, never in the store listing or screenshots.
+
+### A29 — Proposals and plan *(new)*
+- **The 1-on-1 section** of the pinned crowd page, below crews, rendered only for
+  solo-opted people: the solo-opted people the database lets you see (§1 pin, decisions
+  Part 1 exception).
+- **A proposal**: a spot from the venue's list, a time, and one of **five preset lines**
+  (§5). No free-text field. The recipient accepts or declines; a decline sends nothing.
+  Limits and expiry as §1 proposal.
+- **The plan card**: on accept, a solo plan (a crew with `kind = 'solo'`) with the same
+  card, thread (A14), "I'm here" (A13) and after-event flow (A16) as a crew.
+- Block and report two taps away; any report removes the person from every solo list
+  immediately.
+
 ---
 
-## 4 · Web surfaces that persist after the app ships
+## 4 · Where things live: Worker, Expo, Postgres
 
-The Test 0 Worker becomes the app's public web layer:
-- Crowd pages (the shareable link pasted into fan channels) — must work for
-  non-users forever, with "open in the app" for those who have it
-- This week's crowds
-- The `/spot` share card
-- The +1 claim page
-- Admin and the moderation queue
+(Alex, revised build plan; `docs/build-plan.md` §2.)
 
-Universal links open a crowd URL in the app when installed, the web page when not.
+**One rule decides the boundary.** If it is public, it is the Worker. If it needs a
+session, it is Expo. If it is time-driven, it is pg_cron in Postgres. If it decides who
+sees whom, it is a policy in Postgres (H11). If it sends anything or calls an AI, it is
+the Worker. Nothing is built twice.
+
+| Surface or job | Lives in | Why there |
+|---|---|---|
+| This week's crowds (W1), the crowd page before you pin (W2), the `/spot` share card (W3), the OG image, the universal-link file, the PindScene.com redirect | **Worker** (HTML from template strings, dark look) | Must load in under a second inside a Reddit tab, work with no account, and be indexable. Reads counts through the anon key and RLS, never the service key. |
+| Admin, draft queue, venues and spots, moderation queues, metrics page, publishing panel | **Worker** behind Cloudflare Access | Built. Moves from workers.dev to pind.social/admin in M2.1. |
+| Nightly Ticketmaster import, AI vetting, auto-publishing fill, the weekly adaptive adjustment, the Community & free discovery run, spot suggestions (M5.2) | **Worker cron** | The Anthropic key already lives there; M1.3b's streaming-and-abort lessons apply to every AI call. |
+| Delivering push and email | **Worker cron** every 5 minutes, reading `notification_queue` | The database decides *what* (a trigger enqueues when opt-ins reach 5, a crew changes state, a date changes); the Worker decides *how* (Expo Push API for devices, Resend for web-only people). One place to retry, one log. |
+| The AI photo check | **Worker endpoint** called by a database webhook on the new photo row | The app uploads and inserts; the check is asynchronous with a pending state (V6); the decision lands in `moderation_log` with actor `ai:photo-check`. |
+| Pin in, opt in, complete profile, photo upload, the reciprocal list, crews, solo, the thread, "I'm here", the morning after, connections, My Events, settings, report and block | **Expo** — iOS app and web build, one codebase | Everything with a session. The web build is the complete product, not a preview: the first real crowds run on it. |
+| Crew live/done/dissolve, thread close and delete, keep-in-touch expiry, pin deletion, Ticketmaster data purge, metrics snapshots | **pg_cron** | Time-driven and keyed off the effective end; no app or Worker code path can forget to run them. |
+| Reciprocity, blocks, women-only, hidden people, solo visibility, review-only gatherings, Instagram handles | **RLS policies** + `private.can_see_at` | H11. The harness is the test suite; the adversarial review is the audit. |
+
+**Hosting the web build.** The Expo web export ships as the Worker's static assets on
+the *same host*. The Worker renders its own routes first (`/`, `/g/<slug>`,
+`/g/<slug>/spot`, `/og/*`, `/admin*`, `/hooks/*`, `/.well-known/*`, `/health`);
+everything else falls through to the app's `index.html` with single-page-app fallback,
+so `/g/<slug>/pin`, `/crew/<id>`, `/me` and the rest are app routes. One domain, one
+`wrangler deploy`, one universal-link file, no CORS, and the shared link is always the
+crowd page. Universal links open a crowd URL in the app when installed, the web page
+when not; Reddit's in-app browser does not always honour them, which is one more reason
+the web build must be the complete product.
 
 ---
 
@@ -391,15 +490,83 @@ Universal links open a crowd URL in the app when installed, the web page when no
 - Primary action: **"Pin in — I've got a ticket"**. For gatherings with `is_free = true`:
   **"Pin in — I'm going"** (Alex, Phase 1 M1.2).
 - Threshold explanation: "Crews open when 5 people opt in."
-- The three house rules, verbatim, on every crowd surface (see T2).
+- The three house rules, verbatim, on every crowd surface (see W2).
 - Never use the phrase "not a dating app" in user-facing copy except the single
   onboarding line at A1. Use crew language everywhere else.
 
+*Each piece marked **Draft** below was written by Claude when the plan was merged and
+is **not final copy**: only the label "Meet 1-on-1" and preset line 1 come from the
+plan, and the withdrawn notice is Alex's (M1.3).*
+- **Solo opt-in sheet** (A28; Alex, revised build plan): toggle label **"Meet 1-on-1"**
+  (final). Sheet — **Draft — Alex and Tatiana to replace before the milestone that
+  ships it (M3.4):** "Meet 1-on-1 is optional. You'll only see — and be seen by —
+  people who also turned it on for this gathering. Meetings happen only at this venue's
+  public spots. Choose who can see you:" → **Everyone who opted in** / **Women only**
+  (the forced choice with no default is decided, not draft).
+- **The five preset lines** for a proposal (A29). Line 1 is from the plan; lines 2–5
+  are **Draft — Alex and Tatiana to replace before the milestone that ships it
+  (M3.4)**; Tatiana writes the final five:
+  1. "Meet at [spot] at [time] and walk in together?"
+  2. "Grab a drink at [spot] at [time] before it starts?"
+  3. "I'll be at [spot] at [time] — want to meet there?"
+  4. "Going alone too — meet at [spot] at [time]?"
+  5. "Quick hello at [spot] at [time], then head in?"
+- **"Get the app"** nudge, shown once, when crews open — **Draft — Alex and Tatiana to
+  replace before the milestone that ships it (M3.2):** "Crews are open. Get the app to
+  hear the moment your crew sets a spot."
+- **Plan status, date change** (A18 #3) — **Draft — Alex and Tatiana to replace before
+  the milestone that ships it (M3.5):** "[Gathering] has moved to [new date and time].
+  Your pin is kept — check your crew's plan." Withdrawn (final; Alex, M1.3): "This
+  gathering is no longer on Pin'd. Your pin is kept; there's nothing you need to do."
+
 ---
 
-## 6 · Open items
+## 6 · Milestones and open items
 
 ### Where we are
+The milestones come from the revised build plan (`docs/build-plan.md` §8, Alex, 18 Sept
+2026). Each is one branch and one Claude Code session with its acceptance list —
+copied from the plan — pasted at the top; it merges when a real phone shows the list
+working. Hours are Alex's, agent-assisted.
+
+| # | Milestone | Status | Hours |
+|---|---|---|---|
+| Phase 0 | Tooling, initial schema | **Done** | — |
+| M1.0 | Worker scaffold | **Done** | — |
+| M1.1 | RLS policies and the policy harness | **Done** | — |
+| M1.2 | Admin | **Done** | — |
+| M1.3 | Nightly Ticketmaster import and AI vetting (+ spots optional to publish) | **Done** | — |
+| **Phase 2** | **The public layer and publishing, on the Worker** | | 18–26 |
+| M2.0 | Repo + Expo scaffold | **Next** | 6–8 |
+| M2.1 | Public web layer on pind.social (W1–W4, generated maps, the domain) | Not started | 8–12 |
+| M2.2 | Auto-publishing v1 — fixed target (§8) | Not started | 4–6 |
+| **Phase 3** | **The product, in Expo** | | 68–96 |
+| M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | Not started | 12–16 |
+| M3.2 | Crowds, pins, the link-path funnel, universal links (A5–A9, A19, A26, A27) | Not started | 12–18 |
+| M3.3 | Crews, the thread, the night, the morning after (A10–A17, A20, "Put me in a crew") | Not started | 20–28 |
+| M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
+| M3.5 | Safety and the five notifications (A18, A23, A24) | Not started | 10–14 |
+| M3.6 | Dogfood on staging | Not started | 6–8 |
+| **Phase 4** | **Before the first real crowd** | | 28–42 |
+| M4.1 | Policy, terms, operations (moderation rota, incident scripts) | Not started | 4–6 |
+| M4.2 | Independent adversarial review of the visibility rules | Not started | 4–8 |
+| M4.3 | Production project (`pind-prod`) + external TestFlight | Not started | 6–8 |
+| M4.4 | Community & free sourcing | Not started | 8–12 |
+| M4.5 | Metrics (§7) + adaptive publishing on (§8) | Not started | 6–8 |
+| — | **The first real crowds** — 6–8 weeks, 2–3 seeded gatherings a week, then a decision meeting against §7 | Not started | ~2/week |
+| **Phase 5** | **The App Store** | | 22–34 |
+| M5.1 | Store readiness (listing, labels, manifest, EULA, review-only gathering) | Not started | 8–12 |
+| M5.2 | M1.3b — automated spots | Not started (code built, switched off) | 10–14 |
+| M5.3 | Submission, rejections, and Android when Alex chooses | Not started | 4–8 |
+
+About 115–165 hours to the first real crowds and 140–200 to the App Store. Apple's
+calendars (Beta App Review, App Review) sit outside those hours. 20 December to
+5 January is dead for crowds: if the first crowds would land then, start them in the
+second week of January. **Six-week rule, first checkpoint:** M3.2 is showable to a
+friend (a link, a pin, a face) before crews exist; if it is more than six weeks away at
+the current pace, raise the hours or shrink the phase.
+
+#### Done
 - **Phase 0 complete** (commit `8f32061`): npm + pinned Supabase CLI, `supabase init`/link
   to pind-staging, `20260918033807_initial_schema.sql` applied — 25 tables, RLS on all,
   no policies, 30 neighbourhoods seeded; spec and decisions updated with Phase 0 answers.
@@ -419,7 +586,7 @@ Universal links open a crowd URL in the app when installed, the web page when no
   sign-ins are on for pind-staging.
   **The independent adversarial review is pending** (`docs/m1.1-review-brief.md`). It
   is **not** a blocker for building. It is a gate before any real crowd sees each
-  other (T6 with real people). Fixes from the review come as new migrations.
+  other (now M4.2). Fixes from the review come as new migrations.
 - **Phase 1 M1.2 complete** (branch `phase1/m1.2-admin`, merged to `main`): the admin.
   Gatherings arrive as drafts from Ticketmaster, the AI run or manual entry; AI vets and
   scores them; Alex publishes a handful per week (decisions Part 5). Four migrations on
@@ -452,11 +619,11 @@ Universal links open a crowd URL in the app when installed, the web page when no
   74 venues created, 740 scored by Claude Sonnet 5 for **$0.77**; a second run created
   no duplicates. `npm run test:policies` 55/55 (P48–P54 new), `npm run test:unit`
   55/55, typecheck clean. Rules: `docs/visibility.md` V13 and §12d; review brief M1.3
-  addendum. **Ready to check on device**: Alex checks tonight's 4am cron run summary
-  in the admin. Decided (Alex, M1.3; detail in decisions Part 5): search 30 km around
+  addendum. Marked done by Alex when the revised build plan was merged (the nightly
+  cron run summary is in the admin). Decided (Alex, M1.3; detail in decisions Part 5): search 30 km around
   the city centre, 8 weeks ahead, with centre and radii on the `cities` row; a calculated distance adjustment to the AI score; event facts
   only, Ticketmaster's data deleted 30 days after effective end; no revenue from
-  Ticketmaster data during Test 0 (any paid feature needs a terms review first); a
+  Ticketmaster data during the beta (any paid feature needs a terms review first); a
   privacy policy before public pages go live; the import filter; Sonnet 5 scoring with
   the approved rubric, a queue fold threshold of 70 (raised from 40 after the first
   run) and a $3/day cap; AI spot suggestions (10 venues
@@ -466,23 +633,34 @@ Universal links open a crowd URL in the app when installed, the web page when no
   Part 5 "Meeting spots"). Migrations `20260918214318_m1_3_spots_optional` and its
   `_fix` on pind-staging; harness 55/55; deployed. The admin flags "crews open, no
   meeting spots".
-- **The build direction changed** (Alex, decisions Part 5 "Build direction"): one
-  Expo product for iOS and web; the Worker keeps admin, the import and AI jobs, and
-  the fast public crowd pages; the WhatsApp-and-email Test 0 is dropped and the first
-  real crowds run on the beta. Also decided, no code yet: scale with no manual work
-  per event and demand-adaptive auto-publishing, automate by default, automated spot
-  pools, generated maps, the dark look, "Put me in a crew", "Solo crew", and
-  "Community & free" sourcing. **Test 0 screens T3–T8 and T10 are superseded, not next
-  work**, until the revised plan is merged here.
-- **Next step: a planning session** that produces the revised build plan. That plan
-  sets the next milestones (it replaces the earlier order: T9/T2, "Community & free",
-  T3/T4).
-- **M1.3b, AI spot suggestions — parked** (split from M1.3 by Alex; not yet
-  scheduled). The code is built but
-  **off** (`AI_SPOT_SUGGESTIONS` in `wrangler.jsonc`, off unless `"on"`; the "Suggest
-  spots now" button is hidden while off). Until then spots are added by hand in the
-  admin; "Venues needing spots" on the draft queue lists where they are needed. What
-  M1.3 learned, measured on 2026-09-18 with Sonnet 5, effort medium, 5 searches max:
+
+#### Notes carried into the next milestones
+- **M3.1 — the photo check** (recorded by Alex in M1.2; decisions Part 5, "Automated
+  photo moderation"). On upload, a Claude vision check auto-approves clear real-person
+  photos, auto-rejects clearly inappropriate ones (the person stays visible without a
+  photo), and sends uncertain cases (possible minor, not a real person, possibly
+  someone else's photo) to the admin photo queue built in M1.2. It never decides
+  "under 19" alone; it only flags for review. Reports and auto-hide stay the backstop.
+  The work: the check itself (database webhook → Worker → Claude vision); each
+  automated decision recorded in `moderation_log` like an admin decision (actor
+  `ai:photo-check`); `docs/visibility.md` V6 updated (today it says a photo shows only
+  after **admin** approves it); the privacy policy states that photos are checked
+  automatically. The Anthropic key is a Worker secret, never committed.
+- **M3.1 — Instagram handles** (Alex, revised build plan): the pending rule V17 in
+  `docs/visibility.md` is enforced in the database with harness cases (crewmate, solo
+  partner and connection can read; the open list, anon and everyone else cannot).
+- **M3.5 — date changes** (decided, Alex, revised build plan): people pinned to a
+  published gathering whose date Alex changes from a flag, or which is withdrawn, get
+  notification 3 ("plan status"). The importer still never changes a published
+  gathering silently; it only flags it (done in M1.3).
+
+#### M5.2 · M1.3b — automated spots: what M1.3 learned
+M1.3b's code is built but **off** (`AI_SPOT_SUGGESTIONS` in `wrangler.jsonc`, off
+unless `"on"`; the "Suggest spots now" button is hidden while off). Until M5.2, spots
+are added by hand in the admin; "Venues needing spots" on the draft queue lists where
+they are needed. The first crowds' venues get their spots by hand (§ "Before the first
+real crowd"). What M1.3 learned, measured on 2026-09-18 with Sonnet 5, effort medium,
+5 searches max:
   - **Timing varies widely:** one call took 43 s (Scotiabank Arena), the same request
     shape took 219 s for BMO Field. With the `web_search_20260209` tool most of the
     time goes into its built-in code-execution filtering step.
@@ -510,58 +688,180 @@ Universal links open a crowd URL in the app when installed, the web page when no
   - Local testing note: on Windows, stopping a background `wrangler dev` did not kill
     its `workerd` children; two local Workers then raced for the run lock. Kill the
     whole process tree (`taskkill /T /F`) between local runs.
-- **Open (Alex, M1.3): people pinned to a published gathering are not told when its
-  date changes.** Applying a new date from a flag updates the page only; Test 0 sends
-  just two messages (T5, T8). Decide before the first real crowd whether a date change
-  needs a message.
-- **Done in M1.3** (recorded by Alex in M1.2): the importer must detect
-  date or status changes (cancelled, postponed, rescheduled) on **published**
-  gatherings and flag them in the admin for Alex. It never changes a published
-  gathering silently.
-- **For the photo step (was T3; under the new direction, the app's required face
-  photo, A2), recorded by Alex in M1.2: automated photo moderation**
-  (decisions Part 5). On upload, a Claude vision check auto-approves clear real-person
-  photos, auto-rejects clearly inappropriate ones (the person stays visible without a
-  photo), and sends uncertain cases (possible minor, not a real person, possibly
-  someone else's photo) to the admin photo queue built in M1.2. It never decides
-  "under 19" alone; it only flags for review. Reports and auto-hide stay the backstop.
-  T3 work: the check itself; each automated decision recorded in `moderation_log`
-  like an admin decision; `docs/visibility.md` V6 updated (today it says a photo shows
-  only after **admin** approves it); the privacy policy states that photos are checked
-  automatically. The Anthropic key is a Worker/Edge Function secret, never committed.
-- **Superseded by the build direction** (were open for Test 0): T5 new-device sign-in
-  (Supabase Auth email sign-in linked to the anonymous user, or a narrow service-key
-  exception); T10 +1 claim; the anonymous sign-in per-IP rate limit when the Worker
-  signs visitors in (T3). The revised plan decides what replaces them.
-- **Deferred** to retention and account deletion (detail below): gathering delete must
-  not cascade pins and survey responses; person delete must not remove confirmations.
 
 ### Before the first real crowd
-All must be true before real people can see each other (now the first beta crowds;
-items that only applied to the WhatsApp Test 0 are marked superseded, not deleted):
-- [ ] pind.social is live (decisions Part 5). *Superseded in part:* "email sending set
-  up on it" was for Test 0's threshold emails; the revised plan decides what messaging
-  the beta needs.
-- [ ] an independent adversarial review of the visibility rules: a fresh Claude Code
-  session with no prior context, tasked only with finding leaks, using
-  `docs/m1.1-review-brief.md` (including its M1.2 and M1.3 sections) as its input
-- [ ] Alex's own read of `docs/visibility.md`
-- [ ] a decision on whether real beta data lives on pind-staging or a production project
-- ~~T5 new-device sign-in is decided~~ — *superseded, not done*: WhatsApp Test 0 only
-  (decisions Part 5, "Build direction")
-- [ ] a decision on whether people pinned to a published gathering get a message when
-  its date changes (open item above, Alex M1.3)
-- [ ] a privacy policy is published covering Ticketmaster data, the automated photo
-  checks and gender (decisions Part 5, Alex M1.3)
+Everything below is a gate before real people can see each other (the build plan's
+§9). Items that only applied to the WhatsApp Test 0 are gone from this list.
+
+**Product safety floor**
+- [ ] 19+ tick at pin; DOB hard stop at opt-in; year only stored
+- [ ] Reciprocal reveal enforced in the database; reciprocity labelled "always on" in settings
+- [ ] No location permission exists in the build (check the app's info.plist and the
+  web build's permissions)
+- [ ] Crews 3–8 at curated spots; no address field anywhere; solo plans only at venue spots
+- [ ] Block and report two taps from every person, crew and message; H9 auto-hide;
+  blocking never notifies
+- [ ] Women-only crews on every gathering; solo "women only" limiter
+- [ ] Photo check live; pending state respected; queue monitored
+- [ ] Instagram handles visible only to crewmates, solo-plan partners and connections (V17)
+- [ ] Delete account and export in-app; house rules verbatim on every crowd surface
+
+**Moderation and incidents**
+- [ ] Reports post to the team channel; a human acts within 24 hours; the rota covers
+  the night (decisions Part 5, "Moderation rota" — pending Tatiana and Jayme)
+- [ ] Incident scripts written and read; the acknowledgement copy in place
+- [ ] The admin shows hidden people, open reports, and the photo queue on one screen
+
+**Privacy and legal**
+- [ ] Privacy policy and terms published, covering Ticketmaster data, photo checks,
+  gender, solo mode, retention
+- [ ] Ticketmaster data purged 30 days after effective end (job proven on staging); no
+  revenue from their data
+- [ ] The lawyer hour on terms and the "we organise nothing" language; incorporation at
+  least started, with the accounts to move to the entity listed
+
+**Visibility review**
+- [ ] The independent adversarial review done (`docs/m1.1-review-brief.md`, including
+  its M1.2, M1.3 and M3 sections); every finding a migration with a harness case
+- [ ] Alex's read of `docs/visibility.md` signed off, including V14–V17
+- [ ] `test:policies` green on production's schema
+
+**Data and infrastructure**
+- [ ] Production Supabase project (`pind-prod`) on Pro; no seed rows; backups on
+- [ ] pind.social live; universal links verified from iMessage and Safari; email
+  delivering from the domain
+- [ ] Sentry on the app and the Worker; the delivery cron's failures visible in the admin
+
+**Content and people**
+- [ ] Spots hand-added for the first crowds' venues (Scotiabank Arena, Rogers Centre,
+  BMO Field, History, Rebel, Massey Hall, Coca-Cola Coliseum, and whichever community
+  venue is first)
+- [ ] At least one community gathering published; five gatherings a week publishing on
+  their own
+- [ ] The fan-channel map and posting rules for the first seeded gatherings; the first
+  two posts drafted (decisions Part 5, "Seeding" — pending Tatiana and Jayme)
+- [x] Pass criteria and the solo rule written into spec.md before the first pin (§7)
 
 ### Deferred cascades
 Deferred to the retention and account-deletion milestone. The initial schema does not
 yet satisfy these; they must be fixed there.
 
-- **Deleting a gathering must not take pins and survey responses with it.** Today
-  `pins`, `survey_responses` (and the other Test 0 rows) cascade on gathering delete.
-  `decisions.md` keeps aggregate counts after pins are deleted, and the Test 0 survey
-  data is the whole point of the test.
+- **Deleting a gathering must not take pins and after-event answers with it.** Today
+  `pins`, `survey_responses` (and the other Test 0-era rows) cascade on gathering
+  delete. `decisions.md` keeps aggregate counts after pins are deleted, and the
+  after-event answers (A16) are the attendance metric (§7).
 - **Deleting a person must not remove their confirmations.** Today `confirmations`
   cascades on person delete, so a crewmate can lose their "showed up" badge because
   someone else left.
+- **Anonymous people are deleted with their pins.** A person who pinned and never
+  opted in (no permanent identity) is deleted with their last pin, 30 days after the
+  gathering's effective end (decisions Part 3).
+
+---
+
+## 7 · Measurement
+
+(Alex, revised build plan; `docs/build-plan.md` §7. Built in M4.5.)
+
+**Source of truth.** SQL views in Postgres over pins, crews, confirmations, check-ins,
+reports and the after-event answer, read by a Metrics page in the admin. Pins are
+deleted 30 days after a gathering, so a pg_cron job writes a `gathering_stats` row at
+the effective end + 24 h and again at + 72 h (after keep-in-touch expiry); the row is
+what survives. PostHog carries the in-app funnel events (page → pin → opt-in → photo
+approved) and Sentry carries crashes on both halves. Nothing about a person's gender
+leaves the aggregate.
+
+**The one number** is **Met** — people who mutually confirmed they met, per week —
+split by mode. Everything else explains it.
+
+| Metric | Crews | Solo | Counted from |
+|---|---|---|---|
+| Opt-in rate | crew-opted ÷ pinned | solo-opted ÷ pinned (and both ÷ pinned) | pins |
+| Opened | gatherings that reached 5 crew opt-ins | gatherings with ≥ 2 solo opt-ins | counts |
+| Plan formed | crews reaching *spot set* ÷ gatherings that reached 5; dissolve rate | accepted plans ÷ proposals; proposals per solo-opted person | crews, proposals |
+| Showed up | "I'm here" ÷ members of set crews | same, per plan | check-ins |
+| **Met** | people with ≥ 1 mutual "we met" ÷ crew-opted people | people with a mutual "we met" ÷ solo-opted people | confirmations |
+| Women's share | of pinned, of opted-in, of met | same | aggregate only |
+| Safety | reports per 100 opted-in; auto-hides; incidents and hours to first human action | same | reports, moderation_log |
+| Repeat | pinners who pin a second gathering within 6 weeks | same, for solo-opted people | pins |
+| Cannibalisation | crew reach rate and crews-set rate at gatherings with solo activity vs without; share of solo-opted people who also joined a crew | | crews × pins |
+| Attendance created | "Would you have gone alone anyway?" — one question in the after-event screen (A16) for everyone opted in (yes / no / I wasn't going to go at all) | | after-event answers |
+
+### Pass criteria for the first crowds, fixed now
+Over 6–8 weeks of seeded and unseeded gatherings:
+- ≥ 20 pins at each seeded stadium-scale crowd and ≥ 8 at each mid-size one;
+- opt-in (either mode) ≥ 50% of pinners;
+- a spot and time set at ≥ 60% of gatherings that reached 5;
+- Met ≥ 3 at ≥ 2 gatherings;
+- women ≥ 35% of pinners;
+- repeat ≥ 25%;
+- every report acted on by a human within 24 hours.
+
+Miss two and the finding is the assessment's: reveal does not convene itself — stop
+building and decide what Pin'd is instead. Pass and the store submission proceeds.
+
+### The solo decision rule, pre-registered
+Evaluate after at least 20 published gatherings reached 5 opted-in people, comparing
+*per opted-in person* — raw counts favour solo by construction because its threshold is
+lower (2, against crews' 5).
+- **Keep it and start mentioning it** if solo Met per opted-in ≥ crews' Met per
+  opted-in, *and* reports per 100 solo-opted ≤ crews', *and* women are ≥ 30% of
+  solo-opted people, *and* crew reach rate is not lower where solo is active.
+- **Keep it quiet** (as it is now) if it produces meetings but fails one of the safety
+  or gender tests.
+- **Turn it off** if reports per 100 exceed twice the crew rate, or any incident traces
+  to a solo plan and was handled badly.
+
+---
+
+## 8 · Auto-publishing
+
+(Alex, revised build plan; `docs/build-plan.md` §6. Fixed target in M2.2; adaptive in
+M4.5.) The number of published gatherings *is* the spread: it grows when published
+gatherings fill and holds or shrinks when they don't. A thermostat, not a model — it has
+to be legible in the admin and correct with sparse data.
+
+### Settings (on the `cities` row, never in code)
+
+| Setting | Start | Meaning |
+|---|---|---|
+| `publish_target_weekly` | 5 | How many gatherings should be published per calendar week of start dates |
+| `publish_min` / `publish_max` | 3 / 20 | Floor and ceiling for the target |
+| `publish_lead_days_min` / `_max` | 4 / 21 | Publish a draft only if it starts within this window; nearer first |
+| `max_per_venue_per_week` | 2 | A Jays homestand does not fill the week |
+| `community_slots_weekly` | 1 | Reserved for a "Community & free" gathering above its own threshold (from M4.4) |
+| `score_floor` | 70 | Final score (AI score minus distance adjustment) below which a draft is never auto-published |
+| `grow_reach` · `grow_median_pins` | 0.60 · 8 | Both must hold to grow |
+| `shrink_reach` | 0.30 | Below this, shrink |
+| `step_up` · `step_down` | +2 · −1 | The most the target can move in one week |
+| `adaptive` | off until M4.5 | Alex can freeze the target at any time |
+
+### The nightly fill (inside the import run)
+For each of the next three weeks, count published gatherings starting that week. If
+below the target, publish the highest-scoring eligible drafts until it is met: inside
+the lead window, at or above the score floor, not dismissed by Alex, not withdrawn, at
+most two per venue per week, one slot held for a community gathering when the
+community run has a candidate. Drafts Alex has marked **"publish"** go first regardless
+of score; drafts marked **"never"** are skipped forever (`publish_mark`, §1). Withdrawing
+a published gathering never leads a later run to re-publish the same draft. Alex
+withdraws (any time) or unpublishes (zero pins) whatever is wrong; manual publish stays.
+
+### The weekly adjust (Monday's run, before the 6pm digest)
+Look at gatherings that ended in the trailing 14 days and had been published at least
+7 days before they started (so a late publish does not count as a failed one). Compute
+`reach_rate` — the share whose open-to-meeting count reached 5 by the effective end —
+and `median_pins`. Then:
+- `reach_rate ≥ 0.60` and `median_pins ≥ 8` → target + 2
+- `reach_rate < 0.30` → target − 1
+- otherwise → hold
+- clamp to `publish_min … publish_max`; if fewer than 3 gatherings qualify in the
+  window, hold.
+
+Written in M2.2 but gated by `adaptive = off`; switched on in M4.5.
+
+### Logging
+Every nightly choice is logged with its score, distance and the slot it filled, and
+shown on the admin's Publishing panel in one line each. Every weekly decision is logged
+with its inputs. Seeded and unseeded gatherings are shown side by side. In week one
+there is no evidence: the target starts at 5 and Alex marks the two or three the team
+will seed as "publish". Nothing reads ticket availability — off-sale is not a problem.
