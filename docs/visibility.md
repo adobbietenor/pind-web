@@ -308,6 +308,29 @@ withdrawn gathering — only raise a flag in `gathering_flags` — and never res
 draft Alex dismissed or merged (P52). Ticketmaster's ids, links and facts are deleted
 30 days after each gathering's effective end (`admin_purge_ticketmaster_data`, P53).
 
+## 12e · Pending rules — decided, not yet enforced
+
+### V17 · Instagram handles (Alex, revised build plan; enforced in M3.1)
+
+A person may add an Instagram handle to their profile. It is always optional, never
+required, and never a substitute for the face photo.
+
+- **Who can see it:** only the person's **crewmates** (members of a crew they share),
+  their **solo-plan partner**, and their **connections**.
+- **Who cannot:** everyone else — including people who can see them on the open "going
+  & open to meeting" list (V1 alone is **not** enough), `anon`, and every public page
+  and link preview. This protects H2 (no cold DMs) and solo's mutual-accept rule.
+- The owner can always read and edit their own handle.
+- **This is stricter than today's schema.** M1.1 put `instagram_handle` on the `people`
+  row, so today it is readable by anyone V1 allows (§3, §8). M3.1 must move it off the
+  `people` row (RLS hides rows, not columns) behind its own rule, with harness cases
+  proving both sides: a crewmate, a solo partner and a connection **can** read it; a
+  person who only shares the open list, a blocked person, a hidden person and `anon`
+  **cannot**.
+
+V14 (solo), V15 (review-only gatherings) and V16 (anonymous people) are added with
+their milestones (M3.4, M5.1, M3.1–M3.2) and reviewed in M4.2.
+
 ## 13 · Spot poll
 
 - **One vote per person per gathering, changeable** (Alex, M1.1). Enforced by the
@@ -371,11 +394,10 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 
 ## 17 · Open items
 
-- **T5 new-device sign-in — open, decided in the T5 milestone.** Sessions for an
-  existing user on a new device come from Supabase Auth, not Postgres. Two options:
-  Supabase Auth's own email sign-in linked to the anonymous user, or a narrow
-  service-key exception. No work in M1.1.
-- **+1 claim (T10)** — mechanism and `pin_friends` write rules decided in the T10
-  milestone.
-- **Anonymous sign-in rate limit (T3)** — Supabase limits anonymous sign-ins per IP.
-  If the Worker makes them, visitors may share Cloudflare's IPs. Resolve in T3.
+- ~~**T5 new-device sign-in**~~ — *superseded; see decisions.md Part 5, "Identity"*:
+  the anonymous user is linked to an email, Apple or Google identity at opt-in, so a
+  new device signs in through Supabase Auth.
+- ~~**+1 claim (T10)**~~ — *superseded; see decisions.md Part 5, "Identity", and Q1*:
+  the claim page is dropped; a +1 who wants to be seen pins in themselves.
+- ~~**Anonymous sign-in rate limit (T3)**~~ — *superseded; see decisions.md Part 5,
+  "Identity"*: the Expo app (A26) signs people in from their own device, not the Worker.

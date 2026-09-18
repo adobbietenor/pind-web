@@ -5,24 +5,68 @@ spec of record. This file is how we work.
 
 ## What this repo is
 
-`pind-web` — the Cloudflare Worker serving every public web surface (Test 0 crowd
-pages, the crowds landing, the +1 claim page, the `/spot` share card, the next-day
-survey, admin), plus the shared Supabase schema in `supabase/migrations/`.
+`pind-web` (may be renamed `pind`) — **one repo for the whole product** (decisions.md
+Part 5, "Repo layout"; `docs/build-plan.md` §3):
 
-The iOS app lives in a separate repo (`pind-app`, Expo) and reads the same database.
+    app/               Expo Router app for iOS + web (npm workspace)
+    packages/shared/   generated DB types, fixed copy, constants (THRESHOLD = 5, neighbourhoods, tags)
+    src/               the Cloudflare Worker: public pages W1–W4, admin, crons, AI jobs, delivery
+    supabase/          migrations/, seed/, tests/ (policy harness)
+    docs/              build-plan.md, visibility.md, review briefs
+
+There is no separate `pind-app` repo. `app/` and `packages/shared/` arrive in M2.0.
 
 ## Stack (fixed — do not substitute)
 
-- Cloudflare Workers + Wrangler for all web surfaces
+- Cloudflare Workers + Wrangler for the Worker, and to serve the Expo web export
 - Supabase (Postgres, RLS, Auth, Storage, Edge Functions, pg_cron) as the only data plane
-- Plain HTML and CSS on the Worker. Expo + TypeScript in the app repo
-- Twilio (SMS), Resend (email), Ticketmaster Discovery API (gatherings feed)
+- Plain HTML and CSS on the Worker's own pages. Expo + TypeScript (Expo Router) for the
+  app, iOS and web from one codebase
+- Resend (email), Expo Push (push), Ticketmaster Discovery API (gatherings feed),
+  Anthropic API (AI jobs), PostHog and Sentry (M2.0). **No SMS, no Twilio.**
+
+## Repo layout and commands
+
+- npm workspaces from the repo root. The Worker's scripts are unchanged
+  (`npm run typecheck`, `npm run test:policies`, `npm run test:unit`, `npx wrangler
+  deploy`). The `app/` scripts (start, web export, typecheck) are added in M2.0 and
+  listed here when they exist.
+- **The web export is a Worker asset — never deploy one without the other.** One
+  `wrangler deploy` releases the Worker and the web build together.
+
+## Where things live (the boundary rule — do not cross it)
+
+If it is public, it is the Worker. If it needs a session, it is Expo. If it is
+time-driven, it is pg_cron in Postgres. If it decides who sees whom, it is a policy in
+Postgres (H11). If it sends anything or calls an AI, it is the Worker. Nothing is built
+twice. So: **no people lists rendered by the Worker; no AI or email calls from the
+app.** (spec.md §4 has the full table.)
+
+## Expo rules
+
+- The Expo SDK is pinned for the whole build. No native module beyond the M2.0 list
+  (apple-authentication, image-picker, image, notifications, secure-store) without a
+  decision from Alex.
+- Expo Router; TanStack Query; Realtime through `postgres_changes` only (it respects
+  RLS; broadcast does not).
+- Design tokens, fixed copy and constants come from `packages/shared`, never retyped.
+- Every screen names its board ID (A1–A29) in the file header and in the commit.
+
+## AI calls
+
+Every AI call follows the M1.3b pattern by default: **streamed, aborted outright after
+four minutes, at most one retry, a per-run budget and the daily cap, and an estimate
+counted for every aborted call** (its usage never arrives). Long AI work runs in its
+own cron, not inside the nightly import.
 
 ## The spec
 
-- Screens have IDs: **T1–T10** (Test 0 web) and **A1–A25** (iOS app).
+- Screens have IDs: **W1–W4** (the Worker's public pages) and **A1–A29** (the Expo
+  product, iOS and web). T1 is an off-product artifact (the fan-channel post).
 - Every prompt, branch name and commit message names the screen ID it implements.
-  Example: `git commit -m "T3: pin-in form with photo upload and session cookie"`.
+  Example: `git commit -m "A26: quick pin as an anonymous user"`.
+- The milestones and their order are spec.md §6; each milestone's acceptance list is in
+  `docs/build-plan.md` §8.
 - If the spec is ambiguous or silent, **ask me**. Do not invent product behaviour.
 - The eleven UX calls (Q1–Q11) and the eleven hard rules (H1–H11) in `decisions.md`
   are binding. If an implementation seems to require breaking one, stop and say so.
@@ -45,12 +89,21 @@ The iOS app lives in a separate repo (`pind-app`, Expo) and reads the same datab
   in `tests/policies`. Run it. It must pass.
 - The harness creates users, pins, crews, blocks and connections in staging and
   asserts what each user can and cannot read.
+- `test:policies` must gain a case for **every migration touching `can_see_at`,
+  blocks, women-only, solo, review-only, hidden people or Instagram handles**.
 - No UI tests. They are not worth the hours on this project.
+
+## Data
+
+- **Never run seeds against production.** Seed rows are tagged and live on staging only.
+- The service key never reads people on behalf of a visitor.
+- Review-only rows are the only non-real data allowed anywhere, and only on production
+  for App Review (H6).
 
 ## How we work through milestones
 
-- One milestone per branch, one session per milestone. I paste the milestone's
-  acceptance list at the start of the session.
+- One milestone per branch, one session per milestone. **The milestone's acceptance
+  list is the session's first message**; end the session by walking it on the phone.
 - Before coding, for anything involving a **policy**: explain in plain English what it
   allows and denies, and wait for my confirmation.
 - Before coding, for anything with a **lifecycle** (pins, crews, threads,
@@ -61,16 +114,18 @@ The iOS app lives in a separate repo (`pind-app`, Expo) and reads the same datab
 ## Dependencies
 
 - Versions are pinned: the Node version in `.nvmrc`, exact versions in `package.json`,
-  the Expo SDK in the app repo.
+  the Expo SDK in `app/`.
 - Do not upgrade anything mid-milestone. Upgrades happen deliberately, between phases,
   when I ask.
 - Do not add a dependency without asking first.
 
 ## Keep the Worker lean
 
-The Worker's public pages are pasted into Reddit threads and must load in **under a
-second** inside a Reddit tab. **No framework, no component library, no Tailwind, no
-build step, no client-side router** for pages. Plain CSS only.
+The Worker's public pages (W1–W4) are pasted into Reddit threads and must load in
+**under a second** inside a Reddit tab. **No framework, no component library, no
+Tailwind, no build step, no client-side router** for the pages the Worker renders.
+Plain CSS only. (The Expo app has its own build; its web export is served as static
+assets behind these pages and never replaces them.)
 
 The dark, on-brand look is allowed (decisions.md Part 5, "Look"): near-black
 background, purple `#582883`, white text, the logo inline, system fonts — or one web
@@ -79,7 +134,10 @@ font with a system fallback, only if it doesn't hurt load time.
 ## Secrets
 
 - Never commit a key. `.env`, `.dev.vars` and `node_modules` are gitignored.
-- Worker secrets go in with `npx wrangler secret put NAME`, never in `wrangler.toml`.
+- Worker secrets go in with `npx wrangler secret put NAME`, never in `wrangler.jsonc`.
+- The Anthropic key, the Resend key, the Expo push access token and the database
+  webhook secret live in the Worker. **Nothing goes in the app bundle except the
+  Supabase anon key.**
 - If you need a credential I have not provided, ask — do not stub a fake one and
   carry on.
 
@@ -93,10 +151,11 @@ one of these is the next step rather than trying to work around it.
 - All schema/policy changes are migration files applied with the Supabase CLI to pind-staging only. Never edit the dashboard. Never touch production without Alex saying so.
 - Before writing any policy or visibility function, explain in plain English who can see what and who can't. Wait for Alex's OK.
 - Every visibility rule ships with a test proving both: the right person CAN see, and the wrong person CANNOT.
-- Photos live in a private bucket, served only by short-lived signed URLs after the visibility check. Instagram handles get the same check as photos.
+- Photos live in a private bucket, served only by short-lived signed URLs after the visibility check.
+- Instagram handles are optional and never a substitute for the photo. They are visible **only** to the person's crewmates, their solo-plan partner and their connections — never on the open "going & open to meeting" list, never on a public page, never in a link preview (H2; solo's mutual accept). Enforced in the database with harness cases in M3.1 (`docs/visibility.md` V17).
 - The service key is used server-side only, for admin, cron jobs, AI jobs and sending messages, and never to read people on behalf of a visitor. People lists are always read as the signed-in person, so RLS policies decide visibility.
-- **SUPERSEDED — do not build to these** (decisions.md Part 5, "Build direction": one Expo product for iOS and web; the WhatsApp-and-email Test 0 is dropped). They will be rewritten once the revised build plan is merged into spec.md:
-  - ~~Test 0 pin-in accepts EITHER an uploaded photo OR an Instagram handle; at least one is required.~~
-  - ~~Test 0 threshold and follow-up messages go by email (Resend) first; SMS (Twilio) is added later as a second channel.~~
-  - ~~Phase 1: web visitors get a Supabase anonymous sign-in at pin-in; RLS policies and their harness are built and pass before T6.~~
+- There is no WhatsApp Test 0 (decisions.md Part 5, "Build direction"). What replaced its rules:
+  - A pin needs a first name and the 19+ tick, nothing else, and creates a Supabase anonymous user (A26). Opting in to meeting (A27) needs date of birth, gender, a face photo and a permanent identity (email code, Apple or Google), linked to the same user id (decisions Part 5, "Identity"; Q2).
+  - Notifications are the five in spec A18: push to the app, mirrored by email (Resend) for people without a device token. SMS is never used (Q8).
+  - RLS policies and their harness cases are built and pass before any screen that shows people (M3.2 onward).
 - Flag anything touching visibility for the independent review before real users see it.
