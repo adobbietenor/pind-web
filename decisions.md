@@ -4,7 +4,7 @@ These are binding product rules, not suggestions. They come from the design boar
 and the research assessment. If an implementation seems to require breaking one,
 stop and ask — do not work around it.
 
-Last updated: 18 September 2026 (Phase 1 M1.2).
+Last updated: 18 September 2026 (Phase 1 M1.3).
 
 ---
 
@@ -165,8 +165,78 @@ profile.
   one-line reason. Alex publishes a handful per week with one click. **Publishing
   selectively is deliberate: pins must concentrate so crowds reach 5.** A draft is
   published, dismissed or merged into a duplicate found by another source; an
-  importer never changes a gathering's status, and a dismissed or merged event is
-  never re-created by a later import.
+  importer never changes a published gathering (it only flags it — M1.3, "Importer
+  and status changes" below), and a dismissed or merged event is never re-created by
+  a later import.
+- **Ticketmaster import area** (Alex, Phase 1 M1.3). The nightly import searches
+  **30 km** around the city centre (Toronto: Union Station), **8 weeks** ahead. The
+  centre point, the search radius and a "core" radius are stored on the `cities` row,
+  never in code, so another city is data, not a rebuild. Suburban events are kept but
+  ranked a little lower: each venue's distance from the centre is **calculated** (not
+  judged by AI), shown in the draft queue, and applied as a modest adjustment to the
+  AI score — none inside the core radius, a gentle reduction beyond it — so a strong
+  suburban crowd can still outrank a weak downtown one.
+- **Ticketmaster data is kept only as long as it is needed** (Alex, Phase 1 M1.3;
+  Ticketmaster's terms allow storing event content only "for reasonable periods").
+  We keep event facts only — never Ticketmaster's images or descriptions. **30 days
+  after a gathering's effective end**, everything that is Ticketmaster's (raw
+  response, their IDs, their URLs) is deleted. Our own minimal gathering record
+  (name, date, venue, counts) is kept for Test 0 metrics.
+- **Distance adjustment** (Alex, Phase 1 M1.3). Final score = AI score − adjustment.
+  The adjustment is 0 inside the core radius (Toronto: **12 km**), then **1 point per
+  km** beyond it, **capped at 15**. All three numbers live on the `cities` row. It is
+  computed when the queue is shown, never stored, so changing a number re-ranks at once.
+- **Ticketmaster import filter** (Alex, Phase 1 M1.3). Before any AI sees a listing,
+  rules drop: Ticketmaster test listings; listings already cancelled that we have never
+  imported; Ticketmaster "Upsell" and "Sightseeing/Facility" listings; film and cinema
+  screenings; add-on names (parking, "does not include a ticket", VIP, upgrade, season
+  pass, package, gift card, voucher); timed-slot series (same name, venue and date at
+  3+ start times); multi-day passes; listings with no start time yet. Duplicate listings
+  (same venue, start time and name) become one draft with every Ticketmaster ID attached.
+  **Off-sale is not a problem** — it usually means sold out — and never raises a flag.
+- **AI vetting** (Alex, Phase 1 M1.3). **Claude Sonnet 5** scores each new draft
+  0–100 with a one-line reason. Rubric: crowd size (0–30), audience 19–35 (0–25),
+  people going alone or in small groups (0–20), time and place to meet before (0–15),
+  shared identity (0–10). Hard caps: kids' and family shows, and audiences mostly under
+  19, at most 10 (H8); seated theatre and classical at most 35; not an event, 0. Drafts
+  below **40** after the distance adjustment are collapsed in the queue (to be tuned
+  after the first real run). Only new drafts are scored; a failed score leaves the draft
+  unscored and it is retried next run. **Hard AI spend cap: $3 per Toronto calendar day.**
+- **AI spot suggestions** (Alex, Phase 1 M1.3). Sonnet 5 with web search proposes 3
+  public, staffed spots (bars, patios, landmarks) a short walk from the entrance, each
+  with an address, a one-line reason and the page it checked. Only for venues with fewer
+  than 3 active spots, no pending suggestions, and an upcoming draft scoring 40+; at most
+  **10 venues per night**. Alex approves each one (the curated-spot rule above).
+  **Moved to its own milestone, M1.3b** (Alex, M1.3): built but switched off
+  (`AI_SPOT_SUGGESTIONS`, off by default) after calls proved slow, sometimes empty and
+  prone to stalling inside the Worker (spec §6). Spots are added by hand until then.
+- **Importer and status changes** (Alex, Phase 1 M1.3). On a **draft**, the importer
+  may update a changed date or time, and quietly dismiss it when Ticketmaster marks it
+  cancelled or postponed, or when it is missing from Ticketmaster two nights running.
+  A draft the importer dismissed is **restored automatically** if Ticketmaster lists it
+  again as active with a valid date. **A draft Alex dismissed never comes back.** The
+  difference is recorded by the `moderation_log` actor (`importer:ticketmaster` vs
+  Alex's email). On a **published** gathering the importer changes nothing: a date
+  change, cancellation, postponement, reschedule or disappearance raises a **flag** in
+  the admin, and Alex decides (apply the new date, withdraw, or ignore).
+- **Withdrawn** (Alex, Phase 1 M1.3). A published gathering can be **withdrawn** by
+  Alex, **even when it has pins**, with a reason: cancelled / postponed / takedown
+  request / other. The reason is kept off the public row. Pins are kept, and Alex can
+  undo it. In the database: a withdrawn gathering is readable **only by people pinned
+  to it** (so their page shows a short neutral notice instead of a dead page) and drops
+  out of every public list; it takes no new pins, spot votes or survey responses; its
+  people list and WhatsApp links close. Flags for cancelled and postponed events lead
+  here, but the importer never withdraws anything itself.
+- **Nightly import runs on the Worker** (Alex, Phase 1 M1.3): a cron trigger at 08:00
+  UTC (4am EDT / 3am EST), on Workers Paid, plus a "Run import now" admin button.
+- **No revenue from Ticketmaster data** (Alex, Phase 1 M1.3). Ticketmaster's API
+  terms forbid deriving revenue, directly or indirectly, from their data. Pin'd is
+  free during Test 0. **Any paid feature, ad or sponsorship later needs a review of
+  these terms first.**
+- **A privacy policy exists before public pages go live** (Alex, Phase 1 M1.3). It
+  covers Ticketmaster data, the automated photo checks and gender. Ticketmaster's
+  terms also require the policy (or a footer on every page) to say how we collect,
+  use, store and disclose data.
 - **Meeting spots stay curated** (Alex, Phase 1 M1.2). AI proposes 3 spots per venue;
   Alex approves or edits each one before it exists. **A gathering cannot be published
   until its venue has 3 approved spots** — enforced in the database. At publish the

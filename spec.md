@@ -35,8 +35,12 @@ A real public event. Arrives as a **draft** from the nightly Ticketmaster import
 weekly AI discovery run, or manual entry (fallback), and is public only once admin
 publishes it (decisions Part 5, "Gathering sourcing"). Fields: name, starts_at,
 `ends_at` (nullable), venue, `event_url` (tickets or event info; optional), `is_free`,
-`featured` flag, status (draft / published / dismissed). The static map image showing
-the venue and its meeting spots belongs to the **venue**. Venues have a city (Toronto
+`featured` flag, status (draft / published / dismissed / withdrawn). **Withdrawn**
+(Alex, M1.3) applies only to a published gathering that is off — cancelled, postponed,
+a takedown request or other — even with pins: it leaves every public list, pins are
+kept, and pinned people see a short neutral notice ("This gathering is no longer on
+Pin'd. Your pin is kept; there's nothing you need to do.") instead of a dead page.
+The static map image showing the venue and its meeting spots belongs to the **venue**. Venues have a city (Toronto
 now; Vancouver and Montreal possible).
 
 **Effective end** = `ends_at`, or `starts_at + 180 minutes` when `ends_at` is null.
@@ -434,7 +438,61 @@ Universal links open a crowd URL in the app when installed, the web page when no
   (M1.2 section).
   **Staging seed data is left in place on purpose** (all tagged `[TEST]` / `pindseed`)
   for the next milestones; `npm run seed:staging -- --remove` deletes it.
-- **Next milestone: M1.3, the Ticketmaster import.**
+- **Phase 1 M1.3 complete** (branch `phase1/m1.3-ticketmaster`, merged to `main`): the
+  nightly Ticketmaster import and AI vetting. Three migrations on pind-staging
+  (`20260918192…_m1_3_*`): city import settings, venue coordinates, source snapshots,
+  admin-only `import_runs`, `gathering_flags`, `gathering_withdrawals`; the withdrawn
+  state (V13); `admin_import_apply` and the other M1.3 `admin_*` functions. Worker
+  cron `0 8 * * *` (4am EDT / 3am EST) and "Run import now". First real run on
+  staging, 2026-09-18: 9 Ticketmaster calls, 1,319 listings, 772 kept, 744 drafts and
+  74 venues created, 740 scored by Claude Sonnet 5 for **$0.77**; a second run created
+  no duplicates. `npm run test:policies` 55/55 (P48–P54 new), `npm run test:unit`
+  55/55, typecheck clean. Rules: `docs/visibility.md` V13 and §12d; review brief M1.3
+  addendum. **Ready to check on device**: Alex checks tonight's 4am cron run summary
+  in the admin. Decided (Alex, M1.3; detail in decisions Part 5): search 30 km around
+  the city centre, 8 weeks ahead, with centre and radii on the `cities` row; a calculated distance adjustment to the AI score; event facts
+  only, Ticketmaster's data deleted 30 days after effective end; no revenue from
+  Ticketmaster data during Test 0 (any paid feature needs a terms review first); a
+  privacy policy before public pages go live; the import filter; Sonnet 5 scoring with
+  the approved rubric, 40 threshold and a $3/day cap; AI spot suggestions (10 venues
+  a night); importer-dismissed drafts restore themselves, Alex-dismissed never do;
+  flags on published gatherings; the **withdrawn** state; Worker cron on Workers Paid.
+- **Next: M1.3b, AI spot suggestions** (split from M1.3 by Alex). The code is built but
+  **off** (`AI_SPOT_SUGGESTIONS` in `wrangler.jsonc`, off unless `"on"`; the "Suggest
+  spots now" button is hidden while off). Until then spots are added by hand in the
+  admin; "Venues needing spots" on the draft queue lists where they are needed. What
+  M1.3 learned, measured on 2026-09-18 with Sonnet 5, effort medium, 5 searches max:
+  - **Timing varies widely:** one call took 43 s (Scotiabank Arena), the same request
+    shape took 219 s for BMO Field. With the `web_search_20260209` tool most of the
+    time goes into its built-in code-execution filtering step.
+  - **Cost:** about $0.19–0.20 a venue (60–100k input tokens from search results).
+  - **Empty answers:** the model sometimes called `propose_spots` with an empty list
+    (BMO Field, where few staffed places are within 5 minutes' walk) — billed, nothing
+    saved. The prompt now asks for the best 3 found, with what is weaker named in the
+    reason; unproven.
+  - **Mid-stream stalls inside the Worker:** a non-streaming call hit the SDK timeout
+    (180 s) and its retries ate the cron budget; a streaming call could stall after
+    the response started, where the SDK timeout no longer applies, and one run hung
+    for over 40 minutes. Fixed in code but not yet proven on a full run: every call
+    is streamed and aborted outright after **4 minutes** (`AbortSignal`), at most 1
+    retry, and a venue is started only if its call can finish before the deadline.
+  - **Basic `web_search_20250305`** was faster (57 s) but returned an empty list in its
+    one trial, with more input tokens (99k).
+  - **Quality:** suggestions came back for 2 venues (Scotiabank Arena in a direct
+    test; Sneaky Dee's in a run, 3 pending on staging) — sensible but not perfect
+    (one "east of the venue" was west). Alex's approval stays the gate.
+  - **Cost blind spot:** a call aborted or killed mid-stream is billed but its usage
+    never arrives, so it is missing from `import_runs` and the daily cap undercounts.
+    M1.3b should count an estimate for every aborted call.
+  - M1.3b should: prove the fixes on a full run, consider running suggestions outside
+    the nightly import (their own cron or a queue), and measure empty-answer rates.
+  - Local testing note: on Windows, stopping a background `wrangler dev` did not kill
+    its `workerd` children; two local Workers then raced for the run lock. Kill the
+    whole process tree (`taskkill /T /F`) between local runs.
+- **Open (Alex, M1.3): people pinned to a published gathering are not told when its
+  date changes.** Applying a new date from a flag updates the page only; Test 0 sends
+  just two messages (T5, T8). Decide before the first real crowd whether a date change
+  needs a message.
 - **For M1.3 (Ticketmaster import), recorded now (Alex, M1.2):** the importer must detect
   date or status changes (cancelled, postponed, rescheduled) on **published**
   gatherings and flag them in the admin for Alex. It never changes a published
@@ -464,6 +522,8 @@ All must be true before real Test 0 visitors can see each other:
 - [ ] Alex's own read of `docs/visibility.md`
 - [ ] a decision on whether real Test 0 data lives on pind-staging or a production project
 - [ ] T5 new-device sign-in is decided
+- [ ] a privacy policy is published covering Ticketmaster data, the automated photo
+  checks and gender (decisions Part 5, Alex M1.3)
 
 ### Deferred cascades
 Deferred to the retention and account-deletion milestone. The initial schema does not

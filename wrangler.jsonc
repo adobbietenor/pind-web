@@ -7,9 +7,18 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-18",
   "workers_dev": true,
-  "preview_urls": false
+  "preview_urls": false,
 
-  // Secrets (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SESSION_SECRET) are never
-  // written here. Locally they come from .dev.vars; deployed, from
+  // M1.3: the nightly Ticketmaster import. Cron runs in UTC; 08:00 UTC is 4am in
+  // Toronto in summer (EDT) and 3am in winter (EST), so no daylight-saving logic.
+  "triggers": { "crons": ["0 8 * * *"] },
+
+  // Not secrets. The hard daily AI spend cap, US dollars per Toronto calendar day;
+  // AI spot suggestions stay off until M1.3b ("on" to enable).
+  "vars": { "AI_DAILY_CAP_USD": "3", "AI_SPOT_SUGGESTIONS": "off" }
+
+  // Secrets (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SESSION_SECRET, ACCESS_*,
+  // ADMIN_EMAILS, TICKETMASTER_CONSUMER_KEY, ANTHROPIC_API_KEY) are never written
+  // here. Locally they come from .dev.vars; deployed, from
   // `npx wrangler secret put NAME`. See README.
 }

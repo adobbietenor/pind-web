@@ -1,4 +1,4 @@
-# Visibility rules — Phase 1 M1.1, extended in M1.2
+# Visibility rules — Phase 1 M1.1, extended in M1.2 and M1.3
 
 The plain-English rules that the privileges, RLS policies, storage policies and
 database functions in `supabase/migrations/` implement. Agreed with Alex on
@@ -6,9 +6,10 @@ database functions in `supabase/migrations/` implement. Agreed with Alex on
 adversarial review — a fresh Claude Code session with no prior context, using
 `docs/m1.1-review-brief.md` — checks the SQL and the harness (`tests/policies`)
 against this file for leaks, and Alex gives this file their own read. Every rule has
-an ID (V1–V12), and §16 maps each rule to the SQL that enforces it and the harness
-cases (P01–P47) that prove it. M1.2 (admin) added V12, the draft/dismissed states in
-V11, and cases P38–P47.
+an ID (V1–V13), and §16 maps each rule to the SQL that enforces it and the harness
+cases (P01–P54) that prove it. M1.2 (admin) added V12, the draft/dismissed states in
+V11, and cases P38–P47. M1.3 (Ticketmaster import) added V13 (withdrawn, §12c), the
+importer's rights (§12d), three admin-only tables, and cases P48–P54.
 
 Binding sources: `decisions.md` H3 (reciprocal reveal), H6 (honest counts), H7
 (women-only), H9 (block/report), H11 (visibility in the database), Q1, Q3, Q9, and
@@ -39,7 +40,7 @@ database — the Worker is not a gate.
 
 A viewer V can see person P **at gathering G** only when all of these hold:
 
-1. G is published (V11).
+1. G is published (V11) and not withdrawn (V13, M1.3).
 2. V and P both have a pin at G with `open_to_meeting = true`.
 3. There is no block between V and P, **in either direction**.
 4. Neither V nor P is hidden (`hidden_at` set by moderation).
@@ -260,6 +261,48 @@ gathering's venue cannot change; a merged gathering cannot be restored.
   admin request, refusing with 403 otherwise. The admin reads people with the service
   key; this is the one surface that sees everything, which is why both locks exist.
 
+## 12c · Withdrawn — V13 (Alex, M1.3)
+
+A **withdrawn** gathering is a published gathering that is off — cancelled, postponed,
+a takedown request, or another reason. Alex withdraws it in the admin, even when it
+has pins (`admin_withdraw_gathering`), and can undo it (`admin_unwithdraw_gathering`).
+The importer never withdraws anything: its cancellation and postponement flags lead
+Alex here.
+
+- **Who can see it:** only the people pinned to it (opted in or not) can read its row
+  and its counts, so their page can show a short neutral notice. Everyone else — anon,
+  signed-in visitors not pinned there — gets nothing, and it leaves every public list
+  (P49).
+- **What closes:** nobody can pin to it, vote in its spot poll or submit its survey;
+  its "Going & open to meeting" list closes (V1), and with it photos, +1s and reports
+  on people seen there; both WhatsApp links and the women-only offer close (V5); the
+  spot options and poll counts are hidden (P50).
+- **What stays:** every pin (a pinned person can still read and remove their own);
+  the gathering itself (status `withdrawn`, still `published_at` underneath, so its
+  venue stays fixed and it cannot be unpublished while withdrawn).
+- **The reason** (cancelled / postponed / takedown / other) and Alex's note live in the
+  admin-only `gathering_withdrawals`, never on the public row — "takedown" must not
+  be readable by anyone else (P48).
+- **Undo** restores everything (P51).
+
+How: `private.is_published` and `private.list_open` now also require
+`withdrawn_at is null`. Every M1.1 rule goes through one of the two, so pins, votes,
+surveys, people, photos, +1s, reports, group links and the women-only offer follow
+without their policies changing. The gathering row, its spot options and its counts
+have their own conditions (`gatherings_read_published`,
+`gathering_spots_read_published`, `public.gathering_counts`), using
+`private.i_am_pinned_at`.
+
+## 12d · Importer rights — M1.3
+
+Enforced in `public.admin_import_apply`, not only in the Worker: the Ticketmaster
+importer may create drafts and venues, refresh source rows, move a **draft's** date,
+dismiss a **draft**, and restore a draft **it** dismissed (the last `moderation_log`
+dismiss/restore entry is `importer:ticketmaster`). It can never change a published or
+withdrawn gathering — only raise a flag in `gathering_flags` — and never restore a
+draft Alex dismissed or merged (P52). Ticketmaster's ids, links and facts are deleted
+30 days after each gathering's effective end (`admin_purge_ticketmaster_data`, P53).
+
 ## 13 · Spot poll
 
 - **One vote per person per gathering, changeable** (Alex, M1.1). Enforced by the
@@ -290,13 +333,13 @@ gathering's venue cannot change; a merged gathering cannot be restored.
 |---|---|
 | Public read (published only where it applies) | `venues`, `meeting_spots`, `gatherings`, `gathering_spots`, `neighbourhoods`, `cities`; storage `venue-maps` (public URLs, no visitor writes) |
 | Rules above | `people`, `people_private`, `pins`, `pin_friends`, `contact_points`, `spot_votes`, `gathering_group_links`, `blocks`, `reports`, `survey_responses`, storage `photos` |
-| Service key only, permanently | `magic_links`, `outbound_messages`, `gathering_sources`, `gathering_triage`, `spot_suggestions`, `venue_aliases`, `venue_external_ids`, `moderation_log`; functions `admin_*` |
+| Service key only, permanently | `magic_links`, `outbound_messages`, `gathering_sources`, `gathering_triage`, `spot_suggestions`, `venue_aliases`, `venue_external_ids`, `moderation_log`, `import_runs`, `gathering_flags`, `gathering_withdrawals`; functions `admin_*` |
 | Locked until the app phases (no privileges, no policies) | `tags`, `person_tags`, `crews`, `crew_members`, `crew_proposals`, `crew_proposal_votes`, `crew_join_requests`, `crew_messages`, `confirmations`, `connections` |
 
 ## 16 · Rule → SQL → proof
 
 Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1) and
-`20260918154…_m1_2_` (M1.2).
+`20260918154…_m1_2_` (M1.2) and `20260918192…_m1_3_` (M1.3).
 
 | Rule | Enforced by | Harness cases |
 |---|---|---|
@@ -314,6 +357,9 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | V11 publishing rules | trigger `gatherings_status_rules` → `private.gathering_status_rules`; `admin_publish_gathering`, `admin_merge_gatherings` | P42, P43 |
 | V12 admin-only data | `revoke all` on the six admin tables; `admin_*` executable by `service_role` only; bucket `venue-maps` with no visitor policies | P40, P41, P44 |
 | V6/V10 after review | `admin_set_photo_status`, `admin_unhide_person`, `admin_hide_person`, `admin_keep_hidden`, `admin_delete_pin` | P45–P47 |
+| V12 import data (M1.3) | `revoke all` on `import_runs`, `gathering_flags`, `gathering_withdrawals`; M1.3 `admin_*` executable by `service_role` only | P48 |
+| V13 withdrawn | `private.is_published`, `private.list_open`, `private.i_am_pinned_at`; policies `gatherings_read_published`, `gathering_spots_read_published`; `public.gathering_counts`; `admin_withdraw_gathering`, `admin_unwithdraw_gathering` | P49–P51 |
+| Importer rights | `admin_import_apply`, `admin_resolve_flag`, `admin_start_import_run`, `admin_purge_ticketmaster_data`, `admin_merge_venues`, `admin_confirm_venue` | P52–P54 |
 | Own rows only | policies `*_own`, `*_self`; column grants | P07, P08, P10, P30, P32 |
 | Locked tables | `revoke all` with nothing granted back | P03, P04 |
 | Spot poll | `spot_votes` primary key; policies `spot_votes_*`; `public.spot_poll` | P21, P29–P31 |
