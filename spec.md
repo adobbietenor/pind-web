@@ -142,8 +142,11 @@ reviewable for its full 12 months after the thread is deleted.
 
 ## 2 · Test 0 — web + WhatsApp (T1–T10)
 
-Deliberately plain: white pages, system type, one purple button. Must load in under
-a second inside a Reddit tab and feel legitimate in a fan thread, not like a startup.
+The dark, on-brand look (Alex, after M1.3): near-black background, purple `#582883`,
+white text, the logo — matching the app and pindscene.com. Mobile-first. Must load in
+under a second inside a Reddit tab and feel legitimate in a fan thread, not like a
+startup. (Previously "white pages"; see decisions Part 5, "Look". Test 0's own
+screens T3–T8 and T10 are superseded by the build direction in decisions Part 5.)
 No account exists anywhere in Test 0; state is carried by a signed session cookie set
 at pin-in, re-establishable by a magic link.
 
@@ -196,7 +199,8 @@ Renders only behind a session that pinned **and** opted in (H3). Adds:
 - "Going & open to meeting" list: first name · neighbourhood · alone/with friends.
   No tags in Test 0 — tags are app-only. **Never ordered by join time** (Q3). Closes
   24h after the gathering's effective end; counts stay readable.
-- **Spot poll**: exactly 3 curated spots with times and vote counts (H5); one vote per
+- **Spot poll**: up to 3 curated spots with times and vote counts (H5; Alex, M1.3 — spots
+  are optional to publish and needed when crews open); one vote per
   person per gathering, changeable
 - "Join the WhatsApp group (14)" — link pasted by admin at threshold
 - At 3+ eligible people opted in (women, plus nonbinary people who opted into
@@ -458,12 +462,21 @@ Universal links open a crowd URL in the app when installed, the web page when no
   run) and a $3/day cap; AI spot suggestions (10 venues
   a night); importer-dismissed drafts restore themselves, Alex-dismissed never do;
   flags on published gatherings; the **withdrawn** state; Worker cron on Workers Paid.
-- **Next milestones, in order (Alex, after M1.3):**
-  1. **Public pages** — T9 this week's crowds and T2 the crowd page (pre-pin).
-  2. **"Community & free" sourcing** — a separate admin tab fed by Claude web search for
-     free and community gatherings, with its own rubric (decisions Part 5, "Community
-     gatherings are first-class").
-  3. **Pin-in** — T3 the pin-in form and T4 confirmation.
+- **After M1.3 (same day): meeting spots are optional to publish** (Alex; decisions
+  Part 5 "Meeting spots"). Migrations `20260918214318_m1_3_spots_optional` and its
+  `_fix` on pind-staging; harness 55/55; deployed. The admin flags "crews open, no
+  meeting spots".
+- **The build direction changed** (Alex, decisions Part 5 "Build direction"): one
+  Expo product for iOS and web; the Worker keeps admin, the import and AI jobs, and
+  the fast public crowd pages; the WhatsApp-and-email Test 0 is dropped and the first
+  real crowds run on the beta. Also decided, no code yet: scale with no manual work
+  per event and demand-adaptive auto-publishing, automate by default, automated spot
+  pools, generated maps, the dark look, "Put me in a crew", "Solo crew", and
+  "Community & free" sourcing. **Test 0 screens T3–T8 and T10 are superseded, not next
+  work**, until the revised plan is merged here.
+- **Next step: a planning session** that produces the revised build plan. That plan
+  sets the next milestones (it replaces the earlier order: T9/T2, "Community & free",
+  T3/T4).
 - **M1.3b, AI spot suggestions — parked** (split from M1.3 by Alex; not yet
   scheduled). The code is built but
   **off** (`AI_SPOT_SUGGESTIONS` in `wrangler.jsonc`, off unless `"on"`; the "Suggest
@@ -505,7 +518,8 @@ Universal links open a crowd URL in the app when installed, the web page when no
   date or status changes (cancelled, postponed, rescheduled) on **published**
   gatherings and flag them in the admin for Alex. It never changes a published
   gathering silently.
-- **For T3 (pin-in), recorded now (Alex, M1.2): automated photo moderation**
+- **For the photo step (was T3; under the new direction, the app's required face
+  photo, A2), recorded by Alex in M1.2: automated photo moderation**
   (decisions Part 5). On upload, a Claude vision check auto-approves clear real-person
   photos, auto-rejects clearly inappropriate ones (the person stays visible without a
   photo), and sends uncertain cases (possible minor, not a real person, possibly
@@ -515,21 +529,26 @@ Universal links open a crowd URL in the app when installed, the web page when no
   like an admin decision; `docs/visibility.md` V6 updated (today it says a photo shows
   only after **admin** approves it); the privacy policy states that photos are checked
   automatically. The Anthropic key is a Worker/Edge Function secret, never committed.
-- **Open, to be decided in their own milestones:** T5 new-device sign-in (Supabase Auth email sign-in
-  linked to the anonymous user, or a narrow service-key exception); T10 +1 claim;
-  the anonymous sign-in per-IP rate limit when the Worker signs visitors in (T3).
+- **Superseded by the build direction** (were open for Test 0): T5 new-device sign-in
+  (Supabase Auth email sign-in linked to the anonymous user, or a narrow service-key
+  exception); T10 +1 claim; the anonymous sign-in per-IP rate limit when the Worker
+  signs visitors in (T3). The revised plan decides what replaces them.
 - **Deferred** to retention and account deletion (detail below): gathering delete must
   not cascade pins and survey responses; person delete must not remove confirmations.
 
 ### Before the first real crowd
-All must be true before real Test 0 visitors can see each other:
-- [ ] pind.social is live and email sending is set up on it (decisions Part 5)
+All must be true before real people can see each other (now the first beta crowds;
+items that only applied to the WhatsApp Test 0 are marked superseded, not deleted):
+- [ ] pind.social is live (decisions Part 5). *Superseded in part:* "email sending set
+  up on it" was for Test 0's threshold emails; the revised plan decides what messaging
+  the beta needs.
 - [ ] an independent adversarial review of the visibility rules: a fresh Claude Code
   session with no prior context, tasked only with finding leaks, using
   `docs/m1.1-review-brief.md` (including its M1.2 and M1.3 sections) as its input
 - [ ] Alex's own read of `docs/visibility.md`
-- [ ] a decision on whether real Test 0 data lives on pind-staging or a production project
-- [ ] T5 new-device sign-in is decided
+- [ ] a decision on whether real beta data lives on pind-staging or a production project
+- ~~T5 new-device sign-in is decided~~ — *superseded, not done*: WhatsApp Test 0 only
+  (decisions Part 5, "Build direction")
 - [ ] a decision on whether people pinned to a published gathering get a message when
   its date changes (open item above, Alex M1.3)
 - [ ] a privacy policy is published covering Ticketmaster data, the automated photo

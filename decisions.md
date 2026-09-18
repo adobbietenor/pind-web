@@ -24,6 +24,10 @@ Last updated: 18 September 2026 (Phase 1 M1.3).
 | H10 | **The company is never present at a gathering.** No hosting, no staffing, no attending as operators. | Team constraint. The product's job finishes before the event starts. |
 | H11 | **Visibility is decided in the database, never by filtering in application code.** | One place to review, one place to get right. |
 
+**Decided exception (Alex, after Phase 1 M1.3):** the "Solo crew" beta feature is a
+deliberate, narrow exception to H2 (no cold DMs) and H5 (no 1:1 meet-ups), with the
+guardrails in Part 5, "Future and beta features". Every other rule stands.
+
 ---
 
 ## Part 2 — The eleven UX calls
@@ -241,19 +245,88 @@ profile.
   use, store and disclose data.
 - **Community gatherings are first-class** (Alex, after Phase 1 M1.3). Small community
   gatherings are a core part of Pin'd, not an afterthought: wellness and social events
-  such as run clubs are growing (research assessment). The next sourcing milestone adds
+  such as run clubs are growing (research assessment). A later sourcing milestone adds
   a separate **"Community & free"** tab in the admin, fed by Claude searching the web
   for publicly listed free and community gatherings — run clubs, markets, street
   festivals, socials, wellness events. It has **its own rubric**, which rewards events
   built around meeting people — social by design, solo-friendly, free or low-cost,
-  recurring — rather than crowd size, and it is **ranked separately** from the
-  Ticketmaster queue. Manual add stays for gatherings found by word of mouth. **Test
-  0's crowds include at least one small community gathering.** No code yet.
-- **Meeting spots stay curated** (Alex, Phase 1 M1.2). AI proposes 3 spots per venue;
-  Alex approves or edits each one before it exists. **A gathering cannot be published
-  until its venue has 3 approved spots** — enforced in the database. At publish the
-  spot poll gets the venue's first 3 spots, each defaulting to start time minus 60
-  minutes, editable.
+  recurring — rather than crowd size, and it is **ranked separately** from
+  Ticketmaster. Manual add stays for word-of-mouth finds. **The first real crowds
+  include at least one small community gathering.** No code yet.
+- **Meeting spots: needed when crews open, not to publish** (Alex, Phase 1 M1.3;
+  replaces the M1.2 rule "a gathering cannot be published until its venue has 3
+  approved spots"). A gathering can be published with **no** meeting spots; it still
+  needs a venue. A venue can have **any number** of approved spots; each spot poll
+  shows **up to 3** — the venue's first approved spots in order, each defaulting to
+  start minus 60 minutes, editable — fewer if the venue has fewer. A spot approved
+  later fills the polls of upcoming published gatherings at that venue, up to 3. If a
+  published gathering's crews open (5 opted in) and its venue has **no** approved
+  spots, the admin shows it as a flag. Spots are still curated (H5): Alex approves or
+  edits each one before it exists, until the automated check below is built.
+  Enforced in the database (`20260918214318_m1_3_spots_optional`).
+- **Scale** (Alex, after Phase 1 M1.3). **No manual work per event, ever**: no WhatsApp
+  groups, no hand-built pages, no per-event setup. The goal is buzz across the whole
+  city, not one event at a time. To avoid spreading early users too thin, the number
+  of events auto-published each week **adapts to demand**: it starts with a handful,
+  and more are published automatically as pins per event rise. The revised build plan
+  designs this mechanism. No code yet.
+- **Automate by default** (Alex, after Phase 1 M1.3). Wherever possible, AI does the
+  work and Alex removes what is wrong, rather than approving everything by hand.
+- **Auto-publishing** (Alex, after Phase 1 M1.3; a later milestone). The system
+  publishes the **top 5 drafts per week by final score** (the number is a setting);
+  Alex withdraws or unpublishes anything unwanted. Manual publish stays.
+- **Spots, automated** (Alex, after Phase 1 M1.3; M1.3b and later).
+  - AI-suggested spots are **auto-approved when they pass an automated check**: real,
+    currently open, public and staffed, within about 5 minutes' walk, with an
+    evidence page attached. Only uncertain ones come to Alex.
+  - **Users can suggest spots**, through the same check — never a private address (H5).
+  - Each venue keeps a **pool of spots of any size**. The ranking belongs to the
+    **venue over time**, not to one gathering: every gathering and crew that picks a
+    spot, meets there or reports it counts toward that venue's ranking.
+  - Only **anonymous per-spot tallies** are kept (times picked, times a crew met
+    there, times reported), never who voted, so the history survives pin deletion.
+  - Each poll shows the **top 2 proven spots plus 1 newer or rising spot**, with "see
+    all spots", so new suggestions can earn their way up.
+  - At scale, crews spread across the pool's spots and staggered times.
+- **Maps generated automatically** (Alex, after Phase 1 M1.3). The venue map on public
+  pages is drawn from the venue's and its spots' coordinates — venue and spots only,
+  never people (H1), and never device location (H4). No manual upload needed; upload
+  stays only as an optional override.
+- **Look** (Alex, after Phase 1 M1.3). Public pages use the dark, on-brand look:
+  near-black background, purple `#582883`, white text, the logo — matching the app and
+  pindscene.com. Mobile-first, and still loading in under a second inside a Reddit tab.
+  Replaces "white pages" (spec §2).
+- **Future and beta features** (Alex, after Phase 1 M1.3).
+  - **"Put me in a crew"**: an optional button that places a person in an open crew
+    with room, for people who don't want to choose. Decided when crews are built.
+  - **"Solo crew"** (working name): an opt-in mode for people pinned to an event who
+    want to meet individually as well as in crews. Crews stay the main product and
+    story; this is an opt-in extra, not marketed, and not framed as romantic (open,
+    not dating, for now). **A deliberate, narrow exception to H2 and H5**, with these
+    guardrails:
+    - opt-in and off by default, separate from the crew opt-in, with a clear prompt
+      explaining groups vs 1-on-1; visible only to others who also opted in at the
+      same gathering (reciprocal, like H3);
+    - contact only by mutual accept; before that, one preset message from a short
+      list, no free-text chat (no cold DMs);
+    - meet only at the venue's public spots, never a private address;
+    - people can limit who sees them (for example, women only);
+    - block and report two taps away; a report hides the person from solo mode
+      immediately.
+
+    Implemented as a new branch of the database "can see" rule (`private.can_see_at`),
+    with its own harness cases. In scope for the first beta, measured separately from
+    crews (crew meetups vs solo meetups).
+- **Build direction** (Alex, after Phase 1 M1.3 — decided). The product is built
+  **once in Expo for iOS and web**: accounts, required face photo with the AI check,
+  profile, pinning in, crews, solo crew, chat and notifications. The **Worker** keeps
+  the admin, the nightly import and AI jobs, and the fast public crowd pages (T9, T2,
+  `/spot`, share links) that lead into the app or the web product. **The
+  WhatsApp-and-email Test 0 is dropped**; the first real crowds run on this beta
+  (TestFlight and web), with crews and solo crew measured separately. A revised build
+  plan is being written. **Until it is merged into spec.md, Test 0 screens T3–T8 and
+  T10 are superseded, not next work** — and so are the Test 0-only calls that hang on
+  them (the web half of Q2, Q8, Q9, T5 new-device sign-in, email-first messages).
 - **Unpublishing** (Alex, Phase 1 M1.2) is allowed only while a gathering has zero
   pins. Enforced in the database.
 - **Pin-in button for free events** (Alex, Phase 1 M1.2). Ticketed gatherings keep
@@ -262,7 +335,8 @@ profile.
 - **Admin CSV export** (Alex, Phase 1 M1.2) has one row per pin and never includes
   contact details or gender.
 - **Venue map images are public** (Alex, Phase 1 M1.2), in their own public bucket
-  `venue-maps`, uploaded by admin only. They show a public building and its public
+  `venue-maps`, uploaded by admin only (now an optional override: maps are generated
+  automatically — "Maps generated automatically" above). They show a public building and its public
   spots, never a person (H1). Pin photos stay private (V6).
 - **Automated photo moderation** (Alex, Phase 1 M1.2; built in the T3 pin-in
   milestone). On upload, an AI check (Claude vision, via the Anthropic API key,

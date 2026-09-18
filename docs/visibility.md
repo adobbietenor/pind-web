@@ -235,9 +235,14 @@ gatherings (P08, P39). Venues and meeting spots are public places and are readab
 regardless; the venue's city (`cities`) is public reference data.
 
 Publishing rules, in the database so the service key cannot skip them (trigger
-`gatherings_status_rules`; P42, P43): a gathering is published only with a venue that
-has 3 approved (active) meeting spots; unpublished only with zero pins; a published
-gathering's venue cannot change; a merged gathering cannot be restored.
+`gatherings_status_rules`; P42, P43): a gathering is published only with a venue;
+unpublished only with zero pins; a published gathering's venue cannot change; a merged
+gathering cannot be restored. **Meeting spots are not needed to publish** (Alex, M1.3,
+replacing "3 approved spots"): the spot poll takes up to 3 of the venue's approved
+spots at publish, and a spot approved later fills upcoming published polls up to 3
+(trigger `meeting_spots_top_up_polls`, via `admin_top_up_spot_poll`, service key only —
+P42, P48). No visibility changes: spots and published
+spot options were already public.
 
 ## 12b · Admin-only data — V12 (M1.2)
 

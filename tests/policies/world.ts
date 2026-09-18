@@ -67,7 +67,7 @@ export interface World {
   C6: string; // counts: 6 open, two neither woman nor man
   gs: string[]; // G's three spot options
   // M1.2 — drafts and admin
-  venue2: string; // only 2 approved spots, 1 pending suggestion: cannot publish there
+  venue2: string; // only 2 approved spots, 1 pending suggestion: its poll starts with 2 options
   D: { ticketmaster: string; ai: string; manual: string }; // drafts, one per source
   X: string; // dismissed draft
   Dup: string; // draft duplicate of G, found by AI — merged into G in P43

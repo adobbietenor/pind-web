@@ -111,8 +111,8 @@ ${review}
 <p class="muted">City: ${e(v.city)}</p>
 <button class="plain">Save venue</button></form>
 
-<h2>Meeting spots — ${approved >= 3 ? `<span class="good">${approved} approved ✓</span>` : `<span class="bad">${approved} approved: needs 3 to publish</span>`}</h2>
-<p class="muted">Curated public places only (H5). The spot poll uses the first 3 approved, by order.</p>
+<h2>Meeting spots — ${approved ? `<span class="good">${approved} approved</span>` : `<span class="muted">none approved yet (needed when crews open)</span>`}</h2>
+<p class="muted">Curated public places only (H5). Any number can be approved; each spot poll shows the first 3, by order. Spots are optional to publish and needed when crews open.</p>
 <table>${spotRows || `<tr><td class="muted">None yet.</td></tr>`}</table>
 <form method="post" action="/admin/venues/${e(id)}/spots"><input type="hidden" name="back" value="${e(backTo)}">
 <input name="name" required maxlength="80" size="24" placeholder="New spot name">

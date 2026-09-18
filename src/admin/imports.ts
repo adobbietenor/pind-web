@@ -107,6 +107,37 @@ export async function flagsPanel(ctx: AdminContext, p: Places, backTo: string, g
 <table><tr><th>Gathering</th><th>What changed</th><th></th></tr>${rows}</table>`;
 }
 
+// Crews are open (5+ opted in) at a published, live gathering whose venue has no
+// approved spots (Alex, M1.3). Worked out when the page loads; it clears itself as
+// soon as a spot is approved (which also fills the poll).
+export async function crewsWithoutSpotsPanel(ctx: AdminContext, p: Places): Promise<string> {
+  const live = await must(
+    ctx.db
+      .from("gatherings")
+      .select("id, name, starts_at, venue_id")
+      .eq("status", "published")
+      .gt("starts_at", new Date().toISOString())
+      .order("starts_at")
+      .limit(500),
+  );
+  const bare = (live as any[]).filter((g) => p.spots(g.venue_id) === 0);
+  if (!bare.length) return "";
+  const counts = await must(ctx.db.rpc("gathering_counts", { gathering_ids: bare.map((g) => g.id) }));
+  const open = new Set((counts as any[]).filter((c) => c.crews_open).map((c) => c.gathering_id as string));
+  const rows = bare
+    .filter((g) => open.has(g.id))
+    .map(
+      (g) => `<tr><td><a href="/admin/gatherings/${e(g.id)}">${e(g.name)}</a><br><span class="muted">${e(formatLocal(g.starts_at, p.tz(g.venue_id)))}</span></td>
+<td class="bad">Crews are open, but ${e(p.byId.get(g.venue_id)?.name ?? "the venue")} has no approved meeting spots</td>
+<td><a href="/admin/venues/${e(g.venue_id)}">Add spots</a></td></tr>`,
+    )
+    .join("");
+  if (!rows) return "";
+  return `<h2 class="bad">Crews open, no meeting spots</h2>
+<p class="muted">Approving a spot fills these gatherings' spot polls (up to 3).</p>
+<table>${rows}</table>`;
+}
+
 // Venues with fewer than 3 approved spots and an upcoming draft scoring 40+.
 export async function venuesNeedingSpotsPanel(ctx: AdminContext, p: Places): Promise<string> {
   const until = new Date(Date.now() + 56 * DAY).toISOString();

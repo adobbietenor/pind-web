@@ -75,7 +75,7 @@ export function venueOptions(p: Places, selected: string | null | undefined): st
     p.venues
       .map(
         (v) =>
-          `<option value="${e(v.id)}"${v.id === selected ? " selected" : ""}>${e(v.name)} (${p.spots(v.id)}/3 spots)</option>`,
+          `<option value="${e(v.id)}"${v.id === selected ? " selected" : ""}>${e(v.name)} (${p.spots(v.id)} spots)</option>`,
       )
       .join("")
   );
