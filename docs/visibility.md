@@ -1,10 +1,11 @@
-# Visibility rules — Phase 1 M1.1
+# Visibility rules — Phase 1 M1.1, extended in M1.2
 
 The plain-English rules that the privileges, RLS policies, storage policies and
 database functions in `supabase/migrations/` implement. Agreed with Alex on
 2026-09-18. Max's team reviews the SQL and the harness (`tests/policies`) against
-this file: every rule has an ID (V1–V11), and §16 maps each rule to the SQL that
-enforces it and the harness cases (P01–P37) that prove it.
+this file: every rule has an ID (V1–V12), and §16 maps each rule to the SQL that
+enforces it and the harness cases (P01–P47) that prove it. M1.2 (admin) added V12,
+the draft/dismissed states in V11, and cases P38–P47.
 
 Binding sources: `decisions.md` H3 (reciprocal reveal), H6 (honest counts), H7
 (women-only), H9 (block/report), H11 (visibility in the database), Q1, Q3, Q9, and
@@ -219,11 +220,42 @@ directions from one row.
 
 ## 12 · Published gatherings — V11
 
-`gatherings.published_at` (null = draft). Ticketmaster imports and admin drafts land
-unpublished. `anon` and `authenticated` read only published gatherings, and only
-those gatherings' spot options, group links and counts. Pins and survey responses
-can only be created on published gatherings. Venues and meeting spots are public
-places and are readable regardless.
+`gatherings.published_at` (null = not public). A gathering is a **draft**, **published**
+or **dismissed** (`status`, derived from `published_at` and `dismissed_at`; M1.2).
+Drafts arrive from the Ticketmaster import, the AI discovery run or manual entry;
+a draft merged into a duplicate is dismissed with `merged_into_id` set. `anon` and
+`authenticated` read only published gatherings, and only those gatherings' spot
+options, group links and counts — drafts and dismissed gatherings from every source
+are invisible (P38). Pins and survey responses can only be created on published
+gatherings (P08, P39). Venues and meeting spots are public places and are readable
+regardless; the venue's city (`cities`) is public reference data.
+
+Publishing rules, in the database so the service key cannot skip them (trigger
+`gatherings_status_rules`; P42, P43): a gathering is published only with a venue that
+has 3 approved (active) meeting spots; unpublished only with zero pins; a published
+gathering's venue cannot change; a merged gathering cannot be restored.
+
+## 12b · Admin-only data — V12 (M1.2)
+
+- **Service key only, no visitor privileges at all:** `gathering_sources` (which
+  source found a gathering), `gathering_triage` (AI score and reason),
+  `spot_suggestions` (AI-proposed spots before approval — a pending suggestion is not a
+  meeting spot and is not public), `venue_aliases`, `venue_external_ids`,
+  `moderation_log`. Kept off public rows because RLS hides rows, not columns.
+- **Admin actions** (`public.admin_*`: publish, unpublish, dismiss, restore, merge,
+  photo approve/reject, unhide, keep hidden, hide now, dismiss reports, delete pin,
+  approve/reject spot) are executable by `service_role` only. Each writes
+  `moderation_log` with the admin's Cloudflare Access email in the same transaction.
+- **Photo approval** applies only to the exact photo the admin looked at
+  (`photo_path` must match); a photo changed meanwhile is refused (P46).
+- **Venue maps** live in the **public** bucket `venue-maps`. A map shows a public
+  building and its public spots — never a person (H1). There are no storage policies
+  for visitors: they cannot upload, replace, delete or list (P44). Anything showing a
+  person never goes in this bucket.
+- **Admin identity:** `/admin` sits behind Cloudflare Access, and the Worker verifies
+  the Access token (signature, audience, issuer, expiry, email allowlist) on every
+  admin request, refusing with 403 otherwise. The admin reads people with the service
+  key; this is the one surface that sees everything, which is why both locks exist.
 
 ## 13 · Spot poll
 
@@ -253,14 +285,15 @@ places and are readable regardless.
 
 | Access | Tables |
 |---|---|
-| Public read (published only where it applies) | `venues`, `meeting_spots`, `gatherings`, `gathering_spots`, `neighbourhoods` |
+| Public read (published only where it applies) | `venues`, `meeting_spots`, `gatherings`, `gathering_spots`, `neighbourhoods`, `cities`; storage `venue-maps` (public URLs, no visitor writes) |
 | Rules above | `people`, `people_private`, `pins`, `pin_friends`, `contact_points`, `spot_votes`, `gathering_group_links`, `blocks`, `reports`, `survey_responses`, storage `photos` |
-| Service key only, permanently | `magic_links`, `outbound_messages` |
+| Service key only, permanently | `magic_links`, `outbound_messages`, `gathering_sources`, `gathering_triage`, `spot_suggestions`, `venue_aliases`, `venue_external_ids`, `moderation_log`; functions `admin_*` |
 | Locked until the app phases (no privileges, no policies) | `tags`, `person_tags`, `crews`, `crew_members`, `crew_proposals`, `crew_proposal_votes`, `crew_join_requests`, `crew_messages`, `confirmations`, `connections` |
 
 ## 16 · Rule → SQL → proof
 
-Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_`.
+Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1) and
+`20260918154…_m1_2_` (M1.2).
 
 | Rule | Enforced by | Harness cases |
 |---|---|---|
@@ -274,7 +307,10 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_`.
 | V8 removing a pin | V1 and `public.spot_poll` read live pins | P21, P22 |
 | V9 filing reports | column grant on `reports`; policy `reports_insert_on_visible_person` | P33 |
 | V10 auto-hide | trigger `reports_auto_hide` → `private.auto_hide_on_report` | P34–P36 |
-| V11 published | policies `gatherings_read_published`, `gathering_spots_read_published`; `private.is_published` in pin/survey inserts | P01, P02, P08 |
+| V11 published | policies `gatherings_read_published`, `gathering_spots_read_published`; `private.is_published` in pin/survey inserts | P01, P02, P08, P38, P39 |
+| V11 publishing rules | trigger `gatherings_status_rules` → `private.gathering_status_rules`; `admin_publish_gathering`, `admin_merge_gatherings` | P42, P43 |
+| V12 admin-only data | `revoke all` on the six admin tables; `admin_*` executable by `service_role` only; bucket `venue-maps` with no visitor policies | P40, P41, P44 |
+| V6/V10 after review | `admin_set_photo_status`, `admin_unhide_person`, `admin_hide_person`, `admin_keep_hidden`, `admin_delete_pin` | P45–P47 |
 | Own rows only | policies `*_own`, `*_self`; column grants | P07, P08, P10, P30, P32 |
 | Locked tables | `revoke all` with nothing granted back | P03, P04 |
 | Spot poll | `spot_votes` primary key; policies `spot_votes_*`; `public.spot_poll` | P21, P29–P31 |

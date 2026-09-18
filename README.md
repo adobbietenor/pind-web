@@ -77,3 +77,46 @@ Check `/health` there. Never change `name` in `wrangler.jsonc`, and never add
 
 If you change `wrangler.jsonc`, rerun `npx wrangler types` and commit the
 regenerated `worker-configuration.d.ts`.
+
+## Admin (Phase 1 M1.2)
+
+`/admin` is private to Alex. Two locks:
+
+1. **Cloudflare Access** — a self-hosted Access application on
+   `pind-web-staging.pind.workers.dev` with paths `admin` and `admin*`, policy
+   "Alex only". Visitors who are not signed in never reach the Worker.
+2. **The Worker checks the Access token itself** on every `/admin` request
+   (`src/admin/access.ts`): signature against the team's public keys, issuer, audience,
+   expiry and an email allowlist. Anything missing or wrong is a 403, including when
+   the settings below are not set. Every refusal is logged with its reason and the
+   token's `iss` and `aud` claims only (never the token) — read with
+   `npx wrangler tail pind-web-staging`.
+
+Admin settings (Worker secrets, never committed):
+
+```
+npx wrangler secret put ACCESS_TEAM_DOMAIN   # https://<team>.cloudflareaccess.com
+npx wrangler secret put ACCESS_AUD           # the Access application's AUD tag
+npx wrangler secret put ADMIN_EMAILS         # comma-separated
+```
+
+The admin reads and writes with the service key. Lifecycle and moderation actions
+are `admin_*` database functions: they enforce the rules (3 approved spots to publish,
+zero pins to unpublish) and write `moderation_log`.
+
+### Staging seed (fake data)
+
+```
+npm run seed:staging               # remove any previous seed, then seed
+npm run seed:staging -- --remove   # remove the seed only
+```
+
+Refuses to run unless `.dev.vars` points at pind-staging. Seeds 3 venues (one with AI
+spot suggestions pending), 15 drafts from all three sources (a duplicate pair, free
+events, an unmatched venue) and one published gathering with 20 fake pins, pending
+photos and one report. Everything is tagged `[TEST]` / `pindseed`.
+
+### Unit tests
+
+`npm run test:unit` — the Access token check, CSV output and admin time conversion.
+No network, no database.

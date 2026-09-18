@@ -17,6 +17,8 @@
     "typecheck": "tsc --noEmit && tsc --noEmit -p tests",
     "dev": "wrangler dev",
     "types": "wrangler types",
-    "test:policies": "node --env-file=.dev.vars --test --test-concurrency=1 tests/policies/policies.test.ts"
+    "test:policies": "node --env-file=.dev.vars --test --test-concurrency=1 tests/policies/policies.test.ts",
+    "test:unit": "node --test tests/unit/access.test.ts tests/unit/origin.test.ts tests/unit/csv-time.test.ts",
+    "seed:staging": "node --env-file=.dev.vars scripts/seed-staging.ts"
   }
 }

@@ -31,9 +31,13 @@ Two versions of this exist:
 ## 1 · Core objects and lifecycles
 
 ### gathering
-A real public event. Imported from the Ticketmaster Discovery API or entered by hand
-(teams, festivals, club nights). Fields: name, starts_at, `ends_at` (nullable), venue,
-ticket_url, a static map image showing the venue and its meeting spots, `featured` flag.
+A real public event. Arrives as a **draft** from the nightly Ticketmaster import, the
+weekly AI discovery run, or manual entry (fallback), and is public only once admin
+publishes it (decisions Part 5, "Gathering sourcing"). Fields: name, starts_at,
+`ends_at` (nullable), venue, `event_url` (tickets or event info; optional), `is_free`,
+`featured` flag, status (draft / published / dismissed). The static map image showing
+the venue and its meeting spots belongs to the **venue**. Venues have a city (Toronto
+now; Vancouver and Montreal possible).
 
 **Effective end** = `ends_at`, or `starts_at + 180 minutes` when `ends_at` is null.
 Admin can set `ends_at` per gathering; festival days and club nights get it set by
@@ -155,7 +159,8 @@ Public, no account, shareable. Contains:
   1. Meet in public — named spots only, before the event.
   2. You see people only after they can see you.
   3. Leave any time. Block & report are one tap away.
-- Primary action: **"Pin in — I've got a ticket"**
+- Primary action: **"Pin in — I've got a ticket"**; for free gatherings, **"Pin in —
+  I'm going"** (§5)
 - Footnote: names and photos unlock after you pin in and opt to meet
 - Footer: block · report · leave any time · 19+
 
@@ -225,9 +230,13 @@ Optionally adds an email or phone to receive the crews-open message.
 
 ### Also required, not a board screen
 - **`/spot` share page** — read-only: gathering, spot, time. No names, no join link.
-- **Admin** — behind Cloudflare Access (no admin table). Create a gathering (name,
-  date, optional end time, venue, 3 spots, ticket link, map image),
-  paste WhatsApp group links, view pins and opt-ins, export CSV, delete a pin on request.
+- **Admin** — behind Cloudflare Access, and the Worker verifies the Access token on
+  every admin request (no admin table). Draft queue (source, AI score and reason;
+  publish / dismiss / merge / edit), gathering edit (times, venue, event link, free,
+  spot-poll times, main and women-only WhatsApp links), manual add as a fallback,
+  venues with their spots and map image, approve or edit AI-suggested spots, per-gathering
+  counts and pins, photo approval queue, reports and hidden people, delete a pin on
+  request, CSV export (no contact details, no gender).
 
 ---
 
@@ -371,7 +380,8 @@ Universal links open a crowd URL in the app when installed, the web page when no
 
 - Tagline: "Know where you're headed, find what you're looking for."
 - One-liner: "See who's going, meet them there."
-- Primary action: **"Pin in — I've got a ticket"**
+- Primary action: **"Pin in — I've got a ticket"**. For gatherings with `is_free = true`:
+  **"Pin in — I'm going"** (Alex, Phase 1 M1.2).
 - Threshold explanation: "Crews open when 5 people opt in."
 - The three house rules, verbatim, on every crowd surface (see T2).
 - Never use the phrase "not a dating app" in user-facing copy except the single
@@ -402,7 +412,43 @@ Universal links open a crowd URL in the app when installed, the web page when no
   **Developer review by Max's team is pending** (`docs/m1.1-review-brief.md`). It is
   **not** a blocker for building. It is a gate before any real crowd sees each other
   (T6 with real people). Fixes from the review come as new migrations.
-- **Next milestone: M1.2, the admin page.**
+- **Phase 1 M1.2 complete** (branch `phase1/m1.2-admin`, merged to `main`): the admin.
+  Gatherings arrive as drafts from Ticketmaster, the AI run or manual entry; AI vets and
+  scores them; Alex publishes a handful per week (decisions Part 5). Four migrations on
+  pind-staging: `ai` source; draft/published/dismissed status (derived from
+  `published_at` + `dismissed_at`), merging, `event_url`, `is_free`, venue city
+  (`cities`), venue map image; admin-only tables (`gathering_sources`,
+  `gathering_triage`, `spot_suggestions`, `venue_aliases`, `venue_external_ids`,
+  `moderation_log`); public `venue-maps` bucket; a trigger enforcing "3 approved spots
+  to publish" and "zero pins to unpublish"; `admin_*` functions (service key only) for
+  every admin action, each logged. Screens: draft queue, gathering edit (spot poll,
+  WhatsApp links), manual add, published counts and pins, venues and spots with AI
+  suggestions and map upload, photo queue, reports and hidden people, delete pin, CSV
+  (no contact details, no gender). `/admin` is behind Cloudflare Access (self-hosted
+  application on the workers.dev hostname, paths `admin` and `admin*`, "Alex only",
+  one-time PIN; team domain `pind-social.cloudflareaccess.com`), and the Worker
+  verifies the Access token on every admin request and accepts writes only from the
+  admin's own pages. `npm run test:policies` 48/48 (P01–P47 + P07b),
+  `npm run test:unit` 24/24, typecheck clean. Acceptance checked on device by Alex
+  2026-09-18. Rules: `docs/visibility.md` V11, V12; review: `docs/m1.1-review-brief.md`
+  (M1.2 section).
+  **Staging seed data is left in place on purpose** (all tagged `[TEST]` / `pindseed`)
+  for the next milestones; `npm run seed:staging -- --remove` deletes it.
+- **Next milestone: M1.3, the Ticketmaster import.**
+- **For M1.3 (Ticketmaster import), recorded now (Alex, M1.2):** the importer must detect
+  date or status changes (cancelled, postponed, rescheduled) on **published**
+  gatherings and flag them in the admin for Alex. It never changes a published
+  gathering silently.
+- **For T3 (pin-in), recorded now (Alex, M1.2): automated photo moderation**
+  (decisions Part 5). On upload, a Claude vision check auto-approves clear real-person
+  photos, auto-rejects clearly inappropriate ones (the person stays visible without a
+  photo), and sends uncertain cases (possible minor, not a real person, possibly
+  someone else's photo) to the admin photo queue built in M1.2. It never decides
+  "under 19" alone; it only flags for review. Reports and auto-hide stay the backstop.
+  T3 work: the check itself; each automated decision recorded in `moderation_log`
+  like an admin decision; `docs/visibility.md` V6 updated (today it says a photo shows
+  only after **admin** approves it); the privacy policy states that photos are checked
+  automatically. The Anthropic key is a Worker/Edge Function secret, never committed.
 - **Open, to be decided in their own milestones:** T5 new-device sign-in (Supabase Auth email sign-in
   linked to the anonymous user, or a narrow service-key exception); T10 +1 claim;
   the anonymous sign-in per-IP rate limit when the Worker signs visitors in (T3).
@@ -413,7 +459,8 @@ Universal links open a crowd URL in the app when installed, the web page when no
 All must be true before real Test 0 visitors can see each other:
 - [ ] pind.social is live and email sending is set up on it (decisions Part 5)
 - [ ] the visibility rules are reviewed by someone other than their author
-  (Max's team, `docs/m1.1-review-brief.md`)
+  (Max's team, `docs/m1.1-review-brief.md`, including its M1.2 section: V11/V12 SQL
+  and the Worker's Access token check)
 - [ ] a decision on whether real Test 0 data lives on pind-staging or a production project
 - [ ] T5 new-device sign-in is decided
 
