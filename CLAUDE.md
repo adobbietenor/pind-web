@@ -85,3 +85,13 @@ under a second. If a page needs more than 100 lines of CSS, something has gone w
 Account creation, the Supabase and Cloudflare dashboards, Apple Developer console,
 App Store submission, buying domains, and testing on a physical phone. Tell me when
 one of these is the next step rather than trying to work around it.
+
+## Database & visibility rules (Claude Code owns these; Alex reviews outcomes, not SQL)
+- All schema/policy changes are migration files applied with the Supabase CLI to pind-staging only. Never edit the dashboard. Never touch production without Alex saying so.
+- Before writing any policy or visibility function, explain in plain English who can see what and who can't. Wait for Alex's OK.
+- Every visibility rule ships with a test proving both: the right person CAN see, and the wrong person CANNOT.
+- Photos live in a private bucket, served only by short-lived signed URLs after the visibility check. Instagram handles get the same check as photos.
+- Test 0 pin-in accepts EITHER an uploaded photo OR an Instagram handle; at least one is required.
+- Test 0 threshold and follow-up messages go by email (Resend) first; SMS (Twilio) is added later as a second channel.
+- Phase 1: the Worker uses the service key server-side only, and people lists come from one SQL visibility function, never filtered in Worker code.
+- Flag anything touching visibility for developer review before real users see it.
