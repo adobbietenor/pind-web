@@ -1,0 +1,9 @@
+{
+  "name": "pind-web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Pin'd public web surfaces (Cloudflare Worker) and shared Supabase schema",
+  "devDependencies": {
+    "supabase": "2.117.0"
+  }
+}
