@@ -35,8 +35,12 @@ A real public event. Arrives as a **draft** from the nightly Ticketmaster import
 weekly AI discovery run, or manual entry (fallback), and is public only once admin
 publishes it (decisions Part 5, "Gathering sourcing"). Fields: name, starts_at,
 `ends_at` (nullable), venue, `event_url` (tickets or event info; optional), `is_free`,
-`featured` flag, status (draft / published / dismissed). The static map image showing
-the venue and its meeting spots belongs to the **venue**. Venues have a city (Toronto
+`featured` flag, status (draft / published / dismissed / withdrawn). **Withdrawn**
+(Alex, M1.3) applies only to a published gathering that is off — cancelled, postponed,
+a takedown request or other — even with pins: it leaves every public list, pins are
+kept, and pinned people see a short neutral notice ("This gathering is no longer on
+Pin'd. Your pin is kept; there's nothing you need to do.") instead of a dead page.
+The static map image showing the venue and its meeting spots belongs to the **venue**. Venues have a city (Toronto
 now; Vancouver and Montreal possible).
 
 **Effective end** = `ends_at`, or `starts_at + 180 minutes` when `ends_at` is null.
@@ -434,7 +438,20 @@ Universal links open a crowd URL in the app when installed, the web page when no
   (M1.2 section).
   **Staging seed data is left in place on purpose** (all tagged `[TEST]` / `pindseed`)
   for the next milestones; `npm run seed:staging -- --remove` deletes it.
-- **Next milestone: M1.3, the Ticketmaster import.**
+- **Phase 1 M1.3 in progress** (branch `phase1/m1.3-ticketmaster`): the nightly
+  Ticketmaster import and AI vetting. Decided so far (Alex, M1.3; detail in decisions
+  Part 5): search 30 km around the city centre, 8 weeks ahead, with centre and radii
+  on the `cities` row; a calculated distance adjustment to the AI score; event facts
+  only, Ticketmaster's data deleted 30 days after effective end; no revenue from
+  Ticketmaster data during Test 0 (any paid feature needs a terms review first); a
+  privacy policy before public pages go live; the import filter; Sonnet 5 scoring with
+  the approved rubric, 40 threshold and a $3/day cap; AI spot suggestions (10 venues
+  a night); importer-dismissed drafts restore themselves, Alex-dismissed never do;
+  flags on published gatherings; the **withdrawn** state; Worker cron on Workers Paid.
+- **Open (Alex, M1.3): people pinned to a published gathering are not told when its
+  date changes.** Applying a new date from a flag updates the page only; Test 0 sends
+  just two messages (T5, T8). Decide before the first real crowd whether a date change
+  needs a message.
 - **For M1.3 (Ticketmaster import), recorded now (Alex, M1.2):** the importer must detect
   date or status changes (cancelled, postponed, rescheduled) on **published**
   gatherings and flag them in the admin for Alex. It never changes a published
@@ -464,6 +481,8 @@ All must be true before real Test 0 visitors can see each other:
 - [ ] Alex's own read of `docs/visibility.md`
 - [ ] a decision on whether real Test 0 data lives on pind-staging or a production project
 - [ ] T5 new-device sign-in is decided
+- [ ] a privacy policy is published covering Ticketmaster data, the automated photo
+  checks and gender (decisions Part 5, Alex M1.3)
 
 ### Deferred cascades
 Deferred to the retention and account-deletion milestone. The initial schema does not
