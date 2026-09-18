@@ -13,8 +13,9 @@
   // Toronto in summer (EDT) and 3am in winter (EST), so no daylight-saving logic.
   "triggers": { "crons": ["0 8 * * *"] },
 
-  // Not secrets. The hard daily AI spend cap, US dollars per Toronto calendar day.
-  "vars": { "AI_DAILY_CAP_USD": "3" }
+  // Not secrets. The hard daily AI spend cap, US dollars per Toronto calendar day;
+  // AI spot suggestions stay off until M1.3b ("on" to enable).
+  "vars": { "AI_DAILY_CAP_USD": "3", "AI_SPOT_SUGGESTIONS": "off" }
 
   // Secrets (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SESSION_SECRET, ACCESS_*,
   // ADMIN_EMAILS, TICKETMASTER_CONSUMER_KEY, ANTHROPIC_API_KEY) are never written

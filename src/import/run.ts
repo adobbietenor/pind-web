@@ -17,7 +17,7 @@ import { formatLocal } from "../admin/time";
 import type { Env } from "../env";
 import { serviceClient } from "../supabase";
 import { canSpend, ESTIMATE, MODEL, type ScoreInput } from "./ai";
-import { claudeClient, scoreBatch, suggestSpots } from "./claude";
+import { claudeClient, scoreBatch, SPOTS_CALL_MS, suggestSpots } from "./claude";
 import { fetchWindow } from "./tmclient";
 import {
   adjustedScore,
@@ -38,6 +38,7 @@ export const SCORE_THRESHOLD = 40; // decisions Part 5: below this, collapsed in
 const SCORE_BATCH = 25;
 const SCORE_PARALLEL = 4;
 const SPOT_VENUES_PER_NIGHT = 10;
+const SPOT_PARALLEL = 3; // about 45 s and $0.20 per venue (measured)
 const SPOT_RETRY_DAYS = 30; // a venue whose suggestions were all rejected waits for "Suggest again"
 const RETENTION_DAYS = 30;
 const DEFAULT_CAP_USD = 3;
@@ -408,32 +409,38 @@ export async function suggestForVenues(
   let venuesDone = 0;
   let failures = 0;
   let capped = false;
-  for (const id of venueIds) {
-    if (Date.now() > s.deadline) break;
-    if (!s.allowed(ESTIMATE.spotsVenue)) {
-      capped = true;
-      break;
-    }
-    try {
-      const v = await must(db.from("venues").select("name, address").eq("id", id).single());
-      const { spots, cost } = await suggestSpots(claude, v as { name: string; address: string | null });
-      await s.spend(cost);
-      if (!spots.length) {
-        failures++;
-        continue;
+  const queue = [...venueIds];
+  async function worker() {
+    while (queue.length) {
+      // Start a venue only if its call can finish before the deadline.
+      if (Date.now() + SPOTS_CALL_MS > s.deadline) return;
+      if (!s.allowed(ESTIMATE.spotsVenue * SPOT_PARALLEL)) {
+        capped = true;
+        return;
       }
-      await must(
-        db.from("spot_suggestions").insert(
-          spots.map((x) => ({ venue_id: id, name: x.name, description: x.address, address: x.address, reason: x.reason, evidence_url: x.evidenceUrl })),
-        ),
-      );
-      added += spots.length;
-      venuesDone++;
-    } catch (err) {
-      failures++;
-      console.error("spot suggestion failed:", err instanceof Error ? err.message : err);
+      const id = queue.shift()!;
+      try {
+        const v = await must(db.from("venues").select("name, address").eq("id", id).single());
+        const { spots, cost } = await suggestSpots(claude, v as { name: string; address: string | null });
+        await s.spend(cost);
+        if (!spots.length) {
+          failures++;
+          continue;
+        }
+        await must(
+          db.from("spot_suggestions").insert(
+            spots.map((x) => ({ venue_id: id, name: x.name, description: x.address, address: x.address, reason: x.reason, evidence_url: x.evidenceUrl })),
+          ),
+        );
+        added += spots.length;
+        venuesDone++;
+      } catch (err) {
+        failures++;
+        console.error("spot suggestion failed:", err instanceof Error ? err.message : err);
+      }
     }
   }
+  await Promise.all(Array.from({ length: SPOT_PARALLEL }, worker));
   return { counts: { spot_venues: venuesDone, spots_suggested: added, spots_capped: capped }, failures };
 }
 
@@ -451,7 +458,7 @@ export async function suggestForOneVenue(env: Env, venueId: string, actor: strin
   const spentBefore = Number(await must(db.rpc("admin_ai_spend_today", { p_city: city.slug })));
   const result = await suggestForVenues(db, city, claudeClient(apiKey), {
     allowed: (estimate) => canSpend(spentBefore + aiCost, estimate, capOf(env)),
-    deadline: Date.now() + 120_000,
+    deadline: Date.now() + SPOTS_CALL_MS + 10_000,
     spend: async (usd) => {
       aiCost += usd;
     },

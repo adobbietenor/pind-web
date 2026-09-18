@@ -1,4 +1,4 @@
-import type { Env } from "./env";
+import { spotSuggestionsOn, type Env } from "./env";
 import { escape, page } from "./html";
 import { IMPORTER, runImport } from "./import/run";
 import { route } from "./router";
@@ -28,7 +28,7 @@ export default {
       trigger: "cron",
       actor: IMPORTER,
       deadline: Date.now() + CRON_BUDGET_MS,
-      spots: true,
+      spots: spotSuggestionsOn(env), // off until M1.3b
     });
     console.log(outcome.message);
   },

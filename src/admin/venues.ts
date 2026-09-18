@@ -3,6 +3,7 @@
 //
 // Map images go in the PUBLIC venue-maps bucket (decisions Part 5): a public building
 // and its public spots, never a person (H1). Only this admin writes there.
+import { spotSuggestionsOn } from "../env";
 import type { AdminHandler } from "./context";
 import { adminPage, back, e, here, link, must, notFound, postButton, str } from "./ui";
 
@@ -94,7 +95,7 @@ ${postButton(`/admin/suggestions/${s.id}/reject`, "Reject", backTo, { cls: "plai
 or ${postButton(`/admin/venues/${id}/confirm`, "Looks right", backTo, { cls: "plain" })}</p>`
     : "";
   const suggest =
-    approved < 3
+    approved < 3 && spotSuggestionsOn(ctx.env)
       ? postButton(`/admin/venues/${id}/suggest`, suggestions.length ? "Suggest again" : "Suggest spots now (AI, ~1 minute)", backTo, {
           cls: "plain",
         })

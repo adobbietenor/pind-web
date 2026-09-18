@@ -2,6 +2,7 @@
 // run's summary and "Run import now", flags on published gatherings, withdraw /
 // un-withdraw, venues needing spots, venues the importer created, and the runs list.
 // Every change goes through an admin_* database function, logged with Alex's email.
+import { spotSuggestionsOn } from "../env";
 import { distanceKm } from "../import/ticketmaster";
 import { runImport, SCORE_THRESHOLD, suggestForOneVenue } from "../import/run";
 import type { AdminHandler, AdminContext } from "./context";
@@ -294,6 +295,7 @@ export const mergeVenue: AdminHandler = async (request, ctx) => {
 // POST /admin/venues/:id/suggest — "Suggest spots now" / "Suggest again".
 export const suggestSpotsNow: AdminHandler = async (request, ctx) => {
   const form = await request.formData();
+  if (!spotSuggestionsOn(ctx.env)) return back(form, { err: "AI spot suggestions are off until M1.3b" });
   const outcome = await suggestForOneVenue(ctx.env, ctx.params.id!, ctx.email);
   return back(form, outcome.status === "ok" ? { ok: outcome.message } : { err: outcome.message });
 };
