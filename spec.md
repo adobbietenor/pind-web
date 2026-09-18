@@ -142,8 +142,11 @@ reviewable for its full 12 months after the thread is deleted.
 
 ## 2 · Test 0 — web + WhatsApp (T1–T10)
 
-Deliberately plain: white pages, system type, one purple button. Must load in under
-a second inside a Reddit tab and feel legitimate in a fan thread, not like a startup.
+The dark, on-brand look (Alex, after M1.3): near-black background, purple `#582883`,
+white text, the logo — matching the app and pindscene.com. Mobile-first. Must load in
+under a second inside a Reddit tab and feel legitimate in a fan thread, not like a
+startup. (Previously "white pages"; see decisions Part 5, "Look". Test 0's own
+screens T3–T8 and T10 are superseded by the build direction in decisions Part 5.)
 No account exists anywhere in Test 0; state is carried by a signed session cookie set
 at pin-in, re-establishable by a magic link.
 
@@ -196,7 +199,8 @@ Renders only behind a session that pinned **and** opted in (H3). Adds:
 - "Going & open to meeting" list: first name · neighbourhood · alone/with friends.
   No tags in Test 0 — tags are app-only. **Never ordered by join time** (Q3). Closes
   24h after the gathering's effective end; counts stay readable.
-- **Spot poll**: exactly 3 curated spots with times and vote counts (H5); one vote per
+- **Spot poll**: up to 3 curated spots with times and vote counts (H5; Alex, M1.3 — spots
+  are optional to publish and needed when crews open); one vote per
   person per gathering, changeable
 - "Join the WhatsApp group (14)" — link pasted by admin at threshold
 - At 3+ eligible people opted in (women, plus nonbinary people who opted into

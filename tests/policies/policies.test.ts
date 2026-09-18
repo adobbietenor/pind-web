@@ -659,22 +659,47 @@ describe("Admin-only data — V12", () => {
 });
 
 describe("Publishing rules — decisions Part 5 (enforced in the database)", () => {
-  it("P42 the database REFUSES to publish at a venue with 2 approved spots, even with the service key / publishes once a 3rd is approved, poll at start minus 60 min / unpublish works at zero pins, REFUSED at G with pins", async () => {
-    const refused = await w.service.rpc("admin_publish_gathering", { p_gathering: w.Q, p_actor: ACTOR });
-    assert.match(refused.error?.message ?? "", /3 approved meeting spots/);
-    await denied(w.service.from("gatherings").update({ published_at: new Date().toISOString() }).eq("id", w.Q), "23514");
-    assert.equal(await readable(w.anon, w.Q), false);
+  it("P42 spots are not needed to publish (Alex, M1.3): a venue with NO spots publishes with an empty poll; venue2 (2 spots) publishes with 2 options at start minus 60 min, and approving a 3rd tops the poll up to 3 / a gathering with no venue is REFUSED / unpublish works at zero pins, REFUSED at G with pins", async () => {
+    // A venue with no approved spots.
+    const empty = await ok(w.service.from("venues").insert({ name: `pindhx ${w.run} Empty` }).select("id").single());
+    const e = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} E`, starts_at: new Date(Date.now() + 13 * 86_400_000).toISOString(), venue_id: empty.id })
+        .select("id")
+        .single(),
+    );
+    await ok(admin("admin_publish_gathering", { p_gathering: e.id }));
+    assert.equal(await readable(w.anon, e.id), true);
+    assert.equal((await rows(w.anon.from("gathering_spots").select("id").eq("gathering_id", e.id))).length, 0);
 
-    // Approve venue2's pending suggestion, edited: now 3 approved spots.
-    const suggestion = await ok(w.service.from("spot_suggestions").select("id").eq("venue_id", w.venue2).single());
-    await ok(admin("admin_approve_spot", { p_suggestion: suggestion.id, p_name: "Front Steps (south)", p_description: "" }));
+    // No venue: still refused, by the function and by the trigger (even with the service key).
+    const noVenue = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} no-venue`, starts_at: new Date(Date.now() + 13 * 86_400_000).toISOString(), venue_id: null })
+        .select("id")
+        .single(),
+    );
+    assert.match((await admin("admin_publish_gathering", { p_gathering: noVenue.id })).error?.message ?? "", /no venue/);
+    await denied(w.service.from("gatherings").update({ published_at: new Date().toISOString() }).eq("id", noVenue.id));
+
+    // venue2 has 2 approved spots: the poll gets 2.
     await ok(admin("admin_publish_gathering", { p_gathering: w.Q }));
     assert.equal(await readable(w.anon, w.Q), true);
     const q = await ok(w.service.from("gatherings").select("starts_at, status").eq("id", w.Q).single());
     assert.equal(q.status, "published");
-    const options = await rows(w.anon.from("gathering_spots").select("meet_at").eq("gathering_id", w.Q));
-    assert.equal(options.length, 3);
+    let options = await rows(w.anon.from("gathering_spots").select("meet_at").eq("gathering_id", w.Q));
+    assert.equal(options.length, 2);
     for (const o of options) assert.equal(Date.parse(o.meet_at), Date.parse(q.starts_at) - 60 * 60 * 1000);
+
+    // Approving venue2's pending suggestion (edited) tops Q's poll up to 3 — never more.
+    const suggestion = await ok(w.service.from("spot_suggestions").select("id").eq("venue_id", w.venue2).single());
+    await ok(admin("admin_approve_spot", { p_suggestion: suggestion.id, p_name: "Front Steps (south)", p_description: "" }));
+    options = await rows(w.anon.from("gathering_spots").select("meet_at").eq("gathering_id", w.Q));
+    assert.equal(options.length, 3);
+    await ok(w.service.from("meeting_spots").insert({ venue_id: w.venue2, name: `pindhx ${w.run} Fourth` }));
+    assert.equal((await rows(w.anon.from("gathering_spots").select("id").eq("gathering_id", w.Q))).length, 3);
 
     await ok(admin("admin_unpublish_gathering", { p_gathering: w.Q }));
     assert.equal(await readable(w.anon, w.Q), false);
@@ -818,6 +843,7 @@ describe("Import data and actions — V12 (M1.3)", () => {
         ["admin_resolve_flag", { p_flag: w.G, p_resolution: "ignored", p_actor: "x" }],
         ["admin_confirm_venue", { p_venue: w.venue, p_actor: "x" }],
         ["admin_merge_venues", { p_from: w.venue2, p_into: w.venue, p_actor: "x" }],
+        ["admin_top_up_spot_poll", { p_gathering: w.G }],
       ];
       for (const [fn, args] of calls) await denied(client.rpc(fn, args), "42501");
     }

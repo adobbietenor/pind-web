@@ -1,11 +1,12 @@
 // Draft queue, published list, manual add, gathering edit, lifecycle actions, pins,
 // CSV export. Lifecycle changes go through the admin_* database functions, which
-// enforce the rules (3 approved spots to publish, zero pins to unpublish) and write
+// enforce the rules (a venue to publish, zero pins to unpublish) and write
 // the moderation log (decisions.md Part 5, docs/visibility.md V11/V12).
 import { FOLD_THRESHOLD, IMPORTER } from "../import/run";
 import type { AdminHandler } from "./context";
 import { toCsv } from "./csv";
 import {
+  crewsWithoutSpotsPanel,
   flagsPanel,
   importPanel,
   newVenuesPanel,
@@ -37,8 +38,9 @@ function sourcesOf(g: { source: string; gathering_sources?: { source: string }[]
 }
 
 function spotsBadge(p: Places, venueId: string | null): string {
+  // Optional to publish (Alex, M1.3); needed once crews open.
   const n = p.spots(venueId);
-  return n >= 3 ? `<span class="good">${n}/3 ✓</span>` : `<span class="bad">${n}/3 ✗</span>`;
+  return n ? `<span class="good">${n} approved</span>` : `<span class="muted">none yet</span>`;
 }
 
 function venueCell(p: Places, g: { venue_id: string | null; venue_name_raw: string | null }): string {
@@ -189,9 +191,10 @@ ${folded.length ? `<details><summary class="muted">${folded.length} scoring unde
     )
     .join("");
 
-  const [panel, flags, newVenues, needSpots] = await Promise.all([
+  const [panel, flags, crewsNoSpots, newVenues, needSpots] = await Promise.all([
     importPanel(ctx, backTo),
     flagsPanel(ctx, p, backTo),
+    crewsWithoutSpotsPanel(ctx, p),
     newVenuesPanel(ctx, p, backTo),
     venuesNeedingSpotsPanel(ctx, p),
   ]);
@@ -210,8 +213,9 @@ ${folded.length ? `<details><summary class="muted">${folded.length} scoring unde
   const body = `
 ${panel}
 ${flags}
+${crewsNoSpots}
 <p>Published in the last 7 days: <strong>${recent.count ?? 0}</strong>. Publish a handful: pins must concentrate so crowds reach 5.</p>
-<p class="muted">A gathering can be published only when its venue has 3 approved meeting spots. Score = AI score minus the distance adjustment.</p>
+<p class="muted">Publishing needs a venue, not meeting spots: spots are needed when crews open (5 opted in). Score = AI score minus the distance adjustment.</p>
 <p>${toggles}${hidden ? ` · <span class="muted">${hidden} folded</span>` : ""}</p>
 ${sections || `<p>No upcoming drafts in this range.</p>`}
 ${needSpots}
@@ -248,7 +252,7 @@ export const publishedList: AdminHandler = async (request, ctx) => {
 <td><a href="/admin/gatherings/${e(g.id)}/export.csv">CSV</a></td></tr>`;
     })
     .join("");
-  const body = `<table><tr><th>When</th><th>Gathering</th><th>Venue</th><th>Pinned</th><th>Open to meeting</th><th></th></tr>
+  const body = `${await crewsWithoutSpotsPanel(ctx, p)}<table><tr><th>When</th><th>Gathering</th><th>Venue</th><th>Pinned</th><th>Open to meeting</th><th></th></tr>
 ${rows || `<tr><td colspan="6">Nothing published.</td></tr>`}</table>`;
   return adminPage(request, ctx.email, "Published", body);
 };
@@ -422,8 +426,8 @@ ${triage ? `<p>Score ${scoreCell(p, g.venue_id, triage.score ?? null, triage.rea
 ${sources ? `<ul>${sources}</ul>` : ""}
 <form method="post" action="/admin/gatherings/${e(id)}"><input type="hidden" name="back" value="${e(backTo)}">
 <fieldset><legend>Gathering</legend>${fieldsHtml(p, g, published)}</fieldset>
-<fieldset><legend>Spot poll (3 options)</legend>
-<p class="muted">Filled automatically at publish from the venue's first 3 approved spots, at start minus 60 minutes. Change them here.
+<fieldset><legend>Spot poll (up to 3 options)</legend>
+<p class="muted">Up to 3, filled automatically from the venue's approved spots at start minus 60 minutes — at publish, and again whenever a spot is approved later. Change them here.
 Changing the venue of a draft clears these.</p>
 <table><tr><th></th><th>Spot</th><th>Meet at</th></tr>${pollRows}</table></fieldset>
 <fieldset><legend>WhatsApp groups (shown only per the visibility rules)</legend>
@@ -519,7 +523,7 @@ export const saveGathering: AdminHandler = async (request, ctx) => {
         const { error: spotError } = await write;
         if (spotError) return back(form, { err: `Spot ${i + 1}: ${spotError.message}` });
       } else if (rowId) {
-        if (published) return back(form, { err: "A published gathering keeps its 3 spot options" });
+        if (published) return back(form, { err: "A published gathering keeps its spot options (people may have voted)" });
         await must(db.from("gathering_spots").delete().eq("id", rowId).eq("gathering_id", id));
       }
     }
