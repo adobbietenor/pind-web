@@ -392,19 +392,30 @@ Universal links open a crowd URL in the app when installed, the web page when no
   no custom domains): https://pind-web-staging.pind.workers.dev/health → 30, checked on a
   phone. PindScene.com is a separate worker and was unchanged. README covers running locally,
   secrets and deploying.
-- **Phase 1 M1.1** (branch `phase1/m1.1-rls`): RLS policies and the policy harness.
-  Rules in plain English: `docs/visibility.md`. Five migrations on pind-staging:
-  gender/age moved to owner-only `people_private`, WhatsApp links to
+- **Phase 1 M1.1 complete** (merged to `main`, commit `b496cf1`): RLS policies and the
+  policy harness. Rules in plain English: `docs/visibility.md`. Five migrations on
+  pind-staging: gender/age moved to owner-only `people_private`, WhatsApp links to
   `gathering_group_links`, `gatherings.published_at`, one spot vote per person per
   gathering, privileges + policies, private `photos` bucket, report auto-hide (H9).
-  `npm run test:policies` passes all P01–P37 against staging. Awaiting review by
-  Max's team (`docs/m1.1-review-brief.md`) before T6 shows people to anyone.
-  Anonymous sign-ins are on for pind-staging.
+  `npm run test:policies` passes 38/38 (P01–P37 plus P07b) on pind-staging. Anonymous
+  sign-ins are on for pind-staging.
+  **Developer review by Max's team is pending** (`docs/m1.1-review-brief.md`). It is
+  **not** a blocker for building. It is a gate before any real crowd sees each other
+  (T6 with real people). Fixes from the review come as new migrations.
+- **Next milestone: M1.2, the admin page.**
 - **Open, to be decided in their own milestones:** T5 new-device sign-in (Supabase Auth email sign-in
   linked to the anonymous user, or a narrow service-key exception); T10 +1 claim;
   the anonymous sign-in per-IP rate limit when the Worker signs visitors in (T3).
 - **Deferred** to retention and account deletion (detail below): gathering delete must
   not cascade pins and survey responses; person delete must not remove confirmations.
+
+### Before the first real crowd
+All must be true before real Test 0 visitors can see each other:
+- [ ] pind.social is live and email sending is set up on it (decisions Part 5)
+- [ ] the visibility rules are reviewed by someone other than their author
+  (Max's team, `docs/m1.1-review-brief.md`)
+- [ ] a decision on whether real Test 0 data lives on pind-staging or a production project
+- [ ] T5 new-device sign-in is decided
 
 ### Deferred cascades
 Deferred to the retention and account-deletion milestone. The initial schema does not

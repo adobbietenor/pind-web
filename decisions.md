@@ -152,3 +152,8 @@ profile.
   spot set / dissolved"). Still five. A18's rule is five moments, all about a plan — a
   ban on engagement bait, not a count to defend; a dissolve is a plan-state change.
 - **Contact details** (email / phone) live in their own table, never on the person row.
+- **Product domain: pind.social** (Alex, Phase 1 M1.1). Crowd pages, share links and
+  emails use it. PindScene.com redirects to it once it is live. The domain is bought
+  but not yet set up in Cloudflare or the Worker. The switch happens at M1.6
+  (threshold email) or the first public crowd page, whichever comes first. No work
+  on it before then.
