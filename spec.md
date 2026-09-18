@@ -380,6 +380,13 @@ Universal links open a crowd URL in the app when installed, the web page when no
 - **Phase 0 complete** (commit `8f32061`): npm + pinned Supabase CLI, `supabase init`/link
   to pind-staging, `20260918033807_initial_schema.sql` applied — 25 tables, RLS on all,
   no policies, 30 neighbourhoods seeded; spec and decisions updated with Phase 0 answers.
+- **Phase 1 M1.0 complete** (branch `phase1/m1-scaffold`): empty Test 0 Worker shell — plain
+  TypeScript, hand-written router, HTML via template strings, `serviceClient` helper (service
+  key server-side only, never to read people for a visitor). One route, `GET /health`, shows
+  the neighbourhoods row count. Deployed as `pind-web-staging` on workers.dev only (no routes,
+  no custom domains): https://pind-web-staging.pind.workers.dev/health → 30, checked on a
+  phone. PindScene.com is a separate worker and was unchanged. README covers running locally,
+  secrets and deploying.
 - **Next milestone:** RLS policies, with the policy harness in `tests/policies` written
   and passing against staging first. Test 0 visitors use anonymous sign-in (decisions Part 5).
 - **Deferred** to retention and account deletion (detail below): gathering delete must
