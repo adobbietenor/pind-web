@@ -66,12 +66,15 @@ The iOS app lives in a separate repo (`pind-app`, Expo) and reads the same datab
   when I ask.
 - Do not add a dependency without asking first.
 
-## Keep the Worker plain
+## Keep the Worker lean
 
-The Test 0 pages are deliberately styling-free: system fonts, one purple button
-(`#582883`), no framework. **No component library, no Tailwind, no build step, no
-client-side router.** These pages are pasted into Reddit threads and must load in
-under a second. If a page needs more than 100 lines of CSS, something has gone wrong.
+The Worker's public pages are pasted into Reddit threads and must load in **under a
+second** inside a Reddit tab. **No framework, no component library, no Tailwind, no
+build step, no client-side router** for pages. Plain CSS only.
+
+The dark, on-brand look is allowed (decisions.md Part 5, "Look"): near-black
+background, purple `#582883`, white text, the logo inline, system fonts — or one web
+font with a system fallback, only if it doesn't hurt load time.
 
 ## Secrets
 
@@ -91,7 +94,9 @@ one of these is the next step rather than trying to work around it.
 - Before writing any policy or visibility function, explain in plain English who can see what and who can't. Wait for Alex's OK.
 - Every visibility rule ships with a test proving both: the right person CAN see, and the wrong person CANNOT.
 - Photos live in a private bucket, served only by short-lived signed URLs after the visibility check. Instagram handles get the same check as photos.
-- Test 0 pin-in accepts EITHER an uploaded photo OR an Instagram handle; at least one is required.
-- Test 0 threshold and follow-up messages go by email (Resend) first; SMS (Twilio) is added later as a second channel.
-- Phase 1: web visitors get a Supabase anonymous sign-in at pin-in, and people lists are read as that visitor so RLS policies decide visibility, the same as the app. The service key is used server-side only, for admin, cron jobs and sending messages, and never to read people on behalf of a visitor. RLS policies and their test harness (spec §6) are built and pass before T6.
+- The service key is used server-side only, for admin, cron jobs, AI jobs and sending messages, and never to read people on behalf of a visitor. People lists are always read as the signed-in person, so RLS policies decide visibility.
+- **SUPERSEDED — do not build to these** (decisions.md Part 5, "Build direction": one Expo product for iOS and web; the WhatsApp-and-email Test 0 is dropped). They will be rewritten once the revised build plan is merged into spec.md:
+  - ~~Test 0 pin-in accepts EITHER an uploaded photo OR an Instagram handle; at least one is required.~~
+  - ~~Test 0 threshold and follow-up messages go by email (Resend) first; SMS (Twilio) is added later as a second channel.~~
+  - ~~Phase 1: web visitors get a Supabase anonymous sign-in at pin-in; RLS policies and their harness are built and pass before T6.~~
 - Flag anything touching visibility for the independent review before real users see it.
