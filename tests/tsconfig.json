@@ -9,5 +9,5 @@
     "verbatimModuleSyntax": true,
     "erasableSyntaxOnly": true
   },
-  "include": ["policies"]
+  "include": ["policies", "unit", "../scripts"]
 }
