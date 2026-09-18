@@ -47,10 +47,13 @@ crews look for faces at a patio table.
 **Alternative:** require photos everywhere from day one. Safer-feeling list, worse funnel.
 
 ### Q3 — Gender mix at tiny counts
-**Call:** pin and opt-in counts are always shown honestly; the **gender mix chip appears
+**Call:** pin and opt-in counts are always shown honestly; the **gender mix appears
 only at 5+ opted in** (A6, A9). Below that it can identify the single woman who opted in.
-The chip counts only `woman` and `man` ("8 · 4"). `nonbinary` and `undisclosed` count in
-the pinned total but are never broken out — at these numbers a breakout identifies one person.
+The mix shows **Women** and **Men**, plus **Other** only when above zero. Other is every
+answer that is not woman or man (nonbinary, prefer not to say). The three always add up
+to the open-to-meeting count, so the mix never implies a hidden remainder. The small
+inference risk that remains is accepted; the pinned list is never ordered by join time.
+(Revised by Alex in Phase 1 M1.1; previously woman · man only.)
 **Alternative:** always show the mix, rule-literal. Simpler to explain, small safety cost.
 
 ### Q4 — Who approves crew joins
@@ -86,7 +89,8 @@ pinned crowd page (T6). A separate **women-only group opens at 3+ eligible peopl
 opted in** — `gender = woman` plus nonbinary people with `include_in_women_only`. The
 same set decides the trigger and who can join (H7); otherwise the product either opens
 a group three eligible people can't fill, or fails to open one for three who qualify.
-The composition is never displayed, only the total.
+The offer is shown to eligible people **without a number** — next to the public mix, a
+total would reveal how many nonbinary people opted in (Phase 1 M1.1).
 **Alternative:** a group per crew. Better dress rehearsal for the app, worse critical mass.
 
 ### Q10 — Ordering the crowds list

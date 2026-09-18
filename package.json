@@ -2,8 +2,10 @@
   "name": "pind-web",
   "version": "0.0.0",
   "private": true,
+  "type": "module",
   "description": "Pin'd public web surfaces (Cloudflare Worker) and shared Supabase schema",
   "devDependencies": {
+    "@types/node": "24.13.5",
     "supabase": "2.117.0",
     "typescript": "7.0.2",
     "wrangler": "4.134.0"
@@ -12,8 +14,9 @@
     "@supabase/supabase-js": "2.116.0"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests",
     "dev": "wrangler dev",
-    "types": "wrangler types"
+    "types": "wrangler types",
+    "test:policies": "node --env-file=.dev.vars --test --test-concurrency=1 tests/policies/policies.test.ts"
   }
 }

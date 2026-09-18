@@ -34,6 +34,19 @@ Requires Node from `.nvmrc`, then `npm install`.
 3. `npm run typecheck` checks types. Wrangler bundles `src/` itself, so there is no
    build step.
 
+### Policy harness (RLS)
+
+`npm run test:policies` checks who can see what, against **pind-staging only**. It
+builds a throwaway cast of people, pins and gatherings with the service key, runs
+every "X CAN / X CANNOT" case in `docs/visibility.md` with each person's own
+session, and sweeps everything it created afterwards. It refuses to run against any
+other project.
+
+It needs `SUPABASE_PUBLISHABLE_KEY=sb_publishable_…` in `.dev.vars` as well as the
+settings above, and anonymous sign-ins switched on for the project. Supabase limits
+sign-ins per IP, so don't run it many times in a row. See
+`docs/m1.1-review-brief.md` for what it covers.
+
 ### Set secrets on the deployed Worker
 
 Deployed secrets are stored by Cloudflare, not read from `.dev.vars`. Each command

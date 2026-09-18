@@ -1,0 +1,13 @@
+{
+  // Type-checking for the policy harness. Node runs these .ts files directly
+  // (type stripping), so only erasable TypeScript is allowed and imports keep
+  // their .ts extension.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"],
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true
+  },
+  "include": ["policies"]
+}

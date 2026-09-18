@@ -45,9 +45,9 @@ Derived counts:
   bodies going (H6).
 - **N open to meeting** = count of distinct people with `open_to_meeting`. Never party
   totals: a +1 has consented to nothing. This is the count that reaches the threshold of 5.
-- **Gender mix** = count of opted-in `woman` and `man` only, rendered "8 · 4", and only
-  at 5+ opted in (Q3). `nonbinary` and `undisclosed` count in the pinned total but are
-  never broken out — at these numbers a breakout identifies one person.
+- **Gender mix** = opted-in Women and Men, plus Other only when above zero (every answer
+  that is not woman or man), only at 5+ opted in (Q3). The three add up to N open to
+  meeting. Hidden (reported) people are left out of N open to meeting and the mix.
 - Crews forming.
 
 ### person
@@ -149,8 +149,8 @@ The founder answers "is this a dating thing?" in the comments with the house rul
 Public, no account, shareable. Contains:
 - Event name, date, time, venue; share and report links
 - The static map: **venue and its 3 meeting spots, never people** (H1)
-- Counts: pinned, open to meeting, gender mix ("8 · 4", woman · man only, and only at
-  5+ opted in — Q3)
+- Counts: pinned, open to meeting, gender mix (Women · Men, plus Other when above zero;
+  only at 5+ opted in — Q3)
 - **House rules**, verbatim:
   1. Meet in public — named spots only, before the event.
   2. You see people only after they can see you.
@@ -185,12 +185,14 @@ This and the next-morning survey link are the **only two messages Test 0 sends**
 ### T6 — Crowd page, pinned *(reciprocal state)*
 Renders only behind a session that pinned **and** opted in (H3). Adds:
 - "Going & open to meeting" list: first name · neighbourhood · alone/with friends.
-  No tags in Test 0 — tags are app-only.
-- **Spot poll**: exactly 3 curated spots with times and vote counts (H5)
+  No tags in Test 0 — tags are app-only. **Never ordered by join time** (Q3). Closes
+  24h after the gathering's effective end; counts stay readable.
+- **Spot poll**: exactly 3 curated spots with times and vote counts (H5); one vote per
+  person per gathering, changeable
 - "Join the WhatsApp group (14)" — link pasted by admin at threshold
 - At 3+ eligible people opted in (women, plus nonbinary people who opted into
   women-only): a separate **women-only group** offer, shown only to eligible people.
-  Only the total is ever displayed, never the composition (Q9, H7)
+  No number is ever displayed with it (Q9, H7)
 - Footer: block · report · remove my pin
 
 ### T7 — WhatsApp group *(off-product artifact)*
@@ -333,7 +335,10 @@ that connections come from crews.
 ### A23 — Safety & settings
 Safety: blocked people, my reports, "women-only crews only" toggle.
 Visibility: "Visible only after I pin in + opt in — **always on**" (not a setting),
-show my neighbourhood, count me in the gender mix.
+show my neighbourhood. There is no "count me in the gender mix" setting (Alex, Phase 1
+M1.1): anyone who doesn't want to be counted as a woman or man chooses "Prefer not to
+say", which counts as Other, so Women + Men + Other always equals the open-to-meeting
+count (Q3).
 Notifications: the five, toggleable.
 Data: export my data, delete account (in-app, required by both stores).
 Note on screen: no location permission exists to manage — the app never asks.
@@ -387,8 +392,17 @@ Universal links open a crowd URL in the app when installed, the web page when no
   no custom domains): https://pind-web-staging.pind.workers.dev/health → 30, checked on a
   phone. PindScene.com is a separate worker and was unchanged. README covers running locally,
   secrets and deploying.
-- **Next milestone:** RLS policies, with the policy harness in `tests/policies` written
-  and passing against staging first. Test 0 visitors use anonymous sign-in (decisions Part 5).
+- **Phase 1 M1.1** (branch `phase1/m1.1-rls`): RLS policies and the policy harness.
+  Rules in plain English: `docs/visibility.md`. Five migrations on pind-staging:
+  gender/age moved to owner-only `people_private`, WhatsApp links to
+  `gathering_group_links`, `gatherings.published_at`, one spot vote per person per
+  gathering, privileges + policies, private `photos` bucket, report auto-hide (H9).
+  `npm run test:policies` passes all P01–P37 against staging. Awaiting review by
+  Max's team (`docs/m1.1-review-brief.md`) before T6 shows people to anyone.
+  Anonymous sign-ins are on for pind-staging.
+- **Open, to be decided in their own milestones:** T5 new-device sign-in (Supabase Auth email sign-in
+  linked to the anonymous user, or a narrow service-key exception); T10 +1 claim;
+  the anonymous sign-in per-IP rate limit when the Worker signs visitors in (T3).
 - **Deferred** to retention and account deletion (detail below): gathering delete must
   not cascade pins and survey responses; person delete must not remove confirmations.
 
