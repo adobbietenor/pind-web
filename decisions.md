@@ -165,8 +165,9 @@ profile.
   one-line reason. Alex publishes a handful per week with one click. **Publishing
   selectively is deliberate: pins must concentrate so crowds reach 5.** A draft is
   published, dismissed or merged into a duplicate found by another source; an
-  importer never changes a gathering's status, and a dismissed or merged event is
-  never re-created by a later import.
+  importer never changes a published gathering (it only flags it — M1.3, "Importer
+  and status changes" below), and a dismissed or merged event is never re-created by
+  a later import.
 - **Ticketmaster import area** (Alex, Phase 1 M1.3). The nightly import searches
   **30 km** around the city centre (Toronto: Union Station), **8 weeks** ahead. The
   centre point, the search radius and a "core" radius are stored on the `cities` row,
@@ -206,6 +207,9 @@ profile.
   with an address, a one-line reason and the page it checked. Only for venues with fewer
   than 3 active spots, no pending suggestions, and an upcoming draft scoring 40+; at most
   **10 venues per night**. Alex approves each one (the curated-spot rule above).
+  **Moved to its own milestone, M1.3b** (Alex, M1.3): built but switched off
+  (`AI_SPOT_SUGGESTIONS`, off by default) after calls proved slow, sometimes empty and
+  prone to stalling inside the Worker (spec §6). Spots are added by hand until then.
 - **Importer and status changes** (Alex, Phase 1 M1.3). On a **draft**, the importer
   may update a changed date or time, and quietly dismiss it when Ticketmaster marks it
   cancelled or postponed, or when it is missing from Ticketmaster two nights running.
