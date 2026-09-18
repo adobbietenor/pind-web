@@ -418,6 +418,16 @@ Universal links open a crowd URL in the app when installed, the web page when no
   date or status changes (cancelled, postponed, rescheduled) on **published**
   gatherings and flag them in the admin for Alex. It never changes a published
   gathering silently.
+- **For T3 (pin-in), recorded now (Alex, M1.2): automated photo moderation**
+  (decisions Part 5). On upload, a Claude vision check auto-approves clear real-person
+  photos, auto-rejects clearly inappropriate ones (the person stays visible without a
+  photo), and sends uncertain cases (possible minor, not a real person, possibly
+  someone else's photo) to the admin photo queue built in M1.2. It never decides
+  "under 19" alone; it only flags for review. Reports and auto-hide stay the backstop.
+  T3 work: the check itself; each automated decision recorded in `moderation_log`
+  like an admin decision; `docs/visibility.md` V6 updated (today it says a photo shows
+  only after **admin** approves it); the privacy policy states that photos are checked
+  automatically. The Anthropic key is a Worker/Edge Function secret, never committed.
 - **Open, to be decided in their own milestones:** T5 new-device sign-in (Supabase Auth email sign-in
   linked to the anonymous user, or a narrow service-key exception); T10 +1 claim;
   the anonymous sign-in per-IP rate limit when the Worker signs visitors in (T3).

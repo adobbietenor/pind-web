@@ -182,3 +182,16 @@ profile.
 - **Venue map images are public** (Alex, Phase 1 M1.2), in their own public bucket
   `venue-maps`, uploaded by admin only. They show a public building and its public
   spots, never a person (H1). Pin photos stay private (V6).
+- **Automated photo moderation** (Alex, Phase 1 M1.2; built in the T3 pin-in
+  milestone). On upload, an AI check (Claude vision, via the Anthropic API key,
+  server-side only) sorts every photo into one of three outcomes:
+  - **clear real-person photo** → auto-approved;
+  - **clearly inappropriate** → auto-rejected; the person stays visible without a
+    photo (V6);
+  - **uncertain** — possible minor, not a real person, or possibly someone else's
+    photo → the admin photo queue, for a human decision.
+
+  The AI **never decides "under 19" alone**: it can only flag a photo for review;
+  the 19+ rule (H8) stays with the person's attestation, reports and admin review.
+  Reports and auto-hide (H9) remain the backstop. **The privacy policy must say that
+  photos are checked automatically.**
