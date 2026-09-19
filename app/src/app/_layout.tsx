@@ -3,6 +3,7 @@ import { Poppins_700Bold } from "@expo-google-fonts/poppins/700Bold";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
+import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { View } from "react-native";
@@ -17,6 +18,10 @@ import { useScheme } from "@/lib/theme";
 initSentry();
 initAnalytics();
 
+// Keep the native splash up until Poppins is ready, so headlines never flash in
+// the fallback font.
+SplashScreen.preventAutoHideAsync();
+
 function RootLayout() {
   const scheme = useScheme();
   const palette = colors[scheme];
@@ -25,6 +30,10 @@ function RootLayout() {
   useEffect(() => {
     track("app_open");
   }, []);
+
+  useEffect(() => {
+    if (fontsLoaded) SplashScreen.hideAsync();
+  }, [fontsLoaded]);
 
   const base = scheme === "dark" ? DarkTheme : DefaultTheme;
   const theme = {
@@ -39,8 +48,7 @@ function RootLayout() {
     },
   };
 
-  // Hold on the background colour until Poppins is ready, so headlines never
-  // flash in the fallback font.
+  // On the web there is no native splash: hold on the background colour instead.
   if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: palette.background }} />;
 
   return (

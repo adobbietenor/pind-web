@@ -27,7 +27,19 @@ const config: ExpoConfig = {
     bundler: "metro",
     favicon: "./assets/favicon.png",
   },
-  plugins: ["expo-router", "@sentry/react-native/expo"],
+  plugins: [
+    "expo-router",
+    "@sentry/react-native/expo",
+    [
+      "expo-splash-screen",
+      {
+        // Solid near-black (tokens.ts colors.dark.background), no animation. The
+        // logo slot is empty until Alex supplies the file: add `image` and
+        // `imageWidth` here then.
+        backgroundColor: "#0B0A0D",
+      },
+    ],
+  ],
   experiments: { typedRoutes: true },
   extra: {
     variant,
