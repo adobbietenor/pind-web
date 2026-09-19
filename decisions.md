@@ -522,3 +522,9 @@ change). Where the plan has more detail, the plan is the reference.
   replay off, "Discard client IP data" on, `$geoip_disable` sent on every event and
   each event sent immediately. The stored events carry no `$geoip_*` properties and no
   `$ip` (checked 2026-09-19).
+- **Dark only** (Alex, M2.0). The app is **black always**, on iOS and on the web,
+  whatever the phone or browser is set to. There is **no light mode for now**. This
+  **overrides the board's "dark default, light follows the system"**; A25 was the
+  light-mode example and is not built. Built as `userInterfaceStyle: "dark"`, a single
+  dark palette in `packages/shared` and a dark-only web page. It returns only by a new
+  decision.

@@ -307,7 +307,7 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 
 **Acceptance**
 
-- The app opens on your iPhone (dev build) to four dark tabs in brand; switching the phone to light mode switches the app.
+- The app opens on your iPhone (dev build) to four dark tabs in brand, and stays dark in both system settings (Light and Dark). Light mode was dropped by Alex in M2.0 (decisions Part 5, "Dark only").
 - The same shell loads in mobile Safari at the staging hostname, and a deep path like `/me` loads it too (SPA fallback works).
 - An internal TestFlight build installs and opens.
 - From the repo root: typecheck, `test:policies` 55/55 and `test:unit` 55/55 still pass; `app` typechecks.

@@ -254,7 +254,8 @@ Moves from workers.dev to `pind.social/admin` in M2.1.
 ## 3 · The product — Expo for iOS and web (A1–A29)
 
 One codebase for the iOS app and the web build (decisions Part 5, "Build direction").
-Dark mode primary, light mode follows the system setting. Poppins headlines, SF Pro
+**Dark always**, whatever the phone is set to (Alex, M2.0; decisions Part 5, "Dark
+only"). There is no light mode for now. Poppins headlines, SF Pro
 body (system font on the web), SF Symbols icons, purple `#582883`. Four tabs:
 **Crowds · My Events · Connections · Profile**.
 
@@ -401,8 +402,10 @@ Identical sheet from a profile, a crew card, or a long-pressed message. Two taps
 "⋯" then a reason — made me uncomfortable / not who they said they were / under 19 /
 spam. Confirmation states a human reviews within 24h. Blocking never notifies (H9).
 
-### A25 — Light mode
-Same anatomy and the same purple; light surfaces for daytime browsing.
+### A25 — Light mode *(dropped for now)*
+On the board: same anatomy and the same purple, with light surfaces for daytime
+browsing. **Not built** (Alex, M2.0): the app is dark always (decisions Part 5, "Dark
+only"). It returns only by a new decision.
 
 ### A26 — Quick pin *(link path; new)*
 Reached from W2's button at `/g/<slug>/pin`. One screen, no account, no photo:
@@ -647,8 +650,8 @@ the current pace, raise the hours or shrink the phase.
       - `TAGS_DRAFT`
     - **Four tabs**, empty screens with their board IDs in the file headers:
       Crowds (A5, `/crowds`), My Events (A19), Connections (A20), Profile (A21,
-      `/me`). Poppins headlines, system body font, dark by default, light following
-      the system. `/` is left to the Worker for W1 (M2.1), and the app's root
+      `/me`). Poppins headlines, system body font, **dark always** in both system
+      settings (decisions Part 5, "Dark only"; light mode dropped). `/` is left to the Worker for W1 (M2.1), and the app's root
       redirects to `/crowds`.
     - The splash is solid near-black `#0B0A0D`, held until Poppins loads. Its logo
       slot is empty.
@@ -705,8 +708,12 @@ the current pace, raise the hours or shrink the phase.
     - Opening `/me` on the phone left `auth.users` at 20 before and after, with
       the same `max(created_at)`.
     - The stored PostHog events carry no `$geoip_*` properties and no `$ip`.
-  - On device (Alex): the dev build (four dark tabs in brand, light mode follows the
-    system) and the internal TestFlight build installing and opening.
+  - **On device (Alex).** The internal TestFlight build installs and opens to the
+    four tabs with no dev server. Staying dark with the phone in Light and in Dark
+    (the dark-only rebuild): re-check pending.
+    `auth.users` was 20 before and after opening it, with the same
+    `max(created_at)`. TestFlight was taken as the stronger proof and the dev-build
+    check was skipped.
 
 #### Notes carried into the next milestones
 - **M3.1 — the photo check** (recorded by Alex in M1.2; decisions Part 5, "Automated

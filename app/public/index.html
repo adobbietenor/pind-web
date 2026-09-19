@@ -4,23 +4,16 @@
     <meta charset="utf-8" />
     <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
-    <meta name="color-scheme" content="dark light" />
-    <meta name="theme-color" content="#0B0A0D" media="(prefers-color-scheme: dark)" />
-    <meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0B0A0D" />
     <title>%WEB_TITLE%</title>
-    <!-- Expo's SPA template plus the scheme background (tokens.ts), so the page
-         never flashes white before the app loads. Dark unless the system is light. -->
+    <!-- Expo's SPA template plus the dark background (tokens.ts), so the page
+         never flashes white before the app loads. Dark always. -->
     <style id="expo-reset">
       html,
       body {
         height: 100%;
         background: #0b0a0d;
-      }
-      @media (prefers-color-scheme: light) {
-        html,
-        body {
-          background: #ffffff;
-        }
       }
       body {
         overflow: hidden;

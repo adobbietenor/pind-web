@@ -1,10 +1,8 @@
 import { Tabs } from "expo-router";
-import { fonts } from "@pind/shared";
-import { usePalette } from "@/lib/theme";
+import { colors as palette, fonts } from "@pind/shared";
 
 // The four tabs (spec §3): Crowds · My Events · Connections · Profile.
 export default function TabsLayout() {
-  const palette = usePalette();
   return (
     <Tabs
       screenOptions={{

@@ -16,8 +16,8 @@ const config: ExpoConfig = {
   version: "1.0.0",
   orientation: "portrait",
   icon: "./assets/icon.png",
-  // Dark by default; light follows the system setting (spec §3, A25).
-  userInterfaceStyle: "automatic",
+  // Dark always, whatever the phone is set to (decisions Part 5, "Dark only").
+  userInterfaceStyle: "dark",
   ios: {
     bundleIdentifier,
     appleTeamId: "93M6B4W5PR",

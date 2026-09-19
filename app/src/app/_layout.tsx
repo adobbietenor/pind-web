@@ -2,16 +2,15 @@ import { Poppins_600SemiBold } from "@expo-google-fonts/poppins/600SemiBold";
 import { Poppins_700Bold } from "@expo-google-fonts/poppins/700Bold";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
-import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
+import { DarkTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import { View } from "react-native";
-import { colors } from "@pind/shared";
+import { colors as palette } from "@pind/shared";
 import { initAnalytics, track } from "@/lib/analytics";
 import { queryClient } from "@/lib/query";
 import { initSentry, wrapRoot } from "@/lib/sentry";
-import { useScheme } from "@/lib/theme";
 
 // Runs once per launch. Nothing here touches Supabase auth: opening the app
 // creates no user (the anonymous user is made at pin, A26).
@@ -23,8 +22,6 @@ initAnalytics();
 SplashScreen.preventAutoHideAsync();
 
 function RootLayout() {
-  const scheme = useScheme();
-  const palette = colors[scheme];
   const [fontsLoaded] = useFonts({ Poppins_600SemiBold, Poppins_700Bold });
 
   useEffect(() => {
@@ -35,11 +32,11 @@ function RootLayout() {
     if (fontsLoaded) SplashScreen.hideAsync();
   }, [fontsLoaded]);
 
-  const base = scheme === "dark" ? DarkTheme : DefaultTheme;
+  // Dark always (decisions Part 5, "Dark only").
   const theme = {
-    ...base,
+    ...DarkTheme,
     colors: {
-      ...base.colors,
+      ...DarkTheme.colors,
       primary: palette.accent,
       background: palette.background,
       card: palette.background,
@@ -54,7 +51,7 @@ function RootLayout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider value={theme}>
-        <StatusBar style={scheme === "dark" ? "light" : "dark"} />
+        <StatusBar style="light" />
         <Stack screenOptions={{ headerShown: false }} />
       </ThemeProvider>
     </QueryClientProvider>
