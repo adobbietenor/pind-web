@@ -7,7 +7,7 @@
     "start": "expo start",
     "ios": "expo start --ios",
     "web": "expo start --web",
-    "export:web": "expo export --platform web",
+    "export:web": "expo export --platform web --clear",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
