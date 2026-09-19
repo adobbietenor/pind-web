@@ -9,8 +9,7 @@
       "distribution": "internal",
       "environment": "development",
       "env": {
-        "APP_VARIANT": "staging",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "APP_VARIANT": "staging"
       },
       "node": "24.21.0"
     },
@@ -19,8 +18,7 @@
       "autoIncrement": true,
       "environment": "preview",
       "env": {
-        "APP_VARIANT": "staging",
-        "SENTRY_DISABLE_AUTO_UPLOAD": "true"
+        "APP_VARIANT": "staging"
       },
       "node": "24.21.0"
     },

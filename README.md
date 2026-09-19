@@ -160,5 +160,7 @@ From `app/`, with `npx eas-cli@24.7.0`:
 | `production` | production | `social.pind.app` | the App Store (M4.3 onward) |
 
 Build environment variables (the same `EXPO_PUBLIC_*` names as `app/.env`) are set
-in EAS: `eas env:create`. Sentry source-map upload is off
-(`SENTRY_DISABLE_AUTO_UPLOAD`) until a Sentry auth token is set up.
+in EAS (`eas env:set`) for the `development` and `preview` environments.
+`SENTRY_AUTH_TOKEN` is an EAS secret in the same two environments, and Sentry
+source maps are uploaded by the `development` and `internal` builds. `production`
+keeps `SENTRY_DISABLE_AUTO_UPLOAD` until M4.3 gives it its own keys and token.
