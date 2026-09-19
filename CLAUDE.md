@@ -122,6 +122,12 @@ own cron, not inside the nightly import.
   confirmations): list the states and what moves the object between them, and wait.
 - Work is done when the acceptance list passes **on a real phone**, not when the code
   looks right. Say "ready to check on device", do not declare it finished.
+- **Structure and plumbing first, UI after**, in every milestone. First prove the
+  data, keys, policies, delivery and builds end to end on a real device; screens come
+  after. UI-first once produced an app that looked finished and didn't work. The
+  empty M2.0 shell surfaced three real bugs: keys missing from the web bundle, PostHog
+  events never flushing, and wrong device-registration steps. Each would otherwise have
+  surfaced during the M3.6 dogfood walk.
 
 ## Dependencies
 
