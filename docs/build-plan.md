@@ -513,6 +513,8 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 - A real person (you, from a fresh phone) can pin in, opt in, get a photo approved and see a crew on pind.social against production.
 - Staging seed rows do not exist in production (a query proves it).
 - The external TestFlight link installs the app and it talks to production.
+- The production bundle ID (`social.pind.app`) **reuses the existing Pin'd APNs key**. The team is at Apple's limit of two, so if EAS offers to create a key, stop and reuse. No certificate is ever revoked to make room: create, never revoke (Alex, M2.0).
+- The production app's internal TestFlight group has Alex only. Either create it by hand with just Alex before the first submit, or stop EAS filling its auto-created "Team (Expo)" group with every App Store Connect user on the Tenor team (Alex, M2.0).
 
 8–12 h
 
@@ -541,7 +543,8 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 
 - The Metrics page shows every number in §7's table for the staging dogfood data, split by mode.
 - A Monday run logs a decision and its reasons; freezing the target stops the next decision from changing it.
-- PostHog events carry no `$geoip_*` properties. "Discard client IP data" is on, but GeoIP enrichment runs before the IP is discarded, so the properties are dropped explicitly: a project transformation, or equivalent (Alex, M2.0).
+- PostHog events still carry no `$geoip_*` properties and no `$ip`. Checked in M2.0 (2026-09-19) by querying the stored `app_open` events: none had either, so PostHog honours the app's per-event `$geoip_disable` flag. M4.5 re-checks this against live funnel events rather than building a transformation (Alex, M2.0).
+- Web counts are not inflated by pages the browser pre-loads. In M2.0 one phone visit produced two `app_open` events 1 ms apart, with different anonymous ids; the likely cause is iOS Safari pre-loading a top hit. Funnel counts skip pre-rendered loads, or the metrics say why they don't (Alex, M2.0).
 
 ### The first real crowds
 
@@ -560,6 +563,7 @@ Six to eight weeks. The publisher runs; the team seeds two or three gatherings a
 
 - A reviewer-style walk from a fresh install on a fresh phone reaches a crew and a thread using only the notes and the demo account.
 - Real users cannot see the review-only gathering (a harness case proves it).
+- The listing's seller line reads **Pin'd**, through an App Store Connect "Doing Business As" name for Tenor Investments Inc. Apple wants documentation and takes a few days, so request it well before submission (Alex, M2.0).
 
 10–14 h
 

@@ -537,7 +537,7 @@ working. Hours are Alex's, agent-assisted.
 | M1.2 | Admin | **Done** | — |
 | M1.3 | Nightly Ticketmaster import and AI vetting (+ spots optional to publish) | **Done** | — |
 | **Phase 2** | **The public layer and publishing, on the Worker** | | 18–26 |
-| M2.0 | Repo + Expo scaffold | **In progress** — branch `phase2/m2.0-expo-scaffold`; on-device acceptance pending | 6–8 |
+| M2.0 | Repo + Expo scaffold | **Ready to check on device** — branch `phase2/m2.0-expo-scaffold` | 6–8 |
 | M2.1 | Public web layer on pind.social (W1–W4, generated maps, the domain) | Not started | 8–12 |
 | M2.2 | Auto-publishing v1 — fixed target (§8) | Not started | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
@@ -633,26 +633,80 @@ the current pace, raise the hours or shrink the phase.
   Part 5 "Meeting spots"). Migrations `20260918214318_m1_3_spots_optional` and its
   `_fix` on pind-staging; harness 55/55; deployed. The admin flags "crews open, no
   meeting spots".
-- **Phase 2 M2.0 — in progress** (branch `phase2/m2.0-expo-scaffold`; not done until
-  Alex walks the acceptance list on a real phone). One repo with npm workspaces:
-  `app/` (Expo SDK 57, pinned for the whole build; Expo Router) and
-  `packages/shared/` (types from `supabase gen types`; the house rules and the other
-  final §5 lines; `THRESHOLD = 5`; `TAGS_PER_PROFILE = 3`; the 30 neighbourhoods; the
-  design tokens; `TAGS_DRAFT`). Node 24.21.0 in `.nvmrc`. Four tabs: Crowds (A5,
-  `/crowds`), My Events (A19), Connections (A20), Profile (A21, `/me`). They are empty
-  screens with Poppins headlines and the system body font, dark by default, light
-  following the system. `/` is left to the Worker for W1 (M2.1). supabase-js holds
-  only the publishable key; the anonymous user is created lazily at pin (A26), never
-  on launch. TanStack Query is wired. Sentry and PostHog are behind env vars, with one
-  event (`app_open`), no autocapture and no GeoIP; each prints one console line when
-  off. The web export is served as the Worker's static assets on the same host:
-  `/health` and `/admin*` run in the Worker first, and every other path gets the app
-  with SPA fallback. `npm run deploy` builds the export and deploys both.
-  `eas.json` has development, internal and production profiles; the bundle IDs are
-  `social.pind.app.staging` and `social.pind.app`. No migrations.
-  **`public.tags` exists but nothing fills it.** `TAGS_DRAFT` (20 tags in four
-  groups) is Tatiana's to reword until then. **M3.1 owns both the final list and the
-  seed migration.**
+- **Phase 2 M2.0 complete** (branch `phase2/m2.0-expo-scaffold`, merge commit
+  recorded at merge). One repo, two halves, no migrations.
+  - **What exists.**
+    - npm workspaces: `app/` and `packages/shared/`. Node 24.21.0 in `.nvmrc`.
+    - `app/` runs **Expo SDK 57, pinned for the whole build**, with Expo Router.
+    - `packages/shared/` holds:
+      - the DB types from `supabase gen types`
+      - the house rules and the other final §5 lines
+      - `THRESHOLD = 5` and `TAGS_PER_PROFILE = 3`
+      - the 30 neighbourhoods
+      - the design tokens
+      - `TAGS_DRAFT`
+    - **Four tabs**, empty screens with their board IDs in the file headers:
+      Crowds (A5, `/crowds`), My Events (A19), Connections (A20), Profile (A21,
+      `/me`). Poppins headlines, system body font, dark by default, light following
+      the system. `/` is left to the Worker for W1 (M2.1), and the app's root
+      redirects to `/crowds`.
+    - The splash is solid near-black `#0B0A0D`, held until Poppins loads. Its logo
+      slot is empty.
+    - supabase-js holds only the publishable key. `ensureAnonymousUser()` is called
+      at pin (A26), never on launch. On iOS the session is kept in the Keychain,
+      split into chunks.
+    - TanStack Query is wired.
+    - **Sentry is live**: DSN, org `pind-9y`, project `pind-app`. Source maps upload
+      from the development and internal builds; `SENTRY_AUTH_TOKEN` is an EAS
+      secret. A test event was accepted on 2026-09-19.
+    - **PostHog is live**, with one event, `app_open`. Autocapture and session
+      replay are off, client IP is discarded, `$geoip_disable` is sent on every
+      event, and each event is sent immediately. Each of Sentry and PostHog prints
+      one console line when it's off.
+    - **The web export is served as the Worker's static assets on the same host.**
+      `/health` and `/admin*` run in the Worker first; every other path gets the app
+      with SPA fallback. `npm run deploy` builds the export and deploys both.
+    - `app/eas.json` has three profiles: development (dev client, ad hoc), internal
+      (TestFlight) and production.
+    - Bundle IDs are `social.pind.app.staging` and `social.pind.app`, on EAS project
+      `@alexdobbie/pind` and Apple team 93M6B4W5PR (decisions Part 5, "Decided in
+      Phase 2 M2.0").
+    - The five `EXPO_PUBLIC_*` values are set in the EAS `development` and `preview`
+      environments.
+    - Checks: `npm run typecheck`, `test:policies` 55/55, `test:unit` 55/55, and the
+      app typechecks.
+  - **`public.tags` exists but nothing fills it.** `TAGS_DRAFT` (20 tags in four
+    groups) is Tatiana's to reword until the seed. **M3.1 owns both the final list
+    and the seed migration.** After the seed, changing a tag costs a data migration,
+    because `person_tags` points at tag slugs.
+  - **Known gaps.**
+    - **Tab icons are deferred to M3.2**, when Crowds has content. `expo-symbols`
+      is added then. The tabs are labels only.
+    - The app icon is a flat purple placeholder and the splash has no logo. The
+      real logo arrives before M2.1, which needs it for the OG image.
+  - **The three bugs this empty shell caught.** Each would otherwise have surfaced
+    in the M3.6 dogfood walk:
+    - **Keys missing from the web bundle.** Expo's build cache reused a
+      compilation made before the keys existed. `build:web` now always runs with
+      `--clear`.
+    - **PostHog losing events.** Its default 10-second batch dropped `app_open`
+      whenever the tab closed first. Fixed with `flushAt: 1`.
+    - **Wrong device-registration steps.** The steps were written down wrong:
+      `eas device:create` asks for the Apple ID (email, password, 2FA, team) *before*
+      it offers the Website option.
+
+    This is why the working rule is now in CLAUDE.md: within each milestone, data
+    and rules first, then the screen, built properly.
+  - **Checked on staging** (https://pind-web-staging.pind.workers.dev):
+    - `/health` shows `neighbourhoods: 30`.
+    - `/me` loads the app shell on mobile Safari and on desktop. `/crowds`, `/`
+      and `/g/x/pin` load it too, so SPA fallback works.
+    - `/admin` still redirects to the Cloudflare Access login.
+    - Opening `/me` on the phone left `auth.users` at 20 before and after, with
+      the same `max(created_at)`.
+    - The stored PostHog events carry no `$geoip_*` properties and no `$ip`.
+  - On device (Alex): the dev build (four dark tabs in brand, light mode follows the
+    system) and the internal TestFlight build installing and opening.
 
 #### Notes carried into the next milestones
 - **M3.1 — the photo check** (recorded by Alex in M1.2; decisions Part 5, "Automated
@@ -673,6 +727,25 @@ the current pace, raise the hours or shrink the phase.
   published gathering whose date Alex changes from a flag, or which is withdrawn, get
   notification 3 ("plan status"). The importer still never changes a published
   gathering silently; it only flags it (done in M1.3).
+- **M2.1 — the logo** (Alex, M2.0). The real logo and icon arrive before M2.1. The OG
+  image needs them, the app icon replaces the purple placeholder, and the splash gets
+  its `image` (`app/app.config.ts`).
+- **M3.2 — tab icons** (Alex, M2.0). Add `expo-symbols` and choose the four icons
+  when Crowds has content. The tabs are labels only until then.
+- **M4.3 — Apple** (Alex, M2.0). The production bundle ID reuses the Pin'd APNs key.
+  If EAS offers to create a key, stop. Never revoke a certificate or key to make
+  room. The production internal TestFlight group has Alex only: EAS auto-created
+  "Team (Expo)" with all six App Store Connect users on the first staging submit.
+  In `docs/build-plan.md` §8 M4.3 acceptance.
+- **M4.5 — PostHog** (Alex, M2.0). No `$geoip_*` properties and no `$ip` were
+  stored (checked 2026-09-19), so M4.5 re-checks this rather than building a
+  transformation. One iPhone visit produced two `app_open` events 1 ms apart with
+  different anonymous ids, most likely Safari pre-loading the page, so funnel
+  counts must allow for pre-rendered loads. Both are in `docs/build-plan.md` §8 M4.5
+  acceptance.
+- **M5.1 — seller name** (Alex, M2.0). Request the App Store Connect "Doing Business
+  As" name so the listing reads Pin'd, not Tenor Investments Inc. It takes days and
+  needs documentation.
 
 #### M5.2 · M1.3b — automated spots: what M1.3 learned
 M1.3b's code is built but **off** (`AI_SPOT_SUGGESTIONS` in `wrangler.jsonc`, off

@@ -501,3 +501,24 @@ change). Where the plan has more detail, the plan is the reference.
   marketing, not operations, and the adaptive loop measures when the city populates
   itself and the labour can stop. Team members may pin in to gatherings they were going
   to anyway as ordinary members — never as operators (H10).
+
+### Decided in Phase 2 M2.0
+
+- **Apple developer team** (Alex, M2.0). Pin'd publishes under Apple team
+  **93M6B4W5PR, Tenor Investments Inc.**, which is the developer. Pin'd is a DBA of
+  Tenor Investments. There is no separate Apple account: it would need a DUNS number
+  Pin'd does not have. The listing's seller line is made to read "Pin'd" through an
+  App Store Connect "Doing Business As" name, requested well before submission
+  (M5.1).
+- **Apple credentials: create, never revoke** (Alex, M2.0). No prompt that offers to
+  revoke an existing certificate or key to make room is ever answered yes. The Tenor
+  team has other people's certificates and a Firebase APNs key. Pin'd has **one APNs
+  key**, made in M2.0, which the production bundle ID reuses (M4.3); the team is at
+  Apple's limit of two.
+- **Bundle identifiers** (Alex, M2.0): `social.pind.app` (production) and
+  `social.pind.app.staging` (staging, dev builds and internal TestFlight). The EAS
+  project is `@alexdobbie/pind`.
+- **Analytics, as built** (Alex, M2.0). PostHog runs with autocapture off, session
+  replay off, "Discard client IP data" on, `$geoip_disable` sent on every event and
+  each event sent immediately. The stored events carry no `$geoip_*` properties and no
+  `$ip` (checked 2026-09-19).
