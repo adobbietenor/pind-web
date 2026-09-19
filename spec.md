@@ -540,7 +540,7 @@ working. Hours are Alex's, agent-assisted.
 | M1.2 | Admin | **Done** | — |
 | M1.3 | Nightly Ticketmaster import and AI vetting (+ spots optional to publish) | **Done** | — |
 | **Phase 2** | **The public layer and publishing, on the Worker** | | 18–26 |
-| M2.0 | Repo + Expo scaffold | **Ready to check on device** — branch `phase2/m2.0-expo-scaffold` | 6–8 |
+| M2.0 | Repo + Expo scaffold | **Done** — merged as `7fc973a` | 6–8 |
 | M2.1 | Public web layer on pind.social (W1–W4, generated maps, the domain) | Not started | 8–12 |
 | M2.2 | Auto-publishing v1 — fixed target (§8) | Not started | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
@@ -636,8 +636,8 @@ the current pace, raise the hours or shrink the phase.
   Part 5 "Meeting spots"). Migrations `20260918214318_m1_3_spots_optional` and its
   `_fix` on pind-staging; harness 55/55; deployed. The admin flags "crews open, no
   meeting spots".
-- **Phase 2 M2.0 complete** (branch `phase2/m2.0-expo-scaffold`, merge commit
-  recorded at merge). One repo, two halves, no migrations.
+- **Phase 2 M2.0 complete** (branch `phase2/m2.0-expo-scaffold`, merged to `main` as
+  `7fc973a` on 19 Sept 2026). One repo, two halves, no migrations.
   - **What exists.**
     - npm workspaces: `app/` and `packages/shared/`. Node 24.21.0 in `.nvmrc`.
     - `app/` runs **Expo SDK 57, pinned for the whole build**, with Expo Router.
@@ -678,6 +678,11 @@ the current pace, raise the hours or shrink the phase.
       environments.
     - Checks: `npm run typecheck`, `test:policies` 55/55, `test:unit` 55/55, and the
       app typechecks.
+    - **Walked on device, 19 Sept 2026** (Alex): the internal TestFlight build opens
+      to the four tabs and stays dark with the phone in Light and in Dark; mobile
+      Safari at `/me` is dark with the phone in Light (SPA fallback); `auth.users`
+      was 20 before and 20 after opening the app, same `max(created_at)` — the real
+      build creates no user on launch.
   - **`public.tags` exists but nothing fills it.** `TAGS_DRAFT` (20 tags in four
     groups) is Tatiana's to reword until the seed. **M3.1 owns both the final list
     and the seed migration.** After the seed, changing a tag costs a data migration,
@@ -741,8 +746,11 @@ the current pace, raise the hours or shrink the phase.
   rows excluded from every public read, in the database with a harness case (H6,
   H11). Routes and custom domains are allowed for pind.social only; PindScene.com is
   never touched from this repo. Pages ship unlinked and noindex until the M4.1
-  privacy policy. Alex's part: pind.social nameservers to Cloudflare, the four logo
-  files in `brand/`, the Resend account and domain, and Access for
+  privacy policy. Alex's part: **pind.social is bought and registered through
+  Cloudflare Registrar in the alex@tenorconsultants account — the zone is Active on
+  Cloudflare's own nameservers, so there is no DNS wait** (Alex, 19 Sept 2026); the
+  logo files are **in `brand/`** (fifteen, not four — see the M2.1 logo note).
+  Outstanding: the Resend account and the pind.social domain records, and Access for
   `pind.social/admin*` (AUD tag to Claude). Decisions Part 5, "Decided in Phase 2
   M2.0".
 - **M3.2 — tab icons** (Alex, M2.0). Add `expo-symbols` and choose the four icons
