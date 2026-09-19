@@ -541,6 +541,7 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 
 - The Metrics page shows every number in §7's table for the staging dogfood data, split by mode.
 - A Monday run logs a decision and its reasons; freezing the target stops the next decision from changing it.
+- PostHog events carry no `$geoip_*` properties. "Discard client IP data" is on, but GeoIP enrichment runs before the IP is discarded, so the properties are dropped explicitly: a project transformation, or equivalent (Alex, M2.0).
 
 ### The first real crowds
 

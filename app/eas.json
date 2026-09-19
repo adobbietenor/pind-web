@@ -11,7 +11,8 @@
       "env": {
         "APP_VARIANT": "staging",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
-      }
+      },
+      "node": "24.21.0"
     },
     "internal": {
       "distribution": "store",
@@ -20,7 +21,8 @@
       "env": {
         "APP_VARIANT": "staging",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
-      }
+      },
+      "node": "24.21.0"
     },
     "production": {
       "distribution": "store",
@@ -29,7 +31,8 @@
       "env": {
         "APP_VARIANT": "production",
         "SENTRY_DISABLE_AUTO_UPLOAD": "true"
-      }
+      },
+      "node": "24.21.0"
     }
   },
   "submit": {
