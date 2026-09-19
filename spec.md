@@ -537,7 +537,7 @@ working. Hours are Alex's, agent-assisted.
 | M1.2 | Admin | **Done** | — |
 | M1.3 | Nightly Ticketmaster import and AI vetting (+ spots optional to publish) | **Done** | — |
 | **Phase 2** | **The public layer and publishing, on the Worker** | | 18–26 |
-| M2.0 | Repo + Expo scaffold | **Next** | 6–8 |
+| M2.0 | Repo + Expo scaffold | **In progress** — branch `phase2/m2.0-expo-scaffold`; on-device acceptance pending | 6–8 |
 | M2.1 | Public web layer on pind.social (W1–W4, generated maps, the domain) | Not started | 8–12 |
 | M2.2 | Auto-publishing v1 — fixed target (§8) | Not started | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
@@ -633,6 +633,26 @@ the current pace, raise the hours or shrink the phase.
   Part 5 "Meeting spots"). Migrations `20260918214318_m1_3_spots_optional` and its
   `_fix` on pind-staging; harness 55/55; deployed. The admin flags "crews open, no
   meeting spots".
+- **Phase 2 M2.0 — in progress** (branch `phase2/m2.0-expo-scaffold`; not done until
+  Alex walks the acceptance list on a real phone). One repo with npm workspaces:
+  `app/` (Expo SDK 57, pinned for the whole build; Expo Router) and
+  `packages/shared/` (types from `supabase gen types`; the house rules and the other
+  final §5 lines; `THRESHOLD = 5`; `TAGS_PER_PROFILE = 3`; the 30 neighbourhoods; the
+  design tokens; `TAGS_DRAFT`). Node 24.21.0 in `.nvmrc`. Four tabs: Crowds (A5,
+  `/crowds`), My Events (A19), Connections (A20), Profile (A21, `/me`). They are empty
+  screens with Poppins headlines and the system body font, dark by default, light
+  following the system. `/` is left to the Worker for W1 (M2.1). supabase-js holds
+  only the publishable key; the anonymous user is created lazily at pin (A26), never
+  on launch. TanStack Query is wired. Sentry and PostHog are behind env vars, with one
+  event (`app_open`), no autocapture and no GeoIP; each prints one console line when
+  off. The web export is served as the Worker's static assets on the same host:
+  `/health` and `/admin*` run in the Worker first, and every other path gets the app
+  with SPA fallback. `npm run deploy` builds the export and deploys both.
+  `eas.json` has development, internal and production profiles; the bundle IDs are
+  `social.pind.app.staging` and `social.pind.app`. No migrations.
+  **`public.tags` exists but nothing fills it.** `TAGS_DRAFT` (20 tags in four
+  groups) is Tatiana's to reword until then. **M3.1 owns both the final list and the
+  seed migration.**
 
 #### Notes carried into the next milestones
 - **M3.1 — the photo check** (recorded by Alex in M1.2; decisions Part 5, "Automated
