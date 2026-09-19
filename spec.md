@@ -739,9 +739,27 @@ the current pace, raise the hours or shrink the phase.
   published gathering whose date Alex changes from a flag, or which is withdrawn, get
   notification 3 ("plan status"). The importer still never changes a published
   gathering silently; it only flags it (done in M1.3).
-- **M2.1 — the logo** (Alex, M2.0). The real logo and icon arrive before M2.1. The OG
-  image needs them, the app icon replaces the purple placeholder, and the splash gets
-  its `image` (`app/app.config.ts`).
+- **M2.1 — the logo** (Alex, M2.0; settled 19 Sept 2026). The artwork is in `brand/`:
+  fifteen files exported from the .ai source with text outlined — `logo-*.svg` (the
+  "pin'd" wordmark alone), `mark-*.svg` (the safety pin alone), `icon-1024-*.png`,
+  `splash-logo-*.png`, each in white, black and purple, plus unsuffixed defaults that
+  are the white ones. Brand purple is exactly `#582883`, matching the tokens in
+  `packages/shared`. `brand/pieces/` is animation artwork the app and the Worker do
+  not use.
+  - **There is no mark+wordmark lockup in the source, and none has ever been
+    designed.** M2.1 composes one as a layout — mark and wordmark side by side, the
+    mark at the wordmark's cap height, a fixed gap — for the W1/W2 header and the W4
+    OG image. **It is provisional and Tatiana's to change** (Alex, 19 Sept 2026); it
+    is a layout to correct on staging, not artwork to match.
+  - The SVGs carry an embedded C2PA metadata blob — 7.7 KB of `logo.svg`'s 14.5 KB
+    and of `mark.svg`'s 9.8 KB. M2.1 strips `<metadata>` and swaps the hard-coded
+    `fill` for `currentColor` when inlining into the Worker's pages, which must open
+    inside a Reddit tab in under a second. **The files in `brand/` stay untouched.**
+  - The app side — `icon-1024-purple.png` over the flat purple placeholder,
+    `splash-logo-white.png` into the empty splash slot in `app/app.config.ts`, and a
+    favicon from the mark — only shows on a new EAS build, so it is **batched with
+    whatever else M2.1 needs on the phone; no build just for an icon** (Alex,
+    19 Sept 2026).
 - **M2.1 — before it starts** (Alex, M2.0). pind.social serves pind-staging, with seed
   rows excluded from every public read, in the database with a harness case (H6,
   H11). Routes and custom domains are allowed for pind.social only; PindScene.com is
