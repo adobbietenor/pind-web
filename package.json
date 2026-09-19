@@ -3,7 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Pin'd public web surfaces (Cloudflare Worker) and shared Supabase schema",
+  "description": "Pin'd: the Cloudflare Worker, the Expo app (app/), shared types and copy (packages/shared/) and the Supabase schema",
+  "workspaces": [
+    "app",
+    "packages/*"
+  ],
   "devDependencies": {
     "@types/node": "24.13.5",
     "supabase": "2.117.0",
@@ -15,11 +19,14 @@
     "@supabase/supabase-js": "2.116.0"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit && tsc --noEmit -p tests",
+    "typecheck": "tsc --noEmit && tsc --noEmit -p tests && tsc --noEmit -p packages/shared",
     "dev": "wrangler dev",
     "types": "wrangler types",
     "test:policies": "node --env-file=.dev.vars --test --test-concurrency=1 tests/policies/policies.test.ts",
     "test:unit": "node --test tests/unit/access.test.ts tests/unit/origin.test.ts tests/unit/csv-time.test.ts tests/unit/import.test.ts tests/unit/ai.test.ts",
-    "seed:staging": "node --env-file=.dev.vars scripts/seed-staging.ts"
+    "seed:staging": "node --env-file=.dev.vars scripts/seed-staging.ts",
+    "typecheck:app": "npm run typecheck --workspace app",
+    "build:web": "npm run export:web --workspace app",
+    "deploy": "npm run build:web && wrangler deploy"
   }
 }
