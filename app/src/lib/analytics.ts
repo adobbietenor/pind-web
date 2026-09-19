@@ -23,6 +23,9 @@ export function initAnalytics(): void {
     host: process.env.EXPO_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
     customStorage: Platform.OS === "web" ? webStorage : undefined,
     captureAppLifecycleEvents: false,
+    // Send each event at once. The default batches for 10 seconds, and a tab
+    // closed or backgrounded before then loses its events (seen in M2.0).
+    flushAt: 1,
     disableGeoip: true,
   });
   console.info("PostHog enabled");
