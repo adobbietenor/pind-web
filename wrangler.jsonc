@@ -15,7 +15,18 @@
 
   // Not secrets. The hard daily AI spend cap, US dollars per Toronto calendar day;
   // AI spot suggestions stay off until M1.3b ("on" to enable).
-  "vars": { "AI_DAILY_CAP_USD": "3", "AI_SPOT_SUGGESTIONS": "off" }
+  "vars": { "AI_DAILY_CAP_USD": "3", "AI_SPOT_SUGGESTIONS": "off" },
+
+  // M2.0: the Expo web export (app/dist, built by `npm run build:web`) is served
+  // from the same host. The Worker's own routes run first; every other path is
+  // the app, with single-page-app fallback to index.html (spec §4). Deploy with
+  // `npm run deploy`, which builds the web export first: never one without the
+  // other. M2.1 adds its public routes (/, /g/*, /og/*, /.well-known/*) here.
+  "assets": {
+    "directory": "./app/dist",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/health", "/admin", "/admin/*"]
+  }
 
   // Secrets (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SESSION_SECRET, ACCESS_*,
   // ADMIN_EMAILS, TICKETMASTER_CONSUMER_KEY, ANTHROPIC_API_KEY) are never written
