@@ -528,3 +528,16 @@ change). Where the plan has more detail, the plan is the reference.
   light-mode example and is not built. Built as `userInterfaceStyle: "dark"`, a single
   dark palette in `packages/shared` and a dark-only web page. It returns only by a new
   decision.
+- **pind.social before production** (Alex, M2.0, for M2.1). Until `pind-prod`
+  exists (M4.3), pind.social serves **pind-staging**. **Seed rows never appear on a
+  public page.** The `[TEST]` / `pindseed` gatherings and anything attached to them
+  are excluded from every public read. This is permanent, not an M2.1 workaround
+  (H6). Like every visibility rule it is decided in the database (H11): M2.1 explains
+  the rule in plain English, gets Alex's OK, and adds a harness case.
+- **Routes: pind.social only** (Alex, M2.0). This repo may add routes and custom
+  domains for **pind.social** (M2.1). **PindScene.com stays off-limits** to this
+  repo: Alex sets its redirect in the Cloudflare dashboard.
+- **Public pages before the privacy policy** (Alex, M2.0). The privacy policy stays
+  in M4.1. Until it exists, M2.1's public pages ship **unlinked and noindex**:
+  `noindex` on every page and a `robots.txt` that disallows everything, and nothing
+  links or posts them publicly.

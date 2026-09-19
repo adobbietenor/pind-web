@@ -737,6 +737,14 @@ the current pace, raise the hours or shrink the phase.
 - **M2.1 — the logo** (Alex, M2.0). The real logo and icon arrive before M2.1. The OG
   image needs them, the app icon replaces the purple placeholder, and the splash gets
   its `image` (`app/app.config.ts`).
+- **M2.1 — before it starts** (Alex, M2.0). pind.social serves pind-staging, with seed
+  rows excluded from every public read, in the database with a harness case (H6,
+  H11). Routes and custom domains are allowed for pind.social only; PindScene.com is
+  never touched from this repo. Pages ship unlinked and noindex until the M4.1
+  privacy policy. Alex's part: pind.social nameservers to Cloudflare, the four logo
+  files in `brand/`, the Resend account and domain, and Access for
+  `pind.social/admin*` (AUD tag to Claude). Decisions Part 5, "Decided in Phase 2
+  M2.0".
 - **M3.2 — tab icons** (Alex, M2.0). Add `expo-symbols` and choose the four icons
   when Crowds has content. The tabs are labels only until then.
 - **M4.3 — Apple** (Alex, M2.0). The production bundle ID reuses the Pin'd APNs key.
