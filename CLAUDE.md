@@ -122,12 +122,20 @@ own cron, not inside the nightly import.
   confirmations): list the states and what moves the object between them, and wait.
 - Work is done when the acceptance list passes **on a real phone**, not when the code
   looks right. Say "ready to check on device", do not declare it finished.
-- **Structure and plumbing first, UI after**, in every milestone. First prove the
-  data, keys, policies, delivery and builds end to end on a real device; screens come
-  after. UI-first once produced an app that looked finished and didn't work. The
-  empty M2.0 shell surfaced three real bugs: keys missing from the web bundle, PostHog
-  events never flushing, and wrong device-registration steps. Each would otherwise have
-  surfaced during the M3.6 dogfood walk.
+- **Within each milestone: data and rules first, then the screen, built properly.**
+  The front end is the most important part of this product. Flow, usability and look
+  must be genuinely good, because people judge the crowd page in one second from a
+  Reddit tab. This is not "all plumbing first, all UI later", and never "good enough
+  for now". The failure to avoid is a screen built before the data underneath can
+  answer its questions: a mock-up that gets rebuilt. So each milestone first proves
+  its data, policies, keys and delivery on a real device, then builds its screens to
+  finished quality.
+- **W2, A10 and A26 carry the first impression** (the crowd page, the pinned crowd
+  page, quick pin) and get real design attention. Plain screens, such as My Events,
+  can stay plain.
+- Why it matters: the empty M2.0 shell surfaced three real bugs — keys missing from
+  the web bundle, PostHog events never flushing, wrong device-registration steps.
+  Each would otherwise have surfaced during the M3.6 dogfood walk.
 
 ## Dependencies
 
