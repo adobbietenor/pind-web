@@ -14,7 +14,7 @@ Part 5, "Repo layout"; `docs/build-plan.md` §3):
     supabase/          migrations/, seed/, tests/ (policy harness)
     docs/              build-plan.md, visibility.md, review briefs
 
-There is no separate `pind-app` repo. `app/` and `packages/shared/` arrive in M2.0.
+There is no separate `pind-app` repo. `app/` and `packages/shared/` arrived in M2.0.
 
 ## Stack (fixed — do not substitute)
 
@@ -27,12 +27,24 @@ There is no separate `pind-app` repo. `app/` and `packages/shared/` arrive in M2
 
 ## Repo layout and commands
 
-- npm workspaces from the repo root. The Worker's scripts are unchanged
-  (`npm run typecheck`, `npm run test:policies`, `npm run test:unit`, `npx wrangler
-  deploy`). The `app/` scripts (start, web export, typecheck) are added in M2.0 and
-  listed here when they exist.
-- **The web export is a Worker asset — never deploy one without the other.** One
-  `wrangler deploy` releases the Worker and the web build together.
+- npm workspaces from the repo root: `app` and `packages/shared`. Run `npm install`
+  at the root only.
+- The Worker's scripts are unchanged: `npm run typecheck` (now also checks
+  `packages/shared`), `npm run test:policies`, `npm run test:unit`.
+- The app, from the repo root:
+  - `npm run typecheck:app` — typecheck `app/`
+  - `npm run build:web` — `expo export --platform web` into `app/dist`
+  - `npm run start --workspace app` — the Expo dev server (Expo Go or the dev build)
+  - `npm run web --workspace app` — the dev server in a browser
+- Shared DB types: `npm run gen:types --workspace packages/shared` after every
+  migration (reads pind-staging).
+- EAS, from `app/`: `npx eas-cli@24.7.0 build --profile <development|internal|production>
+  --platform ios`. Profiles in `app/eas.json`; `APP_VARIANT` picks the staging or
+  production bundle ID.
+- **The web export is a Worker asset — never deploy one without the other.** Deploy
+  with `npm run deploy`, which builds the web export and then runs `wrangler deploy`,
+  releasing both together. Do not run `npx wrangler deploy` on its own: it would ship
+  whatever stale `app/dist` is on disk.
 
 ## Where things live (the boundary rule — do not cross it)
 
@@ -110,6 +122,20 @@ own cron, not inside the nightly import.
   confirmations): list the states and what moves the object between them, and wait.
 - Work is done when the acceptance list passes **on a real phone**, not when the code
   looks right. Say "ready to check on device", do not declare it finished.
+- **Within each milestone: data and rules first, then the screen, built properly.**
+  The front end is the most important part of this product. Flow, usability and look
+  must be genuinely good, because people judge the crowd page in one second from a
+  Reddit tab. This is not "all plumbing first, all UI later", and never "good enough
+  for now". The failure to avoid is a screen built before the data underneath can
+  answer its questions: a mock-up that gets rebuilt. So each milestone first proves
+  its data, policies, keys and delivery on a real device, then builds its screens to
+  finished quality.
+- **W2, A10 and A26 carry the first impression** (the crowd page, the pinned crowd
+  page, quick pin) and get real design attention. Plain screens, such as My Events,
+  can stay plain.
+- Why it matters: the empty M2.0 shell surfaced three real bugs — keys missing from
+  the web bundle, PostHog events never flushing, wrong device-registration steps.
+  Each would otherwise have surfaced during the M3.6 dogfood walk.
 
 ## Dependencies
 
@@ -136,8 +162,11 @@ font with a system fallback, only if it doesn't hurt load time.
 - Never commit a key. `.env`, `.dev.vars` and `node_modules` are gitignored.
 - Worker secrets go in with `npx wrangler secret put NAME`, never in `wrangler.jsonc`.
 - The Anthropic key, the Resend key, the Expo push access token and the database
-  webhook secret live in the Worker. **Nothing goes in the app bundle except the
-  Supabase anon key.**
+  webhook secret live in the Worker. **Nothing secret goes in the app bundle; the
+  only keys it may contain are public client keys — the Supabase anon key, the
+  Sentry DSN and the PostHog project key.** Locally they live in `app/.env`
+  (gitignored; `app/.env.example` lists the names); EAS builds read them from EAS
+  environment variables.
 - If you need a credential I have not provided, ask — do not stub a fake one and
   carry on.
 

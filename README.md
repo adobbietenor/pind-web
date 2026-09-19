@@ -1,8 +1,9 @@
 # pind-web
 
-The Cloudflare Worker serving Pin'd's public web surfaces, plus the shared Supabase
-schema in `supabase/migrations/`. Rules of work: `CLAUDE.md`. Spec: `spec.md`,
-`decisions.md`.
+One repo for Pin'd: the Cloudflare Worker (`src/`: public pages, admin, crons), the
+Expo app for iOS and web (`app/`), shared types, copy and tokens (`packages/shared/`)
+and the Supabase schema (`supabase/migrations/`). npm workspaces; run `npm install`
+at the root. Rules of work: `CLAUDE.md`. Spec: `spec.md`, `decisions.md`.
 
 ## Worker (staging)
 
@@ -68,8 +69,14 @@ immediately; no redeploy is needed.
 
 ```
 npx wrangler login     # once; opens a browser
-npx wrangler deploy
+npm run deploy         # builds the app's web export, then wrangler deploy
 ```
+
+The Expo web export (`app/dist`) is one of the Worker's static assets, so the two are
+always deployed together: `npm run deploy` rebuilds it first. Don't run
+`npx wrangler deploy` on its own. The Worker's own routes (`/health`, `/admin*`)
+run first; every other path serves the app, with fallback to its `index.html`
+(`assets` in `wrangler.jsonc`).
 
 This deploys `pind-web-staging` to `https://pind-web-staging.<account-subdomain>.workers.dev`.
 Check `/health` there. Never change `name` in `wrangler.jsonc`, and never add
@@ -120,3 +127,40 @@ photos and one report. Everything is tagged `[TEST]` / `pindseed`.
 
 `npm run test:unit` — the Access token check, CSV output and admin time conversion.
 No network, no database.
+
+## App (Phase 2 M2.0)
+
+`app/` is the Expo Router app for iOS and the web (Expo SDK 57, pinned). Tabs:
+Crowds (A5, at `/crowds`) · My Events (A19) · Connections (A20) · Profile (A21, at
+`/me`). `/` belongs to the Worker on the web (W1 from M2.1), so the app's root only
+redirects to `/crowds`. Design tokens, fixed copy, constants and DB types come from
+`packages/shared`.
+
+### Run locally
+
+1. Copy `app/.env.example` to `app/.env` (gitignored) and fill in the pind-staging
+   URL and **publishable** key. Only public client keys go here: the Supabase
+   anon key, the Sentry DSN and the PostHog project key. Sentry and PostHog stay off
+   until their keys are set, and each prints one console line saying so.
+2. `npm run start --workspace app`, then scan the QR code with Expo Go (fast loop
+   only) or the dev build. `npm run web --workspace app` runs it in a browser.
+3. `npm run typecheck:app`.
+
+Opening the app never creates a Supabase user. The anonymous user is created only
+when someone pins in (A26), by `ensureAnonymousUser()` in `app/src/lib/supabase.ts`.
+
+### EAS builds (iOS)
+
+From `app/`, with `npx eas-cli@24.7.0`:
+
+| Profile | Variant | Bundle ID | For |
+|---|---|---|---|
+| `development` | staging | `social.pind.app.staging` | the dev build (expo-dev-client), installed ad hoc on registered devices |
+| `internal` | staging | `social.pind.app.staging` | internal TestFlight |
+| `production` | production | `social.pind.app` | the App Store (M4.3 onward) |
+
+Build environment variables (the same `EXPO_PUBLIC_*` names as `app/.env`) are set
+in EAS (`eas env:set`) for the `development` and `preview` environments.
+`SENTRY_AUTH_TOKEN` is an EAS secret in the same two environments, and Sentry
+source maps are uploaded by the `development` and `internal` builds. `production`
+keeps `SENTRY_DISABLE_AUTO_UPLOAD` until M4.3 gives it its own keys and token.

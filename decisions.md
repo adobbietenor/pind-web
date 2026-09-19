@@ -501,3 +501,43 @@ change). Where the plan has more detail, the plan is the reference.
   marketing, not operations, and the adaptive loop measures when the city populates
   itself and the labour can stop. Team members may pin in to gatherings they were going
   to anyway as ordinary members — never as operators (H10).
+
+### Decided in Phase 2 M2.0
+
+- **Apple developer team** (Alex, M2.0). Pin'd publishes under Apple team
+  **93M6B4W5PR, Tenor Investments Inc.**, which is the developer. Pin'd is a DBA of
+  Tenor Investments. There is no separate Apple account: it would need a DUNS number
+  Pin'd does not have. The listing's seller line is made to read "Pin'd" through an
+  App Store Connect "Doing Business As" name, requested well before submission
+  (M5.1).
+- **Apple credentials: create, never revoke** (Alex, M2.0). No prompt that offers to
+  revoke an existing certificate or key to make room is ever answered yes. The Tenor
+  team has other people's certificates and a Firebase APNs key. Pin'd has **one APNs
+  key**, made in M2.0, which the production bundle ID reuses (M4.3); the team is at
+  Apple's limit of two.
+- **Bundle identifiers** (Alex, M2.0): `social.pind.app` (production) and
+  `social.pind.app.staging` (staging, dev builds and internal TestFlight). The EAS
+  project is `@alexdobbie/pind`.
+- **Analytics, as built** (Alex, M2.0). PostHog runs with autocapture off, session
+  replay off, "Discard client IP data" on, `$geoip_disable` sent on every event and
+  each event sent immediately. The stored events carry no `$geoip_*` properties and no
+  `$ip` (checked 2026-09-19).
+- **Dark only** (Alex, M2.0). The app is **black always**, on iOS and on the web,
+  whatever the phone or browser is set to. There is **no light mode for now**. This
+  **overrides the board's "dark default, light follows the system"**; A25 was the
+  light-mode example and is not built. Built as `userInterfaceStyle: "dark"`, a single
+  dark palette in `packages/shared` and a dark-only web page. It returns only by a new
+  decision.
+- **pind.social before production** (Alex, M2.0, for M2.1). Until `pind-prod`
+  exists (M4.3), pind.social serves **pind-staging**. **Seed rows never appear on a
+  public page.** The `[TEST]` / `pindseed` gatherings and anything attached to them
+  are excluded from every public read. This is permanent, not an M2.1 workaround
+  (H6). Like every visibility rule it is decided in the database (H11): M2.1 explains
+  the rule in plain English, gets Alex's OK, and adds a harness case.
+- **Routes: pind.social only** (Alex, M2.0). This repo may add routes and custom
+  domains for **pind.social** (M2.1). **PindScene.com stays off-limits** to this
+  repo: Alex sets its redirect in the Cloudflare dashboard.
+- **Public pages before the privacy policy** (Alex, M2.0). The privacy policy stays
+  in M4.1. Until it exists, M2.1's public pages ship **unlinked and noindex**:
+  `noindex` on every page and a `robots.txt` that disallows everything, and nothing
+  links or posts them publicly.
