@@ -690,6 +690,13 @@ change). Where the plan has more detail, the plan is the reference.
   richer data may come from **that same run** rather than a second one — worth checking
   before any new job is designed. Picked up with M5.2 (M1.3b) or M3.3, whichever
   reaches the spot poll first.
+- **The map is unreadable where spots cluster** (Alex, walking the community pages —
+  filed, not built). Three spots within 200 m overlap at the current zoom on a phone,
+  labels on labels, which breaks the picture at exactly the venues where spots cluster:
+  the downtown ones. Three ways out — collision handling that pushes labels apart,
+  numbered pins with a key under the figure, or **a zoom that adapts to how spread the
+  spots actually are**. The third treats the cause rather than the symptom and is the
+  one to cost first.
 - **Spot content starts as a manual pass, deliberately** (Alex, M2.2 — filed, not
   built). Before any automation: gather candidate spots, filter to what actually
   belongs in the app, write the details by hand into a spreadsheet, import once.
@@ -1097,3 +1104,207 @@ change). Where the plan has more detail, the plan is the reference.
   like one venue's programme (a week question), and stopping one venue's same-night
   shows *splitting a crowd* (a day question). Only the first is live today. If crowd
   splitting shows up in practice, add a per-day cap then, with the evidence.
+- **Three entry states, not two** (Alex, after M2.2). `is_free` had two values for a
+  world with three: Pub Chess is $10 cash at the door, Snakes & Lattes is $20
+  admission, and neither is free or ticketed. Both buttons were wrong — "I've got a
+  ticket" described something that does not exist, and "I'm going" hid a cost.
+  `gatherings.entry` is now `free` / `door` / `ticketed`, with `door_price_cents` and a
+  60-character `entry_note`. **`is_free` is dropped, not derived**: two sources of truth
+  for one fact is what the stale `FOLD_THRESHOLD` was, and it cost a week of hidden
+  drafts.
+  - **No third button.** Free and pay-at-the-door share "Pin in — I'm going", and the
+    price goes on its own line beneath. Alex asked for a third copy string and was
+    talked out of it: the button is a commitment and the price is a fact; a button
+    whose words change with the price cannot be scanned down a list; and money inside
+    the button makes it read like a purchase when nothing here is for sale.
+  - **Never say free unless it is free**, and an unknown price reads "pay at the door"
+    with no amount rather than nothing — silence looks like free to anyone scanning.
+    Unknown is a different state from no cost, the same distinction as unset versus
+    broken on a credential.
+  - **`entry_note` earns its place** because "$10 at the door" and "$10 cash at the
+    door" are different promises, and arriving with only a card is the failure that
+    matters.
+  - **The admin refuses an empty price once.** Choosing "pay at the door" and leaving
+    the amount blank is refused with what the page would have said, and a "the price is
+    not known" tick lets it through — so an unpriced door is a decision rather than an
+    oversight (Alex).
+- **"Crews open at 5" describes the rule, not the thing people want** (Alex, after
+  M2.2 — filed for M3.3, and for the M2.1 copy pass since the line is on the public
+  page). `THRESHOLD_EXPLANATION` currently reads "Crews open when 5 people opt in.",
+  which asks a reader to wait on a mechanism. It should describe what they came for —
+  "See who's going, form a crew" or near it — and tapping it should lead somewhere
+  rather than count down. **The pinned crowd page should lead with the people, with
+  forming a crew as the natural next step from seeing them**, not a feature that
+  unlocks at a number.
+  - **The two thresholds are already separate, and the spec already says so.** Alex
+    asked whether seeing people and starting a crew need the same gate. They do not
+    have it today: `private.can_see_at` never mentions five — it asks only that both
+    people opted in, the list is open, and neither has blocked the other — and A9 says
+    in as many words that "the reciprocal list already works at n=2". **Only crews
+    opening and the gender-mix chip are gated at 5** (V3, Q3). So the change Alex was
+    contemplating costs nothing in the data layer; it is purely a screen decision, and
+    the database is already on the side he wanted.
+  - **Which narrows the real problem.** The inert "3 of 5 · 2 to go" is the *crew*
+    section's copy, and it is being given top billing on a page that already has faces
+    to show. What A9 needs is not an earlier threshold but the right order: people
+    first, the crew state as a quiet line underneath.
+  - Still to answer when A9/A10 are built: **what the locked state offers beyond a
+    number.** "3 of 5 · 2 to go" is honest and inert, which is the worst pair.
+- **Messaging while crews are forming, and the phrase "Start a crew"** (Alex, after
+  M2.2 — filed for M3.3). There is a cold-start gap: five people have opted in, nobody
+  has started a crew, and there is no way to say "shall we?". Starting one asks somebody
+  to go first with no conversation, and **that hesitation is exactly what the product
+  exists to remove**.
+  - **The thing to avoid is unsolicited messages, not messaging.** Those are separable,
+    and solo crew already has the shape: mutual accept, and before it one preset line
+    from a short list, no free text (Part 5, "Solo crew").
+  - **Recommendation: the nudge, and build it once.** A preset line — plan-shaped, not
+    person-shaped: "Shall we start a crew?", "I'll be at [spot] at 7, join me?" — which
+    opens a free-text thread on a one-tap accept. The recipient lets the conversation
+    in, which is the property Alex asked for, and accepting costs one tap. **The same
+    mechanism is already specified for solo (M3.4)**, so building it in M3.3 and having
+    solo reuse it is a saving rather than a cost; building solo's version first and
+    retrofitting crews is the expensive order.
+  - **Rejected: one message then wait.** Lowest friction, but it permits an unsolicited
+    *free-text* message, which is the cold DM itself. Rate-limiting the second message
+    does nothing about the content of the first.
+  - **Rejected as a solution: free text once both are in a crew.** That is the crew
+    thread (A14) and already planned — it arrives after the moment that needs help.
+  - **Do the cheap half first.** "Start a crew" sounds like organising something when
+    it should read as raising your hand — nearer "I'll be at [spot] at 7:30, join me".
+    That reframing is hours, not days, and may shrink the need for the nudge enough to
+    change what gets built. Ship the words first, watch the M3.6 dogfood, then decide.
+
+  Both notes are one point, in Alex's words: **the product's hinge is whether people
+  convene without a host, and every screen before that moment should pull toward it
+  rather than report on it.**
+- **A spot must be open at the meeting time** (Alex, entering the community list —
+  filed for M5.2's automated approval check). A spot that exists but is shut when
+  people are meant to meet is **worse than no spot at all**, because the admin's
+  "crews are open and this venue has no approved spots" flag counts spots, not open
+  ones: it stays silent, and the poll cheerfully offers a locked door. Two examples
+  from the first seven community gatherings:
+  - **Hart House chess** runs 4–11pm on a Friday and the Arbor Room, its only spot,
+    shuts at 6. The 4pm start means the poll's default meet time of 3pm works, so the
+    common case is fine — but anyone arriving at 8 has nowhere, and nothing says so.
+  - **Barbara Hall Park** has O'Grady's, an evening pub, attached to a 9am Saturday
+    run, because the poll fills from the venue's spots in order and knows nothing
+    about hours.
+
+  M5.2's check already fetches an evidence page per spot; opening hours belong in the
+  same fetch, and the spot poll should then attach only spots open at the meet time —
+  and say "this venue has no spot open then" where none is, which is a flag that can
+  actually fire. Until then it is Alex's eye, per gathering, in the admin.
+- **One list, one product — the categories were never structural** (Alex, after the
+  community pass; recorded because it is the thing he would otherwise re-litigate).
+  Community gatherings and big ticketed events belong in the same structure. The
+  product is **commit, see who else committed, form a crew by vibe**, and *a Leafs
+  game and a run club differ only in what you are committing to*. So the chips are a
+  browse aid for a long list, nothing more — **no split, no second mode, no separate
+  community product.**
+- **The five chips, and why not the four verbs** (Alex, after the community pass). The
+  distinction that matters to someone scanning is what they would be *doing*, not what
+  the subject is — a run club and a Leafs game are not both "sports". But measured
+  against the real feed the pure verb split does not survive: Music 523, Arts & Theatre
+  102, Sports 83, Miscellaneous 9. "Watching" would be **87% of the list, which filters
+  nothing**. So the watching kinds stay separate, because a reader who wants to watch
+  still has to pick what, and the verb idea is kept where it actually divides the list:
+  **live_music, sport, comedy, taking_part, markets**.
+  - **Comedy singular**: theatre, classical and opera are capped at 35 by the AI rubric
+    and never clear the floor of 60, so a "Comedy & theatre" chip would name something
+    that cannot appear.
+  - **Null is a real answer** — unclassified and still visible. Unfiltered is the
+    default, so only a chip can hide a row and nothing disappears for want of a label.
+  - **The stored value is an identifier; the label is copy.** Changing what a chip is
+    called is one line in `packages/shared`, never a migration.
+- **No "going out" chip: the feed cannot tell a DJ night from a gig** (measured,
+  after the community pass — recorded with the numbers so nobody tries again from the
+  same data). Dance/Electronic looked like a proxy for a club night. It is not, because
+  **the same rooms host both**:
+
+  | venue | Dance/Electronic | the rest of Music |
+  |---|---|---|
+  | History Toronto | 13 | 25 |
+  | The Opera House | 6 | 28 |
+  | Lee's Palace | 5 | 27 |
+  | The Mod Club | 4 | 38 |
+
+  Neither genre nor venue separates them, so a "going out" chip would be a guess, wrong
+  often enough to be noticed. **M4.4's own sourcing can do it properly**, because a
+  club-night source knows what it is; Ticketmaster never will.
+- **The chips and the publisher's category cap are different taxonomies** (measured,
+  after the community pass). The chips are what a reader browses by. The cap is a
+  monotony guard and needs the finest honest split it can get. They are tempting to
+  merge and **merging them is not free**: folding every kind of Music into one bucket
+  takes the three upcoming weeks from **23 / 16 / 15 published to 6 / 6 / 6**. So the
+  cap keeps its own vocabulary, a stored chip value is translated into it
+  (`capBucket`), and the two are changed independently. The cap's concerts/clubs split
+  rests on the same unreliable Dance/Electronic proxy as above — it is guarding against
+  a distinction it cannot reliably make, which is worth revisiting when M4.4 brings a
+  source that knows.
+- **`create or replace` on a function somebody has already replaced is a silent
+  revert** (Claude, publishing the community list — a bug I caused and found). Adding
+  the entry states I rewrote `public_gathering` by copying the definition from
+  `m2_1_public_visibility`, which `m2_1_venue_maps` had already superseded. The
+  statement did exactly what it says and put the older body back, and four things went
+  quietly at once:
+  - `map_key` and `map_ready` vanished, so `isReady()` was false everywhere and **every
+    crowd page on the site fell back to the schematic** — the real Mapbox picture M2.1
+    was built for was gone, ticketed pages included;
+  - `timezone` became `city_timezone`, which nothing reads;
+  - spots lost their `active` filter and their `sort_order` ordering;
+  - counts were rebuilt by hand with three fields, dropping women/men/other, so the
+    **gender-mix chip (V3, Q3) had nothing to render**.
+
+  **Nothing caught it.** The typecheck passes because the function returns `jsonb`;
+  the unit tests do not call it; the policy harness asks what a visitor may *see*, and
+  every one of these was a key that simply stopped being there rather than a row that
+  leaked. It showed the instant somebody loaded a page and the map was a drawing.
+  **The rule: before replacing a database function, read the live definition** — `\sf`
+  or the last migration that touched it — never the migration that first created it.
+  And a jsonb-returning function needs a test that names the keys its readers expect,
+  which is the gap M2.3 should close while it is in there.
+- **The convening is an arena solution applied to everything** (Alex, walking the
+  community pages — **rethink, nothing built**). At Gorillaz you are inside a crowd of
+  18,000 and cannot find anyone, so a crew has to convene somewhere else first. At a
+  run club you arrive and twelve people are standing there: **the gathering is the
+  meeting point**, and sending them to a cafe 200 m away to meet before walking to a
+  thing they would have walked to anyway invents a step nobody wants.
+  **The reveal is identical at both ends — commit, see who committed. The convening is
+  not.** The spot poll is the arena's answer, and it has been applied to every
+  gathering because until today every gathering was an arena.
+  This also explains why the community pages feel off, and why the research pass
+  gathered three spots for gatherings that need none.
+- **Community gatherings do not need meeting spots** (Alex, same walk). A consequence
+  of the above, and the reason the first pass produced spots nobody will use.
+- **Spots may belong to a place, not to a venue** (Alex, same walk — costed below,
+  not built). Nadege is near Trinity Bellwoods whether or not a run club exists, and
+  any gathering in that area could meet there. Today `meeting_spots.venue_id` is
+  `not null references venues`, so a spot is owned by exactly one venue and the same
+  cafe beside two venues is two rows with two sets of tallies.
+- **How a crew convenes is a property of the gathering, decided now** (Alex, after
+  walking the community pages; built in M3.3). Three values on `gatherings`:
+  - **`at_the_gathering`** — no spot poll. The crew card reads "find each other at the
+    start". The crew still forms, the reveal still happens, the confirmation afterwards
+    still happens; only the pre-meet disappears.
+  - **`a_spot_first`** — today's poll, for arenas and anywhere 18,000 people make
+    finding each other the problem.
+  - **`after`** — the spot poll runs against the **effective end** rather than the
+    start. This is what Frontrunners already does with coffee afterwards, and it is the
+    one that is an honest shape for small gatherings rather than a subtraction from the
+    arena's.
+
+  **Defaults: `at_the_gathering` for Community, `a_spot_first` for Events**, both
+  overridable — which follows the source split and needs no per-gathering judgement.
+  **Why not "make the poll optional":** that leaves the arena assumption in place and
+  asks Alex to switch it off forty times (his words, and the argument that settled it).
+  **Why decide it now rather than when A10 is drawn:** the machinery is identical
+  either way — crew, members, thread, confirmation — so allowing for it costs two to
+  four hours inside M3.3, where unpicking screens drawn around a poll that is not
+  always there costs considerably more. **Deciding late is the expensive version.**
+- **Fortnightly and monthly, in the generator** (Alex, before the wider research
+  pass). Monthly reads the pattern off the first date — which weekday, and which one
+  of it — and **a date in the last seven days of its month is "last", not "fourth"**,
+  because that is what "last Sunday of the month" means and a fourth-Sunday reading is
+  a week early in any five-Sunday month. Verified: 27 Sep → 25 Oct → 29 Nov → 27 Dec →
+  31 Jan → 28 Feb. Still a generator, still no recurrence in the schema.

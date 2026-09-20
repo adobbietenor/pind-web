@@ -62,6 +62,11 @@ a.card:hover{border-color:#453f52;background:#1c1922}
   margin-left:8px;vertical-align:1px;
 }
 
+/* What it costs to walk in, under the button and never inside it: the button is a
+   commitment, the price is a fact. Quiet enough not to compete with the call to
+   action, close enough that nobody can take one without the other. */
+.cost{margin:8px 0 0;font-size:.92rem;color:var(--muted);text-align:center}
+
 /* Counts on the crowd page */
 .tallies{display:flex;gap:10px;margin:18px 0 6px}
 .tally-box{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 14px}

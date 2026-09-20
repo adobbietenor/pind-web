@@ -866,13 +866,16 @@ export type Database = {
       }
       gatherings: {
         Row: {
+          category: Database["public"]["Enums"]["gathering_category"] | null
           created_at: string
           dismissed_at: string | null
+          door_price_cents: number | null
           ends_at: string | null
+          entry: Database["public"]["Enums"]["entry_kind"]
+          entry_note: string | null
           event_url: string | null
           featured: boolean
           id: string
-          is_free: boolean
           is_seed: boolean
           merged_into_id: string | null
           name: string
@@ -888,13 +891,16 @@ export type Database = {
           withdrawn_at: string | null
         }
         Insert: {
+          category?: Database["public"]["Enums"]["gathering_category"] | null
           created_at?: string
           dismissed_at?: string | null
+          door_price_cents?: number | null
           ends_at?: string | null
+          entry?: Database["public"]["Enums"]["entry_kind"]
+          entry_note?: string | null
           event_url?: string | null
           featured?: boolean
           id?: string
-          is_free?: boolean
           is_seed?: boolean
           merged_into_id?: string | null
           name: string
@@ -910,13 +916,16 @@ export type Database = {
           withdrawn_at?: string | null
         }
         Update: {
+          category?: Database["public"]["Enums"]["gathering_category"] | null
           created_at?: string
           dismissed_at?: string | null
+          door_price_cents?: number | null
           ends_at?: string | null
+          entry?: Database["public"]["Enums"]["entry_kind"]
+          entry_note?: string | null
           event_url?: string | null
           featured?: boolean
           id?: string
-          is_free?: boolean
           is_seed?: boolean
           merged_into_id?: string | null
           name?: string
@@ -2078,6 +2087,10 @@ export type Database = {
         Args: { p_actor: string; p_venue: string }
         Returns: undefined
       }
+      admin_create_weekly_series: {
+        Args: { p_actor: string; p_template: Json; p_until: string }
+        Returns: Json
+      }
       admin_delete_pin: {
         Args: { p_actor: string; p_note?: string; p_pin: string }
         Returns: undefined
@@ -2249,11 +2262,14 @@ export type Database = {
       public_gatherings: {
         Args: { p_from: string; p_to: string }
         Returns: {
+          category: Database["public"]["Enums"]["gathering_category"]
           city_name: string
           city_timezone: string
           crews_open: boolean
+          door_price_cents: number
           ends_at: string
-          is_free: boolean
+          entry: Database["public"]["Enums"]["entry_kind"]
+          entry_note: string
           name: string
           open_to_meeting: number
           pinned: number
@@ -2277,6 +2293,13 @@ export type Database = {
       confirmation_kind: "we_met" | "keep_in_touch"
       contact_kind: "email" | "sms"
       crew_state: "forming" | "spot_set" | "live" | "done" | "dissolved"
+      entry_kind: "free" | "door" | "ticketed"
+      gathering_category:
+        | "live_music"
+        | "sport"
+        | "comedy"
+        | "taking_part"
+        | "markets"
       gathering_flag_kind:
         | "date_changed"
         | "rescheduled"
@@ -2429,6 +2452,14 @@ export const Constants = {
       confirmation_kind: ["we_met", "keep_in_touch"],
       contact_kind: ["email", "sms"],
       crew_state: ["forming", "spot_set", "live", "done", "dissolved"],
+      entry_kind: ["free", "door", "ticketed"],
+      gathering_category: [
+        "live_music",
+        "sport",
+        "comedy",
+        "taking_part",
+        "markets",
+      ],
       gathering_flag_kind: [
         "date_changed",
         "rescheduled",

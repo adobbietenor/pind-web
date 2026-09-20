@@ -1366,6 +1366,7 @@ describe("Auto-publishing — M2.2 (spec §8)", () => {
           .single(),
       )
     ).id;
+    const targetBefore = (await serviceRow("cities", "slug", "toronto", "publish_target_weekly")).publish_target_weekly;
     await ok(admin("admin_set_publish_mark", { p_gathering: g, p_mark: "never" }));
     assert.equal((await serviceRow("gatherings", "id", g, "publish_mark")).publish_mark, "never");
     await ok(admin("admin_set_publish_mark", { p_gathering: g, p_mark: "" }));
@@ -1400,7 +1401,10 @@ describe("Auto-publishing — M2.2 (spec §8)", () => {
 
     // Nothing a visitor tried changed anything.
     assert.equal((await serviceRow("gatherings", "id", g, "publish_mark")).publish_mark, null);
-    assert.equal((await serviceRow("cities", "slug", "toronto", "publish_target_weekly")).publish_target_weekly, 5);
+    // Asserts the visitor changed nothing, rather than naming a number: the target is
+    // a setting Alex moves, and a test that hard-codes it fails the day he does (it
+    // did, when 5 became 50).
+    assert.equal((await serviceRow("cities", "slug", "toronto", "publish_target_weekly")).publish_target_weekly, targetBefore);
     assert.equal((await rows(w.service.from("gathering_promotions").select("id").eq("gathering_id", g))).length, 1);
 
     // Removing the last record makes it organic again, which is the honest state if
@@ -1465,5 +1469,61 @@ describe("The import watchdog follows the schedule — M2.2", () => {
         .single(),
     );
     assert.deepEqual(after, before, "the harness left the import schedule changed");
+  });
+});
+
+let publicSlug2: string;
+
+describe("The public door's shape — the keys its readers need", () => {
+  before(async () => {
+    const g = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} Shape Check`, starts_at: inDays(9), venue_id: w.venue })
+        .select("id")
+        .single(),
+    );
+    await ok(admin("admin_publish_gathering", { p_gathering: g.id }));
+    publicSlug2 = (await serviceRow("gatherings", "id", g.id, "slug")).slug;
+  });
+
+  // Written after I broke it (decisions.md, "create or replace ... is a silent
+  // revert"). Rewriting public_gathering from a superseded definition dropped
+  // map_key, map_ready, the spots' active filter and the gender-mix counts, and
+  // **nothing caught it**: the function returns jsonb, so a missing key is not a type
+  // error; the unit tests do not call it; and the rest of this harness asks what a
+  // visitor may *see* rather than what a page is handed. It showed only when somebody
+  // loaded a page and the map was a drawing.
+  //
+  // So this names every key src/public/data.ts reads. It is deliberately about
+  // presence, not values — the values are the other sixty-odd cases' business.
+  it("P65 public_gathering returns every key the crowd page reads, and public_gatherings every column the list reads", async () => {
+    const door = await publicDoor(w.anon, publicSlug2);
+    assert.equal(door.status, "ok", `the door said ${door.status}`);
+
+    const want = {
+      gathering: ["id", "slug", "name", "starts_at", "ends_at", "effective_end", "entry", "door_price_cents", "entry_note", "category", "source", "event_url"],
+      venue: ["id", "name", "address", "latitude", "longitude", "map_image_path", "map_key", "map_ready", "city_name", "timezone"],
+      counts: ["pinned", "open_to_meeting", "women", "men", "other", "crews_open"],
+    };
+    for (const [section, keys] of Object.entries(want)) {
+      const got = Object.keys(door[section] ?? {});
+      for (const k of keys) assert.ok(got.includes(k), `public_gathering's ${section} is missing "${k}" — got ${got.join(", ")}`);
+    }
+    // map_ready is the one whose *type* matters: isReady() calls .includes on it, and
+    // an object rather than an array fails silently into "no map".
+    assert.ok(Array.isArray(door.venue.map_ready), "venue.map_ready must be an array");
+    assert.ok(Array.isArray(door.spots), "spots must be an array");
+    for (const s of door.spots) {
+      for (const k of ["name", "description", "latitude", "longitude", "walk_minutes", "meet_at"]) {
+        assert.ok(k in s, `a spot is missing "${k}"`);
+      }
+    }
+
+    const listed = await rows(w.anon.rpc("public_gatherings", { p_from: inDays(-90), p_to: inDays(90) }));
+    assert.ok(listed.length > 0, "the list came back empty, so its shape proves nothing");
+    for (const k of ["slug", "name", "starts_at", "ends_at", "entry", "door_price_cents", "entry_note", "category", "source", "venue_name", "city_name", "city_timezone", "pinned", "open_to_meeting", "crews_open"]) {
+      assert.ok(k in listed[0], `public_gatherings is missing "${k}" — got ${Object.keys(listed[0]).join(", ")}`);
+    }
   });
 });

@@ -34,6 +34,19 @@ import {
 // Provisional and private to the publisher — nothing public shows these names yet.
 // M2.3 promotes the category to a column on gatherings and settles what a reader
 // sees, at which point this function moves there rather than being copied.
+// A stored chip value, translated into the cap's vocabulary. The two taxonomies do
+// different jobs: the chips are what a reader browses by, the cap is a monotony guard
+// and needs the finest honest split it can get. Merging them is not free — folding
+// every kind of Music into one bucket takes a week from 23 published to 6, measured
+// on the real queue (Alex, after the community pass).
+const CAP_BUCKET: Record<string, string> = {
+  live_music: "concerts",
+  sport: "sports",
+  comedy: "arts",
+  taking_part: "taking_part",
+  markets: "markets",
+};
+
 export function categoryOf(classification: string | null | undefined): string {
   const c = (classification ?? "").toLowerCase();
   if (c.startsWith("sports")) return "sports";
@@ -42,6 +55,13 @@ export function categoryOf(classification: string | null | undefined): string {
   if (c.startsWith("arts") || c.startsWith("theatre")) return "arts";
   if (c.startsWith("film")) return "film";
   return "other";
+}
+
+// What somebody said beats what the source implies; either way the cap sees one
+// vocabulary.
+export function capBucket(stored: string | null | undefined, classification: string | null | undefined): string {
+  if (stored) return CAP_BUCKET[stored] ?? stored;
+  return categoryOf(classification);
 }
 
 // The city-local week containing today, plus the two after it. publish_lead_days_max
@@ -166,7 +186,7 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
   const live = await must<any[]>(
     db
       .from("gatherings")
-      .select("id, starts_at, venue_id, gathering_sources(snapshot)")
+      .select("id, starts_at, venue_id, category, gathering_sources(snapshot)")
       .eq("status", "published")
       .eq("is_seed", false)
       .gte("starts_at", spanFrom)
@@ -183,7 +203,7 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
     w.perVenue[g.venue_id] = (w.perVenue[g.venue_id] ?? 0) + 1;
     // What is already published counts against the share too, or a week filled by
     // hand with six concerts would let the run add six more.
-    const cat = categoryOf((g.gathering_sources ?? []).map((x: any) => x.snapshot?.category).find(Boolean));
+    const cat = capBucket(g.category, (g.gathering_sources ?? []).map((x: any) => x.snapshot?.category).find(Boolean));
     w.perCategory[cat] = (w.perCategory[cat] ?? 0) + 1;
   }
 
@@ -194,7 +214,7 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
   const drafts = await must<any[]>(
     db
       .from("gatherings")
-      .select("id, name, starts_at, venue_id, slug, publish_mark, source, gathering_triage(score), gathering_sources(snapshot)")
+      .select("id, name, starts_at, venue_id, slug, publish_mark, source, category, gathering_triage(score), gathering_sources(snapshot)")
       .eq("status", "draft")
       .eq("is_seed", false)
       .gt("starts_at", now.toISOString())
@@ -226,7 +246,10 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
         mark: g.publish_mark ?? null,
         hasSlug: g.slug !== null,
         source: g.source,
-        category: categoryOf((g.gathering_sources ?? []).map((x: any) => x.snapshot?.category).find(Boolean)),
+        // What somebody said beats what the source implies. Null means nobody has
+        // said, and only then is a coarse kind derived (M2.3 decides whether the
+        // importer starts filling it in).
+        category: capBucket(g.category, (g.gathering_sources ?? []).map((x: any) => x.snapshot?.category).find(Boolean)),
       };
     });
 

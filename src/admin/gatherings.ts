@@ -16,6 +16,7 @@ import {
   withdrawForm,
   withdrawnNote,
 } from "./imports";
+import { CATEGORIES, entryLine } from "@pind/shared";
 import { places, venueOptions, type Places } from "./places";
 import { markCell, promoteInline, promotionPanel, publishingPanel } from "./publishing";
 import { formatLocal, fromLocalInput, localDate, toLocalInput } from "./time";
@@ -83,7 +84,7 @@ export const draftQueue: AdminHandler = async (request, ctx) => {
       db
         .from("gatherings")
         .select(
-          "id, name, starts_at, is_free, source, venue_id, venue_name_raw, event_url, publish_mark, slug, gathering_sources(source, urls, snapshot), gathering_triage(score, reason)",
+          "id, name, starts_at, entry, door_price_cents, entry_note, source, venue_id, venue_name_raw, event_url, publish_mark, slug, gathering_sources(source, urls, snapshot), gathering_triage(score, reason)",
         )
         .eq("status", "draft")
         .gt("starts_at", now)
@@ -168,7 +169,7 @@ export const draftQueue: AdminHandler = async (request, ctx) => {
 <td>${e(sourcesOf(g))}</td>
 <td>${scoreCell(p, g.venue_id, triage?.score ?? null, triage?.reason ?? null)}</td>
 <td>${markCell(g, backTo)}${g.slug ? `<br><span class="muted">published before</span>` : ""}</td>
-<td>${g.is_free ? "free" : "ticketed"}</td>
+<td>${e(entryLine(g) || "ticketed")}</td>
 <td>${spotsBadge(p, g.venue_id)}</td>
 <td>${postButton(`/admin/gatherings/${g.id}/publish`, "Publish", backTo)}
 ${postButton(`/admin/gatherings/${g.id}/dismiss`, "Dismiss", backTo, { cls: "plain" })}
@@ -256,7 +257,7 @@ export const publishedList: AdminHandler = async (request, ctx) => {
     must(
       ctx.db
         .from("gatherings")
-        .select("id, name, starts_at, venue_id, is_free, status, slug")
+        .select("id, name, starts_at, venue_id, entry, door_price_cents, entry_note, status, slug")
         .in("status", ["published", "withdrawn"])
         .gt("starts_at", since)
         .order("starts_at"),
@@ -302,7 +303,10 @@ interface GatheringFields {
   starts_at: string;
   ends_at: string | null;
   event_url: string | null;
-  is_free: boolean;
+  entry: "free" | "door" | "ticketed";
+  door_price_cents: number | null;
+  entry_note: string | null;
+  category: string | null;
   featured: boolean;
   venue_name_raw: string | null;
 }
@@ -318,15 +322,57 @@ function readFields(form: FormData, tz: string): GatheringFields | string {
   if (ends && Date.parse(ends) <= Date.parse(starts)) return "End time must be after the start";
   const eventUrl = str(form, "event_url");
   if (eventUrl && !/^https?:\/\/\S+$/i.test(eventUrl)) return "Event link must start with http:// or https://";
+  const entry = readEntry(form);
+  if (typeof entry === "string") return entry;
   return {
     name,
     starts_at: starts,
     ends_at: ends,
     event_url: eventUrl || null,
-    is_free: form.get("is_free") === "on",
+    ...entry,
+    category: CATEGORY_VALUES.includes(str(form, "category")) ? str(form, "category") : null,
     featured: form.get("featured") === "on",
     venue_name_raw: str(form, "venue_name_raw") || null,
   };
+}
+
+// What it costs to walk in. A price left empty on a pay-at-the-door gathering has to
+// be a decision rather than an oversight, because the page will then say "pay at the
+// door" with no amount — which is right when nobody knows the price and misleading
+// when somebody simply did not type it (Alex, after M2.2). So the form refuses it
+// once and explains exactly what the page will show; ticking the box next to it says
+// "yes, unknown" and lets it through.
+type Entry = Pick<GatheringFields, "entry" | "door_price_cents" | "entry_note">;
+
+function readEntry(form: FormData): Entry | string {
+  const entry = str(form, "entry") as GatheringFields["entry"];
+  if (!["free", "door", "ticketed"].includes(entry)) return "Choose free, pay at the door, or ticketed";
+  if (entry !== "door") return { entry, door_price_cents: null, entry_note: null };
+
+  const raw = str(form, "door_price").replace(/^\$/, "").trim();
+  const note = str(form, "entry_note").slice(0, 60) || null;
+  if (raw === "") {
+    if (form.get("price_unknown") !== "on") {
+      return 'No door price: the page will read "pay at the door" with no amount. If nobody knows it yet, tick "the price is not known" and save again.';
+    }
+    return { entry, door_price_cents: null, entry_note: note };
+  }
+  const amount = Number(raw);
+  if (!Number.isFinite(amount) || amount < 0 || amount > 1000) return "Door price must be an amount in dollars, up to 1000";
+  return { entry, door_price_cents: Math.round(amount * 100), entry_note: note };
+}
+
+// The five a reader will filter by (M2.3). Null is a real answer — "nobody has said"
+// — and the publisher falls back to deriving a coarse kind from the source, so a
+// guess and a statement stay distinguishable.
+const CATEGORY_VALUES: string[] = CATEGORIES.map((c) => c.value);
+
+function categoryField(g: any): string {
+  const options = [`<option value="">— not said; unclassified, and still on every unfiltered list —</option>`]
+    .concat(CATEGORIES.map((c) => `<option value="${c.value}"${g?.category === c.value ? " selected" : ""}>${e(c.label)}</option>`))
+    .join("");
+  return `<label>Category <span class="muted">(the chip a reader filters by. "Take part" and "Markets &amp; street" have no source until M4.4, so hand entry is the only way they appear)</span><br>
+<select name="category">${options}</select></label>`;
 }
 
 function fieldsHtml(p: Places, g: any, lockVenue: boolean): string {
@@ -341,7 +387,29 @@ function fieldsHtml(p: Places, g: any, lockVenue: boolean): string {
 ${venue}
 <label>Venue name from the source<br><input name="venue_name_raw" size="40" value="${e(g?.venue_name_raw)}"></label>
 <label>Event link (tickets or event info, optional)<br><input name="event_url" size="60" value="${e(g?.event_url)}"></label>
-<label><input type="checkbox" name="is_free"${g?.is_free ? " checked" : ""}> Free event (button reads "Pin in — I'm going")</label>
+<fieldset><legend>What it costs to walk in</legend>
+${(
+  [
+    ["free", "Free", `the page shows "Free" and the button reads "Pin in — I'm going"`],
+    ["door", "Pay at the door", `the button still reads "Pin in — I'm going", with the price on its own line beneath`],
+    ["ticketed", "Ticketed", `the button reads "Pin in — I've got a ticket", and no price is shown`],
+  ] as [string, string, string][]
+)
+  .map(
+    ([value, label, what]) =>
+      `<label><input type="radio" name="entry" value="${value}"${(g?.entry ?? "ticketed") === value ? " checked" : ""}> ${e(label)}
+<span class="muted">— ${e(what)}</span></label>`,
+  )
+  .join("")}
+<label>Door price <span class="muted">(dollars; only for pay at the door)</span><br>
+<input name="door_price" size="8" inputmode="decimal" placeholder="10"
+ value="${g?.door_price_cents === null || g?.door_price_cents === undefined ? "" : e((g.door_price_cents / 100).toFixed(2).replace(/\.00$/, ""))}"></label>
+<label><input type="checkbox" name="price_unknown"> The price is not known
+<span class="muted">— the page will say "pay at the door" with no amount. Never "free": unknown is not the same as no cost.</span></label>
+<label>Note <span class="muted">(up to 60 characters — "cash only", "$15 for students")</span><br>
+<input name="entry_note" maxlength="60" size="40" value="${e(g?.entry_note)}"></label>
+</fieldset>
+${categoryField(g)}
 <label><input type="checkbox" name="featured"${g?.featured ? " checked" : ""}> Featured</label>`;
 }
 
@@ -351,10 +419,28 @@ ${venue}
 
 export const newGatheringForm: AdminHandler = async (request, ctx) => {
   const p = await places(ctx.db);
-  const body = `<p class="muted">Fallback only: most gatherings arrive from Ticketmaster or the AI run. This creates a draft; publish it from the queue.
+  const body = `<p class="muted">Most gatherings arrive from Ticketmaster. This is how community gatherings get in until M4.4 — and how anything
+the importer cannot see gets in at all. It creates drafts; publish them from the queue.
 Times are read in the chosen venue's timezone (Toronto if no venue).</p>
 <form method="post" action="/admin/gatherings/new"><input type="hidden" name="back" value="/admin/gatherings/new">
 ${fieldsHtml(p, null, false)}
+<fieldset><legend>Repeats</legend>
+<p class="muted">There is no recurrence in the database and this does not add one: a crew meets on a night, not on a series, so the
+dated rows have to exist either way. This only saves the typing — one form, one draft per week, each an ordinary gathering from
+the moment it exists. A Saturday run club is thirteen rows a quarter otherwise.</p>
+<label>How often<br><select name="cadence">
+<option value="">— does not repeat —</option>
+<option value="weekly">every week</option>
+<option value="fortnightly">every second week</option>
+<option value="monthly">every month, on the same weekday</option>
+</select></label>
+<label>…until <span class="muted">(the last date to create, in the venue's timezone)</span><br>
+<input type="date" name="repeat_until"></label>
+<p class="muted">Monthly reads the pattern off the first date — which weekday, and which one of it. A date in the last seven days of
+its month is taken as "last", not "fourth", which is what "last Sunday of the month" means and what a fourth-Sunday reading gets
+wrong in any five-Sunday month.</p>
+<p class="muted">The time is kept in the venue's own timezone, so an 8am run club stays at 8am across the daylight-saving change.</p>
+</fieldset>
 <button>Create draft</button></form>`;
   return adminPage(request, ctx.email, "Add a gathering manually", body);
 };
@@ -366,6 +452,22 @@ export const createGathering: AdminHandler = async (request, ctx) => {
   if (venueId && !p.byId.has(venueId)) return back(form, { err: "Unknown venue" });
   const fields = readFields(form, p.tz(venueId));
   if (typeof fields === "string") return back(form, { err: fields });
+  const cadence = str(form, "cadence");
+  if (cadence) {
+    if (!["weekly", "fortnightly", "monthly"].includes(cadence)) return back(form, { err: "Choose how often it repeats" });
+    const until = str(form, "repeat_until");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(until)) return back(form, { err: "A repeating gathering needs a date to repeat until" });
+    const { data, error } = await ctx.db.rpc("admin_create_series", {
+      p_template: { ...fields, venue_id: venueId },
+      p_until: until,
+      p_cadence: cadence,
+      p_actor: ctx.email,
+    });
+    if (error) return back(form, { err: error.message });
+    const made = (data as { created: number }).created;
+    return back(form, { ok: `${made} drafts created, ${cadence}, until ${until}. Publish them from the queue.` });
+  }
+
   const { data, error } = await ctx.db
     .from("gatherings")
     .insert({ ...fields, venue_id: venueId, source: "manual" })
