@@ -281,7 +281,16 @@ describe("the per-venue cap", () => {
     const p = plan([...homestand, other]);
     assert.deepEqual(p.picks, [homestand[0]!.id, homestand[1]!.id, other.id]);
     assert.equal(reasonFor(p, homestand[2]!.id).reasonCode, "venue_cap");
-    assert.match(reasonFor(p, homestand[2]!.id).reason, /already has 2 that week, which is the cap/);
+    assert.match(reasonFor(p, homestand[2]!.id).reason, /already has 2 that week, which is the cap of 2/);
+  });
+
+  // "already has 4, which is the cap" read as correct when the cap was 2. A line that
+  // calls whatever it finds "the cap" cannot be audited (Alex, M2.2 walk).
+  it("says a count is ABOVE the cap when it is, rather than calling it the cap", () => {
+    const one = draft({ venueId: "rogers" });
+    // Four already there: hand publishing and marks both bypass this cap by design.
+    const p = plan([one], {}, weeks({ [WEEK1]: { publishedLive: 4, perVenue: { rogers: 4 }, perCategory: {} } }));
+    assert.match(reasonFor(p, one.id).reason, /already has 4 that week, above the cap of 2/);
   });
 
   it("counts gatherings already published at that venue this week", () => {

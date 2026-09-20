@@ -643,6 +643,21 @@ change). Where the plan has more detail, the plan is the reference.
      default, never an automatic re-ordering, never a "for you". The difference that
      matters is who asked for it: a reader who chooses to sort by popularity has decided
      what they want, and nothing has decided it for them.
+  5. **Filter by venue, and by neighbourhood** (Alex, M2.2 — filed, not built). Every
+     gathering already has a venue and every venue has coordinates, so venue filtering
+     needs no new data at all; neighbourhoods exist in `packages/shared` and can be
+     derived from those coordinates. **"What is on in the west end" is a more common
+     question than "what is on at The Mod Club"**, so neighbourhood is likely the more
+     used of the two — but venue is nearly free and matters to someone who goes to one
+     place regularly or lives beside it.
+
+     **The connection to the caps, which is the point** (Alex): a venue cap is a crude
+     way of stopping one place dominating the list, applied to everybody because nobody
+     can choose. Once a reader can filter, they can make one venue dominate their own
+     list *deliberately*, which is the better version of the same thing. **So as
+     filtering lands, the caps should get looser rather than tighter** — the per-venue
+     cap going from 2 to 6 in M2.2 is the first step of that, and the category share
+     should be re-examined the same way once the chips exist.
   4. **A category filter across the top of the list** (Alex, M2.2 — filed, not built):
      sports, concerts, bars, clubs, community. A filter, not a sort: it narrows what is
      shown without reordering what is left, so it cannot become a ranking by the back
@@ -1052,3 +1067,33 @@ change). Where the plan has more detail, the plan is the reference.
   its own bug. There is now a "— merge into… —" placeholder, and a duplicate the queue
   has actually spotted is still pre-selected, because that is a suggestion with evidence
   behind it.
+- **The per-venue cap is 6 a week, and is meant to be inert** (Alex, M2.2 walk).
+  Raised from 2: six popular nights at Scotiabank Arena in a week is what is actually
+  on in Toronto, and a cap of 2 was refusing Phoebe Bridgers, Gorillaz and a Leafs game
+  in the week of 28 September alone. Measured over three real weeks:
+
+  | venue cap | week 21 Sep | week 28 Sep | week 5 Oct |
+  |---|---|---|---|
+  | 2 | 15 | 15 | 15 |
+  | 4 | 20 | 16 | 15 |
+  | **6** | **23** | **16** | **15** |
+  | none at all | 23 | 16 | 15 |
+
+  **At 6 the cap already binds on nothing** — it matches "no cap at all" exactly. That
+  is the point rather than an objection: it sits dormant and only fires in the case it
+  was written for, a genuine homestand filling a week. A guard that never fires in
+  normal weather is a good guard. Past week 21 Sep the binding constraint is the
+  category share, not the venue, which is why raising it gains 8 in one week and 1 in
+  the next.
+- **Per-venue-per-day was considered and is a cap in name only** (Alex asked, M2.2
+  walk; measured). The argument for it is sound — a Leafs game on Tuesday and Gorillaz
+  on Thursday are different crowds and should not compete, while two shows at one venue
+  on one night is the real duplicate problem. But **the same venue is used twice on the
+  same day exactly once in three weeks of the eligible queue** (Lee's Palace, 9 Oct), so
+  a per-day cap of 2 produces results identical to having no cap at all. It would be a
+  rule that never fires.
+  The distinction worth keeping from the question: the cap was doing two jobs that were
+  indistinguishable at a target of 5 and separate at 50 — stopping the *list* looking
+  like one venue's programme (a week question), and stopping one venue's same-night
+  shows *splitting a crowd* (a day question). Only the first is live today. If crowd
+  splitting shows up in practice, add a per-day cap then, with the evidence.

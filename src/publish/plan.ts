@@ -406,7 +406,14 @@ export function planPublishing(input: PlanInput): PublishPlan {
           ...common,
           outcome: "skipped",
           reasonCode: "venue_cap",
-          reason: `not published — ${c.venueName ?? "that venue"} already has ${venueSoFar} that week, which is the cap; ranked ${ordinal(rank)} of ${ranked.length} with ${scoreText(c)}`,
+          // States the ceiling, not the count it happened to find. "already has 4,
+          // which is the cap" read as correct when the cap was 2 — a line that
+          // describes itself as compliant whatever the number is cannot be audited
+          // (Alex, M2.2 walk). A count above the ceiling is normal and says so: hand
+          // publishing and marks both bypass this cap by design.
+          reason: `not published — ${c.venueName ?? "that venue"} already has ${venueSoFar} that week, ${
+            venueSoFar > s.maxPerVenuePerWeek ? "above" : "which is"
+          } the cap of ${s.maxPerVenuePerWeek}; ranked ${ordinal(rank)} of ${ranked.length} with ${scoreText(c)}`,
         });
         return;
       }
