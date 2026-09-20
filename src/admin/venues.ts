@@ -5,7 +5,8 @@
 // and its public spots, never a person (H1). Only this admin writes there.
 import { spotSuggestionsOn } from "../env";
 import { MAX_ATTEMPTS, frameMetres, place, renderVenueMap } from "../public/venuemap";
-import type { AdminHandler } from "./context";
+import { distanceKm } from "../import/ticketmaster";
+import type { AdminContext, AdminHandler } from "./context";
 import { adminPage, back, e, here, link, must, notFound, postButton, str } from "./ui";
 
 const MAPS = "venue-maps";
@@ -13,6 +14,50 @@ const MAP_TYPES: Record<string, string> = { "image/png": "png", "image/jpeg": "j
 const MAP_MAX_BYTES = 2 * 1024 * 1024;
 
 // GET /admin/venues
+// A venue belongs near its own spots. Kept as a standing check because it caught a
+// geocode that every other test passed: "1053 Dundas St W" fell back to the street
+// centroid and landed in the Junction, four kilometres from the market, comfortably
+// inside Toronto's bounding box and therefore inside any is-this-Toronto test. It
+// also found Poetry Jazz Cafe at 1.8 km from Sneaky Dee's on its own, which was a
+// known problem nothing was watching.
+//
+// A kilometre is generous: a curated spot is meant to be a short walk (H5), so
+// anything past it is either a bad coordinate or a spot that should not be on that
+// venue's poll. Either way somebody should look.
+const STRAY_KM = 1;
+
+async function strandedSpots(ctx: AdminContext): Promise<{ venue: string; venueId: string; spot: string; km: number }[]> {
+  const rows = await must(
+    ctx.db
+      .from("venues")
+      .select("id, name, latitude, longitude, meeting_spots(name, latitude, longitude, active)")
+      .not("latitude", "is", null),
+  );
+  const out: { venue: string; venueId: string; spot: string; km: number }[] = [];
+  for (const v of rows as any[]) {
+    for (const s of (v.meeting_spots ?? []) as any[]) {
+      if (!s.active || s.latitude === null) continue;
+      const km = distanceKm(v.latitude, v.longitude, s.latitude, s.longitude);
+      if (km > STRAY_KM) out.push({ venue: v.name, venueId: v.id, spot: s.name, km });
+    }
+  }
+  return out.sort((a, b) => b.km - a.km);
+}
+
+export function strandedSpotsPanel(strays: { venue: string; venueId: string; spot: string; km: number }[]): string {
+  if (!strays.length) return "";
+  const rows = strays
+    .map(
+      (x) => `<tr><td><a href="/admin/venues/${e(x.venueId)}">${e(x.venue)}</a></td><td>${e(x.spot)}</td>
+<td class="bad">${x.km.toFixed(2)} km away</td></tr>`,
+    )
+    .join("");
+  return `<h2 class="bad">Spots a long way from their venue (${strays.length})</h2>
+<p class="muted">A curated spot is meant to be a short walk. Over ${STRAY_KM} km it is either a bad coordinate — a geocode that
+fell back to a street centroid will still be in Toronto and still be wrong — or a spot that does not belong on this venue's poll.</p>
+<table><tr><th>Venue</th><th>Spot</th><th></th></tr>${rows}</table>`;
+}
+
 export const venueList: AdminHandler = async (request, ctx) => {
   const [venues, renders] = await Promise.all([
     must(
@@ -25,6 +70,8 @@ export const venueList: AdminHandler = async (request, ctx) => {
   ]);
   const byVenue = new Map<string, any[]>();
   for (const r of renders) byVenue.set(r.venue_id, [...(byVenue.get(r.venue_id) ?? []), r]);
+
+  const strays = await strandedSpots(ctx);
 
   // A venue whose map keeps failing shows the fallback forever and is otherwise
   // invisible. Count them here, where they are looked for.
@@ -63,7 +110,7 @@ export const venueList: AdminHandler = async (request, ctx) => {
   const banner = failing.length
     ? `<p class="bad">${failing.length} venue${failing.length === 1 ? "" : "s"} cannot fetch a crowd page map${stuck.length ? `, and ${stuck.length} of them stopped retrying after ${MAX_ATTEMPTS} attempts` : ""}. Their crowd pages fall back quietly, so they only show up here: ${failing.map((v: any) => `<a href="/admin/venues/${e(v.id)}">${e(v.name)}</a>`).join(", ")}</p>`
     : "";
-  const body = `${noToken}${banner}<table><tr><th>Venue</th><th>City</th><th>Approved spots</th><th>AI suggestions</th><th>Map</th></tr>
+  const body = `${noToken}${banner}${strandedSpotsPanel(strays)}<table><tr><th>Venue</th><th>City</th><th>Approved spots</th><th>AI suggestions</th><th>Map</th></tr>
 ${rows || `<tr><td colspan="5">No venues yet.</td></tr>`}</table>
 <h2>Add a venue</h2>
 <form method="post" action="/admin/venues"><input type="hidden" name="back" value="/admin/venues">

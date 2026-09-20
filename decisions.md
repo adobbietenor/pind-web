@@ -1257,3 +1257,21 @@ change). Where the plan has more detail, the plan is the reference.
   or the last migration that touched it — never the migration that first created it.
   And a jsonb-returning function needs a test that names the keys its readers expect,
   which is the gap M2.3 should close while it is in there.
+- **The convening is an arena solution applied to everything** (Alex, walking the
+  community pages — **rethink, nothing built**). At Gorillaz you are inside a crowd of
+  18,000 and cannot find anyone, so a crew has to convene somewhere else first. At a
+  run club you arrive and twelve people are standing there: **the gathering is the
+  meeting point**, and sending them to a cafe 200 m away to meet before walking to a
+  thing they would have walked to anyway invents a step nobody wants.
+  **The reveal is identical at both ends — commit, see who committed. The convening is
+  not.** The spot poll is the arena's answer, and it has been applied to every
+  gathering because until today every gathering was an arena.
+  This also explains why the community pages feel off, and why the research pass
+  gathered three spots for gatherings that need none.
+- **Community gatherings do not need meeting spots** (Alex, same walk). A consequence
+  of the above, and the reason the first pass produced spots nobody will use.
+- **Spots may belong to a place, not to a venue** (Alex, same walk — costed below,
+  not built). Nadege is near Trinity Bellwoods whether or not a run club exists, and
+  any gathering in that area could meet there. Today `meeting_spots.venue_id` is
+  `not null references venues`, so a spot is owned by exactly one venue and the same
+  cafe beside two venues is two rows with two sets of tallies.
