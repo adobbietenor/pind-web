@@ -10,6 +10,7 @@ import type { Env } from "../env";
 import { crowd } from "./data";
 import { appSiteAssociation, ogImage } from "./og";
 import { pngResponse, rasterise } from "./ogpng";
+import { ensureVenueMap, venueMapImage, venueMapUpload } from "./mapserve";
 import { about, favicon, ics, robots, w1, w2, w3 } from "./pages";
 
 // Anything that is not one of ours is the app's (M2.0).
@@ -21,10 +22,17 @@ function toApp(request: Request, env: Env): Promise<Response> {
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 
 // Returns a response for any public path, or null when the path is not ours.
-export async function publicRoutes(request: Request, env: Env): Promise<Response | null> {
+export async function publicRoutes(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response | null> {
   const { pathname } = new URL(request.url);
 
   if (request.method !== "GET" && request.method !== "HEAD") return null;
+
+  // Venue maps, served from our own origin and never from Supabase (CLAUDE.md,
+  // "Keep the Worker lean"). Both URLs are content-addressed, so both are immutable.
+  const generated = /^\/map\/([0-9a-f-]{36})-([a-z0-9-]{3,40})\.webp$/.exec(pathname);
+  if (generated) return venueMapImage(env, generated[1]!, generated[2]!);
+  const uploaded = /^\/venue-map\/([0-9a-f-]{36})-([a-z0-9]{1,12})$/.exec(pathname);
+  if (uploaded) return venueMapUpload(env, uploaded[1]!, uploaded[2]!);
 
   if (pathname === "/") return w1(request, env);
   if (pathname === "/about") return about();
@@ -46,7 +54,7 @@ export async function publicRoutes(request: Request, env: Env): Promise<Response
   const [slug, ...tail] = rest.split("/");
   if (!slug || !SLUG.test(slug)) return toApp(request, env);
 
-  if (tail.length === 0 || (tail.length === 1 && tail[0] === "")) return w2(request, env, slug);
+  if (tail.length === 0 || (tail.length === 1 && tail[0] === "")) return w2(request, env, slug, ctx);
   if (tail.length === 1 && tail[0] === "spot") return w3(request, env, slug);
 
   // /g/<slug>/pin and anything else under a gathering belong to the app.

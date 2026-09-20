@@ -30,6 +30,7 @@ const ROUTES: [string, AdminHandler][] = [
   ["POST /admin/venues/:id", v.saveVenue],
   ["POST /admin/venues/:id/spots", v.addSpot],
   ["POST /admin/venues/:id/map", v.uploadMap],
+  ["POST /admin/venues/:id/map/fetch", v.fetchVenueMap],
   ["POST /admin/venues/:id/aliases", v.addAlias],
   ["POST /admin/venues/:id/external-ids", v.addExternalId],
   ["POST /admin/venues/:id/external-ids/delete", v.deleteExternalId],

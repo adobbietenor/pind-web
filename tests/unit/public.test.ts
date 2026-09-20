@@ -9,6 +9,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { venueMap, walkMinutes, type MapSpot } from "../../src/public/map.ts";
 import { ogImage } from "../../src/public/og.ts";
+import { frameMetres, isReady, mapKey, mapUrl, place, uploadUrl } from "../../src/public/venuemap.ts";
 
 const spot = (over: Partial<MapSpot>): MapSpot => ({
   name: "Gate 1",
@@ -105,5 +106,66 @@ describe("the OG card (W4)", () => {
   it("escapes a name that contains markup", () => {
     const svg = ogImage({ ...card, name: `<script>alert(1)</script>` });
     assert.equal(svg.includes("<script>"), false);
+  });
+});
+
+// M2.1 — the real venue map. The projection decides where every marker lands and
+// whether a spot is inside the frame at all, so it is worth testing on its own.
+describe("placing spots on the real map", () => {
+  const ARENA_C = { latitude: 43.6435, longitude: -79.3791 };
+
+  it("puts the venue's own coordinates dead centre", () => {
+    const at = place(ARENA_C, ARENA_C);
+    assert.ok(Math.abs(at.left - 50) < 0.001, `left was ${at.left}`);
+    assert.ok(Math.abs(at.top - 50) < 0.001, `top was ${at.top}`);
+    assert.equal(at.onMap, true);
+  });
+
+  it("puts north up and east right", () => {
+    const north = place(ARENA_C, { latitude: 43.6465, longitude: -79.3791 });
+    const east = place(ARENA_C, { latitude: 43.6435, longitude: -79.3751 });
+    assert.ok(north.top < 50, "north was not up");
+    assert.ok(Math.abs(north.left - 50) < 0.001, "north drifted sideways");
+    assert.ok(east.left > 50, "east was not right");
+    assert.ok(Math.abs(east.top - 50) < 0.001, "east drifted vertically");
+  });
+
+  it("calls a nearby spot on the map and a far one off it", () => {
+    // ~250 m away: comfortably inside a frame about 1.3 km across.
+    assert.equal(place(ARENA_C, { latitude: 43.6457, longitude: -79.3791 }).onMap, true);
+    // Poetry Jazz Cafe, the M5.2 finding: about 2 km from Sneaky Dee's, so off it.
+    const sneaky = { latitude: 43.656413, longitude: -79.407486 };
+    const poetry = place(sneaky, { latitude: 43.64283, longitude: -79.42031 });
+    assert.equal(poetry.onMap, false, "a 2 km spot was drawn on the map");
+  });
+
+  it("reports a frame wide enough for a five-minute walk, and no wider", () => {
+    const m = frameMetres(43.65);
+    assert.ok(m > 900 && m < 1600, `the frame was ${m} m across`);
+  });
+});
+
+describe("the map's URLs", () => {
+  it("changes the image URL when the venue's coordinates change, so nothing stale survives", () => {
+    const a = mapKey({ map_key: "abc1234567" });
+    const b = mapKey({ map_key: "9999999999" });
+    assert.ok(a && b && a !== b, "two different coordinate keys produced the same URL");
+    assert.notEqual(mapUrl("v", a!), mapUrl("v", b!));
+    assert.equal(mapKey({ map_key: null }), null, "a venue with no coordinates has no map URL");
+  });
+
+  it("versions an uploaded override by its path, so replacing the file changes the URL", () => {
+    const one = uploadUrl("v", "v/map.png");
+    const two = uploadUrl("v", "v/map-2.png");
+    assert.notEqual(one, two);
+    assert.equal(one, uploadUrl("v", "v/map.png"), "the same path gave two different URLs");
+    assert.ok(one.startsWith("/venue-map/"), "an uploaded map must be served from our own origin");
+  });
+
+  it("knows a venue is ready only for the key its current coordinates produce", () => {
+    const v = { id: "v", name: "V", latitude: 1, longitude: 2, map_key: "abc1234567", map_ready: [] as string[] };
+    assert.equal(isReady(v), false);
+    assert.equal(isReady({ ...v, map_ready: [mapKey(v)!] }), true);
+    assert.equal(isReady({ ...v, map_ready: ["someoldkey-v1"] }), false, "a stale key counted as ready");
   });
 });

@@ -7,9 +7,11 @@ import { HOUSE_RULES, ONE_LINER, PIN_IN, PIN_IN_FREE, THRESHOLD } from "@pind/sh
 import type { Env } from "../env";
 import { localDate } from "../admin/time";
 import { markSvg } from "./brand";
-import { crowd, crowds, venueMapUrl, type Counts, type Crowd, type Crowd2, type Spot } from "./data";
+import { crowd, crowds, type Counts, type Crowd, type Crowd2, type Spot } from "./data";
 import { DOT, escape, header, notice, page } from "./layout";
 import { venueMap, walkMinutes } from "./map";
+import { ensureVenueMap } from "./mapserve";
+import { isReady, mapKey, mapUrl, place, uploadUrl, type Placed } from "./venuemap";
 
 // Where "suggest a gathering" and "report" go. Nothing is stored (spec §2 W1):
 // it is a mailto and no more. One place to change when Alex picks the addresses.
@@ -129,7 +131,7 @@ const W2_FOOTER = (slug: string) =>
   `<a href="mailto:${REPORT_TO}?subject=Report%3A%20${encodeURIComponent(slug)}">report</a>${DOT}` +
   `leave any time${DOT}19+`;
 
-export async function w2(request: Request, env: Env, slug: string): Promise<Response> {
+export async function w2(request: Request, env: Env, slug: string, ctx?: ExecutionContext): Promise<Response> {
   const door = await crowd(env, slug);
   const origin = new URL(request.url).origin;
 
@@ -146,9 +148,18 @@ export async function w2(request: Request, env: Env, slug: string): Promise<Resp
 
   const g = door.gathering;
   const tz = door.venue.timezone;
+
+  // The safety net. If this venue has no picture yet, the page below falls back and
+  // the image is made AFTER the response has been sent, so no visitor ever waits for
+  // Mapbox and the next one gets the real map. renderVenueMap stops at the attempt
+  // cap, so a venue that can never render does not loop against a paid API.
+  if (!door.venue.map_image_path && !isReady(door.venue) && ctx) {
+    ctx.waitUntil(ensureVenueMap(env, door.venue.id));
+  }
   const url = `${origin}/g/${g.slug}`;
   const when = longWhen(g.starts_at, tz);
   const button = g.is_free ? PIN_IN_FREE : PIN_IN;
+  const map = mapFigure(door);
 
   return page(
     `${header()}
@@ -157,7 +168,7 @@ export async function w2(request: Request, env: Env, slug: string): Promise<Resp
 ${door.venue.address ? `<p class="lede" style="margin-bottom:0">${escape(door.venue.address)}</p>` : ""}
 
 ${tallies(door.counts)}
-${mapFigure(env, door)}
+${map.html}
 
 <a class="cta" id="cta" href="/g/${escape(g.slug)}/pin">${escape(button)}</a>
 <p class="note">Names and photos unlock after you pin in and opt to meet.</p>
@@ -165,7 +176,7 @@ ${mapFigure(env, door)}
 <h2>House rules</h2>
 <ol class="rules">${HOUSE_RULES.map((r) => `<li>${escape(r)}</li>`).join("")}</ol>
 
-${spotList(door.spots, tz)}
+${spotList(door, tz, map.kind)}
 
 <h2>Share</h2>
 <p class="quiet" style="font-size:.9rem">
@@ -183,10 +194,18 @@ ${g.event_url ? `${DOT}<a href="${escape(g.event_url)}" rel="nofollow noopener">
       footer: W2_FOOTER(g.slug),
       // If this browser already has a session, the button says Open instead. The
       // page is complete without this; JavaScript only relabels one element.
+      // Two small things, neither of which the page needs. If this browser already
+      // has a session the button says Open; and on an iPhone the walking-directions
+      // links point at Apple Maps instead of Google. With JavaScript off, the button
+      // still works and the links still open Google Maps on every platform.
       script:
         `try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);` +
         `if(k&&k.indexOf("sb-")===0&&k.indexOf("-auth-token")>0){` +
-        `document.getElementById("cta").textContent="Open";break}}}catch(e){}`,
+        `document.getElementById("cta").textContent="Open";break}}}catch(e){}` +
+        `try{if(/iPad|iPhone|iPod/.test(navigator.platform)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)){` +
+        `var a=document.querySelectorAll('a[href*="google.com/maps/dir"]');` +
+        `for(var j=0;j<a.length;j++){var d=new URL(a[j].href).searchParams.get("destination");` +
+        `if(d)a[j].href="https://maps.apple.com/?daddr="+encodeURIComponent(d)+"&dirflg=w"}}}catch(e){}`,
     },
   );
 }
@@ -200,26 +219,125 @@ function tallies(c: Counts): string {
 <p class="mix">${mix ? escape(mix) : escape(crewLine(c))}</p>`;
 }
 
-// The venue and its meeting spots, never people (H1). An uploaded image overrides
-// the generated map; a venue with no coordinates gets no map and still reads fine.
-function mapFigure(env: Env, door: Crowd2): string {
-  const uploaded = venueMapUrl(env, door.venue.map_image_path);
-  if (uploaded) {
-    return `<figure><img src="${escape(uploaded)}" alt="Map of ${escape(door.venue.name)} and its meeting spots. No people are shown." loading="lazy" decoding="async">
-<figcaption>The venue and its meeting spots. Never people.</figcaption></figure>`;
+// The venue and its meeting spots, never people (H1), and never the viewer (H4).
+//
+// Three steps down, decided before the first byte is sent, so there is never a broken
+// image and never a layout jump:
+//   1. the real map — an uploaded override, or the picture fetched once from Mapbox;
+//   2. the schematic, if the venue and at least one spot have coordinates;
+//   3. nothing at all, and the spots list below reads perfectly well on its own.
+//
+// The image carries explicit width and height so its box is reserved before the bytes
+// arrive. Everything with meaning sits on top of it in HTML: the markers, the names,
+// the walking minutes, the north arrow, and the link that opens walking directions in
+// the phone's own maps app. None of it is baked into the picture, so approving a spot
+// later changes the page without re-rendering anything.
+type MapKind = "real" | "schematic" | "none";
+
+function mapFigure(door: Crowd2): { html: string; kind: MapKind } {
+  const v = door.venue;
+  const real = v.map_image_path ? uploadUrl(v.id, v.map_image_path) : readyMapUrl(v);
+  if (real) return { html: `<figure>${frame(real, door)}${credit()}</figure>`, kind: "real" };
+
+  const svg = venueMap(v, door.spots);
+  if (svg) {
+    // The schematic fits itself to the spots, so everything it has is on it — the
+    // "not shown on the map" line below must not appear under this one.
+    return {
+      html: `<figure>${svg}<figcaption>The venue and its meeting spots. Never people.</figcaption></figure>`,
+      kind: "schematic",
+    };
   }
-  const svg = venueMap(door.venue, door.spots);
-  if (!svg) return "";
-  return `<figure>${svg}<figcaption>The venue and its meeting spots. Never people.</figcaption></figure>`;
+  return { html: "", kind: "none" };
 }
 
-function spotList(spots: Spot[], tz: string): string {
-  if (spots.length === 0) return "";
-  const items = spots
-    .map((s) => {
-      const bits = [`meet ${clock(s.meet_at, tz)}`];
-      if (s.walk_minutes !== null) bits.push(`${s.walk_minutes} min walk`);
-      return `<li><b>${escape(s.name)}</b>${s.description ? ` — ${escape(s.description)}` : ""}
+function readyMapUrl(v: Crowd2["venue"]): string | null {
+  const key = mapKey(v);
+  return key && isReady(v) ? mapUrl(v.id, key) : null;
+}
+
+const credit = () =>
+  `<figcaption>The venue and its meeting spots. Never people.<br>` +
+  `<span class="credit">© <a href="https://www.mapbox.com/about/maps/" rel="nofollow noopener">Mapbox</a> ` +
+  `© <a href="https://www.openstreetmap.org/copyright" rel="nofollow noopener">OpenStreetMap</a> contributors</span></figcaption>`;
+
+// Where each spot sits on the picture. A spot outside the frame gets no marker and is
+// told so in the list, rather than quietly lacking one.
+export function placedSpots(door: Crowd2): { spot: Spot; at: Placed | null }[] {
+  const v = door.venue;
+  return door.spots.map((spot) => ({
+    spot,
+    at:
+      v.latitude !== null && v.longitude !== null && spot.latitude !== null && spot.longitude !== null
+        ? place({ latitude: v.latitude, longitude: v.longitude }, { latitude: spot.latitude, longitude: spot.longitude })
+        : null,
+  }));
+}
+
+function frame(src: string, door: Crowd2): string {
+  const v = door.venue;
+  const markers = placedSpots(door)
+    .filter((p) => p.at?.onMap)
+    .map(({ spot, at }) => {
+      const walk = spot.walk_minutes ?? walkMetres(v, spot);
+      // Past the middle, the label goes on the left of its dot so it stays in frame.
+      const flip = at!.left > 55 ? " flip" : "";
+      return `<a class="pin${flip}" style="left:${at!.left.toFixed(2)}%;top:${at!.top.toFixed(2)}%" href="${escape(directions(spot))}" target="_blank" rel="noopener">
+<span class="dotm" aria-hidden="true"></span>
+<span class="lbl"><b>${escape(spot.name)}</b>${walk ? `<i>${walk} min walk</i>` : ""}<u>Directions</u></span>
+</a>`;
+    })
+    .join("");
+
+  return `<div class="mapbox">
+<img src="${escape(src)}" width="768" height="480" alt="Map of ${escape(v.name)} and its meeting spots. No people are shown." decoding="async">
+<span class="venue-pin" aria-hidden="true"></span>
+<span class="venue-name">${escape(v.name)}</span>
+<span class="north" aria-hidden="true">N</span>
+${markers}
+</div>`;
+}
+
+function walkMetres(v: Crowd2["venue"], spot: Spot): number | null {
+  if (v.latitude === null || v.longitude === null || spot.latitude === null || spot.longitude === null) return null;
+  const midLat = ((v.latitude + spot.latitude) / 2) * (Math.PI / 180);
+  const dx = (spot.longitude - v.longitude) * 111_320 * Math.cos(midLat);
+  const dy = (spot.latitude - v.latitude) * 110_574;
+  return walkMinutes(Math.hypot(dx, dy));
+}
+
+// Walking directions, in the phone's own maps app. Google's universal URL works on
+// every platform, including desktop; the small script on the page rewrites it to
+// Apple Maps on iOS. With JavaScript off, everyone still gets a working link.
+//
+// This does not touch H4: the location permission is asked for by the maps app, by
+// the person, after they have left our page, and we never see the answer.
+export function directions(spot: Spot): string {
+  const to = `${spot.latitude},${spot.longitude}`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(to)}&travelmode=walking`;
+}
+
+function spotList(door: Crowd2, tz: string, kind: MapKind): string {
+  const placed = placedSpots(door);
+  if (placed.length === 0) return "";
+  // Only the real map has a fixed frame that a spot can fall outside of. The
+  // schematic fits itself to whatever it is given, and when there is no map at all
+  // there is nothing for a spot to be missing from.
+  const framed = kind === "real";
+
+  const items = placed
+    .map(({ spot, at }) => {
+      const bits = [`meet ${clock(spot.meet_at, tz)}`];
+      const walk = spot.walk_minutes ?? walkMetres(door.venue, spot);
+      if (walk) bits.push(`${walk} min walk`);
+      // Not on the map, and said out loud: someone comparing the list to the picture
+      // should never have to wonder whether the marker is missing or the spot is.
+      if (framed && !at?.onMap) bits.push("not shown on the map — it is further away");
+      const link =
+        spot.latitude !== null
+          ? ` <a class="dirs" href="${escape(directions(spot))}" target="_blank" rel="noopener">Directions</a>`
+          : "";
+      return `<li><b>${escape(spot.name)}</b>${spot.description ? ` — ${escape(spot.description)}` : ""}${link}
 <div class="meta">${escape(bits.join(" · "))}</div></li>`;
     })
     .join("");

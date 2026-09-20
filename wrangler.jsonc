@@ -64,6 +64,8 @@
       "/favicon.svg",
       "/g/*",
       "/og/*",
+      "/map/*",
+      "/venue-map/*",
       "/.well-known/*"
     ]
   }

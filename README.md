@@ -58,6 +58,7 @@ npx wrangler secret put SUPABASE_URL
 npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
 npx wrangler secret put SUPABASE_PUBLISHABLE_KEY
 npx wrangler secret put SESSION_SECRET
+npx wrangler secret put MAPBOX_TOKEN
 ```
 
 `SUPABASE_PUBLISHABLE_KEY` is the anon key. It is public by design — the app bundle
@@ -104,6 +105,8 @@ browser in under a second.
 | `/g/<slug>/spot` | W3, the share card: gathering, spot, time |
 | `/g/<slug>.ics` | add to calendar |
 | `/og/<slug>.png` | W4, the link preview image — no counts, ever |
+| `/map/<venue>-<key>.webp` | the venue map, fetched once from Mapbox and served from here |
+| `/venue-map/<venue>-<hash>` | the uploaded map override, also served from here |
 | `/.well-known/apple-app-site-association` | universal links, both bundle IDs |
 | `/about`, `/robots.txt`, `/favicon.svg` | the footer's page, and the two small files |
 
@@ -140,7 +143,27 @@ start whether or not `/og/` is hit. Measured on the deployed Worker: startup **8
 day at the edge. If that ever needs re-checking, `wrangler deploy` prints
 "Worker Startup Time" on every deploy.
 
-### The generated map
+### The venue map
+
+`src/public/venuemap.ts` and `mapserve.ts`. One picture per venue: streets and
+buildings around it, fetched once from Mapbox with `MAPBOX_TOKEN` (a Worker secret,
+never in the page), stored in the `venue-maps` bucket, and served from **our own
+origin** — the visitor's browser never talks to Supabase.
+
+Everything with meaning is HTML over the image: the venue, each spot, its name, its
+walking minutes, the north arrow, and a tap target that opens **walking directions in
+the phone's own maps app**. So approving a spot later changes the page without
+re-fetching anything. A spot outside the frame keeps its list entry and says it is not
+on the map.
+
+Both URLs are content-addressed and served `immutable`: correcting a venue's
+coordinates mints a new key, so the page asks for a new URL and the old one is never
+requested again. Nothing needs purging.
+
+Failures land in `venue_map_renders`, are counted on the admin's venue list, and stop
+after three attempts. "Fetch the map again" on a venue is the deliberate retry.
+
+### The schematic map (the fallback)
 
 `src/public/map.ts` draws the venue and its meeting spots from their coordinates — a
 schematic SVG with walking minutes, a north arrow and a scale bar. No tiles, no API

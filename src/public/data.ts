@@ -72,11 +72,17 @@ export interface Crowd2 {
     event_url: string | null;
   };
   venue: {
+    id: string;
     name: string;
     address: string | null;
     latitude: number | null;
     longitude: number | null;
     map_image_path: string | null;
+    // The key the venue's coordinates produce, and the keys already rendered. W2 uses
+    // both to decide, in this one round trip, whether to show the picture or fall back
+    // (src/public/venuemap.ts).
+    map_key: string | null;
+    map_ready: string[];
     city_name: string;
     timezone: string;
   };

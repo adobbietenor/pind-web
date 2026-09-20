@@ -29,6 +29,9 @@ export interface Env {
   TICKETMASTER_CONSUMER_KEY?: string;
   // Anthropic API key (M1.3: AI vetting and spot suggestions; T3: photo checks). Secret.
   ANTHROPIC_API_KEY?: string;
+  // Mapbox Static Images token (M2.1). Secret, and NEVER in the page: the Worker
+  // fetches each venue's map server-side, once, and serves it from our own origin.
+  MAPBOX_TOKEN?: string;
   // Hard daily AI spend cap in US dollars, per Toronto calendar day (M1.3). Not a
   // secret: set in wrangler.jsonc "vars".
   AI_DAILY_CAP_USD?: string;

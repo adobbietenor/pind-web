@@ -11,7 +11,7 @@ const routes: Record<string, Handler> = {
   "GET /health": health,
 };
 
-export async function route(request: Request, env: Env): Promise<Response> {
+export async function route(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const { pathname } = url;
 
@@ -31,7 +31,7 @@ export async function route(request: Request, env: Env): Promise<Response> {
   // The public web layer (M2.1): W1-W4, the OG image, the universal-link file.
   // It returns null for a path that is not one of ours, and hands anything under
   // /g/ that it does not own (/g/<slug>/pin) to the app itself.
-  const pub = await publicRoutes(request, env);
+  const pub = await publicRoutes(request, env, ctx);
   if (pub) return pub;
 
   // Everything else is the Expo web export, with single-page-app fallback (M2.0).

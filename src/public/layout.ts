@@ -69,11 +69,36 @@ a.card:hover{border-color:#453f52;background:#1c1922}
 .tally-box span{font-size:.8rem;color:var(--muted)}
 .mix{color:var(--muted);font-size:.9rem;margin:10px 0 0}
 
-/* The generated map */
+/* The map */
 figure{margin:20px 0 0}
 figure svg{display:block;width:100%;height:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px}
-figure img{display:block;width:100%;height:auto;border:1px solid var(--border);border-radius:14px}
 figcaption{font-size:.82rem;color:var(--muted);margin-top:8px}
+.credit{font-size:.76rem;color:#736d7e}
+.credit a{color:#736d7e}
+
+/* The real map: one image, everything meaningful in HTML on top of it. The aspect
+   ratio is fixed here as well as on the img, so the box never moves when the bytes
+   land. */
+.mapbox{position:relative;aspect-ratio:768/480;border:1px solid var(--border);border-radius:14px;overflow:hidden;background:var(--surface)}
+.mapbox img{display:block;width:100%;height:100%;object-fit:cover}
+.venue-pin{position:absolute;left:50%;top:50%;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:#fff;box-shadow:0 0 0 3px rgba(11,10,13,.85)}
+.venue-name{position:absolute;left:50%;top:50%;transform:translate(-50%,14px);font-size:.8rem;font-weight:650;color:#fff;text-shadow:0 1px 3px #0B0A0D,0 0 8px #0B0A0D;white-space:nowrap;pointer-events:none}
+.north{position:absolute;right:10px;top:8px;font-size:.7rem;color:var(--muted);background:rgba(11,10,13,.72);border-radius:6px;padding:3px 7px;letter-spacing:.06em}
+.north::before{content:"▲";display:block;font-size:.62rem;line-height:1;margin-bottom:1px}
+
+/* A spot. The whole thing is the tap target, and it opens the phone's own maps app. */
+.pin{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:6px;text-decoration:none;color:#fff;max-width:60%}
+.pin .dotm{flex:0 0 auto;width:13px;height:13px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(11,10,13,.85)}
+.pin .lbl{display:block;background:rgba(11,10,13,.82);border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:5px 9px;line-height:1.25}
+.pin .lbl b{display:block;font-size:.8rem;font-weight:640;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pin .lbl i{display:block;font-style:normal;font-size:.7rem;color:var(--muted)}
+.pin .lbl u{display:block;font-size:.7rem;color:#c9a6ee;text-decoration:none;margin-top:2px}
+.pin:hover .lbl{background:rgba(88,40,131,.92);border-color:var(--accent)}
+.pin:hover .lbl u{color:#fff}
+/* Labels near the right edge flip to the other side of their dot. */
+.pin.flip{flex-direction:row-reverse}
+
+a.dirs{margin-left:6px;font-size:.82rem;white-space:nowrap}
 
 /* House rules */
 .rules{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:6px 18px 6px 34px;margin:22px 0 0}

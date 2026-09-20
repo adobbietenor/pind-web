@@ -713,5 +713,35 @@ change). Where the plan has more detail, the plan is the reference.
     IP-based centring. The venue is always the centre (H4). A library that ships a locate
     control by default has it **removed, not hidden**.
 
+  **Caching: immutable, and nothing ever needs invalidating** (Alex asked, M2.1). Both
+  map URLs are **content-addressed**, so they are served `max-age=31536000, immutable`:
+  - `/map/<venue>-<key>.webp`, where the key is `md5(latitude, longitude)` plus a
+    renderer version. **Correcting a venue's coordinates in the admin produces a
+    different key, so the page starts asking for a different URL and the old one is
+    simply never requested again.** There is no purge to run, no cache API to call, and
+    no window in which a stale picture is served. The Worker also refuses a key that is
+    not the one the venue's current coordinates produce, so an old URL 404s rather than
+    serving an out-of-date map to whoever still has it.
+  - `/venue-map/<venue>-<hash>`, the uploaded override, versioned by a hash of its
+    storage path for the same reason.
+  - Bumping the renderer version (zoom, size, style) changes every key at once.
+
+  **Failures are visible and retries are capped** (Alex, M2.1). Every attempt is
+  recorded in `venue_map_renders` with its error; the admin's venue list carries a
+  count and names the venues, and each venue page shows the reason. After three
+  failures the Worker stops asking — a venue that can never render must not loop
+  against a paid API with nobody watching — and a "Fetch the map again" button in the
+  admin is the deliberate retry that clears the record. A missing `MAPBOX_TOKEN` is
+  reported once, as the configuration problem it is, not as 74 venue failures.
+
+  **A spot outside the frame says so** (Alex, M2.1). It keeps its place in the list,
+  its walking minutes and its directions link, and the page reads "not shown on the map
+  — it is further away". Someone comparing the list to the picture never has to wonder
+  whether the marker is missing or the spot is. The admin flags it on the venue page as
+  the M5.2 distance signal. The frame stays at a fixed zoom centred on the venue:
+  zooming out to fit a bad spot would shrink the venue to nothing and hide the thing
+  the map is for.
+
   The schematic generator (`src/public/map.ts`) stays in the repo until the replacement
-  is proven on Alex's phone.
+  is proven on Alex's phone — and it has earned a permanent job as the middle step of
+  the fallback: real map, then schematic, then the spot list alone.
