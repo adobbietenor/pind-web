@@ -199,6 +199,18 @@ export function readAnswer(raw: unknown, today: string): CheckAnswer | null {
   const cadence = typeof a.cadence === "string" && a.cadence.trim() ? a.cadence.replace(/\s+/g, " ").trim().slice(0, 120) : null;
   // A date in the past is not a confirmation of anything ahead, so it is dropped rather
   // than stored as a horizon that has already gone by.
+  //
+  // **A horizon a year out is not evidence either, and this is the note before the
+  // clamp** (Alex, closing M2.3: "note it now rather than when something depends on
+  // it"). The first pass had College Social Game Night confirmed through September
+  // 2027. It is harmless while only the admin reads this field, and it is exactly the
+  // kind of number that silences a rule later: a top-up that trusted it would generate
+  // a year of drafts, and a running-out check that trusted it would never fire. So
+  // **whatever first depends on confirmed_through clamps it here** — to the city's own
+  // community_weeks plus a small margin — and treats anything beyond as "the page said
+  // something we are not going to act on". It is deliberately not clamped yet: the
+  // stored value is the evidence, and losing it would hide the oddity rather than
+  // handle it.
   const furthest =
     typeof a.furthest_date === "string" && DATE.test(a.furthest_date) && a.furthest_date >= today ? a.furthest_date : null;
   return {

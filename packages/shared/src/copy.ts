@@ -42,6 +42,11 @@ export function entryLine(g: {
   return note ? `${amount} at the door — ${note}` : `${amount} at the door`;
 }
 
+// Still the fixed §5 sentence, and **no longer the headline anywhere** (Alex, closing
+// M2.3): the threshold is our mechanic, not the reader's reason. It sits under W2's
+// counts as a quiet fact; W2 is headed "Who else is going?" and the pinned page will
+// lead with "Find your crew" (A9/A10). A card on W1 that is short of five says nothing
+// about five at all.
 export const THRESHOLD_EXPLANATION = "Crews open when 5 people opt in.";
 
 // Verbatim, on every crowd surface (spec W2). Rewritten by Alex after the M2.1

@@ -206,9 +206,10 @@ The founder answers "is this a dating thing?" in the comments with the house rul
 
 ### W1 — This week's crowds *(landing; was T9)*
 The public browse surface. Grouped by day, **ordered by date, never by size** (Q10).
-Published gatherings: name, venue, time, pin count, and either "crews forming" or
-"crews open at 5"; the chip a reader filters by, and what it costs to walk in. Small
-counts shown, never hidden, including zero. Footer: suggest a gathering (a mailto link,
+Published gatherings: name, venue, time, pin count, and "crews forming" **only when
+they are**; the chip a reader filters by, and what it costs to walk in. Small counts
+shown, never hidden, including zero. **The threshold never leads**: a row short of five
+says nothing about five (Alex, closing M2.3). Footer: suggest a gathering (a mailto link,
 nothing stored) · about · 19+.
 
 **A list of fifty is a different screen from a list of five** (built in M2.3):
@@ -234,8 +235,11 @@ Public, no account, shareable. Contains:
 - The generated map: **venue and its meeting spots, never people** (H1) — a schematic
   SVG drawn from the venue's and spots' coordinates (decisions Part 5, "Maps generated
   automatically"); an uploaded image is an optional override
-- Counts: pinned, open to meeting, gender mix (Women · Men, plus Other when above zero;
-  only at 5+ opted in — Q3)
+- **Headed "Who else is going?"**, with the counts under it as the answer: pinned, open
+  to meeting, gender mix (Women · Men, plus Other when above zero; only at 5+ opted in
+  — Q3), and the threshold explanation as a quiet line beneath rather than the message
+  (Alex, closing M2.3). The pinned page leads with "Find your crew" instead (A9/A10,
+  M3.3), where forming one is the next action.
 - **House rules**, verbatim (Alex, after the M2.1 on-device walk):
   1. Make friends how you used to — in person.
   2. You see each other, or neither of you does.
@@ -622,7 +626,7 @@ working. Hours are Alex's, agent-assisted.
 | M2.0 | Repo + Expo scaffold | **Done** — merged as `7fc973a` | 6–8 |
 | M2.1 | Public web layer on pind.social (W1–W4, the real map, the domain) | **Done** — merged as `6fea4a3` | 8–12 |
 | M2.2 | Auto-publishing v1 — fixed target (§8) | **Done** — merged as `ec9d74d` | 4–6 |
-| M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | **Walked on the phone; three fixes in; merge held for Lighthouse** | 4–6 |
+| M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | **Done** — merged as `M2.3` | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | Not started | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel, universal links (A5–A9, A19, A26, A27) | Not started | 12–18 |
@@ -868,6 +872,81 @@ the current pace, raise the hours or shrink the phase.
       measurement and Alex's to confirm;
     - **the M5.2 distance ceiling** — Poetry Jazz Cafe is a 30-minute walk and was
       already approved and in a live spot poll.
+
+- **Phase 2 M2.3 complete** (branch `phase2/m2.3-the-list`, merged to `main` on
+  20 Sept 2026). The list at fifty a week, plus the three things the on-device walk
+  found and the liveness check Alex chose over map polish. Four migrations.
+  - **Data and rules first, and the data was the milestone.** All 49 published Events
+    rows carried `category = null`, so the Events tab would have shown a chip row with
+    nothing in it. `public.chip_category` maps Ticketmaster's "Segment / Genre" to the
+    chip a reader filters by — **one rule, in the database**, called by the nightly
+    import and by the backfill — and a category is **set once at draft and never
+    overwritten**, so an admin edit is final (P66).
+  - **W1.** Two tabs on `source` (`/` and `/community`), chips within a tab and never
+    across, multi-select and always a union, Today and Tomorrow named, a week at a time
+    with a pager, a count beside each day. **A chip is counted from the rows on the
+    page**, so it can never filter to an empty one and never advertises an absence.
+    Every control is a server-rendered link.
+  - **W2.** The map's zoom is chosen per venue from its own spots; a spot is a numbered
+    card with the walking directions inside it; "Open in Maps" for the venue itself; and
+    the counts are now headed **"Who else is going?"** with the threshold demoted to a
+    quiet line — the threshold is our mechanic, not the reader's reason.
+  - **Measured, deployed.** `/about` is 7.9 KB with no list; W1 Events with 26 cards is
+    **9.0 KB**, so the whole list costs about 1.1 KB. W2 is 8.8 KB plus a 30 KB map,
+    down from 57 KB because the tighter zoom draws fewer features.
+  - **What measurement caught that reading the code would not**, four times:
+    1. **filling the category in would have stopped the publisher dead** — 0 published
+       against 12, weeks at 4/48/30 against 4/50/40, because `capBucket` preferred the
+       stored chip and stopped telling a club night from a rock show;
+    2. **`/community` served the Expo app's own index.html with a 200** until it was
+       added to `run_worker_first`;
+    3. **29 of 37 venues had no map at their current key** — a visitor's first view was
+       fetching it;
+    4. **`admin_ai_spend_today` summed one table**, so a second job's AI cost would have
+       been invisible to the $3 cap.
+  - **Comedy earns its chip.** Stand-up was capped as seated theatre by analogy: 48
+    drafts at a median of 35 against a floor of 60, three ever publishable. Naming it as
+    its own case — and naming panel talks and "in conversation" as capped — moved the
+    median to 60 and 3 → 28 over the floor, with theatre, classical and opera unmoved
+    and the Jaipur Literature Festival holding at 35. Measured twice against a control
+    set first, so the ±5–15 noise floor was known before the shift was claimed, and
+    shipped with the re-score in one commit.
+  - **The liveness check** (M2.3b). 28 hand-entered series had produced 188 published
+    occurrences to 31 December with nothing re-checking them. Its own cron, run table,
+    lock and budget line; 27 of 28 confirmed on the first pass, one unreadable, no false
+    absences, $0.42. Nothing is withdrawn by a machine, "we cannot tell" and "its page
+    dropped it" are different sentences, and "I looked" clears the doubt. The generator
+    is capped at eight weeks, and seven series already have under 21 days of dates left.
+  - **One definition of public, enforced.** `publicVenueIds()` joins `crowds()` in the
+    door module, and `tests/unit/door.test.ts` fails if the lookalike service-key filter
+    appears anywhere else — verified by reintroducing the bug.
+  - **Checks:** `npm run typecheck`, `test:unit` **191**, `test:policies` **68/68**
+    (P66 new), and the app typechecks.
+  - **Walked on device, 20 Sept 2026** (Alex): "Looks pretty good overall." Three
+    problems found on the phone, all fixed and redeployed — the map loading
+    inconsistently, the back button, and the map's lack of interactivity answered with a
+    costed path rather than a build. **Lighthouse was deliberately skipped** and moved to
+    M3.2 (decisions, "Lighthouse on W1 and W2"): the byte floor leaves no room for a
+    surprise, the last run measured the wrong URL and cost an hour, and there is nothing
+    on these pages for it to find. The rule it does not weaken is the one that found the
+    injected beacon and `/community`: load the page and list its requests.
+  - **Carried out of M2.3:**
+    - **the chip names are owed** — "Community" as a tab name, and cycling and running as
+      separate chips, may not be how a reader divides this. What any rethink must keep:
+      running is 4 gatherings / 59 rows / 2 venues and cycling is 5 / 13 / 8, so they
+      look alike and behave oppositely;
+    - **a search bar is designed and filed for M3.2** — no client JavaScript needed, one
+      door with an optional query, about two hours, and the app's list needs the same
+      thing;
+    - **a source can extend a series as well as end one**, found on day one: two to three
+      hours, and the cadence comes from the spacing of the rows we already hold;
+    - **a horizon a year out is not evidence** — one page confirmed through September
+      2027, noted where the clamp will go;
+    - **the injected Cloudflare beacon is unchanged**, and the one query that would
+      answer it needs an account API token, which is Alex's;
+    - **the liveness cron has no watchdog**: the Community page says when no run has
+      finished in 48 hours, but M2.2's pg_cron watchdog covers the import only, and
+      generalising it is a refactor rather than a copy.
 
 #### M2.2 — the nightly import had never actually run on schedule
 Found on 2026-09-20, when the admin showed "TICKETMASTER_CONSUMER_KEY is missing" and

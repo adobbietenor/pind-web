@@ -3,7 +3,7 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { categoryLabel, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, THRESHOLD } from "@pind/shared";
+import { categoryLabel, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, THRESHOLD, THRESHOLD_EXPLANATION } from "@pind/shared";
 import type { Env } from "../env";
 import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
 import { markSvg } from "./brand";
@@ -62,8 +62,21 @@ const longWhen = (iso: string, tz: string) => `${dateLong(iso, tz)}, ${clock(iso
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+// **The threshold is our mechanic, not the reader's reason** (Alex, after the M2.3
+// walk, and he had never liked the old line). "Crews open at 5" describes a rule
+// somebody is waiting on; what they came for is to see who else is going. So the
+// number never leads anywhere:
+//
+//   - W2's counts sit under the heading "Who else is going?" and the threshold is a
+//     quiet line beneath them, in the fixed wording from packages/shared;
+//   - a card on W1 says what is true — "3 pinned", and "crews forming" only when they
+//     are. A row that has not reached five now says nothing about five, because a
+//     hundred rows all saying "crews open at 5" was the rule being repeated at a
+//     reader rather than anything about that gathering;
+//   - the pinned page in M3.3 leads with "Find your crew", where forming one is
+//     genuinely the next action (Alex; recorded for A9/A10).
 function crewLine(c: { crews_open: boolean }): string {
-  return c.crews_open ? "crews forming" : `crews open at ${THRESHOLD}`;
+  return c.crews_open ? "crews forming" : "";
 }
 
 // The mix appears only at 5+ opted in, and "Other" only above zero (Q3, V3).
@@ -281,7 +294,9 @@ function card(g: Crowd): string {
 <div class="when">${escape(clock(g.starts_at, g.city_timezone))}</div>
 <div class="name">${escape(g.name)}${mark}${free}</div>
 <div class="where">${escape(g.venue_name)}</div>
-<div class="tally">${escape(plural(g.pinned, "pinned", "pinned"))}${DOT}${escape(crewLine(g))}</div>
+<div class="tally">${escape(plural(g.pinned, "pinned", "pinned"))}${
+    crewLine(g) ? `${DOT}${escape(crewLine(g))}` : ""
+  }</div>
 </a>`;
 }
 
@@ -397,13 +412,21 @@ ${g.event_url ? `${DOT}<a href="${escape(g.event_url)}" rel="nofollow noopener">
   );
 }
 
+// "Who else is going?" rather than "See who's going", for two reasons: the page's own
+// description already says "See who's going, meet them there.", so the heading would
+// have restated the tagline — and on a page about one gathering, the question is the
+// sentence already in the reader's head.
 function tallies(c: Counts): string {
   const mix = mixLine(c);
-  return `<div class="tallies">
+  const crews = crewLine(c);
+  return `<h2 class="asks">Who else is going?</h2>
+<div class="tallies">
 <div class="tally-box"><b>${c.pinned}</b><span>pinned</span></div>
 <div class="tally-box"><b>${c.open_to_meeting}</b><span>open to meeting</span></div>
 </div>
-<p class="mix">${mix ? escape(mix) : escape(crewLine(c))}</p>`;
+${mix ? `<p class="mix">${escape(mix)}</p>` : ""}
+${crews ? `<p class="mix">${escape(crews)}</p>` : ""}
+<p class="rule">${escape(THRESHOLD_EXPLANATION)}</p>`;
 }
 
 // The venue and its meeting spots, never people (H1), and never the viewer (H4).

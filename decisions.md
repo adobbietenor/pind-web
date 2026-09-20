@@ -1815,3 +1815,103 @@ occurrences to 31 December**, three and a half months out.
   refactor rather than a copy. The difference in urgency is real: a missed import means
   the city's list stops refreshing, a missed check means a series is re-read a few days
   late.
+
+- **The threshold is our mechanic, not the reader's reason** (Alex, closing M2.3 — and
+  he had never liked the old line). "Crews open at 5" describes a rule somebody is
+  waiting on. What a reader came for is to see who else is going, so **the number never
+  leads on any surface**:
+  - **W2, before pinning, is headed "Who else is going?"** with the counts under it as
+    the answer, and `THRESHOLD_EXPLANATION` — still the fixed §5 sentence, unchanged —
+    as a quiet line beneath them. "Who else is going?" rather than "See who's going"
+    for two reasons: the page's own description already reads "See who's going, meet
+    them there.", so the heading would have restated the tagline, and on a page about
+    one gathering the question is the sentence already in the reader's head.
+  - **A card on W1 says what is true**: "3 pinned", and "crews forming" only when they
+    are. A row short of five now says nothing about five — two hundred rows all reading
+    "crews open at 5" was the rule being repeated at a reader rather than anything about
+    that gathering.
+  - **The pinned page leads with "Find your crew"** (Alex; recorded here for A9/A10 in
+    M3.3), where forming one is genuinely the next action rather than a state to wait
+    for. This is the screen decision the earlier note predicted would cost nothing in
+    the data layer: `private.can_see_at` never mentions five, so the reciprocal list
+    already works at two, and only crews opening and the gender-mix chip are gated at
+    the threshold (V3, Q3).
+  - The sentence itself stays fixed copy. It is where it belongs — underneath, in
+    smaller grey type — rather than rewritten, because the full copy pass with Tatiana
+    is still owed (spec §5, "The voice").
+- **A source can extend a series as well as end one, and that is cheap** (Alex asked, at
+  the M2.3 close; **costed, not built**). The first liveness pass found TBN's Sunday
+  rides confirmed into late October where our rows stop in September — the opposite of
+  the problem the check was built for, on day one.
+  - The shape: where a page's `confirmed_through` runs past our last occurrence, **top
+    up by generating drafts** — never published rows — to the nearer of that date and
+    the `community_weeks` horizon. Publishing stays where it is: the mark, the
+    publisher, or Alex.
+  - The one thing it needs that does not exist: **the cadence**, because there is
+    deliberately no recurrence in the schema. It does not need storing — the spacing of
+    the occurrences we already hold gives it away (seven days apart is weekly), and all
+    28 were generated from a fixed cadence. Inferring it from the rows is both cheaper
+    and safer than trusting `cadence_seen`, which is the page's prose.
+  - **Two to three hours**, including a "top up" button next to the running-out count
+    and its tests. It belongs with M4.4's daily run as a step, or stands alone whenever
+    the running-out banner becomes annoying enough to act on.
+- **A source claiming a year of horizon is not evidence** (Alex: "note it now rather
+  than when something depends on it"). College Social Game Night came back confirmed
+  through **September 2027**. Nothing reads `confirmed_through` today except the admin,
+  so it is harmless — and it is exactly the kind of number that silences a rule later:
+  a top-up that trusted it would generate a year of drafts, and a running-out check that
+  trusted it would never fire. **So whatever first depends on that field clamps it** —
+  to the city's own horizon plus a small margin — and treats anything beyond as "the
+  page said something we are not going to act on". Noted in `readAnswer` where the field
+  is parsed, which is where the clamp will go.
+- **A search bar: settled in design, filed for M3.2** (Alex asked; his own rule was to
+  file anything over an hour or two).
+  - **It needs no client JavaScript at all**, which was the open question. A form with
+    `method="get"` in the header is a navigation: the magnifying glass submits, the
+    Worker renders `/search?q=…` with the same card renderer as W1. Nothing to hydrate,
+    nothing to bundle, and it works with JavaScript off, which is the same property the
+    chips have.
+  - **One door, one predicate.** Search is `public_gatherings` with an optional query
+    parameter rather than a third function — "on the public web" stays one definition
+    (M2.1, H11), and `ilike` over name and venue is nothing at 235 rows or at ten
+    thousand. About **two hours** with the route, the header, the empty state and its
+    tests.
+  - **Why M3.2 rather than now:** the app's crowds list (A5–A7) needs the same search,
+    and the same door function serves both. Building it twice is the expensive order,
+    and a search box on the web with no equivalent in the app reads as an oversight.
+  - **What "no results" says, which was the real question.** Searching only published
+    rows, and **saying plainly what the site is**: we publish a selection of what is on
+    in Toronto each week, so most of it is not here. Then two things rather than a dead
+    end — the nearest thing we *do* have (the same venue, or the same chip, or simply
+    this week), and the suggest-a-gathering mailto with the query already in it.
+  - **Rejected: searching the draft queue and offering to publish.** It is a different
+    product, and the cost is not hours. Drafts are admin-only by policy (V12), so
+    exposing them is a visibility change with harness cases and the M4.2 reviewer's
+    attention — call it 6–10 hours plus a policy review. And it inverts the publisher:
+    a stranger's search would drive what gets published, where **publishing selectively
+    is the point** (decisions Part 5). "We know about it and chose not to show you" is
+    also a worse sentence than "we show a selection".
+  - **One question it raises, deliberately not answered:** whether to count the searches
+    that find nothing. It would be the best possible input to publishing decisions —
+    what a hundred people looked for and we did not have — and it is new data collection
+    on a page that needs no account, so it belongs with the privacy policy in M4.1
+    rather than smuggled in with a search box (Part 4, "Data deliberately not
+    collected").
+- **Lighthouse on W1 and W2: deliberately skipped, and moved to M3.2** (Alex, closing
+  M2.3). Not an oversight and not a shortcut. Three reasons, his:
+  1. **The byte measurements are more precise than the score.** Events with 26 cards is
+     **9.0 KB against a 7.9 KB empty-page floor** — about 1.1 KB for the whole list —
+     with two requests of ours and no image. There is no room in that for a surprise
+     that a score would reveal.
+  2. **The last Lighthouse run measured the wrong URL** and cost an hour chasing a bug
+     that did not exist.
+  3. **There is nothing on these pages for it to find.** No framework, no fonts, no
+     images on W1, and 247 bytes of JavaScript. M3.2 is where that changes — the quick
+     pin (A26) is a real Expo bundle, and M2.1 already measured that holding route at
+     **828 KB and a score of 37** against the crowd page's 78 KB and 99. That is where
+     a Lighthouse run and a full request list earn their hour, and M3.2's acceptance
+     already asks for exactly that.
+
+  **The rule this does not weaken:** load the page in a browser and list its requests.
+  That is how M2.1 found the injected beacon and how M2.3 found `/community` serving the
+  wrong app, and both were found with `curl` and a request list rather than with a score.

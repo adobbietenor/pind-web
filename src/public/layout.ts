@@ -118,6 +118,17 @@ a.card:hover{border-color:#453f52;background:#1c1922}
 .signup{margin:0 0 10px;font-size:.94rem;text-align:center;color:#d7d2df}
 .signup a{color:#fff}
 
+/* The question the counts answer. A heading, not a lede: it is the thing the reader
+   came to the page for, and the counts under it are the answer. */
+h2.asks{
+  margin:24px 0 10px;font-size:1.12rem;text-transform:none;letter-spacing:-.01em;
+  color:var(--text);font-weight:640;
+}
+
+/* What happens at five: a fact underneath, never the message. The threshold is our
+   mechanic and not the reader's reason (Alex, after the M2.3 walk). */
+.rule{margin:8px 0 0;font-size:.84rem;color:#736d7e}
+
 /* Counts on the crowd page */
 .tallies{display:flex;gap:10px;margin:18px 0 6px}
 .tally-box{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 14px}
