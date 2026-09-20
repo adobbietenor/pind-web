@@ -547,6 +547,25 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 
 #### M4.4 · Community & free sourcing
 
+**Open: should this move earlier?** (Alex asked in M2.2; **not decided, nothing reordered.**) The prompt was a measurement, not enthusiasm: Ticketmaster classifies everything as Music, Sports or Arts & Theatre, so "bars" and "community" have no source at all, and the breadth a 50-a-week target exists to show is three categories wearing five labels. The variety problem is a *sourcing* problem, and no publishing setting fixes it.
+
+**Cost of moving it before Phase 3:** 8–12 h of its own, plus 8–12 h of delay to M3.1 and M3.2 — which pushes the six-week checkpoint ("M3.2 showable to a friend") back by the same amount.
+
+**What it needs that does not exist yet:**
+- `gathering_source` has no `community` value — a migration, trivial.
+- **The web-search mechanism M1.3b proved unreliable.** M4.4 is Claude with web search over Toronto sources, which is the same tool that took 43 s for one venue and 219 s for another, returned empty lists, and stalled mid-stream until a run hung for 40 minutes (spec §6, M5.2). That work is built and switched off *because* it is not trusted. M4.4 would be fighting that battle now, before the crew loop is proven.
+- **Venues and meeting spots for places that are not buildings.** A run club meets at a park entrance; publishing needs a venue row, and a crew needs a spot. The manual spot pass (decisions Part 5) is not scheduled yet, and a published community gathering with nowhere to meet fails at the crew step, which is the product.
+
+**The honest case against:**
+1. The loop is still the risk, and it is why M4.4 sits after it. A varied list that cannot form a crew is a prettier empty room.
+2. Nothing is pointed at these pages yet — they are noindex and unlinked until M4.1 — so the thin-list problem has no audience today. Its cost is near zero now and rises sharply at first-crowd time.
+3. The 50-a-week change already bought most of the available breadth: 41 gatherings over three weeks at 49/32/20, against 18 before.
+
+**The option that may make the question moot: add the community gatherings by hand.** M4.4's value *to the list* is the gatherings, not the automation. Eight to twelve recurring community gatherings — run clubs, markets, a games night — entered through the manual-add admin that already exists, with their venues and spots done in the same pass, is roughly **2–3 h** and needs no new machinery, no web search and no reordering. It fills both empty chips, tests whether community crowds behave differently, and doubles as the first half of the manual spot pass that has to happen anyway. The automated weekly run then stays where it is, and arrives with a rubric written from real examples rather than guessed.
+
+**Decide after M2.2's acceptance walk, with M2.3 on the table at the same time.**
+
+
 **Why here.** The decision says the first real crowds include at least one small community gathering, so this must exist before them; it is independent of the app, and it comes after the crew loop because the loop is the risk. It runs as its own cron, applying M1.3b's lessons from the start.
 
 - A weekly run: Claude with web search over a fixed list of Toronto sources (city listings, run-club and market pages, festival calendars, community boards) producing drafts with `source = community`, its own rubric (social by design, solo-friendly, free or low-cost, recurring — not crowd size), ranked separately; a "Community & free" tab in the admin with source pages; duplicates against Ticketmaster merged.

@@ -975,3 +975,17 @@ change). Where the plan has more detail, the plan is the reference.
   wants across the top of the list have nothing behind them until **M4.4**. This is the
   sharpest argument yet for M4.4 being close: the breadth the 50-a-week target is meant
   to show is, today, three categories wearing five labels.
+- **Floor 60 with a per-category cap, together** (Alex, M2.2). "28 a week with a real
+  mix beats 53 a week of concerts." `score_floor` drops to 60 and `max_category_share`
+  (0.40) lands in the same migration; neither is correct alone. The share is of what is
+  actually being published, not of the target, because a count derived from a target of
+  50 would never bind on a queue supplying 28 — which is exactly when crowding happens.
+  `min_per_category` (3) is the allowance before the share applies, or the first pick
+  would be 100% of one kind. Gatherings already published that week count against the
+  share, so a week filled by hand is not doubled. Per-venue stays at 2.
+  Measured after the change: **41 published over three weeks — concerts 49%, clubs 32%,
+  sports 20%**, with 33 concerts held back. The arithmetic to know before changing the
+  share: a week can only reach (everything that is not the dominant category) ÷
+  (1 − share), so two categories at 40% each can never fill a week between them.
+- **An empty category chip is hidden, not greyed** (Alex, M2.2, for M2.3). "Community
+  (0)" every day advertises an absence. A chip appears only when something can fill it.
