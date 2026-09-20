@@ -690,6 +690,13 @@ change). Where the plan has more detail, the plan is the reference.
   richer data may come from **that same run** rather than a second one — worth checking
   before any new job is designed. Picked up with M5.2 (M1.3b) or M3.3, whichever
   reaches the spot poll first.
+- **The map is unreadable where spots cluster** (Alex, walking the community pages —
+  filed, not built). Three spots within 200 m overlap at the current zoom on a phone,
+  labels on labels, which breaks the picture at exactly the venues where spots cluster:
+  the downtown ones. Three ways out — collision handling that pushes labels apart,
+  numbered pins with a key under the figure, or **a zoom that adapts to how spread the
+  spots actually are**. The third treats the cause rather than the symptom and is the
+  one to cost first.
 - **Spot content starts as a manual pass, deliberately** (Alex, M2.2 — filed, not
   built). Before any automation: gather candidate spots, filter to what actually
   belongs in the app, write the details by hand into a spreadsheet, import once.
