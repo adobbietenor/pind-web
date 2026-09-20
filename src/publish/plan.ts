@@ -28,6 +28,8 @@ export interface PublishSettings {
   leadDaysMin: number;
   leadDaysMax: number;
   maxPerVenuePerWeek: number;
+  maxCategoryShare: number;
+  minPerCategory: number;
   communitySlotsWeekly: number;
   scoreFloor: number;
   growReach: number;
@@ -69,6 +71,10 @@ export interface Candidate {
   // slug is the database's own record that this gathering has been public before.
   hasSlug: boolean;
   source: string;
+  // The coarse kind of gathering the cap reasons about — sports, concerts, clubs and
+  // so on. Provisional in M2.2, derived from the source's own classification; M2.3
+  // promotes it to a column and settles the public naming.
+  category: string;
 }
 
 // A week of the calendar, as it stands before this run.
@@ -76,6 +82,7 @@ export interface WeekState {
   weekStart: string; // city-local Monday, YYYY-MM-DD
   publishedLive: number; // published, not withdrawn, not seed, starting that week
   perVenue: Record<string, number>; // the same, by venue
+  perCategory: Record<string, number>; // and by the kind of gathering it is
 }
 
 export type ReasonCode =
@@ -86,6 +93,7 @@ export type ReasonCode =
   | "unscored"
   | "below_floor"
   | "venue_cap"
+  | "category_cap"
   | "community_slot_held"
   | "week_full";
 
@@ -108,6 +116,7 @@ export interface Decision {
   finalScore: number | null;
   distanceKm: number | null;
   mark: "publish" | "never" | null;
+  category: string;
   target: number;
   publishedBefore: number;
 }
@@ -200,6 +209,7 @@ export function planPublishing(input: PlanInput): PublishPlan {
     const target = s.targetWeekly;
     const publishedBefore = week.publishedLive;
     const perVenue: Record<string, number> = { ...week.perVenue };
+    const perCategory: Record<string, number> = { ...week.perCategory };
     let filled = publishedBefore;
 
     // Inside the lead window, starting in this week. A draft outside the window is
@@ -234,6 +244,7 @@ export function planPublishing(input: PlanInput): PublishPlan {
         finalScore: c.finalScore,
         distanceKm: c.distanceKm,
         mark: c.mark,
+        category: c.category,
         ...d,
       });
 
@@ -298,6 +309,24 @@ export function planPublishing(input: PlanInput): PublishPlan {
         return;
       }
 
+      // No one kind of gathering takes more than its share of the week. The share is
+      // of what is actually being published, not of the target: the queue is short,
+      // so a count worked out from a target of 50 would never bind at 28 a week —
+      // which is exactly when one category crowds out the rest. Every category gets
+      // minPerCategory first, or the opening pick would be 100% of something.
+      const already = perCategory[c.category] ?? 0;
+      const allowance = Math.max(s.minPerCategory, s.maxCategoryShare * (filled + 1));
+      if (already + 1 > allowance) {
+        const pct = Math.round(s.maxCategoryShare * 100);
+        record(c, {
+          ...common,
+          outcome: "skipped",
+          reasonCode: "category_cap",
+          reason: `not published — ${c.category} already has ${already} of the ${filled} published that week, which is its share (${pct}%); ranked ${ordinal(rank)} of ${ranked.length} with ${scoreText(c)}`,
+        });
+        return;
+      }
+
       // The last slots belong to community gatherings while any are waiting.
       const communityStillWaiting = ranked.slice(i).filter(isCommunity).length;
       if (!isCommunity(c) && remaining <= Math.min(reserved, communityStillWaiting)) {
@@ -312,6 +341,7 @@ export function planPublishing(input: PlanInput): PublishPlan {
 
       filled += 1;
       perVenue[c.venueId!] = venueSoFar + 1;
+      perCategory[c.category] = already + 1;
       picks.push(c.id);
       const next = ranked[i + 1];
       const slotKind = c.mark === "publish" ? "marked" : isCommunity(c) ? "community" : "target";

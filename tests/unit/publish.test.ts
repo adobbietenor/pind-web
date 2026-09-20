@@ -27,6 +27,8 @@ const SETTINGS: PublishSettings = {
   leadDaysMin: 4,
   leadDaysMax: 21,
   maxPerVenuePerWeek: 2,
+  maxCategoryShare: 0.4,
+  minPerCategory: 3,
   communitySlotsWeekly: 1,
   scoreFloor: 70,
   growReach: 0.6,
@@ -62,6 +64,10 @@ function draft(over: Partial<Candidate> = {}): Candidate {
     mark: null,
     hasSlug: false,
     source: "ticketmaster",
+    // Most cases are about the target, the floor or the venue cap; giving each draft
+    // its own category keeps the share rule out of their way. The cases that mean to
+    // exercise it set it deliberately.
+    category: `cat${seq}`,
     ...over,
   };
 }
@@ -71,6 +77,7 @@ function weeks(state: Partial<Record<string, Partial<WeekState>>> = {}): WeekSta
     weekStart,
     publishedLive: 0,
     perVenue: {},
+    perCategory: {},
     ...(state[weekStart] ?? {}),
   }));
 }
@@ -261,6 +268,64 @@ describe("the per-venue cap", () => {
     const nextWeek = Array.from({ length: 2 }, () => draft({ venueId: "rogers", startsAt: `${WEEK2}T23:00:00.000Z` }));
     const p = plan([...thisWeek, ...nextWeek]);
     assert.equal(p.picks.length, 4);
+  });
+});
+
+describe("the category cap", () => {
+  // Alex, M2.2: lowering the score floor is the only lever that widens the list, and
+  // on its own it turns a list meant to say "going out in Toronto" into a concert
+  // listing. "28 a week with a real mix beats 53 a week of concerts."
+  const many = (category: string, n: number, from = 95) =>
+    Array.from({ length: n }, (_, i) => draft({ category, venueId: `${category}-v${i}`, finalScore: from - i }));
+
+  it("lets one category through until it has its allowance, then holds it to its share", () => {
+    const concerts = many("concerts", 20);
+    const p = plan(concerts, { targetWeekly: 50 });
+    // Nothing else is published, so the share can only ever be met by the allowance:
+    // three, and then no more, because every further one would be 100% of the week.
+    assert.equal(p.picks.length, 3);
+    assert.equal(reasonFor(p, concerts[3]!.id).reasonCode, "category_cap");
+    assert.match(reasonFor(p, concerts[3]!.id).reason, /concerts already has 3 of the 3 published that week, which is its share \(40%\)/);
+  });
+
+  it("lets a category grow as the rest of the week grows around it", () => {
+    // Three kinds, which is the real shape of the queue. The share lets concerts rise
+    // with the total instead of stopping dead at the allowance — and holds them to
+    // roughly their share once it does.
+    const p = plan([...many("concerts", 12), ...many("clubs", 8, 94), ...many("sports", 8, 93)], { targetWeekly: 50 });
+    const published = p.decisions.filter((d) => d.outcome === "published");
+    const concerts = published.filter((d) => d.category === "concerts").length;
+    assert.ok(concerts > 3, `the share never let concerts past the allowance (${concerts})`);
+    assert.ok(concerts / published.length <= 0.45, `concerts took ${concerts} of ${published.length}`);
+    assert.ok(published.length >= 15, `only ${published.length} published from a queue of 28`);
+  });
+
+  // The arithmetic worth knowing before choosing a share: with a cap of s, a week can
+  // only reach (everything that is not the dominant category) / (1 - s). Two
+  // categories at 40% each cannot fill a week between them, because 80% is not 100%.
+  it("cannot fill a week from two categories alone, which is the cap working", () => {
+    const p = plan([...many("concerts", 10), ...many("sports", 10, 94)], { targetWeekly: 50 });
+    const published = p.decisions.filter((d) => d.outcome === "published").length;
+    assert.ok(published < 10, `two categories filled ${published} slots under a 40% share`);
+  });
+
+  it("is a share of what is published, not of the target, so it still binds on a short queue", () => {
+    // Eight drafts against a target of 50: a cap worked out from the target (40% of
+    // 50 = 20) would never bind here, which is exactly when crowding happens.
+    const p = plan([...many("concerts", 6), ...many("sports", 2, 80)], { targetWeekly: 50 });
+    const published = p.decisions.filter((d) => d.outcome === "published");
+    assert.ok(published.length < 8, "every draft published, so the cap never bound");
+    assert.ok(published.some((d) => d.reasonCode === "published" && d.category === "sports"));
+  });
+
+  it("counts what is already published that week, so a week filled by hand is not doubled", () => {
+    const p = plan(many("concerts", 5), { targetWeekly: 50 }, weeks({ [WEEK1]: { publishedLive: 6, perVenue: {}, perCategory: { concerts: 6 } } }));
+    assert.deepEqual(p.picks, [], "the run added concerts to a week already full of them");
+  });
+
+  it("does not stop a category nobody else is competing with", () => {
+    const p = plan(many("sports", 3), { targetWeekly: 50 });
+    assert.equal(p.picks.length, 3);
   });
 });
 

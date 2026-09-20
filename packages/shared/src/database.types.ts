@@ -62,7 +62,9 @@ export type Database = {
           grow_median_pins: number
           grow_reach: number
           import_weeks: number | null
+          max_category_share: number
           max_per_venue_per_week: number
+          min_per_category: number
           name: string
           publish_lead_days_max: number
           publish_lead_days_min: number
@@ -91,7 +93,9 @@ export type Database = {
           grow_median_pins?: number
           grow_reach?: number
           import_weeks?: number | null
+          max_category_share?: number
           max_per_venue_per_week?: number
+          min_per_category?: number
           name: string
           publish_lead_days_max?: number
           publish_lead_days_min?: number
@@ -120,7 +124,9 @@ export type Database = {
           grow_median_pins?: number
           grow_reach?: number
           import_weeks?: number | null
+          max_category_share?: number
           max_per_venue_per_week?: number
+          min_per_category?: number
           name?: string
           publish_lead_days_max?: number
           publish_lead_days_min?: number
@@ -1469,6 +1475,7 @@ export type Database = {
           ai_score: number | null
           at: string
           candidates: number | null
+          category: string | null
           city: string
           distance_km: number | null
           final_score: number | null
@@ -1495,6 +1502,7 @@ export type Database = {
           ai_score?: number | null
           at?: string
           candidates?: number | null
+          category?: string | null
           city: string
           distance_km?: number | null
           final_score?: number | null
@@ -1521,6 +1529,7 @@ export type Database = {
           ai_score?: number | null
           at?: string
           candidates?: number | null
+          category?: string | null
           city?: string
           distance_km?: number | null
           final_score?: number | null

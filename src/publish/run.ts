@@ -24,6 +24,26 @@ import {
   type WeekState,
 } from "./plan.ts";
 
+// Ticketmaster classifies everything as "Segment / Genre" — Music / Rock, Sports /
+// Hockey, Music / Dance-Electronic, Arts & Theatre / Comedy. The cap needs a finer
+// unit than the segment: capping all of Music at a share would gut the list, because
+// Music is 85% of what clears the floor, while a club night and a rock show are not
+// the same evening to anyone choosing one.
+//
+// So: a club night is its own kind, and everything else falls back to its segment.
+// Provisional and private to the publisher — nothing public shows these names yet.
+// M2.3 promotes the category to a column on gatherings and settles what a reader
+// sees, at which point this function moves there rather than being copied.
+export function categoryOf(classification: string | null | undefined): string {
+  const c = (classification ?? "").toLowerCase();
+  if (c.startsWith("sports")) return "sports";
+  if (c.includes("dance/electronic") || c.includes("dance/electronic".replace("/", " ")) || c.includes("club")) return "clubs";
+  if (c.startsWith("music")) return "concerts";
+  if (c.startsWith("arts") || c.startsWith("theatre")) return "arts";
+  if (c.startsWith("film")) return "film";
+  return "other";
+}
+
 // The city-local week containing today, plus the two after it. publish_lead_days_max
 // is 21 for exactly this reason: the far end of the third week is at most 20 days
 // out, so the lead window always covers every week the job fills (see the migration).
@@ -61,6 +81,8 @@ const SETTING_COLUMNS = [
   "publish_lead_days_min",
   "publish_lead_days_max",
   "max_per_venue_per_week",
+  "max_category_share",
+  "min_per_category",
   "community_slots_weekly",
   "score_floor",
   "grow_reach",
@@ -91,6 +113,8 @@ export function toSettings(row: Record<string, any>): PublishSettings {
     leadDaysMin: Number(row.publish_lead_days_min),
     leadDaysMax: Number(row.publish_lead_days_max),
     maxPerVenuePerWeek: Number(row.max_per_venue_per_week),
+    maxCategoryShare: Number(row.max_category_share),
+    minPerCategory: Number(row.min_per_category),
     communitySlotsWeekly: Number(row.community_slots_weekly),
     scoreFloor: Number(row.score_floor),
     growReach: Number(row.grow_reach),
@@ -142,14 +166,14 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
   const live = await must<any[]>(
     db
       .from("gatherings")
-      .select("id, starts_at, venue_id")
+      .select("id, starts_at, venue_id, gathering_sources(snapshot)")
       .eq("status", "published")
       .eq("is_seed", false)
       .gte("starts_at", spanFrom)
       .lte("starts_at", spanTo),
   );
 
-  const weeks: WeekState[] = weekStarts.map((weekStart) => ({ weekStart, publishedLive: 0, perVenue: {} }));
+  const weeks: WeekState[] = weekStarts.map((weekStart) => ({ weekStart, publishedLive: 0, perVenue: {}, perCategory: {} }));
   const byWeek = new Map(weeks.map((w) => [w.weekStart, w]));
   for (const g of live) {
     if (!here(g.venue_id)) continue;
@@ -157,6 +181,10 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
     if (!w) continue;
     w.publishedLive += 1;
     w.perVenue[g.venue_id] = (w.perVenue[g.venue_id] ?? 0) + 1;
+    // What is already published counts against the share too, or a week filled by
+    // hand with six concerts would let the run add six more.
+    const cat = categoryOf((g.gathering_sources ?? []).map((x: any) => x.snapshot?.category).find(Boolean));
+    w.perCategory[cat] = (w.perCategory[cat] ?? 0) + 1;
   }
 
   // The queue. Only drafts inside the lead window can be candidates, so that is all
@@ -166,7 +194,7 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
   const drafts = await must<any[]>(
     db
       .from("gatherings")
-      .select("id, name, starts_at, venue_id, slug, publish_mark, source, gathering_triage(score)")
+      .select("id, name, starts_at, venue_id, slug, publish_mark, source, gathering_triage(score), gathering_sources(snapshot)")
       .eq("status", "draft")
       .eq("is_seed", false)
       .gte("starts_at", from)
@@ -195,6 +223,7 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
         mark: g.publish_mark ?? null,
         hasSlug: g.slug !== null,
         source: g.source,
+        category: categoryOf((g.gathering_sources ?? []).map((x: any) => x.snapshot?.category).find(Boolean)),
       };
     });
 
@@ -258,6 +287,7 @@ function decisionRow(d: Decision, city: string, runId: number | null, failure: s
     final_score: d.finalScore,
     distance_km: d.distanceKm,
     publish_mark: d.mark,
+    category: d.category,
     target: d.target,
     published_before: d.publishedBefore,
   };
