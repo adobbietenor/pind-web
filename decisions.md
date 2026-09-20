@@ -619,6 +619,16 @@ change). Where the plan has more detail, the plan is the reference.
   the list is demonstrably failing as a discovery surface. Any map view must still work
   with no location permission: the city is the frame, and the user's position is never on
   it.
+
+  **When it comes, half the decision is already made** (Alex, M2.1). The shape is: pan
+  around Toronto, one pin per published gathering, tap a pin to open that crowd page. It
+  belongs **in the app**, with the Explore tab idea, not on a Worker page. It is built on
+  **Protomaps on R2** — a vector extract of the city in our own bucket, read by MapLibre
+  over HTTP range requests — for the reason M2.1's measurements gave: R2 has no egress
+  fee and there is **no per-load billing**, so a good Reddit day costs nothing, where
+  Mapbox GL bills $5 per 1,000 map loads past the free 50,000. It also ships no API key,
+  because there is no key. The pins are gatherings, never people (H1), and the map still
+  never asks where the viewer is (H4).
 - **crowds@ and safety@ are real, monitored inboxes** (Alex, M2.1). The public pages
   carry `crowds@pind.social` (suggest a gathering) and `safety@pind.social` (report).
   **Resend sends mail, it does not receive it**, so both would bounce silently as they
@@ -659,15 +669,49 @@ change). Where the plan has more detail, the plan is the reference.
   is one of the three screens that carry the first impression. So the crowd page gets
   real geography: streets, buildings, the actual shape of the block.
 
-  What does not change, and is not negotiable whichever shape is chosen:
+  **Shape A, chosen after all three were measured** (Alex, M2.1): a **static** real map
+  image on W2, and an **interactive** map in the app at A8, where the load budget is a
+  one-time app download rather than a page in a Reddit tab. What the measurements said:
+  W2 is 6.7 KB over the wire today; one map view is 92 KB as a single WebP against 285 KB
+  of MapLibre before a single tile, or 46 KB of Leaflet plus ~198 KB of raster tiles
+  across eight round trips. A static image also bills **per image**, not per map load, so
+  a good Reddit day costs nothing.
+
+  **Provider: Mapbox** (Alex, M2.1) — Static Images API, 50,000 requests a month free and
+  the only free tier that permits commercial use at our volume. MapTiler's free tier is
+  non-commercial and brands the map; commercial starts at $30/month.
+
+  **Attribution: "© OpenStreetMap contributors" is visible on or under the map.** Required
+  by the ODbL, so not ours to decline (Alex, M2.1).
+
+  Four conditions, all of them binding, not implementation detail:
+  1. **The image is served from our own origin, never Supabase storage.** The same 157 KB
+     image measured 911 ms from Supabase and 133 ms from pind.social; the difference is
+     one extra connection. This is now a general rule in CLAUDE.md, "Keep the Worker
+     lean". **It also applies to the existing uploaded-map override**, which currently
+     points a visitor's browser straight at the storage bucket and must move behind our
+     origin in the same change.
+  2. **One image per venue, generated once and stored.** Not per gathering and not per
+     view, so the number of Mapbox requests tracks the number of venues — tens, ever —
+     and never the traffic.
+  3. **The markers, the spot names and the walking minutes are ours**, drawn in HTML and
+     CSS over the image, never baked into the picture. Crisp at any width, correct on a
+     retina screen, readable by a screen reader, and changeable without re-rendering
+     anything. The north arrow goes with them.
+  4. **Every spot marker is tappable, and opens that spot in the phone's own maps app**
+     (Alex, M2.1) — Apple Maps on iOS, Google Maps on Android, a sensible desktop
+     fallback — with **walking directions to the spot**, not a dropped pin. Nobody plans a
+     walk inside a 768-pixel page; they open their own maps app. It is a first-class part
+     of the marker, not a small link underneath. **This does not touch H4**: the location
+     permission is asked for by the maps app, by the person, after they leave our page,
+     and we never see the answer.
+
+  What does not change, and is not negotiable:
   - the map shows the venue and its meeting spots and **nothing else** — no user pins,
     no crowd density, nothing about who is where (H1);
-  - **no geolocation**: no locate control, no permission prompt, no IP-based centring.
-    The venue is always the centre (H4). A library that ships a locate control by
-    default has it **removed, not hidden**.
-  - the walking minutes, the spot names and the north arrow stay — they were the useful
-    part of the schematic and they are ours, drawn over the map rather than baked into
-    somebody else's tiles.
+  - **no geolocation on our surface**: no locate control, no permission prompt, no
+    IP-based centring. The venue is always the centre (H4). A library that ships a locate
+    control by default has it **removed, not hidden**.
 
   The schematic generator (`src/public/map.ts`) stays in the repo until the replacement
   is proven on Alex's phone.

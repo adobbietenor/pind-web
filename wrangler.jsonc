@@ -8,7 +8,9 @@
   "name": "pind-web-staging",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-18",
-  "workers_dev": true,
+  // False since M2.1: the admin lives at pind.social/admin behind its own Access
+  // application, and the workers.dev hostname is gone rather than merely unused.
+  "workers_dev": false,
   "preview_urls": false,
 
   // M2.1: pind.social. Routes live here rather than in the dashboard, for the same
@@ -19,9 +21,9 @@
   // PindScene.com is never touched from this repo (decisions Part 5, "Routes:
   // pind.social only"); Alex sets its redirect in the dashboard.
   //
-  // workers_dev stays true until Access is re-created for pind.social/admin*. It goes
-  // false in the same change that swaps ACCESS_AUD, so the workers.dev admin is gone
-  // rather than merely unused (M2.1 acceptance).
+  // Done in M2.1: Access was re-created for pind.social/admin*, ACCESS_AUD narrowed to
+  // that application alone, and workers_dev turned off, so the workers.dev admin is
+  // gone rather than merely unused (M2.1 acceptance).
   "routes": [
     { "pattern": "pind.social/*", "zone_name": "pind.social" },
     { "pattern": "www.pind.social/*", "zone_name": "pind.social" }

@@ -157,6 +157,21 @@ The dark, on-brand look is allowed (decisions.md Part 5, "Look"): near-black
 background, purple `#582883`, white text, the logo inline, system fonts — or one web
 font with a system fallback, only if it doesn't hurt load time.
 
+**Everything a public page loads comes from our own origin.** No image, font, script,
+style or data from a third-party host — not Supabase storage, not a CDN, not a font
+service, not a tile server. If an asset is needed, the Worker fetches it server-side
+and serves it from pind.social, or it is inlined.
+
+Why, measured in M2.1: the same 157 KB image took **911 ms** from Supabase storage and
+**133 ms** from pind.social. Identical bytes. The difference is one extra connection —
+a DNS lookup, a TCP handshake and a TLS handshake — before a single byte of the asset
+moves. On a phone on mobile data that setup costs more than most assets do, and it is
+paid per host, so two hosts is two of them. On a page with a one-second budget it is
+the whole budget.
+
+It also keeps every promise in one place: no third party gets the visitor's IP, the
+referring Reddit thread, or a cookie, on a page that needs no account.
+
 ## Secrets
 
 - Never commit a key. `.env`, `.dev.vars` and `node_modules` are gitignored.
