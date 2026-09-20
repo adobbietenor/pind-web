@@ -276,6 +276,12 @@ export function planPublishing(input: PlanInput): PublishPlan {
       }
     }
 
+    // How many of one kind the finished week may hold. Solved rather than grown
+    // into: try every possible week size, take the largest that can actually be
+    // filled without anybody exceeding their share, and use that size's ceiling.
+    // At most `target` dry runs over a pool of a few hundred, once per week.
+    const ceiling = solveCategoryCeiling(ranked, week, s, target, publishedBefore);
+
     // A community slot is only held when there is something to hold it for: holding
     // an empty slot would publish four where the target says five. Nothing sources
     // community gatherings until M4.4, so this reserves nothing today.
@@ -309,20 +315,24 @@ export function planPublishing(input: PlanInput): PublishPlan {
         return;
       }
 
-      // No one kind of gathering takes more than its share of the week. The share is
-      // of what is actually being published, not of the target: the queue is short,
-      // so a count worked out from a target of 50 would never bind at 28 a week —
-      // which is exactly when one category crowds out the rest. Every category gets
-      // minPerCategory first, or the opening pick would be 100% of something.
+      // No one kind of gathering takes more than its share of the week — of the
+      // finished week, not of however much of it happens to be filled at this
+      // instant. Testing against the running count grew the week one slot at a time
+      // and stopped as soon as no single category could take the next slot without
+      // breaching its share *then*, even though a larger week existed in which
+      // everyone was inside their share. On the real queue that stopped at 11 where
+      // 15 was available at exactly 40/40/20 (Alex, M2.2 walk).
+      //
+      // `ceiling` is solved for before this loop starts, so it is a stated number a
+      // refusal can name rather than a tally that was true for one instant.
       const already = perCategory[c.category] ?? 0;
-      const allowance = Math.max(s.minPerCategory, s.maxCategoryShare * (filled + 1));
-      if (already + 1 > allowance) {
+      if (already + 1 > ceiling) {
         const pct = Math.round(s.maxCategoryShare * 100);
         record(c, {
           ...common,
           outcome: "skipped",
           reasonCode: "category_cap",
-          reason: `not published — ${c.category} already has ${already} of the ${filled} published that week, which is its share (${pct}%); ranked ${ordinal(rank)} of ${ranked.length} with ${scoreText(c)}`,
+          reason: `not published — the week of ${shortDate(week.weekStart)} is capped at ${ceiling} ${c.category} for its ${pct}% share; ranked ${ordinal(rank)} of ${ranked.length} with ${scoreText(c)}`,
         });
         return;
       }
@@ -372,6 +382,54 @@ export function planPublishing(input: PlanInput): PublishPlan {
   }
 
   return { decisions, weeks: summaries, picks };
+}
+
+// The largest week in which no category exceeds its share, and the per-category
+// ceiling that goes with it.
+//
+// Why a search rather than arithmetic: the venue cap and the supply interact, so the
+// reachable size is not a closed form. The loop is small and the answer is exact.
+// What actually freezes a week is the *smallest* category running out — once it
+// cannot grow, every other category is pinned to its share of a total that can no
+// longer rise, which is why the cap's cost depends on how many kinds of gathering
+// have real supply rather than on the share itself.
+function solveCategoryCeiling(
+  ranked: Candidate[],
+  week: WeekState,
+  s: PublishSettings,
+  target: number,
+  publishedBefore: number,
+): number {
+  // How full the week gets if each category may hold at most `ceiling`.
+  const reach = (ceiling: number): number => {
+    const perVenue: Record<string, number> = { ...week.perVenue };
+    const perCategory: Record<string, number> = { ...week.perCategory };
+    let filled = publishedBefore;
+    for (const c of ranked) {
+      if (filled >= target) break;
+      if ((perVenue[c.venueId!] ?? 0) >= s.maxPerVenuePerWeek) continue;
+      if ((perCategory[c.category] ?? 0) + 1 > ceiling) continue;
+      perVenue[c.venueId!] = (perVenue[c.venueId!] ?? 0) + 1;
+      perCategory[c.category] = (perCategory[c.category] ?? 0) + 1;
+      filled += 1;
+    }
+    return filled;
+  };
+
+  const ceilingFor = (size: number) => Math.max(s.minPerCategory, Math.floor(s.maxCategoryShare * size));
+  let best = ceilingFor(Math.max(1, publishedBefore));
+  let bestReach = reach(best);
+  for (let size = 1; size <= target; size++) {
+    const ceiling = ceilingFor(size);
+    const got = reach(ceiling);
+    // Only a week that actually reaches the size it was sized for is compliant: at
+    // that total, every category is inside its share by construction.
+    if (got >= size && got > bestReach) {
+      best = ceiling;
+      bestReach = got;
+    }
+  }
+  return best;
 }
 
 function weekNote(x: {

@@ -285,7 +285,33 @@ describe("the category cap", () => {
     // three, and then no more, because every further one would be 100% of the week.
     assert.equal(p.picks.length, 3);
     assert.equal(reasonFor(p, concerts[3]!.id).reasonCode, "category_cap");
-    assert.match(reasonFor(p, concerts[3]!.id).reason, /concerts already has 3 of the 3 published that week, which is its share \(40%\)/);
+    assert.match(reasonFor(p, concerts[3]!.id).reason, /is capped at 3 concerts for its 40% share/);
+  });
+
+  // The rule is a share of the FINISHED week, not of however much of it happens to be
+  // filled at this instant. Testing against the running count grew the week one slot
+  // at a time and stopped as soon as no category could take the next slot without
+  // breaching its share then — on the real queue it stopped at 11 where 15 was
+  // available at exactly 40/40/20 (Alex, M2.2 walk).
+  it("finds the largest week where nobody exceeds the share, rather than growing into the limit", () => {
+    // Twenty concerts, eight clubs, three sports, all at their own venues. Growing
+    // one slot at a time stops at 11: every category sits on its share of a total
+    // that cannot rise, because the smallest one has run out. The answer is 15.
+    const p = plan([...many("concerts", 20), ...many("clubs", 8, 94), ...many("sports", 3, 93)], { targetWeekly: 50 });
+    const published = p.decisions.filter((d) => d.outcome === "published");
+    const by = (cat: string) => published.filter((d) => d.category === cat).length;
+    assert.equal(published.length, 15, `stopped at ${published.length} where 15 was available`);
+    assert.deepEqual([by("concerts"), by("clubs"), by("sports")], [6, 6, 3]);
+    // And nobody is over their share of the finished week.
+    for (const cat of ["concerts", "clubs", "sports"]) {
+      assert.ok(by(cat) / published.length <= 0.4 + 1e-9, `${cat} took ${by(cat)} of ${published.length}`);
+    }
+  });
+
+  it("states the ceiling in the refusal rather than a tally that was true for one instant", () => {
+    const p = plan([...many("concerts", 20), ...many("clubs", 8, 94), ...many("sports", 3, 93)], { targetWeekly: 50 });
+    const refused = p.decisions.find((d) => d.reasonCode === "category_cap")!;
+    assert.match(refused.reason, /is capped at 6 concerts for its 40% share/);
   });
 
   it("lets a category grow as the rest of the week grows around it", () => {

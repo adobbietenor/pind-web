@@ -989,3 +989,41 @@ change). Where the plan has more detail, the plan is the reference.
   (1 − share), so two categories at 40% each can never fill a week between them.
 - **An empty category chip is hidden, not greyed** (Alex, M2.2, for M2.3). "Community
   (0)" every day advertises an absence. A chip appears only when something can fill it.
+- **The share is of the finished week, solved for — not grown into** (Alex, M2.2 walk).
+  The first cap tested each category against the *running* count, so the week grew one
+  slot at a time and stopped the moment no category could take the next slot without
+  breaching its share at that instant — even though a larger week existed in which
+  everyone was inside their share. On the real queue it stopped at **11 where 15 was
+  available at exactly 40/40/20**. The publisher now searches for the largest week
+  that can be filled with nobody over their share, and uses that week's ceiling. A
+  refusal names the ceiling — "the week of 28 Sep is capped at 6 concerts for its 40%
+  share" — rather than a tally that was true for one instant, which audits better a
+  month later.
+  What freezes a week is **the smallest category running out**: once it cannot grow,
+  every other category is pinned to its share of a total that can no longer rise. So
+  the cap's cost is a function of how many kinds of gathering have real supply, not of
+  the share.
+  Two rejected alternatives, both measured rather than argued:
+  - **Share of the target** (40% of 50 = 20 concerts) — the ceiling lands above what
+    the queue supplies, so the cap never binds: **31 published at 65% concerts**. It
+    arrives at the concert listing by arithmetic instead of choice.
+  - **Raise the allowance to 8** — 19 published at 42–47% concerts, but at these
+    volumes the allowance does all the work and the share almost none. It hits the
+    number by loosening the definition.
+- **A varied Toronto list cannot be built out of Ticketmaster alone** (measured,
+  M2.2 walk — the strongest argument in the project for the community work). With the
+  algorithm correct and the share honest, the week of 21 September had **49 candidates
+  above the floor and published 15**. The numbers that explain it:
+  - **three categories, not five** — sports, concerts and clubs; the feed has no bars
+    and no community at all;
+  - **concerts are 69% of what is available** (35 of 49), so holding them to 40%
+    mathematically bounds the week near 15;
+  - **the per-venue cap trims the rest** — 49 candidates reduce to ~35 reachable;
+  - fixing the algorithm recovered **4 of the 37 missing slots**. The cap was never
+    the constraint. **The supply is.**
+
+  Three categories against a 40% share leaves 20% of slack, and the smallest category
+  runs out first. Add bars and community and the same share stops binding almost
+  entirely. This is why the manual community pass (decisions Part 5) matters more than
+  its position in the plan suggests: it is not decoration on the list, it is what makes
+  every other rule in the publisher affordable.
