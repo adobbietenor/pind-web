@@ -327,7 +327,9 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 
 **Acceptance**
 
-- `pind.social` lists the week by day in the dark look and loads in well under a second on LTE (check with Safari's reload feel and one Lighthouse run on the Mac).
+- `pind.social` lists the week by day in the dark look and loads in well under a second on LTE (Safari's reload feel), and **one Lighthouse mobile run on a crowd page scores FCP ≤ 1.7 s with TBT 0 ms** (Alex, M2.1).
+
+  *Why that number and not "under 1.0 s".* Lighthouse's mobile preset simulates about 150 ms of round-trip time, so connection setup alone spends most of a second before a byte of HTML moves. Measured on the same Chrome, same run: `/about` — 20 KB, no image, no script — scores **FCP 1.5 s**, and `pind.social/` scores **1.5 s**. **1.5 s is the preset's floor, not our page.** The crowd page, with the map, scores **99/100, FCP 1.6 s, LCP 1.6 s, TBT 0 ms, 78 KB across four requests**. Under 1.0 s is not reachable by any page on that preset, so the original wording described a target nothing could meet; the real-world question is answered by the reload feel and by the 92 ms server response. The first run against this line returned 67, which was measured on `/g/<slug>/pin` — the Expo app route, 828 KB — not on a crowd page.
 - `pind.social/g/<slug>` shows facts, the map with venue and spots and no people, counts, the house rules word for word, the right button for a free gathering, and the footer.
 - Pasting the link into iMessage and a Discord test server shows a dark branded card with the event name and no numbers.
 - `/g/<slug>/spot` shows spot and time only.

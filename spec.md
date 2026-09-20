@@ -829,6 +829,40 @@ the current pace, raise the hours or shrink the phase.
   Outstanding: the Resend account and the pind.social domain records, and Access for
   `pind.social/admin*` (AUD tag to Claude). Decisions Part 5, "Decided in Phase 2
   M2.0".
+- **M2.2 — the injected analytics beacon: unexplained, carried forward.** Every HTML
+  response from `pind-web-staging` — the crowd page, an asset-served app page, and
+  `/health`, which touches no assets — carries an injected
+  `static.cloudflareinsights.com/beacon.min.js`. It is **not in the repo**: the only
+  grep hit is CLAUDE.md, where it is written up; `app/dist/index.html` has none;
+  `wrangler.jsonc` has none. **It cannot be turned off from the repo** — wrangler's
+  config schema has no `web_analytics`, `rum`, `beacon` or `insights` key, and the
+  `observability` block that exists is Workers Logs, a different product with a
+  similar name. The injection happens at the edge *after* the Worker returns, so there
+  is no Worker-side strip either.
+  - **The tag:** `{"version":"2024.11.0","token":"6fbd9c007d0e4740bc718720ec35af43",
+    "r":1,"spa":2}`. **`"spa":2` is the single-page-app flag Cloudflare sets for a
+    Worker or Pages project serving static assets** — which this Worker started doing
+    in M2.0. That is the strongest clue to what created it.
+  - **It is invisible to a normal request.** Plain `curl` gets a clean page; `curl`
+    with `Sec-Fetch-Dest: document` and `Accept: text/html` reproduces it. Reading the
+    template will never find it; only a browser, or those headers, will.
+  - **Ruled out (Alex, 2026-09-20):** zone-level Web Analytics is off — the Analytics
+    tab shows "No data available" and an "Enable Globally" button, which is the
+    **zone-wide** switch and must **not** be pressed. The account's two Web Analytics
+    sites are `thepindscene.com` and `pindscene.com`, both created three months ago,
+    each scoped to its own hostname; neither lists `pind.social` and neither was
+    changed. So the token belongs to a site neither of us can see in the dashboard.
+  - **Where it is probably from:** Cloudflare creating a Web Analytics site implicitly
+    for an asset-serving Worker. Unconfirmed.
+  - **Cost, measured:** 10.6 KB from a second host, and **no time outside run-to-run
+    noise** — W2 with the beacon blocked scored the same 99. So this is a rule
+    problem, not a speed problem: it breaks CLAUDE.md's "everything a public page
+    loads comes from our own origin", and it is RUM collection on a page that needs no
+    account.
+  - **Not a merge blocker** (Alex, M2.1). M2.2 picks it up. Do not rediscover this from
+    scratch: start from the token and the `"spa":2` flag, and check whether it survives
+    a deploy that changes the assets configuration.
+
 - **M3.2 — tab icons** (Alex, M2.0). Add `expo-symbols` and choose the four icons
   when Crowds has content. The tabs are labels only until then.
 - **M4.3 — Apple** (Alex, M2.0). The production bundle ID reuses the Pin'd APNs key.
