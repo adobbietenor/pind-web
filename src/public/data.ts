@@ -100,6 +100,13 @@ export async function crowds(env: Env, from: Date, to: Date): Promise<Crowd[]> {
   return (data ?? []) as Crowd[];
 }
 
+// venue-maps is a public bucket (V12), so an uploaded map has a public URL and needs
+// no signed link. venues.map_image_path holds the object's path inside the bucket,
+// not a URL — the admin builds the URL with getPublicUrl, and so must this.
+export function venueMapUrl(env: Env, path: string | null): string | null {
+  return path ? `${projectUrl(env)}/storage/v1/object/public/venue-maps/${path.split("/").map(encodeURIComponent).join("/")}` : null;
+}
+
 // W2, W3, W4 and the .ics: one gathering by slug, in one round trip.
 export async function crowd(env: Env, slug: string): Promise<Door> {
   const { data, error } = await anonClient(env).rpc("public_gathering", { p_slug: slug });

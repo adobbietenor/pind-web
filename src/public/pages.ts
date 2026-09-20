@@ -7,7 +7,7 @@ import { HOUSE_RULES, ONE_LINER, PIN_IN, PIN_IN_FREE, THRESHOLD } from "@pind/sh
 import type { Env } from "../env";
 import { localDate } from "../admin/time";
 import { markSvg } from "./brand";
-import { crowd, crowds, type Counts, type Crowd, type Crowd2, type Spot } from "./data";
+import { crowd, crowds, venueMapUrl, type Counts, type Crowd, type Crowd2, type Spot } from "./data";
 import { DOT, escape, header, notice, page } from "./layout";
 import { venueMap, walkMinutes } from "./map";
 
@@ -157,7 +157,7 @@ export async function w2(request: Request, env: Env, slug: string): Promise<Resp
 ${door.venue.address ? `<p class="lede" style="margin-bottom:0">${escape(door.venue.address)}</p>` : ""}
 
 ${tallies(door.counts)}
-${mapFigure(door)}
+${mapFigure(env, door)}
 
 <a class="cta" id="cta" href="/g/${escape(g.slug)}/pin">${escape(button)}</a>
 <p class="note">Names and photos unlock after you pin in and opt to meet.</p>
@@ -202,8 +202,8 @@ function tallies(c: Counts): string {
 
 // The venue and its meeting spots, never people (H1). An uploaded image overrides
 // the generated map; a venue with no coordinates gets no map and still reads fine.
-function mapFigure(door: Crowd2): string {
-  const uploaded = door.venue.map_image_path;
+function mapFigure(env: Env, door: Crowd2): string {
+  const uploaded = venueMapUrl(env, door.venue.map_image_path);
   if (uploaded) {
     return `<figure><img src="${escape(uploaded)}" alt="Map of ${escape(door.venue.name)} and its meeting spots. No people are shown." loading="lazy" decoding="async">
 <figcaption>The venue and its meeting spots. Never people.</figcaption></figure>`;
