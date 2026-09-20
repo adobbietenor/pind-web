@@ -172,6 +172,23 @@ the whole budget.
 It also keeps every promise in one place: no third party gets the visitor's IP, the
 referring Reddit thread, or a cookie, on a page that needs no account.
 
+**Check this from a browser, not from the source.** A Cloudflare zone setting can
+inject a third-party script into a page the Worker rendered, without touching the
+repo: M2.1 found `static.cloudflareinsights.com/beacon.min.js` on every crowd page,
+from Web Analytics' automatic setup, when the HTML the Worker sends references no
+script at all. Loading the page in a real browser and listing its requests is the only
+way to see that; reading the template is not.
+
+## Measure what the phone does, not what the server sent
+
+A fast server response is not a fast page. M2.1 hit the same one-layer-down gap three
+times in one milestone: a 92 ms server response with a 911 ms image behind it, an
+immutable cache header on a Worker response that Cloudflare was not storing, and a
+third-party script that the HTML never mentioned. Each looked right from the terminal.
+Before claiming a page is fast, load it in a browser, list every request with its
+size, and run Lighthouse — and compare against a page with nothing on it, so the
+number has a floor to be read against.
+
 ## Secrets
 
 - Never commit a key. `.env`, `.dev.vars` and `node_modules` are gitignored.
