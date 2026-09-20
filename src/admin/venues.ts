@@ -4,6 +4,7 @@
 // Map images go in the PUBLIC venue-maps bucket (decisions Part 5): a public building
 // and its public spots, never a person (H1). Only this admin writes there.
 import { spotSuggestionsOn } from "../env";
+import { venuesWithoutMaps } from "../public/mapserve";
 import { MAX_ATTEMPTS, chooseZoom, frameMetres, place, renderVenueMap } from "../public/venuemap";
 import { distanceKm } from "../import/ticketmaster";
 import type { AdminContext, AdminHandler } from "./context";
@@ -81,12 +82,22 @@ export const venueList: AdminHandler = async (request, ctx) => {
   });
   const stuck = failing.filter((v: any) => (byVenue.get(v.id) ?? []).some((r) => r.attempts >= MAX_ATTEMPTS));
 
+  // **A venue a stranger can reach today whose picture is not there.** This is the
+  // state nothing counted: "never fetched" leaves no render record at all, so it was
+  // neither "ready" nor "failing" and read as fine. Measured on the walk — 29 of the
+  // 37 venues behind a published gathering were in it, because M2.3's zoom retired
+  // every earlier render. Unset is a different state from broken (CLAUDE.md).
+  const noMap = await venuesWithoutMaps(ctx.env);
+
   const rows = venues
     .map((v: any) => {
       const approved = (v.meeting_spots ?? []).filter((s: any) => s.active).length;
       const pending = (v.spot_suggestions ?? []).filter((s: any) => s.status === "pending").length;
       const rs = byVenue.get(v.id) ?? [];
-      const ok = rs.some((r) => r.status === "ok");
+      // Ready at the key its coordinates and spots ask for **now** — not "has ever
+      // rendered anything". A venue whose key has moved on used to read "ready" here
+      // while its crowd page served a 404 for the image it was asking for.
+      const ok = !noMap.some((n) => n.id === v.id);
       const gaveUp = rs.some((r) => r.attempts >= MAX_ATTEMPTS);
       const map = v.map_image_path
         ? "uploaded"
@@ -110,7 +121,13 @@ export const venueList: AdminHandler = async (request, ctx) => {
   const banner = failing.length
     ? `<p class="bad">${failing.length} venue${failing.length === 1 ? "" : "s"} cannot fetch a crowd page map${stuck.length ? `, and ${stuck.length} of them stopped retrying after ${MAX_ATTEMPTS} attempts` : ""}. Their crowd pages fall back quietly, so they only show up here: ${failing.map((v: any) => `<a href="/admin/venues/${e(v.id)}">${e(v.name)}</a>`).join(", ")}</p>`
     : "";
-  const body = `${noToken}${banner}${strandedSpotsPanel(strays)}<table><tr><th>Venue</th><th>City</th><th>Approved spots</th><th>AI suggestions</th><th>Map</th></tr>
+  const pending = noMap.length
+    ? `<p class="bad">${noMap.length} venue${noMap.length === 1 ? "" : "s"} behind a published gathering in the next four weeks ${noMap.length === 1 ? "has" : "have"} no map at the key their coordinates and spots ask for now, so ${noMap.length === 1 ? "its crowd page" : "their crowd pages"} show the drawing, or nothing where there are no spots to draw. The nightly run fetches them; it does not wait for a visitor to open the page. ${noMap
+        .slice(0, 12)
+        .map((n) => `<a href="/admin/venues/${e(n.id)}">${e(n.name)}</a>`)
+        .join(", ")}${noMap.length > 12 ? `, and ${noMap.length - 12} more` : ""}</p>`
+    : `<p class="good">Every venue behind an upcoming gathering has its map.</p>`;
+  const body = `${noToken}${banner}${pending}${strandedSpotsPanel(strays)}<table><tr><th>Venue</th><th>City</th><th>Approved spots</th><th>AI suggestions</th><th>Map</th></tr>
 ${rows || `<tr><td colspan="5">No venues yet.</td></tr>`}</table>
 <h2>Add a venue</h2>
 <form method="post" action="/admin/venues"><input type="hidden" name="back" value="/admin/venues">

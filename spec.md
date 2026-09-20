@@ -622,7 +622,7 @@ working. Hours are Alex's, agent-assisted.
 | M2.0 | Repo + Expo scaffold | **Done** — merged as `7fc973a` | 6–8 |
 | M2.1 | Public web layer on pind.social (W1–W4, the real map, the domain) | **Done** — merged as `6fea4a3` | 8–12 |
 | M2.2 | Auto-publishing v1 — fixed target (§8) | **Done** — merged as `ec9d74d` | 4–6 |
-| M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | **On staging; the phone walk is next** | 4–6 |
+| M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | **Walked on the phone; three fixes in; merge held for Lighthouse** | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | Not started | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel, universal links (A5–A9, A19, A26, A27) | Not started | 12–18 |
@@ -1100,6 +1100,53 @@ rubric is a product decision and the AI score is what strangers end up seeing):
   32. So it wants a measured before-and-after on the real queue, the way the category
   share had one, rather than a prompt tweak and a hope. Roughly an hour, and it belongs
   with M4.4's rubric work or its own small pass — not inside a page milestone.
+
+**What the on-device walk found** (Alex, 20 Sept 2026; full entries in decisions.md,
+"After the M2.3 walk"). Three problems, all fixed and re-deployed, plus two things
+owed:
+1. **The map loaded inconsistently — because a visitor was fetching it.** Measured:
+   **29 of 37 venues behind a published gathering had no picture at their current key**,
+   so the first view of each showed the schematic or nothing and the second showed the
+   map. M2.1's `waitUntil` net had become the only thing that ever rendered anything,
+   and M2.3's zoom-in-the-key retired every existing render at once. The nightly run now
+   renders every reachable venue's map straight after publishing; the fallback stays a
+   net; the admin counts what is still missing and no longer calls a venue "ready"
+   because it once rendered *something*. Two smaller defects went with it: the image
+   route recomputed the zoom and 404'd on any disagreement, and the spots read swallowed
+   its error so a failure silently meant zoom 16. **All 38 venue maps now answer 200 at
+   the key their page asks for, and 37 of 37 crowd pages show the real map on a first
+   load.** Now a rule in CLAUDE.md, "A visitor is never the thing that does the work".
+2. **The back button.** The tab and the chips now replace the history entry — they are
+   query-parameter state on one page — while the pager and the cards push, and the map
+   dots no longer push a hash entry each. 247 bytes of progressive JavaScript; every
+   control still works without it.
+3. **`/community` had been serving the app's own index.html with a 200** until it was
+   added to `run_worker_first`. Alex's rule, now in CLAUDE.md: a missing Worker route
+   does not 404, it silently serves the wrong app and then gets cached.
+4. **The chip names are owed** (Alex): "Community" as a tab name, and cycling and
+   running as separate chips, may not be how a reader divides this — there may be a
+   "clubs" or "wellness" shape instead. Not touched this milestone. What any rethink
+   must keep: running is 4 gatherings / 59 rows / 2 venues and cycling is 5 / 13 / 8, so
+   they look alike and behave oppositely.
+5. **The comedy rubric, measured both ways and not applied.** Naming stand-up as its own
+   case — and naming panel talks, readings and "in conversation" as capped — moves the
+   48 comedy drafts from a median of 35 to 65 and from 3 over the floor to **32**, while
+   theatre, classical and opera stay at 25–35 and the Jaipur Literature Festival stays
+   at **35** with the reason "In-conversation literary event, capped despite comedian
+   guest". Re-running the *current* prompt moved rows by 5–15 points, so that is the
+   noise floor and this is a distribution result rather than a per-row promise. The
+   prompt and the re-score of the queue ship together, on Alex's word, so there is never
+   a night when new drafts are scored generously and the old ones are not. The
+   measurement cost $0.15 and wrote nothing.
+6. **The path to an interactive map is costed** in decisions.md: the Protomaps-on-R2
+   pipeline (6–12 h) belongs to the city map and A8, real pan and zoom belongs in the
+   app (3–6 h on top), and W2 keeps the static image because MapLibre GL JS is ~200 KB
+   gzipped against a 9 KB page. What W2 can have cheaply: "Open in Maps" for the venue
+   (minutes), two or three pre-rendered zooms with a no-JavaScript switch (1–2 h), and a
+   real map behind a tap once the pipeline exists (2–4 h).
+
+**Not signed off.** Alex holds the merge until he can run Lighthouse and list the
+requests from a browser on a laptop.
 
 **Carried out of M2.3:**
 - **the injected Cloudflare beacon is unchanged** — same token, same `"spa":2`, on

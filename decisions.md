@@ -1541,3 +1541,148 @@ change). Where the plan has more detail, the plan is the reference.
   live, whether it is below the bar, or how many drafts are waiting and the best score
   they have against the floor. **Fixing the rubric is a separate, measured pass** — what
   it involves is in spec §6, M2.3.
+
+### After the M2.3 walk (Alex, on the phone)
+
+- **A visitor must never be the thing that fetches the map** (Alex: "the map doesn't
+  load consistently; I often have to refresh before it appears"). Diagnosed and
+  measured: **29 of the 37 venues behind a published gathering had no picture at their
+  current key**, so the first view of each of those pages showed the schematic — or
+  nothing at all, at the 24 venues with no spots to draw one from. The second view
+  showed the real map, which is why it looked intermittent rather than broken.
+  - **The cause is not a race.** M2.1 built the fetch as a safety net — the page falls
+    back and `waitUntil` renders the picture for whoever comes next — and it had quietly
+    become *the mechanism*, because nothing else ever rendered anything. M2.3 made it
+    visible rather than causing it: putting the zoom into the key retired every existing
+    render at once, so every venue needed a new picture and every venue's first visitor
+    paid for it. The orphaned `-v1` keys are still in `venue_map_renders`, recorded ok,
+    for pictures nothing asks for any more.
+  - **So the nightly run renders them**, immediately after publishing, because
+    publishing is what creates a page a stranger can open. The fallback stays as a net.
+    Mapbox requests still scale with venues and never with traffic — tens, ever — and
+    the pass is bounded per night, reports what it did in the run summary, and counts
+    whatever is left as missing rather than dropping it.
+  - **The admin now says it out loud, and says the right thing.** "Never fetched" leaves
+    no render record at all, so it was neither "ready" nor "failing" and read as fine —
+    unset is a different state from broken (CLAUDE.md). Worse, the venue list called a
+    venue "ready" if it had *ever* rendered anything, so a venue whose key had moved on
+    read ready while its crowd page asked for an image that answered 404. **A status
+    computed against the wrong fact reads as correct while being wrong**, which is the
+    M2.2 venue-cap line again.
+  - **Two smaller defects found on the way**, both of which turned an ordinary event
+    into a missing map:
+    - the image route **recomputed the zoom** from its own read of the venue's spots and
+      compared keys, so a transient failure reading them, or a spot approved in the
+      seconds between the page rendering and the browser asking for the image, produced
+      a 404 for a picture that existed and was correct for the markers drawn over it. It
+      now checks the coordinate half of the key against the venue's current coordinates
+      — the safety property, which is why the URL is content-addressed — and the rest
+      against the render record, which is the fact;
+    - the spots read **swallowed its error**, so a failed read meant "no spots", which
+      means zoom 16, which means a different key. Null now means "we do not know" and
+      the caller declines to guess.
+  - **Which venues, asked of the one door.** Both new passes first asked the database
+    with a service-key filter — published, not withdrawn, not seeded, carrying a slug —
+    which *looked* identical to the public definition and was not: a gathering Alex
+    unpublished keeps its slug (M2.2, "once public, only Alex brings it back"), so
+    Scotiabank Arena was counted as a venue needing a map for a page nobody can open.
+    They now read `public_gatherings` through the anon key, as a visitor, and let RLS
+    answer; the service key then fetches the operational detail for exactly those
+    venues. **The same hole caught me twice in one milestone** — the admin's chip panel
+    had it too — which is the argument for H11 being about more than policies: any
+    second copy of "what is public" drifts.
+- **What should be in the back button** (Alex: "moving between tabs, chips and crowd
+  pages, back doesn't always go where I expect").
+  - **The tab and the chips replace the current history entry.** They are
+    query-parameter state on one page, not places you went, so four chip taps left four
+    entries and "back" walked through a filter state nobody was trying to return to.
+    The whole visit to the list is now one entry.
+  - **The pager and the cards push.** Next week is somewhere else, and so is a crowd
+    page. Back from a crowd page lands on the list exactly as it was, chips and week
+    included, because the URL carries all of it.
+  - **The map dots no longer push either.** Each `#spot-N` was a history entry, so after
+    tapping three dots "back" appeared to do nothing — it was undoing a hash change on
+    the same page.
+  - **The accepted cost, stated:** because the chips replace, pressing back from a
+    filtered list leaves for wherever the visitor arrived from rather than stepping back
+    to the unfiltered list. That is the trade Alex asked for; the alternative (the first
+    filter pushes, later ones replace) is a state machine in a page that has none.
+  - It is 247 bytes of JavaScript on W1 and it is progressive: with JavaScript off every
+    control is still an ordinary link that works, it simply also leaves an entry.
+    Modifier and middle clicks are left alone, so "open in a new tab" still works.
+- **The chip names are not settled** (Alex, M2.3 walk — **owed, nothing to build now**).
+  "Community" as a tab name, and cycling and running as separate chips, may not be how a
+  reader would divide this. There might be a "clubs" or a "wellness" shape that reads
+  better than activity-by-activity.
+  **What must survive the rethink, because it was measured:** running is 4 gatherings,
+  59 dated rows, 2 venues — clubs meeting constantly in two places — and cycling is 5
+  gatherings, 13 rows, 8 venues, a different place every Saturday. **They look alike and
+  behave oppositely**, so one chip over both would hide both facts: somebody filtering
+  "running" wants a fixture near them, somebody filtering "cycling" is choosing a day
+  out. Any renaming has to keep that distinction available even if the words change.
+  Cheap to change either way: a chip's label is copy in `packages/shared`, and only the
+  stored value would need a migration.
+- **The comedy rubric, measured before and after** (Alex, M2.3 walk: "measured
+  before-and-after, not a prompt tweak"). Two edits to `SCORING_SYSTEM`: stand-up joins
+  the "people come in ones and twos" group rather than the seated-theatre one, and it is
+  named as **not** subject to the seated-theatre cap — while panel talks, readings,
+  literary events and anything billed "in conversation" are named as capped at 35
+  whatever a ticketing site files them under. Run over all 48 comedy drafts in the queue
+  plus 17 controls, each set scored twice — once with the current prompt, to measure the
+  noise, and once with the candidate:
+
+  | | stored today | current prompt, run again | candidate |
+  |---|---|---|---|
+  | comedy (48) median | 35 | 40 | **65** |
+  | comedy at or over the floor of 60 | 3 | 4 | **32** |
+  | theatre / classical / opera (8) | 15–30 | 22–32 | **25–35, still capped** |
+  | Jaipur Literature Festival | 32 | 35 | **35** |
+
+  The literature festival is the one Alex named, and the candidate's own reason for it
+  is *"In-conversation literary event, capped despite comedian guest and decent theatre
+  crowd"* — it holds.
+  **The noise floor is worth writing down:** re-running the *same* prompt moved
+  individual rows by 5 to 15 points and lifted one extra comedy show over the floor. So
+  this is a distribution result, not a per-row promise, and any future rubric change
+  should be judged the same way — twice, with a control set.
+  **Not applied.** The measurement wrote nothing, because 32 newly publishable comedy
+  drafts would change what strangers see on the next nightly run, and the rubric is the
+  one thing deciding that. The prompt and the re-score ship together in one commit when
+  Alex says so, so there is never a night where new drafts are scored generously and the
+  51 already in the queue are not. Cost of the whole measurement: **$0.15**.
+- **Where the map's interactivity goes from here** (Alex asked; costed, nothing built).
+  Filed against the city map already being **Protomaps on R2 + MapLibre, in the app**
+  (decisions, "When it comes, half the decision is already made"), because that decides
+  most of this.
+  1. **The pipeline is the shared cost, and it belongs to the city map.** A Toronto
+     vector extract as a `.pmtiles` file in R2, served through a Worker route that
+     answers HTTP range requests, with the glyphs and sprite in the same bucket so
+     nothing loads from a third-party host. **No per-load billing and no egress fee**,
+     against Mapbox GL's $5 per 1,000 loads past the free tier, and no API key in any
+     page. Roughly **6–12 hours** all in, and every hour of it is reused by the deferred
+     city map and by A8.
+  2. **Real pan and zoom belongs in the app (A8/A10), not on W2.** The app is already a
+     bundle, already has a session, and has no one-second budget inside a Reddit tab.
+     Once the pipeline exists this is a MapLibre component with the venue centred and
+     its spots as markers: **3–6 hours**, inside M3.2's own map work rather than on top
+     of it.
+  3. **W2 keeps the static image as its default, for a measured reason.** MapLibre GL JS
+     is about 200 KB gzipped before a single tile, against a crowd page that is **9 KB
+     of HTML and a 30 KB picture today**. That is twenty times the page, on the surface
+     whose whole job is opening in a second inside somebody else's browser.
+  4. **What W2 can have cheaply, in rising order of cost:**
+     - **"Open in Maps" for the venue as well as each spot** — the phone's own map app
+       is a genuinely interactive map, and it is a link. Minutes.
+     - **Two or three pre-rendered zooms and a no-JavaScript switch between them.** The
+       picture is already content-addressed per zoom, so this is mostly bookkeeping:
+       three renders per venue instead of one, a couple of links, no new dependencies,
+       no budget change. **1–2 hours.**
+     - **A real map behind a tap** — the static image stays the default and MapLibre
+       loads only for the visitor who asks for it, from our own R2. The default page
+       costs nothing, the person who wanted a map pays for it, and it needs the pipeline
+       from (1) plus **2–4 hours** and a measured check inside a Reddit in-app browser,
+       which is where heavy JavaScript maps go wrong.
+  **The recommendation:** nothing on W2 now; when M3.2 builds A8, build the pipeline for
+  it rather than a one-off; then W2's zoom switch and, if it is still wanted, the
+  behind-a-tap map. The order matters because every step after the first is cheap only
+  once the pipeline exists.

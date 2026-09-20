@@ -78,6 +78,29 @@ function mixLine(counts: Counts): string {
 // W1 — This week's crowds
 // ---------------------------------------------------------------------------
 
+// **The back button, and what should be in the history** (Alex, after the walk).
+//
+// Every control on this page is a link, which is what keeps the page server-rendered
+// and working with JavaScript off — and it meant that four chip taps left four
+// entries, so "back" walked through a filter state nobody was trying to return to.
+//
+//   - **the tab and the chips replace the current entry.** They are query-parameter
+//     state on one page, not places you went. So the whole visit to the list is one
+//     entry, and back from it leaves for wherever you arrived from;
+//   - **the pager and the cards push.** Next week is somewhere else, and so is a
+//     crowd page. Back from a crowd page lands on the list exactly as it was, chips
+//     and week included, because that URL carries all of it.
+//
+// Progressive enhancement, and the page is complete without it: with JavaScript off
+// every one of these is still an ordinary link that works, it simply also leaves a
+// history entry. Modifier clicks and middle clicks are left alone so "open in a new
+// tab" still does what it always did.
+const REPLACE_SCRIPT =
+  `try{var n=document.querySelectorAll("a[data-replace]");` +
+  `for(var i=0;i<n.length;i++)n[i].addEventListener("click",function(e){` +
+  `if(e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;` +
+  `e.preventDefault();location.replace(this.href)});}catch(e){}`;
+
 const W1_FOOTER =
   `<a href="mailto:${SUGGEST_TO}?subject=A%20gathering%20for%20Pin%27d">suggest a gathering</a>` +
   `${DOT}<a href="/about">about</a>${DOT}19+`;
@@ -146,6 +169,7 @@ ${pager(path, chips, win, later.length)}`,
       // is the one worth sharing.
       canonical: `${origin}${path}`,
       footer: W1_FOOTER,
+      script: REPLACE_SCRIPT,
     },
   );
 }
@@ -157,7 +181,7 @@ ${pager(path, chips, win, later.length)}`,
 function tabs(current: TabValue, win: ListWindow): string {
   const links = TABS.map(
     (t) =>
-      `<a class="tab${t.value === current ? " on" : ""}"${t.value === current ? ' aria-current="page"' : ""} href="${escape(tabHref(t.value, win.asked))}">${escape(t.label)}</a>`,
+      `<a class="tab${t.value === current ? " on" : ""}"${t.value === current ? ' aria-current="page"' : ""} data-replace href="${escape(tabHref(t.value, win.asked))}">${escape(t.label)}</a>`,
   ).join("");
   return `<nav class="tabs" aria-label="Events or community">${links}</nav>`;
 }
@@ -169,11 +193,11 @@ function tabs(current: TabValue, win: ListWindow): string {
 // visible as the thing it is: one of the choices, and the one that is on.
 function chipRow(path: string, offered: Chip[], chosen: string[], win: ListWindow): string {
   if (offered.length === 0) return "";
-  const all = `<a class="chip${chosen.length === 0 ? " on" : ""}" href="${escape(href(path, [], win.asked))}">Everything</a>`;
+  const all = `<a class="chip${chosen.length === 0 ? " on" : ""}" data-replace href="${escape(href(path, [], win.asked))}">Everything</a>`;
   const rest = offered
     .map((c) => {
       const on = chosen.includes(c.value);
-      return `<a class="chip${on ? " on" : ""}"${on ? ' aria-current="true"' : ""} href="${escape(href(path, toggle(chosen, c.value), win.asked))}">${escape(c.label)}</a>`;
+      return `<a class="chip${on ? " on" : ""}"${on ? ' aria-current="true"' : ""} data-replace href="${escape(href(path, toggle(chosen, c.value), win.asked))}">${escape(c.label)}</a>`;
     })
     .join("");
   return `<nav class="chips" aria-label="Filter by kind">${all}${rest}</nav>`;
@@ -212,7 +236,7 @@ function dayHeading(d: DayGroup<Crowd>): string {
 function emptyWeek(tab: TabValue, other: (typeof TABS)[number], otherCount: number, win: ListWindow): string {
   const mineName = tab === "community" ? "community gatherings" : "events";
   const elsewhere = otherCount
-    ? ` <a href="${escape(tabHref(other.value, win.asked))}">${other.label} has ${otherCount} that week.</a>`
+    ? ` <a data-replace href="${escape(tabHref(other.value, win.asked))}">${other.label} has ${otherCount} that week.</a>`
     : "";
   const thisWeek = win.asked ? ` <a href="${escape(tabHref(tab, null))}">Back to this week.</a>` : "";
   return `<div class="empty">No ${mineName} up for these days yet — new ones go up through the week.${elsewhere}${thisWeek}</div>`;
@@ -349,6 +373,16 @@ ${g.event_url ? `${DOT}<a href="${escape(g.event_url)}" rel="nofollow noopener">
       // links point at Apple Maps instead of Google. With JavaScript off, the button
       // still works and the links still open Google Maps on every platform.
       script:
+        // A map dot opens its card without leaving a history entry behind. Tapping
+        // three dots used to leave three, so "back" appeared to do nothing — it was
+        // undoing a hash change on the same page. With JavaScript off the anchor still
+        // works and :target still lights the card; it simply also pushes an entry.
+        `try{var p=document.querySelectorAll("a.pin");` +
+        `for(var i=0;i<p.length;i++)p[i].addEventListener("click",function(e){` +
+        `if(e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;` +
+        `var t=document.getElementById(this.getAttribute("href").slice(1));if(!t)return;` +
+        `e.preventDefault();var l=document.querySelector(".spot.lit");if(l)l.className="spot";` +
+        `t.className="spot lit";t.scrollIntoView({behavior:"smooth",block:"center"})});}catch(e){}` +
         `try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);` +
         `if(k&&k.indexOf("sb-")===0&&k.indexOf("-auth-token")>0){` +
         `document.getElementById("cta").textContent="Open";break}}}catch(e){}` +

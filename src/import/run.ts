@@ -10,13 +10,15 @@
 //   6. score new drafts with Claude, within the $3 daily cap
 //   7. nightly only: suggest 3 meeting spots for up to 10 venues that need them
 //   8. fill each of the next three weeks to the publishing target (M2.2)
-//   9. write the run summary Alex sees in the admin
+//   9. fetch the crowd page map of every venue a stranger can now reach (M2.3)
+//  10. write the run summary Alex sees in the admin
 //
 // Service key throughout: this is the importer, not a visitor (decisions Part 5).
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatLocal } from "../admin/time";
 import type { Env } from "../env";
 import { importFailedAlert, sendAlert } from "../ops/alert";
+import { ensureMapsForUpcoming } from "../public/mapserve";
 import { PUBLISHER, runPublishing } from "../publish/run";
 import { serviceClient } from "../supabase";
 import { canSpend, ESTIMATE, MODEL, type ScoreInput } from "./ai";
@@ -265,6 +267,26 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
       errors.push(...publishing.errors);
       status = "partial";
     }
+
+    // 9. The crowd pages' maps (M2.3, after the on-device walk). Immediately after
+    // publishing, because publishing is what creates pages a stranger can open — and
+    // **a visitor must never be the thing that fetches the picture.** The fallback
+    // stays as a net; it is no longer the mechanism. Mapbox requests still scale with
+    // venues and never with traffic.
+    const maps = await ensureMapsForUpcoming(env);
+    Object.assign(counts, { maps });
+    if (maps.noToken && maps.missing > 0) {
+      // Once, as a configuration problem, where it can be fixed — never as N identical
+      // venue failures (CLAUDE.md).
+      errors.push(`MAPBOX_TOKEN is not set, so ${maps.missing} crowd page maps cannot be fetched`);
+      status = "partial";
+    } else if (maps.missing > 0) {
+      errors.push(
+        `${maps.missing} venue${maps.missing === 1 ? "" : "s"} behind an upcoming gathering still have no map` +
+          (maps.stopped ? `, ${maps.stopped} of them after giving up` : ""),
+      );
+      status = "partial";
+    }
   } catch (err) {
     status = "failed";
     errors.push(err instanceof Error ? err.message : String(err));
@@ -283,6 +305,10 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
         `${a.dismissed ?? 0} dismissed, ${a.flagged ?? 0} flagged; ${counts.scored ?? 0} scored` +
         (counts.unscored_left ? `, ${counts.unscored_left} still unscored` : "") +
         (counts.categorised ? `; ${counts.categorised} given a chip` : "") +
+        (() => {
+          const m = counts.maps as { rendered: number; missing: number } | undefined;
+          return m ? `; ${m.rendered} maps fetched${m.missing ? `, ${m.missing} still missing` : ""}` : "";
+        })() +
         `; ${counts.published ?? 0} published; AI $${aiCost.toFixed(2)}.`;
 
   // A failed run tells somebody. M2.2's premise is that the city's list refreshes

@@ -187,8 +187,9 @@ a.dirs{display:inline-block;margin-top:8px;font-size:.88rem}
   background:var(--surface);border:1px solid var(--border);border-radius:14px;
   padding:14px 16px;margin:0 0 10px;font-size:.95rem;scroll-margin-top:64px;
 }
-/* Arriving from the map: the card says so, without a script. */
-.spots .spot:target{border-color:var(--accent);background:#1c1922}
+/* Arriving from the map: the card says so. :target is the no-JavaScript path; .lit is
+   the same thing reached without pushing a history entry (see W2's script). */
+.spots .spot:target,.spots .spot.lit{border-color:var(--accent);background:#1c1922}
 .spots .spot-top{display:flex;align-items:center;gap:9px}
 .spots .spot-top .num{
   flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;
