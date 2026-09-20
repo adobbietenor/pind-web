@@ -36,6 +36,10 @@ export interface Crowd {
   category: string | null;
   signup_required: boolean;
   source: "manual" | "ticketmaster" | "ai";
+  // The venue's id, not just its name: a chip earns its place at three gatherings in
+  // at least two distinct *places*, and counting places by name is the kind of
+  // nearly-right that bites when two rooms share one (M2.3).
+  venue_id: string;
   venue_name: string;
   city_name: string;
   city_timezone: string;
@@ -92,6 +96,10 @@ export interface Crowd2 {
     // (src/public/venuemap.ts).
     map_key: string | null;
     map_ready: string[];
+    // Every active spot at this venue, coordinates only. It is here so the map's zoom
+    // is a property of the venue rather than of this gathering's poll — see
+    // chooseZoom in venuemap.ts. Not the poll: that is `spots` below.
+    map_spots: { latitude: number | null; longitude: number | null }[];
     city_name: string;
     timezone: string;
   };

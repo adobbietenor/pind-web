@@ -31,19 +31,32 @@ import {
 // the same evening to anyone choosing one.
 //
 // So: a club night is its own kind, and everything else falls back to its segment.
-// Provisional and private to the publisher — nothing public shows these names yet.
-// M2.3 promotes the category to a column on gatherings and settles what a reader
-// sees, at which point this function moves there rather than being copied.
-// A stored chip value, translated into the cap's vocabulary. The two taxonomies do
-// different jobs: the chips are what a reader browses by, the cap is a monotony guard
-// and needs the finest honest split it can get. Merging them is not free — folding
-// every kind of Music into one bucket takes a week from 23 published to 6, measured
-// on the real queue (Alex, after the community pass).
+// Private to the publisher — no reader ever sees these names.
+//
+// The chips a reader browses by are a different vocabulary doing a different job,
+// and merging the two is not free: folding every kind of Music into one bucket takes
+// the three upcoming weeks from 23/16/15 published to 6/6/6, measured on the real
+// queue (Alex, after the community pass).
+//
+// Every chip value is named here even where it maps to itself, because the version of
+// this table that listed `taking_part` after `taking_part` had already split into
+// four had a hole in it: unlisted values fell through `?? stored` and silently became
+// cap buckets of their own. That is the shape of the stale FOLD_THRESHOLD — a table
+// naming a value nothing uses, and no complaint from anything.
+//
+// **The five Community chips deliberately do NOT share one bucket.** Folding them was
+// measured and changes nothing today (identical weeks, identical refusals), but it
+// would sit Community permanently at or above its 40% share — 21 of the 50 rows in
+// the week of 21 Sep are community — so the guard would fire in normal weather, which
+// is the one thing a guard must never do.
 const CAP_BUCKET: Record<string, string> = {
   live_music: "concerts",
   sport: "sports",
   comedy: "arts",
-  taking_part: "taking_part",
+  games: "games",
+  cycling: "cycling",
+  running: "running",
+  outdoors: "outdoors",
   markets: "markets",
 };
 
@@ -57,11 +70,26 @@ export function categoryOf(classification: string | null | undefined): string {
   return "other";
 }
 
-// What somebody said beats what the source implies; either way the cap sees one
-// vocabulary.
+// **The listing's own classification wins; the stored chip is used only where there
+// is none.** This is the opposite of what it was, and the reversal is M2.3's doing.
+//
+// Until M2.3 only hand-entered gatherings had a stored category, so "stored wins" and
+// "classification wins" were the same rule on different rows. M2.3 gives every
+// Ticketmaster gathering a chip, and with the old precedence the cap would have read
+// `live_music` for all 189 music candidates and stopped distinguishing a club night
+// from a rock show — the distinction the whole cap rests on.
+//
+// Measured on the real queue the night it was filled in, which is why this is not an
+// argument:
+//
+//   stored wins          tonight publishes  0   weeks end at  4 / 48 / 30
+//   classification wins  tonight publishes 12   weeks end at  4 / 50 / 40
+//
+// A data improvement that silently switches off a rule is the FOLD_THRESHOLD bug
+// again: everything looks right, and the list quietly stops growing.
 export function capBucket(stored: string | null | undefined, classification: string | null | undefined): string {
-  if (stored) return CAP_BUCKET[stored] ?? stored;
-  return categoryOf(classification);
+  if (classification) return categoryOf(classification);
+  return stored ? CAP_BUCKET[stored] ?? stored : categoryOf(classification);
 }
 
 // The city-local week containing today, plus the two after it. publish_lead_days_max
@@ -249,9 +277,9 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
         hasSlug: g.slug !== null,
         source: g.source,
         capacity: g.capacity ?? null,
-        // What somebody said beats what the source implies. Null means nobody has
-        // said, and only then is a coarse kind derived (M2.3 decides whether the
-        // importer starts filling it in).
+        // The listing's own classification, where it has one; the stored chip only
+        // for a gathering entered by hand. See capBucket: M2.3 filled the chip in for
+        // every Ticketmaster row, and the cap has to keep the finer split.
         category: capBucket(g.category, (g.gathering_sources ?? []).map((x: any) => x.snapshot?.category).find(Boolean)),
       };
     });

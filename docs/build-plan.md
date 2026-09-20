@@ -376,6 +376,12 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 - Tapping two chips shows the union of those two categories and nothing else; the order of what remains is unchanged from unfiltered.
 - No chip is shown for a category nothing can fill.
 
+**Built in M2.3** (spec §6, "Phase 2 M2.3"; decisions "Decided in Phase 2 M2.3"). What the milestone settled, and what it left:
+- The schema question is answered: `category` is a real column, filled for every Ticketmaster gathering from its own classification by one rule in the database, set once at draft and never overwritten. It had been null on all 49 published Events rows, so the Events tab had no chips at all.
+- The five chips are the eight of the community pass, split across two tabs on `source`; a chip is counted from the rows on the page, so it can never filter to an empty one. "Bars" and "clubs" were never built: the feed cannot tell a DJ night from a gig (decisions, after the community pass).
+- **Deferred, with Alex's agreement: the venue and neighbourhood filters.** Neighbourhood has no data behind it — the 30 rows carry a name and a sort order, no coordinates and no boundaries — so it needs a geo pass of its own. Venue is free from today's data and is about an hour whenever it is wanted.
+- **The finding this milestone leaves on the table: comedy.** 51 listings in the queue, 20 inside the lead window scoring 25–60 against a floor of 60, and not one ever published — so the chip is correctly hidden and a whole category is silently refused. The Publishing panel now says so for every category. Fixing the rubric is a measured pass of its own (spec §6, M2.3).
+
 ### Phase 3 — The product, in Expo (68–96 h)
 
 12–16 h

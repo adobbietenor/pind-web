@@ -6,11 +6,15 @@
 // because it had been public before has to say so here — "skipped, previously
 // published" — rather than simply not appearing, because a rule whose refusals are
 // invisible is a rule Alex cannot tell is working (Alex, M2.2).
+import { CATEGORIES, CHIP_MIN_GATHERINGS, CHIP_MIN_VENUES, TABS, tabLabel } from "@pind/shared";
 import { loadCity } from "../import/run";
+import { adjustedScore, distanceAdjustment, venueDistanceKm } from "../import/ticketmaster";
+import { crowds } from "../public/data";
+import { belowTheBar, chipsFor, windowFor, WINDOW_DAYS, addDays } from "../public/list";
 import { addWeeks, weekStartOf, type PublishSettings } from "../publish/plan";
 import { loadSettings, SETTINGS_SELECT, toSettings, type NumericSetting } from "../publish/run";
 import type { AdminContext, AdminHandler } from "./context";
-import { formatLocal } from "./time";
+import { formatLocal, fromLocalInput } from "./time";
 import { adminPage, back, e, here, must, postButton, str } from "./ui";
 
 const CITY = "toronto";
@@ -254,10 +258,117 @@ ${settingsForm(row, settings, backTo)}
 setting it that way — it is not a fault and is not coloured as one. Published, live and not a seed row, counted by the week the gathering
 <em>starts</em> in — Toronto's weeks, Monday to Sunday.
 A withdrawn gathering is not published, so its week is genuinely short and the next run refills it.</p>
+${await chipsSection(ctx, settings, city)}
 ${decisionsSection(decisions as any[], (lastRun as any[])[0]?.at ?? null, city.timezone)}
 ${adjustSection(adjusts as any[], settings)}`;
   return adminPage(request, ctx.email, "Publishing", body);
 };
+
+// ---------------------------------------------------------------------------
+// What a reader can actually filter by, and why not
+//
+// A chip appears on W1 only where there are three gatherings at two venues this week,
+// which is right and is also silent: a category that nothing can fill looks exactly
+// like a category that does not exist. That hides two different facts — "not enough
+// of it this week" and "the publisher refuses all of it" — and the second one is a
+// finding, not a state.
+//
+// Comedy is why this panel exists. There are 51 comedy listings in the queue and not
+// one has ever been published, because the AI scores stand-up like seated theatre:
+// 20 inside the lead window scoring 25–60 against a floor of 60. A reader sees no
+// Comedy chip and no comedy, and nothing anywhere said so (M2.3).
+// ---------------------------------------------------------------------------
+
+async function chipsSection(ctx: AdminContext, s: PublishSettings, city: { timezone: string }): Promise<string> {
+  // Read the public list exactly as a visitor gets it: through the anon key and the
+  // one public door, never with the service key, which would include the seed rows a
+  // visitor cannot see (V18) and quietly overstate every chip.
+  const now = new Date();
+  const win = windowFor(now, city.timezone, null);
+  let live: Awaited<ReturnType<typeof crowds>>;
+  try {
+    live = await crowds(
+      ctx.env,
+      new Date(fromLocalInput(`${win.start}T00:00`, city.timezone) ?? now.toISOString()),
+      new Date(fromLocalInput(`${addDays(win.start, WINDOW_DAYS)}T00:00`, city.timezone) ?? now.toISOString()),
+    );
+  } catch (err) {
+    return `<h2>What a reader can filter by</h2><p class="bad">The public list could not be read: ${e(
+      err instanceof Error ? err.message : String(err),
+    )}</p>`;
+  }
+
+  // Drafts inside the lead window, by category, with the best score they could offer.
+  // The floor applies to the score after the distance adjustment, so this compares
+  // the same number the publisher does — an admin line that is nearly right is worse
+  // than none (M2.2's venue-cap line).
+  const from = new Date(now.getTime() + s.leadDaysMin * DAY).toISOString();
+  const to = new Date(now.getTime() + s.leadDaysMax * DAY).toISOString();
+  const [drafts, venues, geo] = await Promise.all([
+    must(
+      ctx.db
+        .from("gatherings")
+        .select("id, category, venue_id, gathering_triage(score)")
+        .eq("status", "draft")
+        .eq("is_seed", false)
+        .gte("starts_at", from)
+        .lte("starts_at", to)
+        .limit(2000),
+    ),
+    must(ctx.db.from("venues").select("id, latitude, longitude").eq("city", CITY)),
+    loadCity(ctx.db, CITY),
+  ]);
+  const venueAt = new Map((venues as any[]).map((v) => [v.id, v]));
+  const waiting = new Map<string, { n: number; best: number | null }>();
+  for (const d of drafts as any[]) {
+    if (!d.category) continue;
+    const v = d.venue_id ? venueAt.get(d.venue_id) : null;
+    const km = v ? venueDistanceKm({ lat: v.latitude, lng: v.longitude }, geo) : null;
+    const ai = (Array.isArray(d.gathering_triage) ? d.gathering_triage[0] : d.gathering_triage)?.score ?? null;
+    const score = adjustedScore(ai, distanceAdjustment(km, geo));
+    const at = waiting.get(d.category) ?? { n: 0, best: null };
+    at.n += 1;
+    if (score !== null && (at.best === null || score > at.best)) at.best = score;
+    waiting.set(d.category, at);
+  }
+
+  const rows = TABS.flatMap((t) => {
+    const shown = new Map(chipsFor(live, t.value).map((c) => [c.value, c]));
+    const under = new Map(belowTheBar(live, t.value).map((c) => [c.value, c]));
+    return CATEGORIES.filter((c) => c.tab === t.value).map((c) => {
+      const on = shown.get(c.value);
+      const below = under.get(c.value);
+      const q = waiting.get(c.value);
+      const onList = on ?? below;
+      const why = on
+        ? ""
+        : below
+          ? `needs ${CHIP_MIN_GATHERINGS} gatherings at ${CHIP_MIN_VENUES} venues`
+          : q
+            ? q.best === null
+              ? `nothing published; ${q.n} draft${q.n === 1 ? "" : "s"} in the lead window, none scored yet`
+              : `nothing published; ${q.n} draft${q.n === 1 ? "" : "s"} in the lead window, best score ${q.best} against a floor of ${s.scoreFloor}`
+            : "nothing published, and nothing in the queue either";
+      return `<tr><td>${e(c.label)}</td><td class="muted">${e(tabLabel(t.value))}</td>
+<td>${onList ? `${onList.gatherings} at ${onList.venues}` : "0"}</td>
+<td>${on ? `<span class="good">shown</span>` : "—"}</td>
+<td class="muted">${e(why)}</td></tr>`;
+    });
+  }).join("");
+
+  const live_ = TABS.map((t) => {
+    const cs = chipsFor(live, t.value);
+    return `<strong>${e(tabLabel(t.value))}</strong>: ${cs.length ? cs.map((c) => e(c.label)).join(" · ") : "no chips this week"}`;
+  }).join(" — ");
+
+  return `<h2>What a reader can filter by</h2>
+<p>${live_}</p>
+<table><tr><th>Chip</th><th>Tab</th><th>This week</th><th></th><th>Why not</th></tr>${rows}</table>
+<p class="muted">Counted over the seven days W1 opens on, from the same public read a visitor gets. A chip appears at
+${CHIP_MIN_GATHERINGS} distinct gatherings in at least ${CHIP_MIN_VENUES} places; below that the gatherings are still on the list,
+because unfiltered is the default and only a chip can hide a row. A category with drafts waiting and nothing published is a
+scoring question, not a chip question — the floor is ${s.scoreFloor}.</p>`;
+}
 
 function decisionsSection(rows: any[], at: string | null, tz: string): string {
   if (!rows.length) {

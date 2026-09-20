@@ -1503,7 +1503,7 @@ describe("The public door's shape — the keys its readers need", () => {
 
     const want = {
       gathering: ["id", "slug", "name", "starts_at", "ends_at", "effective_end", "entry", "door_price_cents", "entry_note", "category", "source", "event_url"],
-      venue: ["id", "name", "address", "latitude", "longitude", "map_image_path", "map_key", "map_ready", "city_name", "timezone"],
+      venue: ["id", "name", "address", "latitude", "longitude", "map_image_path", "map_key", "map_ready", "map_spots", "city_name", "timezone"],
       counts: ["pinned", "open_to_meeting", "women", "men", "other", "crews_open"],
     };
     for (const [section, keys] of Object.entries(want)) {
@@ -1513,6 +1513,14 @@ describe("The public door's shape — the keys its readers need", () => {
     // map_ready is the one whose *type* matters: isReady() calls .includes on it, and
     // an object rather than an array fails silently into "no map".
     assert.ok(Array.isArray(door.venue.map_ready), "venue.map_ready must be an array");
+    // map_spots is the input to chooseZoom, which decides the map's zoom AND the key
+    // its picture is stored under. An object instead of an array, or a missing
+    // coordinate, silently sends every venue back to the widest frame (M2.3).
+    assert.ok(Array.isArray(door.venue.map_spots), "venue.map_spots must be an array");
+    for (const s of door.venue.map_spots) {
+      assert.ok("latitude" in s && "longitude" in s, "a map_spots entry has no coordinates");
+      assert.ok(s.latitude !== null && s.longitude !== null, "map_spots must not carry a spot with no coordinates");
+    }
     assert.ok(Array.isArray(door.spots), "spots must be an array");
     for (const s of door.spots) {
       for (const k of ["name", "description", "latitude", "longitude", "walk_minutes", "meet_at"]) {
@@ -1522,8 +1530,70 @@ describe("The public door's shape — the keys its readers need", () => {
 
     const listed = await rows(w.anon.rpc("public_gatherings", { p_from: inDays(-90), p_to: inDays(90) }));
     assert.ok(listed.length > 0, "the list came back empty, so its shape proves nothing");
-    for (const k of ["slug", "name", "starts_at", "ends_at", "entry", "door_price_cents", "entry_note", "category", "source", "venue_name", "city_name", "city_timezone", "pinned", "open_to_meeting", "crews_open"]) {
+    for (const k of ["slug", "name", "starts_at", "ends_at", "entry", "door_price_cents", "entry_note", "category", "signup_required", "source", "venue_id", "venue_name", "city_name", "city_timezone", "pinned", "open_to_meeting", "crews_open"]) {
       assert.ok(k in listed[0], `public_gatherings is missing "${k}" — got ${Object.keys(listed[0]).join(", ")}`);
     }
+  });
+
+  // M2.3 — the chip a Ticketmaster gathering wears, and the one rule that governs it.
+  //
+  // The rule lives in the database (public.chip_category) because two things have to
+  // apply it and must never disagree: the nightly import, for every draft it creates,
+  // and the one-off backfill for everything already here. This case is that rule's
+  // only test bed, so it proves all four branches and the lifecycle Alex fixed:
+  // **set once at draft, never overwritten** — an admin edit is final.
+  it("P66 a Ticketmaster listing gets the chip its own classification implies, once, and never again", async () => {
+    const draft = w.D.ticketmaster;
+    const setSnapshot = async (category: string | null) =>
+      ok(
+        w.service
+          .from("gathering_sources")
+          .update({ snapshot: category === null ? {} : { category } })
+          .eq("gathering_id", draft)
+          .eq("source", "ticketmaster"),
+        "set the snapshot",
+      );
+    const clear = async () => ok(w.service.from("gatherings").update({ category: null }).eq("id", draft), "clear the chip");
+    const categoryNow = async (): Promise<string | null> =>
+      (await ok(w.service.from("gatherings").select("category").eq("id", draft).single(), "read the chip")).category;
+
+    // Music of every kind is one chip, because the feed cannot tell a DJ night from a
+    // gig — the same rooms host both, measured (decisions.md).
+    for (const [classification, chip] of [
+      ["Music / Rock", "live_music"],
+      ["Music / Dance/Electronic", "live_music"],
+      ["Sports / Hockey", "sport"],
+      ["Arts & Theatre / Comedy", "comedy"],
+    ] as const) {
+      await setSnapshot(classification);
+      await clear();
+      await ok(w.service.rpc("admin_categorise_gatherings"), "categorise");
+      assert.equal(await categoryNow(), chip, `${classification} should be ${chip}`);
+    }
+
+    // Theatre, classical, opera, lectures: no chip, and the row stays on every
+    // unfiltered list. Null is a real answer, not a gap.
+    for (const classification of ["Arts & Theatre / Theatre", "Arts & Theatre / Classical", "Miscellaneous / Lecture/Seminar"]) {
+      await setSnapshot(classification);
+      await clear();
+      await ok(w.service.rpc("admin_categorise_gatherings"), "categorise");
+      assert.equal(await categoryNow(), null, `${classification} should wear no chip`);
+    }
+
+    // Set once, never overwritten: Alex's own edit survives a listing whose genre
+    // says something else, and survives every night afterwards.
+    await setSnapshot("Music / Rock");
+    await ok(w.service.from("gatherings").update({ category: "games" }).eq("id", draft), "hand-set the chip");
+    await ok(w.service.rpc("admin_categorise_gatherings"), "categorise");
+    assert.equal(await categoryNow(), "games", "the importer overwrote a chip somebody had chosen");
+
+    // A second pass writes nothing at all, which is what makes it safe nightly.
+    const again = await ok(w.service.rpc("admin_categorise_gatherings"), "categorise again");
+    assert.equal(again, 0, `a second pass rewrote ${again} rows`);
+
+    // Neither function is a visitor's to call, signed in or not.
+    await denied(w.anon.rpc("chip_category", { p_classification: "Music / Rock" }), "42501");
+    await denied(w.anon.rpc("admin_categorise_gatherings"), "42501");
+    await denied(c(w.m.Dev).rpc("admin_categorise_gatherings"), "42501");
   });
 });

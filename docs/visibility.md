@@ -406,6 +406,29 @@ word `withdrawn` — no name, no venue, no date, no counts (P61). A visitor lear
 that this URL is no longer on Pin'd, which is strictly less than the page told them the
 day before.
 
+**What M2.3 added to the two doors, and why neither is a visibility change.** The rule
+above is untouched: same definition, same where-clause, no policy added, altered or
+dropped, and not one row readable that was not readable before.
+
+- `public_gatherings` returns **`venue_id`** as well as the venue's name. A chip on W1
+  appears only where there are three gatherings in at least two distinct *places*, and
+  counting places by name is the kind of nearly-right that breaks when two rooms share
+  one. A venue is a public building; its id is not a fact about anybody.
+- `public_gathering` returns **`venue.map_spots`**: the coordinates of that venue's
+  *active* meeting spots, and nothing else about them — no name, no id, no description.
+  It is there so the crowd page can choose the map's zoom from the venue's whole spot
+  set in the same round trip, which is what keeps one Mapbox picture per venue rather
+  than one per gathering. A meeting spot is a curated public place (H5) whose
+  coordinates already appear on every crowd page at that venue; no coordinate in this
+  product belongs to a person (H1, H4). The only new fact a visitor can infer is how
+  many spots a venue has, where its own poll shows up to three.
+
+**The tabs and the chips are not a visibility mechanism.** Events and Community are
+split on `source`, and a chip narrows what a reader asked for. Both happen in the
+Worker over one read of rows that are already public, and neither can widen a list or
+show a person: W1 shows gatherings. Proved by P65 (the doors return every field their
+readers need) and P66 (the chip rule itself, and that no visitor may run it).
+
 ### Two accepted exceptions, both deliberate
 
 **1 · The policy harness's own rows are real rows, and a few of them are briefly
@@ -505,7 +528,8 @@ is what lets the redirect work; nothing else about them is public.
 ## 16 · Rule → SQL → proof
 
 Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1),
-`20260918154…_m1_2_` (M1.2), `20260918192…_m1_3_` (M1.3) and `20260920003…_m2_1_` (M2.1).
+`20260918154…_m1_2_` (M1.2), `20260918192…_m1_3_` (M1.3), `20260920003…_m2_1_` (M2.1),
+`20260920143…_m2_2_` (M2.2) and `20260920203410_m2_3_the_list` (M2.3).
 
 | Rule | Enforced by | Harness cases |
 |---|---|---|
@@ -527,7 +551,8 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | V13 withdrawn | `private.is_published`, `private.list_open`, `private.i_am_pinned_at`; policies `gatherings_read_published`, `gathering_spots_read_published`; `public.gathering_counts`; `admin_withdraw_gathering`, `admin_unwithdraw_gathering` | P49–P51 |
 | Importer rights | `admin_import_apply`, `admin_resolve_flag`, `admin_start_import_run`, `admin_purge_ticketmaster_data`, `admin_merge_venues`, `admin_confirm_venue` | P52–P54 |
 | V18 seed rows | `venues.is_seed`, `gatherings.is_seed`, `people.is_seed`; triggers `gatherings_seed_follows_venue`, `venues_seed_spreads`; `private.is_published`, `private.list_open`, `private.is_open_at`, `private.is_seed_venue`; policies `gatherings_read_published`, `gathering_spots_read_published`, `venues_read`, `meeting_spots_read`; `public.gathering_counts` | P55–P58 |
-| The public web's one door | `public.public_gatherings`, `public.public_gathering` | P55, P59, P61 |
+| The public web's one door | `public.public_gatherings`, `public.public_gathering` | P55, P59, P61, P65 |
+| The chip a Ticketmaster gathering wears (M2.3) | `public.chip_category`, `public.admin_categorise_gatherings` — both `service_role` only; written once, never over an existing value | P66 |
 | The public slug and its 301 | `gatherings.slug`, `gathering_slug_history`, trigger `gatherings_slug_history`; `admin_mint_slug`, `admin_set_slug`, `admin_publish_gathering` | P59, P60 |
 | Own rows only | policies `*_own`, `*_self`; column grants | P07, P08, P10, P30, P32 |
 | Locked tables | `revoke all` with nothing granted back | P03, P04 |

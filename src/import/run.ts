@@ -198,6 +198,13 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
     // 4. Apply, in one transaction.
     counts.applied = await must(db.rpc("admin_import_apply", { p_run: runId, p_plan: plan }));
 
+    // 4b. The chip a reader filters by, from each listing's own classification
+    // (M2.3). In the same run the draft is created in, so "set once at draft" is
+    // true, and only where nobody has said — an admin edit is never overwritten and
+    // a genre Ticketmaster changes later never silently re-tags anything. The rule
+    // itself is public.chip_category, one copy, in the database.
+    counts.categorised = await must(db.rpc("admin_categorise_gatherings"));
+
     // 5. Retention.
     counts.purged = await must(db.rpc("admin_purge_ticketmaster_data", { p_days: RETENTION_DAYS }));
 
@@ -275,6 +282,7 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
       : `Import ${status === "partial" ? "finished with problems" : "done"}: ${a.new ?? 0} new, ${a.updated ?? 0} updated, ` +
         `${a.dismissed ?? 0} dismissed, ${a.flagged ?? 0} flagged; ${counts.scored ?? 0} scored` +
         (counts.unscored_left ? `, ${counts.unscored_left} still unscored` : "") +
+        (counts.categorised ? `; ${counts.categorised} given a chip` : "") +
         `; ${counts.published ?? 0} published; AI $${aiCost.toFixed(2)}.`;
 
   // A failed run tells somebody. M2.2's premise is that the city's list refreshes

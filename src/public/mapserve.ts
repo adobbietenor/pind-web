@@ -13,7 +13,23 @@
 
 import type { Env } from "../env";
 import { serviceClient } from "../supabase";
-import { BUCKET, IMMUTABLE, MAX_ATTEMPTS, mapKey, objectPath, renderVenueMap, shortHash } from "./venuemap";
+import { BUCKET, IMMUTABLE, MAX_ATTEMPTS, chooseZoom, mapKey, objectPath, renderVenueMap, shortHash } from "./venuemap";
+
+// The zoom a venue's picture is drawn at comes from its own active spots (chooseZoom),
+// so both routes below have to read them. One query, coordinates only: the same input
+// the crowd page gets through public_gathering, so the two always agree on the answer.
+async function venueZoom(
+  service: { from: (t: string) => any },
+  venue: { latitude: number | null; longitude: number | null },
+  venueId: string,
+): Promise<number> {
+  const { data } = await service
+    .from("meeting_spots")
+    .select("latitude, longitude")
+    .eq("venue_id", venueId)
+    .eq("active", true);
+  return chooseZoom(venue, (data ?? []) as { latitude: number | null; longitude: number | null }[]);
+}
 
 const notFound = () => new Response("Not found", { status: 404, headers: { "cache-control": "public, max-age=60" } });
 
@@ -62,14 +78,15 @@ async function buildVenueMapImage(env: Env, venueId: string, key: string): Promi
     .maybeSingle();
   if (!venue || venue.is_seed) return notFound();
 
-  // The key must be the one this venue's current coordinates produce. An old key —
-  // from coordinates since corrected — is gone, not stale: that is what makes the
-  // response safe to cache for a year.
+  // The key must be the one this venue's current coordinates and current spots
+  // produce. An old key — from coordinates since corrected, or from before a spot
+  // moved the zoom — is gone, not stale: that is what makes the response safe to
+  // cache for a year.
   const { data: current } = await service.rpc("venue_map_key", {
     p_lat: venue.latitude,
     p_lng: venue.longitude,
   });
-  const expected = mapKey({ map_key: (current as string | null) ?? null });
+  const expected = mapKey({ map_key: (current as string | null) ?? null }, await venueZoom(service, venue, venueId));
   if (!expected || expected !== key) return notFound();
 
   return serveObject(env, objectPath(venueId, key), "image/webp");
@@ -115,7 +132,8 @@ export async function ensureVenueMap(env: Env, venueId: string): Promise<void> {
   if (!venue || venue.is_seed || venue.latitude === null) return;
 
   const { data: key } = await service.rpc("venue_map_key", { p_lat: venue.latitude, p_lng: venue.longitude });
-  const full = mapKey({ map_key: (key as string | null) ?? null });
+  const zoom = await venueZoom(service, venue, venueId);
+  const full = mapKey({ map_key: (key as string | null) ?? null }, zoom);
   if (!full) return;
 
   const { data: record } = await service
@@ -127,6 +145,12 @@ export async function ensureVenueMap(env: Env, venueId: string): Promise<void> {
   if (record?.status === "ok") return;
   if ((record?.attempts ?? 0) >= MAX_ATTEMPTS) return;
 
-  const outcome = await renderVenueMap(env.MAPBOX_TOKEN, service as never, { ...venue, map_key: (key as string | null) ?? null }, record?.attempts ?? 0);
+  const outcome = await renderVenueMap(
+    env.MAPBOX_TOKEN,
+    service as never,
+    { ...venue, map_key: (key as string | null) ?? null },
+    record?.attempts ?? 0,
+    zoom,
+  );
   if (!outcome.ok) console.warn(JSON.stringify({ venueMap: venueId, key: full, error: outcome.error }));
 }

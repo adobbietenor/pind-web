@@ -1407,3 +1407,137 @@ change). Where the plan has more detail, the plan is the reference.
   **On W1 it is suppressed**, because a "Ticketed" tag on two hundred rows tells a
   reader nothing — unless the gathering carries a note worth reading, like "tickets
   are sold per table".
+
+### Decided in Phase 2 M2.3
+
+- **A chip is set once, at draft, and never overwritten** (Alex, M2.3). Every
+  Ticketmaster gathering now carries the chip its own listing implies — Music / * →
+  Music, Sports / * → Sport, Arts & Theatre / Comedy → Comedy, everything else nothing —
+  written when the draft is created and **only where the column is null**. So an edit in
+  the admin is final, and a genre Ticketmaster changes later never silently re-tags a
+  published gathering. Null stays a real answer: unclassified, and on every unfiltered
+  list, because unfiltered is the default and only a chip can hide a row.
+  **The rule lives in the database** (`public.chip_category`), called by both things
+  that need it — the nightly import for every new draft, and the one-off backfill — so
+  there is no second copy in the Worker to drift away from it. Harness P66.
+- **"Music", not "Live music"** (Alex, M2.3). Fifteen of the 39 published Events rows
+  are Dance/Electronic club nights, and a DJ set is not live music. The feed cannot tell
+  a DJ night from a gig (above, "No 'going out' chip"), so the honest move is the wider
+  word rather than a chip claiming a distinction we cannot make. The stored value stays
+  `live_music`: an identifier is not copy, and changing a label is one line in
+  `packages/shared`.
+- **A chip is counted from the rows on the page, not from a table** (Claude, M2.3,
+  within Alex's rule). The bar is unchanged — three gatherings at two venues — but it is
+  applied to the week and tab being shown, before any chip is applied. Two properties
+  follow, and both are the point: **no chip can filter to an empty page**, and **no chip
+  advertises an absence**. A hand-typed `?c=` value that did not earn a chip is dropped
+  rather than honoured, for the same reason.
+  A consequence worth stating: a category is offered in whichever tab has the rows for
+  it. An open mic entered by hand is Community *and* is music, and three of them in two
+  places should put a Music chip on Community. The `tab` field in `CATEGORIES` is where
+  a chip is expected to live and the order it appears in, not a gate.
+- **Every chip selected is not the same as no chips selected** (Claude, M2.3). They look
+  identical and are not: unfiltered also shows the rows nobody has classified. The first
+  version collapsed one into the other and would have quietly added back rows a reader
+  had filtered out.
+- **The two tabs are two paths** — `/` and `/community` (Claude's call, M2.3; Alex left
+  it to me). "pind.social/community" is a link worth pasting into a run-club thread on
+  its own, and `/` stays the shortest thing to paste anywhere else. Chips ride as
+  `?c=games,running` on either, and **the chips do not follow you across tabs**: they
+  are counted per tab, so carrying "Running" into Events would filter for something that
+  tab does not have.
+- **Both tabs are always shown, even when one is empty this week** (Claude, M2.3). They
+  are the shape of the page, not a result of the data. Hiding one would move everything
+  else depending on what Toronto happened to have on, and a reader who came for the run
+  clubs would find no way to ask for them. An empty tab gets an invitation and a line
+  saying what the other tab has that week.
+- **A week at a time, with a pager** (Alex, M2.3). At fifty a week the whole published
+  horizon is 112 rows today and over 200 once the publisher is full, which is 60 KB of
+  HTML on a page with a one-second budget. **In Alex's words:** "Option 2 puts 60 KB of
+  HTML on a page with a one-second budget, and option 3 hides most of the list behind a
+  tap on the page that exists to show someone the city." A `?from=` in the past, or that
+  is not a date, opens on this week rather than on a week that has been — a link kept in
+  a Reddit thread should not open on gatherings that have happened.
+- **The cap reads the listing's own classification; the stored chip is the fallback**
+  (Claude, M2.3 — measured, and the reversal of what it was). Until M2.3 only
+  hand-entered rows had a stored category, so "stored wins" and "classification wins"
+  were the same rule on different rows. Filling the chip in for every Ticketmaster row
+  made them different, and the old precedence folded all 189 music candidates into one
+  bucket — losing the club-night-versus-rock-show split the cap exists for.
+  Measured on the real queue the night it was filled:
+
+  | precedence | published tonight | the three weeks end at |
+  |---|---|---|
+  | stored chip first (as it was) | **0** | 4 / 48 / 30 |
+  | classification first (now) | **12** | 4 / 50 / 40 |
+
+  **This is the `FOLD_THRESHOLD` shape again**: a data improvement that silently
+  switches off a rule, with every line of code still looking right. `CAP_BUCKET` now
+  names all eight chip values too — the version that still said `taking_part` after that
+  split into four let unlisted values fall through `?? stored` and quietly become cap
+  buckets of their own, each with its own allowance.
+- **The five Community chips deliberately do not share one cap bucket** (Claude, M2.3;
+  measured). Folding them changes nothing today — identical weeks, identical refusals —
+  and it would sit Community permanently at or above its 40% share, since 21 of the 50
+  rows in the week of 21 September are community. **A guard that fires in normal weather
+  teaches the reader to ignore it**, which is Alex's own rule about the watchdog, applied
+  to the cap.
+- **The map's zoom is a property of the venue, chosen from its own spots** (Alex, M2.3:
+  "adaptive zoom first, since it treats the cause"). At a fixed zoom 16 one frame covers
+  about 1.3 km in a city where every spot is inside 500 m, so three spots a two-minute
+  walk apart landed inside one label's width of each other — measured: of the six venues
+  with more than one spot, **three overlap**, and Snakes & Lattes College has three
+  inside a box 23% of the picture wide. The picture now zooms in as far as it can while
+  every spot that fits at the wide frame still has room. Zoom 16 still decides **what is
+  on the map at all**, so nothing changes about a spot being listed as further out, and
+  zooming in never adds a spot, so the choice cannot oscillate.
+  - **It must be the venue's spots, not the gathering's poll**, or two gatherings at one
+    venue would want two different pictures and "one Mapbox image per venue, ever"
+    becomes one per gathering. `public_gathering` returns the venue's active spot
+    coordinates for exactly this.
+  - **The zoom is part of the image's key**, like the coordinates and the renderer
+    version, so approving a spot that moves the zoom mints a new immutable URL and
+    nothing stale can be served.
+  - **"Still inside the frame" was the wrong test for zooming in**, found on the
+    deployed page: it chose zoom 18 for Snakes & Lattes and put two of three dots at 6%
+    and 96% across, clipped at phone width. Being drawn at all and being drawn with room
+    are different questions, and they now have different margins.
+- **A spot is a numbered card, and the map is the way into it** (Alex; decisions Part 5,
+  "A spot is a card, not a maps link" — the interaction half, built in M2.3). The dot
+  used to carry the spot's name, its walking minutes and a Directions link in a box, and
+  the box *was* the interaction: tapping it left the site for Google Maps. Now the map
+  answers "how far, and which way" with numbered dots, and the cards under it answer
+  "what, and when", with the walking directions link inside. It is a plain anchor —
+  no JavaScript, and it works with a keyboard.
+  - **Adaptive zoom alone was not enough**, which is why the labels went: even at the
+    zoom chosen, Snakes & Lattes' closest pair is 14% apart against a label 19.5% wide,
+    and three label boxes fill a phone-width picture at any zoom.
+  - **Only the spots on the picture are numbered, and consecutively.** The first deploy
+    showed dots 1 and 3, with 2 being a two-kilometre walk away and not on the map,
+    which leaves a reader hunting for a number that is not there. An off-frame spot
+    keeps its card and says where it is instead.
+  - **What a card holds is only what we honestly know** — the name, what it is where
+    somebody has written it, the walk, the meet time, the link. What the place is like,
+    and whether six can get a table, arrive with the manual pass (M5.2). An empty field
+    prints nothing rather than something guessed.
+- **An uploaded map override carries no markers** (Claude, M2.3). It is somebody else's
+  picture at a scale we do not know, so our coordinates mean nothing over it and a dot
+  200 m out is worse than no dot. Its spots appear in the cards like everyone else's.
+- **A Worker route that is not in `run_worker_first` never runs** (found in M2.3).
+  `/community` came back as the Expo app's own `index.html` with a 200 — the
+  single-page fallback — so a missing route looked like a working page of the wrong app
+  rather than like a 404, and Cloudflare then cached it. It is the same lesson as M2.1's
+  injected beacon one layer down: **the deployed URL is the only thing that can tell you
+  what a route does.** Adding a public page means adding it to `wrangler.jsonc` and then
+  fetching it.
+- **Comedy is refused by the scoring, and the admin has to say so** (Alex, M2.3, on the
+  finding). A chip appears only where something can fill it, which correctly hides
+  Comedy — and thereby hides the fact that **51 comedy listings have never produced a
+  single published gathering**, because the AI scores stand-up like seated theatre:
+  25–60 against a floor of 60. **In Alex's words:** "That's a scoring problem, not a chip
+  problem — and it's the same shape as FOLD_THRESHOLD: a number that looks right and
+  quietly excludes things. I'd rather comedy earned its chip than have it hidden
+  correctly." The Publishing panel now prints, for every category, whether its chip is
+  live, whether it is below the bar, or how many drafts are waiting and the best score
+  they have against the floor. **Fixing the rubric is a separate, measured pass** — what
+  it involves is in spec §6, M2.3.

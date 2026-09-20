@@ -13,7 +13,12 @@ export const TAGS_PER_PROFILE = 3;
 // The order is the order they appear. Null is unclassified and still visible, because
 // unfiltered is the default: only a chip can hide a row.
 export const CATEGORIES = [
-  { value: "live_music", label: "Live music", tab: "events" },
+  // "Music", not "Live music" (Alex, M2.3): 15 of the 39 published Events rows are
+  // Dance/Electronic club nights, and a DJ set is not live music. The feed cannot
+  // tell a DJ night from a gig — the same rooms host both, measured — so the honest
+  // move is the wider word, not a chip that claims a distinction we cannot make.
+  // The stored value stays `live_music`: an identifier is not copy.
+  { value: "live_music", label: "Music", tab: "events" },
   { value: "sport", label: "Sport", tab: "events" },
   { value: "comedy", label: "Comedy", tab: "events" },
   { value: "games", label: "Games", tab: "community" },
@@ -43,3 +48,27 @@ export const CHIP_MIN_VENUES = 2;
 
 export const categoryLabel = (value: string | null | undefined): string =>
   CATEGORIES.find((c) => c.value === value)?.label ?? "";
+
+// ---------------------------------------------------------------------------
+// The two tabs (Alex, walking the community pages; M2.3 builds them)
+// ---------------------------------------------------------------------------
+
+// **Which tab a gathering is in is its source, so there is no editorial call per
+// gathering.** Events is the Ticketmaster feed; Community is everything entered by
+// hand and, later, everything the Community & free run finds (M4.4).
+//
+// This is not a second product. Community gatherings and big ticketed events share
+// one structure, one pin, one crew: "a Leafs game and a run club differ only in what
+// you are committing to" (Alex, after the community pass). The tabs exist because a
+// fifty-row list needs a way in, and because the useful chips differ between the two
+// halves — nothing more.
+export const TABS = [
+  { value: "events", label: "Events", path: "/" },
+  { value: "community", label: "Community", path: "/community" },
+] as const;
+
+export type TabValue = (typeof TABS)[number]["value"];
+
+export const tabForSource = (source: string): TabValue => (source === "ticketmaster" ? "events" : "community");
+
+export const tabLabel = (value: TabValue): string => TABS.find((t) => t.value === value)!.label;

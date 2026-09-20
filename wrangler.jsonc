@@ -71,12 +71,20 @@
   // M2.1 adds the public layer. "/g/*" is listed although /g/<slug>/pin is an APP
   // route: the Worker takes the whole prefix and hands back what it does not own
   // through the ASSETS binding, which keeps one place deciding what is public.
+  //
+  // M2.3 adds "/community", W1's second tab. **A Worker route that is not listed here
+  // never runs**: the assets binding answers first and the app's single-page fallback
+  // returns its own index.html with a 200, so the new page looked like a working page
+  // of the wrong app rather than like a 404. Found by fetching the deployed URL, not
+  // by reading the code — which is the M2.1 rule about checking from a browser, one
+  // layer down again.
   "assets": {
     "binding": "ASSETS",
     "directory": "./app/dist",
     "not_found_handling": "single-page-application",
     "run_worker_first": [
       "/",
+      "/community",
       "/health",
       "/admin",
       "/admin/*",

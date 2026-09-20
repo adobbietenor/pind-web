@@ -4,7 +4,7 @@
 // Map images go in the PUBLIC venue-maps bucket (decisions Part 5): a public building
 // and its public spots, never a person (H1). Only this admin writes there.
 import { spotSuggestionsOn } from "../env";
-import { MAX_ATTEMPTS, frameMetres, place, renderVenueMap } from "../public/venuemap";
+import { MAX_ATTEMPTS, chooseZoom, frameMetres, place, renderVenueMap } from "../public/venuemap";
 import { distanceKm } from "../import/ticketmaster";
 import type { AdminContext, AdminHandler } from "./context";
 import { adminPage, back, e, here, link, must, notFound, postButton, str } from "./ui";
@@ -138,13 +138,13 @@ export const createVenue: AdminHandler = async (request, ctx) => {
 // What the crowd page's map is doing for this venue, and why it is not doing it.
 // A venue whose picture fails every time would otherwise be invisible — it would just
 // show the fallback forever, with nobody the wiser.
-function mapPanel(v: any, renders: any[], noToken: boolean): string {
+function mapPanel(v: any, renders: any[], noToken: boolean, zoom: number): string {
   if (v.latitude === null) {
     return `<p class="bad">No coordinates, so no map can be fetched. The crowd page falls back to the schematic, or to the spot list. Add coordinates above.</p>`;
   }
   const current = renders.find((r) => r.status === "ok");
   const failed = renders.filter((r) => r.status !== "ok");
-  const frame = frameMetres(v.latitude);
+  const frame = frameMetres(v.latitude, zoom);
 
   const lines: string[] = [];
   if (noToken) {
@@ -153,7 +153,7 @@ function mapPanel(v: any, renders: any[], noToken: boolean): string {
     );
   }
   lines.push(
-    `<p class="muted">The frame is about ${frame} m across, centred on the venue. A spot outside it is listed on the crowd page with its walking minutes and a directions link, and the page says it is not on the map.</p>`,
+    `<p class="muted">Drawn at zoom ${zoom}, so the frame is about ${frame} m across, centred on the venue. The zoom comes from this venue's own spots: the picture goes as far in as it can while still holding every spot that fits at zoom 16, so spots a two-minute walk apart do not land on top of each other. A spot outside the widest frame is listed on the crowd page with its walking minutes and a directions link, and the page says it is not on the map.</p>`,
   );
   if (current) {
     lines.push(
@@ -189,10 +189,14 @@ export const venueDetail: AdminHandler = async (request, ctx) => {
 
   // A spot outside the crowd page's map frame is the M5.2 distance signal, seen here
   // rather than only by a stranger on the public page.
+  // The zoom this venue's picture is drawn at, from its own active spots — the same
+  // answer the crowd page and the render job get, from the same input.
+  const zoom = chooseZoom(v, spots.filter((s: any) => s.active));
   const offMap = (sp: any): boolean =>
     v.latitude !== null && sp.latitude !== null && !place(
       { latitude: v.latitude, longitude: v.longitude },
       { latitude: sp.latitude, longitude: sp.longitude },
+      zoom,
     ).onMap;
   const backTo = here(request);
   const approved = spots.filter((s: any) => s.active).length;
@@ -266,7 +270,7 @@ lng <input name="longitude" size="11" placeholder="-79.3776">
 
 <h2>Crowd page map</h2>
 <p class="muted">The venue and its meeting spots, never people (H1). The picture is fetched once from Mapbox for these coordinates and served from pind.social, never from Supabase. Markers, names and walking minutes are drawn over it by the page, so approving a spot later needs no new picture.</p>
-${mapPanel(v, renders, !ctx.env.MAPBOX_TOKEN?.trim())}
+${mapPanel(v, renders, !ctx.env.MAPBOX_TOKEN?.trim(), zoom)}
 ${v.latitude !== null ? postButton(`/admin/venues/${id}/map/fetch`, renders.some((r: any) => r.status === "ok") ? "Fetch the map again" : "Fetch the map now", backTo, { cls: "plain" }) : ""}
 <h3>Uploaded override</h3>
 <p class="muted">Optional. An uploaded image replaces the fetched one. PNG, JPEG or WebP, up to 2 MB.</p>
@@ -319,7 +323,14 @@ export const fetchVenueMap: AdminHandler = async (request, ctx) => {
   const { data: key } = await ctx.db.rpc("venue_map_key", { p_lat: venue.latitude, p_lng: venue.longitude });
   await ctx.db.from("venue_map_renders").delete().eq("venue_id", id);
 
-  const outcome = await renderVenueMap(ctx.env.MAPBOX_TOKEN, ctx.db as never, { ...venue, map_key: (key as string | null) ?? null }, 0);
+  const active = await must(ctx.db.from("meeting_spots").select("latitude, longitude").eq("venue_id", id).eq("active", true));
+  const outcome = await renderVenueMap(
+    ctx.env.MAPBOX_TOKEN,
+    ctx.db as never,
+    { ...venue, map_key: (key as string | null) ?? null },
+    0,
+    chooseZoom(venue, active),
+  );
   return back(form, outcome.ok ? { ok: `Map fetched (${Math.round((outcome.bytes ?? 0) / 1024)} KB)` } : { err: outcome.error ?? "Fetching the map failed" });
 };
 
