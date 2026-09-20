@@ -25,6 +25,8 @@ interface WeekRow {
   weekStart: string;
   published: number;
   target: number;
+  // What the last run said about this week, if it said anything.
+  note?: string;
 }
 
 async function weeksNow(ctx: AdminContext, settings: PublishSettings, tz: string): Promise<WeekRow[]> {
@@ -48,7 +50,30 @@ async function weeksNow(ctx: AdminContext, settings: PublishSettings, tz: string
     const w = weekStartOf(g.starts_at, tz);
     if (counts.has(w)) counts.set(w, counts.get(w)! + 1);
   }
-  return starts.map((weekStart) => ({ weekStart, published: counts.get(weekStart)!, target: settings.targetWeekly }));
+  // The last run's own note per week, which is the only thing that actually knows
+  // *why* a week is short. Stored with the run since M2.2.
+  const runs = await must(
+    ctx.db.from("import_runs").select("counts").in("trigger", ["cron", "manual"]).order("started_at", { ascending: false }).limit(1),
+  );
+  const notes = new Map<string, string>(
+    (((runs as any[])[0]?.counts?.publish_weeks ?? []) as { weekStart: string; note: string }[]).map((w) => [w.weekStart, w.note]),
+  );
+  return starts.map((weekStart) => ({
+    weekStart,
+    published: counts.get(weekStart)!,
+    target: settings.targetWeekly,
+    note: notes.get(weekStart),
+  }));
+}
+
+// A week below its target is the ordinary state at a target the queue cannot meet —
+// 50 a week against 11–28 eligible — so it is not coloured as a fault. Red here would
+// say something is wrong on every page, every day, and a warning that is always on is
+// a warning nobody reads (Alex, M2.2 walk).
+function shortfall(w: WeekRow): string {
+  if (w.published >= w.target) return `<span class="good">full</span>`;
+  const short = w.target - w.published;
+  return `<span class="muted">${short} under the target${w.note ? "" : " — the queue had nothing else eligible"}</span>`;
 }
 
 function weekLabel(weekStart: string): string {
@@ -64,17 +89,14 @@ export async function publishingPanel(ctx: AdminContext): Promise<string> {
   const weeks = await weeksNow(ctx, settings, city.timezone);
   const cells = weeks
     .map((w) => {
-      const short = w.target - w.published;
-      const state =
-        short > 0
-          ? `<span class="bad">${w.published} of ${w.target}</span>`
-          : `<span class="good">${w.published} of ${w.target}</span>`;
-      return `<td>${e(weekLabel(w.weekStart))}<br>${state}</td>`;
+      const cls = w.published >= w.target ? "good" : "";
+      return `<td>${e(weekLabel(w.weekStart))}<br><span class="${cls}">${w.published} of ${w.target}</span></td>`;
     })
     .join("");
   return `<fieldset><legend>Publishing</legend>
 <table><tr>${cells}</tr></table>
-<p class="muted">The nightly run fills each week to the target of ${settings.targetWeekly}${settings.adaptive ? "" : " (adaptive off)"}.
+<p class="muted">The nightly run fills each week towards the target of ${settings.targetWeekly}${settings.adaptive ? "" : " (adaptive off)"};
+under it is normal while the queue supplies fewer than that.
 <a href="/admin/publishing">Publishing panel</a> — every choice, and why.</p></fieldset>`;
 }
 
@@ -199,34 +221,38 @@ export const publishingPage: AdminHandler = async (request, ctx) => {
     must(db.from("publish_target_log").select("*").eq("city", CITY).order("at", { ascending: false }).limit(12)),
   ]);
 
+  // The most recent fill, whether or not it had an import run behind it. A fill run
+  // outside the nightly import records its decisions with a null run_id, and `eq`
+  // never matches null in PostgREST — so this used to report "no run has filled a
+  // week yet" while the decisions sat there unread (found on the M2.2 walk).
+  const hasRun = (lastRun as any[]).length > 0;
   const runId = (lastRun as any[])[0]?.run_id ?? null;
-  const decisions =
-    runId === null
-      ? []
-      : await must(
-          db
-            .from("publish_decisions")
-            .select("*")
-            .eq("city", CITY)
-            .eq("run_id", runId)
-            .order("week_start")
-            .order("outcome")
-            .order("rank", { nullsFirst: false }),
-        );
+  const decisions = !hasRun
+    ? []
+    : await must(
+        (runId === null
+          ? db.from("publish_decisions").select("*").eq("city", CITY).is("run_id", null)
+          : db.from("publish_decisions").select("*").eq("city", CITY).eq("run_id", runId)
+        )
+          .order("week_start")
+          .order("outcome")
+          .order("rank", { nullsFirst: false }),
+      );
 
   const weekRows = weeks
-    .map((w) => {
-      const short = w.target - w.published;
-      return `<tr><td>${e(weekLabel(w.weekStart))}</td><td>${w.published}</td><td>${w.target}</td>
-<td class="${short > 0 ? "bad" : "good"}">${short > 0 ? `short by ${short}` : "full"}</td></tr>`;
-    })
+    .map(
+      (w) => `<tr><td>${e(weekLabel(w.weekStart))}</td><td>${w.published}</td><td>${w.target}</td>
+<td>${shortfall(w)}</td><td class="muted">${e(w.note ?? "")}</td></tr>`,
+    )
     .join("");
 
   const body = `
 ${settingsForm(row, settings, backTo)}
 <h2>The next three weeks</h2>
-<table><tr><th>Week</th><th>Published</th><th>Target</th><th></th></tr>${weekRows}</table>
-<p class="muted">Published, live and not a seed row, counted by the week the gathering <em>starts</em> in — Toronto's weeks, Monday to Sunday.
+<table><tr><th>Week</th><th>Published</th><th>Target</th><th></th><th>What the last run made of it</th></tr>${weekRows}</table>
+<p class="muted">A week under its target is the ordinary state while the target is higher than the queue can supply, which is the point of
+setting it that way — it is not a fault and is not coloured as one. Published, live and not a seed row, counted by the week the gathering
+<em>starts</em> in — Toronto's weeks, Monday to Sunday.
 A withdrawn gathering is not published, so its week is genuinely short and the next run refills it.</p>
 ${decisionsSection(decisions as any[], (lastRun as any[])[0]?.at ?? null, city.timezone)}
 ${adjustSection(adjusts as any[], settings)}`;

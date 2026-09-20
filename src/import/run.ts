@@ -37,10 +37,12 @@ import {
 } from "./ticketmaster";
 
 export const IMPORTER = "importer:ticketmaster";
-// decisions Part 5. Drafts whose final score (after the distance adjustment) is below
-// FOLD_THRESHOLD are collapsed in the draft queue (Alex, M1.3: raised from 40 to 70).
-// SCORE_THRESHOLD still decides which venues count as needing spots.
-export const FOLD_THRESHOLD = 70;
+// The draft queue folds low scores away at the publisher's own floor, read from the
+// cities row (src/admin/gatherings.ts). It used to be a constant here, set to 70;
+// when M2.2 moved the floor to 60 the queue went on hiding drafts the publisher was
+// about to publish, under a label naming the old number. One threshold, one home.
+// SCORE_THRESHOLD is a different question — which venues count as needing spots — and
+// stays a constant until something needs it not to be.
 export const SCORE_THRESHOLD = 40;
 const SCORE_BATCH = 25;
 const SCORE_PARALLEL = 4;

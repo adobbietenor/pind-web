@@ -2,7 +2,8 @@
 // CSV export. Lifecycle changes go through the admin_* database functions, which
 // enforce the rules (a venue to publish, zero pins to unpublish) and write
 // the moderation log (decisions.md Part 5, docs/visibility.md V11/V12).
-import { FOLD_THRESHOLD, IMPORTER } from "../import/run";
+import { IMPORTER } from "../import/run";
+import { loadSettings } from "../publish/run";
 import type { AdminHandler } from "./context";
 import { toCsv } from "./csv";
 import {
@@ -70,6 +71,13 @@ export const draftQueue: AdminHandler = async (request, ctx) => {
   const now = new Date().toISOString();
   const until = new Date(Date.now() + (wide ? 56 : 14) * 24 * HOUR).toISOString();
   const weekAgo = new Date(Date.now() - 7 * 24 * HOUR).toISOString();
+  // The queue folds at the publisher's own floor, read from the cities row — not at a
+  // constant. It used to fold at a hard-coded 70 while the floor was 60, so seven
+  // drafts the publisher would happily publish were collapsed out of sight under a
+  // label naming the wrong number (found on the M2.2 walk). A threshold that decides
+  // what Alex sees has to be the same threshold that decides what strangers see.
+  const settings = await loadSettings(db, "toronto");
+  const floor = settings.scoreFloor;
   const [drafts, upcoming, dismissed, recent, p] = await Promise.all([
     must(
       db
@@ -174,7 +182,7 @@ ${postButton(`/admin/gatherings/${g.id}/dismiss`, "Dismiss", backTo, { cls: "pla
     .map(([day, list]) => {
       const low = (g: any) => {
         const final = p.rank(g.venue_id, one<{ score: number | null }>(g.gathering_triage)?.score ?? null).final;
-        return !showAll && final !== null && final < FOLD_THRESHOLD;
+        return !showAll && final !== null && final < floor;
       };
       const shown = list.filter((g) => !low(g));
       const folded = list.filter(low);
@@ -182,7 +190,7 @@ ${postButton(`/admin/gatherings/${g.id}/dismiss`, "Dismiss", backTo, { cls: "pla
       const label = formatLocal(list[0].starts_at, p.tz(list[0].venue_id)).replace(/,?\s*\d{1,2}:\d{2}.*$/, "");
       return `<h3>${e(label)} <span class="muted">(${list.length})</span></h3>
 ${shown.length ? `<table>${HEAD}${shown.map(row).join("")}</table>` : ""}
-${folded.length ? `<details><summary class="muted">${folded.length} scoring under ${FOLD_THRESHOLD}</summary><table>${HEAD}${folded.map(row).join("")}</table></details>` : ""}`;
+${folded.length ? `<details><summary class="muted">${folded.length} scoring under the floor of ${floor}</summary><table>${HEAD}${folded.map(row).join("")}</table></details>` : ""}`;
     })
     .join("");
 
@@ -210,7 +218,7 @@ ${folded.length ? `<details><summary class="muted">${folded.length} scoring unde
   const toggles = [
     wide ? view(null, showAll ? "all" : null, "Next 14 days") : `<strong>Next 14 days</strong>`,
     wide ? `<strong>Next 8 weeks</strong>` : view("8w", showAll ? "all" : null, "Next 8 weeks"),
-    showAll ? view(wide ? "8w" : null, null, `Fold scores under ${FOLD_THRESHOLD}`) : view(wide ? "8w" : null, "all", "Show all scores"),
+    showAll ? view(wide ? "8w" : null, null, `Fold scores under ${floor}`) : view(wide ? "8w" : null, "all", "Show all scores"),
   ].join(" · ");
 
   const body = `
