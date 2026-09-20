@@ -603,7 +603,7 @@ working. Hours are Alex's, agent-assisted.
 | **Phase 2** | **The public layer and publishing, on the Worker** | | 18–26 |
 | M2.0 | Repo + Expo scaffold | **Done** — merged as `7fc973a` | 6–8 |
 | M2.1 | Public web layer on pind.social (W1–W4, the real map, the domain) | **Done** — merged as `6fea4a3` | 8–12 |
-| M2.2 | Auto-publishing v1 — fixed target (§8) | **Ready to check on device** — branch `phase2/m2.2-auto-publishing` | 4–6 |
+| M2.2 | Auto-publishing v1 — fixed target (§8) | **Done** — merged as `ec9d74d` | 4–6 |
 | M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | Not started | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | Not started | 12–16 |
@@ -906,6 +906,43 @@ the last run was Friday evening. The diagnosis matters more than the credential.
   kind per Toronto day), and every admin page carries a red banner while the import is
   stale. The email needs `RESEND_API_KEY` and `ALERT_EMAIL`; until they are set the
   banner says in as many words that nothing emailed him.
+
+#### Phase 2 M2.2 complete — auto-publishing v1
+Merged as `ec9d74d`. The publish click is a nightly job: settings on the `cities` row,
+the fill inside the import run, Alex's marks, promotion records, a Publishing panel
+that explains every choice **and every refusal** in one line, and the weekly adjust
+written and gated by `adaptive = off` so M4.5 is a checkbox. Walked on a phone across
+all eight acceptance steps.
+
+**As it stands on staging:** target **50** a week, score floor **60**, lead window
+**0–21 days**, per-venue cap **6**, category share **40%** with an allowance of 3,
+adaptive off. 128 unit tests, 66 policy-harness cases.
+
+**The walk found five real bugs that the tests did not.** This is the argument for the
+on-device walk being what closes a milestone rather than a green suite:
+1. **Marks recorded but never published.** "Publish first" only skipped the score
+   floor, so three marked drafts were refused by the venue and category caps and
+   stayed drafts while the confirmation promised otherwise. A mark now outranks every
+   automatic rule, because the Publish button already does.
+2. **`FOLD_THRESHOLD` still read 70** after the floor moved to 60, so the draft queue
+   collapsed seven drafts the publisher was about to publish, under a label naming a
+   number nothing used. A threshold deciding what Alex sees has to be the threshold
+   deciding what strangers see.
+3. **The decision log was invisible.** A fill outside the nightly import records with a
+   null `run_id`, and `eq` never matches null in PostgREST, so the panel reported "no
+   run has filled a week yet" with 41 decisions sitting in the table.
+4. **"Short by" was coloured as a fault** when at a target of 50 against a queue of
+   11–28 it is the normal state, every day. A warning that is always on is a warning
+   nobody reads.
+5. **The venue-cap line called whatever count it found "the cap"** — "already has 4,
+   which is the cap" when the cap was 2 — so it read as correct while being wrong.
+
+Every one of them is a thing that looks right from the code and wrong on the screen.
+
+**The audit trail answered the one question that mattered.** Rogers Centre showing 4
+against a cap of 2 turned out to be Alex's own hand-publishing: the publisher took two
+Jays games at 15:41 and he published two Zach Bryan nights at 15:57, sixteen minutes
+later. It was answerable only because every publish records who did it and when.
 
 #### Notes carried into the next milestones
 - **M3.1 — the photo check** (recorded by Alex in M1.2; decisions Part 5, "Automated
