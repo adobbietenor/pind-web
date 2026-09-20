@@ -130,6 +130,28 @@ export function venueMapUrl(env: Env, path: string | null): string | null {
   return path ? `${projectUrl(env)}/storage/v1/object/public/venue-maps/${path.split("/").map(encodeURIComponent).join("/")}` : null;
 }
 
+// ---------------------------------------------------------------------------
+// "Which venues can a visitor reach?" — asked once, here
+//
+// **This is the second thing in one milestone to get "what is public" wrong by
+// hand-rolling it**, so it lives in the door module and nowhere else. Both times the
+// filter looked identical to the real definition and was not: `slug is not null and
+// withdrawn_at is null` reads like "published", and a gathering Alex unpublished keeps
+// its slug (M2.2, "once public, only Alex brings it back") — so Scotiabank Arena was
+// counted as needing a crowd page map for a page nobody can open.
+//
+// The rule, stated once: **a server-side job that needs to know what is public asks
+// the door, as a visitor, through the anon key, and lets RLS answer.** The service key
+// is then for the operational detail behind those rows — coordinates, render records,
+// scores — which is its own job (V12) and never a second opinion about visibility.
+// tests/unit/door.test.ts fails the build if the lookalike filter appears anywhere
+// outside this file.
+// ---------------------------------------------------------------------------
+
+export async function publicVenueIds(env: Env, from: Date, to: Date): Promise<string[]> {
+  return [...new Set((await crowds(env, from, to)).map((g) => g.venue_id))];
+}
+
 // W2, W3, W4 and the .ics: one gathering by slug, in one round trip.
 export async function crowd(env: Env, slug: string): Promise<Door> {
   const { data, error } = await anonClient(env).rpc("public_gathering", { p_slug: slug });

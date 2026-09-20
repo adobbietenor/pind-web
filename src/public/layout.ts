@@ -130,6 +130,9 @@ figure{margin:20px 0 0}
 figure svg{display:block;width:100%;height:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px}
 figcaption{font-size:.82rem;color:var(--muted);margin-top:8px}
 .credit{font-size:.76rem;color:#736d7e}
+/* "Open in Maps": the phone's own map app, which is the interactive map this page
+   cannot afford to be. Beside the caption, not competing with the button. */
+.openmap{white-space:nowrap}
 .credit a{color:#736d7e}
 
 /* The real map: one image, everything meaningful in HTML on top of it. The aspect

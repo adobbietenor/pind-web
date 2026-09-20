@@ -1645,11 +1645,19 @@ change). Where the plan has more detail, the plan is the reference.
   individual rows by 5 to 15 points and lifted one extra comedy show over the floor. So
   this is a distribution result, not a per-row promise, and any future rubric change
   should be judged the same way — twice, with a control set.
-  **Not applied.** The measurement wrote nothing, because 32 newly publishable comedy
-  drafts would change what strangers see on the next nightly run, and the rubric is the
-  one thing deciding that. The prompt and the re-score ship together in one commit when
-  Alex says so, so there is never a night where new drafts are scored generously and the
-  51 already in the queue are not. Cost of the whole measurement: **$0.15**.
+  **Shipped with its re-score, in one commit** (Alex: "new drafts scored generously
+  while the existing 51 aren't is a worse state than either"). Only new drafts are
+  scored by the nightly run, so a rubric change without a re-score leaves the publisher
+  ranking two wordings against each other under one floor. As applied: all 48 comedy
+  drafts re-scored, median **35 → 60**, **3 → 28 at or over the floor**; the literature
+  festival held at 35; theatre, classical and opera were not re-scored and did not move
+  in the controls. `scripts/rescore.ts` does it, **dry by default and `--write` to
+  save**, because a score is what decides whether a stranger ever sees a gathering.
+  Whole exercise: **$0.26**.
+  **The general rule this establishes:** a change to a rubric or a threshold is judged
+  by running it twice with a control set — once with the current wording to find the
+  noise floor — and it ships together with the re-score of whatever it has already
+  judged. "It reads better" is not evidence, and neither is a single run.
 - **Where the map's interactivity goes from here** (Alex asked; costed, nothing built).
   Filed against the city map already being **Protomaps on R2 + MapLibre, in the app**
   (decisions, "When it comes, half the decision is already made"), because that decides
@@ -1686,3 +1694,32 @@ change). Where the plan has more detail, the plan is the reference.
   it rather than a one-off; then W2's zoom switch and, if it is still wanted, the
   behind-a-tap map. The order matters because every step after the first is cheap only
   once the pipeline exists.
+- **One definition of public, and a test that fails if anyone hand-rolls a lookalike**
+  (Alex, after the walk: "is there a way to make it structurally hard?"). Yes, and it
+  was cheap. Two of M2.3's four map defects were a service-key filter that read exactly
+  like the real rule —
+  `.not("slug","is",null).is("withdrawn_at",null).eq("is_seed",false)` — and is not it,
+  because an unpublished gathering keeps its slug.
+  - **`publicVenueIds()` joins `crowds()` in `src/public/data.ts`**, the door module, so
+    the question "which venues can a visitor reach" has one answer and a name. The rule
+    in one line: *a server-side job that needs to know what is public asks the door, as
+    a visitor, through the anon key, and lets RLS answer* — the service key is for the
+    operational detail behind those rows, never for a second opinion about visibility.
+  - **`tests/unit/door.test.ts` scans every Worker source file** and fails if those
+    PostgREST spellings appear outside the door module, naming the file and pointing at
+    the helper. It was checked by reintroducing the bug: the test goes red.
+  - What it deliberately does not ban: reading `is_seed` on a single row already in
+    hand (the map routes check the venue they were asked about), or the publisher
+    counting published rows for a week's arithmetic. Those are different questions.
+  - It is a grep in a unit test rather than a type, which is the honest level for a repo
+    with no build step — a type would need the PostgREST builder wrapped, which is more
+    machinery than the mistake is worth.
+- **"Open in Maps" for the venue itself** (Alex: the cheapest thing on the
+  interactivity list and the one he would use). Beside the figure's caption, on all
+  three versions of it — the real picture, the schematic and an uploaded override. It is
+  one link; the phone's own map app is a real interactive map that pans, zooms, searches
+  and routes, against roughly 200 KB of JavaScript for a map library on a 9 KB page.
+  Coordinates rather than a name, because a name search lands on the wrong branch of a
+  chain, and the venue's coordinates are what the whole picture is drawn from. On iOS
+  the same small script that rewrites the spot links sends this one to Apple Maps.
+  Measured cost: **180 bytes**.

@@ -13,7 +13,7 @@
 
 import type { Env } from "../env";
 import { serviceClient } from "../supabase";
-import { crowds } from "./data";
+import { publicVenueIds } from "./data";
 import { BUCKET, IMMUTABLE, MAX_ATTEMPTS, chooseZoom, mapKey, objectPath, renderVenueMap, shortHash } from "./venuemap";
 
 // The zoom a venue's picture is drawn at comes from its own active spots (chooseZoom),
@@ -199,12 +199,6 @@ export async function ensureVenueMap(env: Env, venueId: string): Promise<void> {
 // as before.
 // ---------------------------------------------------------------------------
 
-// The venues behind what a visitor can actually open, read as a visitor.
-async function publicVenueIds(env: Env, now: Date, days: number): Promise<string[]> {
-  const list = await crowds(env, new Date(now.getTime() - 86_400_000), new Date(now.getTime() + days * 86_400_000));
-  return [...new Set(list.map((g) => g.venue_id))];
-}
-
 export interface MapPassResult {
   considered: number;
   rendered: number;
@@ -228,7 +222,7 @@ export async function ensureMapsForUpcoming(env: Env, days = 28, limit = 40): Pr
   const now = new Date();
   const out: MapPassResult = { considered: 0, rendered: 0, failed: 0, missing: 0, stopped: 0, noToken: !env.MAPBOX_TOKEN?.trim() };
 
-  const reachable = await publicVenueIds(env, now, days);
+  const reachable = await publicVenueIds(env, new Date(now.getTime() - 86_400_000), new Date(now.getTime() + days * 86_400_000));
   if (reachable.length === 0) return out;
 
   const { data: rows, error } = await service
@@ -299,7 +293,7 @@ export async function ensureMapsForUpcoming(env: Env, days = 28, limit = 40): Pr
 export async function venuesWithoutMaps(env: Env, days = 28): Promise<{ id: string; name: string; key: string | null }[]> {
   const service = serviceClient(env);
   const now = new Date();
-  const reachable = await publicVenueIds(env, now, days);
+  const reachable = await publicVenueIds(env, new Date(now.getTime() - 86_400_000), new Date(now.getTime() + days * 86_400_000));
   if (reachable.length === 0) return [];
 
   const { data: rows } = await service

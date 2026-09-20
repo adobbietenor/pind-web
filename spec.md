@@ -1128,16 +1128,21 @@ owed:
    "clubs" or "wellness" shape instead. Not touched this milestone. What any rethink
    must keep: running is 4 gatherings / 59 rows / 2 venues and cycling is 5 / 13 / 8, so
    they look alike and behave oppositely.
-5. **The comedy rubric, measured both ways and not applied.** Naming stand-up as its own
-   case — and naming panel talks, readings and "in conversation" as capped — moves the
-   48 comedy drafts from a median of 35 to 65 and from 3 over the floor to **32**, while
-   theatre, classical and opera stay at 25–35 and the Jaipur Literature Festival stays
-   at **35** with the reason "In-conversation literary event, capped despite comedian
-   guest". Re-running the *current* prompt moved rows by 5–15 points, so that is the
-   noise floor and this is a distribution result rather than a per-row promise. The
-   prompt and the re-score of the queue ship together, on Alex's word, so there is never
-   a night when new drafts are scored generously and the old ones are not. The
-   measurement cost $0.15 and wrote nothing.
+5. **The comedy rubric, measured both ways, then shipped with its re-score** (Alex).
+   Stand-up is named as its own case and is not capped as seated theatre; panel talks,
+   readings, lectures and anything billed "in conversation" are named as capped at 35
+   whatever a ticketing site files them under. Measured before shipping, each set scored
+   **twice with the current prompt first to establish the noise floor** — individual
+   rows move 5–15 points between identical runs, so this is a distribution result and
+   not a per-row promise.
+   **As applied on staging:** all 48 comedy drafts re-scored, median **35 → 60**, and
+   **3 → 28 at or over the floor of 60**. Theatre (28 rows, 15–32), classical (8,
+   15–30) and opera (4, 20–30) were not re-scored and did not move in the controls. The
+   Jaipur Literature Festival, the one Alex named, sits at **35**, with the model's own
+   reason: "In-conversation literary event, capped despite comedian guest." Prompt and
+   re-score in one commit, because new drafts judged generously beside old ones that are
+   not is worse than either wording. `scripts/rescore.ts` is the re-score, dry by
+   default; the whole exercise cost **$0.26**.
 6. **The path to an interactive map is costed** in decisions.md: the Protomaps-on-R2
    pipeline (6–12 h) belongs to the city map and A8, real pan and zoom belongs in the
    app (3–6 h on top), and W2 keeps the static image because MapLibre GL JS is ~200 KB

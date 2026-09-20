@@ -389,7 +389,10 @@ ${g.event_url ? `${DOT}<a href="${escape(g.event_url)}" rel="nofollow noopener">
         `try{if(/iPad|iPhone|iPod/.test(navigator.platform)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)){` +
         `var a=document.querySelectorAll('a[href*="google.com/maps/dir"]');` +
         `for(var j=0;j<a.length;j++){var d=new URL(a[j].href).searchParams.get("destination");` +
-        `if(d)a[j].href="https://maps.apple.com/?daddr="+encodeURIComponent(d)+"&dirflg=w"}}}catch(e){}`,
+        `if(d)a[j].href="https://maps.apple.com/?daddr="+encodeURIComponent(d)+"&dirflg=w"}` +
+        `var m=document.querySelectorAll("a.openmap");` +
+        `for(var k=0;k<m.length;k++)m[k].href="https://maps.apple.com/?ll="+encodeURIComponent(m[k].getAttribute("data-ll"))+"&q="+encodeURIComponent(m[k].getAttribute("data-q"));` +
+        `}}catch(e){}`,
     },
   );
 }
@@ -457,17 +460,17 @@ function mapFigure(door: Crowd2, zoom: number): { html: string; kind: MapKind } 
   // worse than no dot. Its spots are in the cards below like everyone else's. (No
   // public venue has one today — the only upload on staging is a seed row.)
   if (v.map_image_path) {
-    return { html: `<figure>${plainFrame(uploadUrl(v.id, v.map_image_path), v)}${credit()}</figure>`, kind: "none" };
+    return { html: `<figure>${plainFrame(uploadUrl(v.id, v.map_image_path), v)}${caption(v, false)}</figure>`, kind: "none" };
   }
   const real = readyMapUrl(v, zoom);
-  if (real) return { html: `<figure>${frame(real, door, zoom)}${credit()}</figure>`, kind: "real" };
+  if (real) return { html: `<figure>${frame(real, door, zoom)}${caption(v, true)}</figure>`, kind: "real" };
 
   const svg = venueMap(v, door.spots);
   if (svg) {
     // The schematic fits itself to the spots, so everything it has is on it — the
     // "not shown on the map" line below must not appear under this one.
     return {
-      html: `<figure>${svg}<figcaption>The venue, and the spots crews meet at — never where anyone is.</figcaption></figure>`,
+      html: `<figure>${svg}${caption(v, false)}</figure>`,
       kind: "schematic",
     };
   }
@@ -479,10 +482,27 @@ function readyMapUrl(v: Crowd2["venue"], zoom: number): string | null {
   return key && isReady(v, zoom) ? mapUrl(v.id, key) : null;
 }
 
-const credit = () =>
-  `<figcaption>The venue, and the spots crews meet at — never where anyone is.<br>` +
-  `<span class="credit">© <a href="https://www.mapbox.com/about/maps/" rel="nofollow noopener">Mapbox</a> ` +
-  `© <a href="https://www.openstreetmap.org/copyright" rel="nofollow noopener">OpenStreetMap</a> contributors</span></figcaption>`;
+// The caption under every version of the figure: what it shows, a way into a real map,
+// and Mapbox's attribution where the picture is Mapbox's.
+//
+// **"Open in Maps" is the cheapest interactivity there is** (Alex, after the M2.3
+// walk). The phone's own map app pans, zooms, searches and routes; it costs this page
+// one link, against roughly 200 KB of JavaScript for a map library on a page that is
+// 9 KB. It goes beside the caption rather than near the button: the button is the
+// commitment, this is a convenience.
+function caption(v: Crowd2["venue"], attribution: boolean): string {
+  const open = venueDirections(v);
+  const link = open
+    ? ` <a class="openmap" href="${escape(open)}" target="_blank" rel="noopener" data-ll="${escape(
+        `${v.latitude},${v.longitude}`,
+      )}" data-q="${escape(v.name)}">Open in Maps</a>`
+    : "";
+  const mapbox = attribution
+    ? `<br><span class="credit">© <a href="https://www.mapbox.com/about/maps/" rel="nofollow noopener">Mapbox</a> ` +
+      `© <a href="https://www.openstreetmap.org/copyright" rel="nofollow noopener">OpenStreetMap</a> contributors</span>`
+    : "";
+  return `<figcaption>The venue, and the spots crews meet at — never where anyone is.${link}${mapbox}</figcaption>`;
+}
 
 // Where each spot sits on the picture. A spot outside the frame gets no marker and is
 // told so in the list, rather than quietly lacking one.
@@ -566,6 +586,18 @@ function walkMetres(v: Crowd2["venue"], spot: Spot): number | null {
 export function directions(spot: Spot): string {
   const to = `${spot.latitude},${spot.longitude}`;
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(to)}&travelmode=walking`;
+}
+
+// **The venue itself, in the phone's own map** (Alex, after the M2.3 walk: the cheapest
+// thing on the interactivity list and the one he would use). A real map app pans, zooms,
+// searches and routes, and it costs this page a link rather than 200 KB of JavaScript.
+// The name goes in the query so the destination reads as a place rather than a pair of
+// numbers; the coordinates decide where it actually is.
+export function venueDirections(v: { name: string; latitude: number | null; longitude: number | null }): string | null {
+  if (v.latitude === null || v.longitude === null) return null;
+  // The coordinates, not the name: a name search can land on the wrong branch of a
+  // chain, and this venue's coordinates are the thing the whole map is drawn from.
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${v.latitude},${v.longitude}`)}`;
 }
 
 // One card per spot, numbered to match the map, with the walking directions link
