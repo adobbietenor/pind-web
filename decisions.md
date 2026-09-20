@@ -772,3 +772,67 @@ change). Where the plan has more detail, the plan is the reference.
   Alex's decision, made after walking it on a phone — not a placeholder, and not
   Tatiana's to revisit. The **register** of everything that is not a house rule is
   still hers, in the copy pass spec §5 says is owed.
+
+### Decided in Phase 2 M2.2
+
+- **Once public, only Alex brings it back** (Alex, M2.2). A gathering that has ever
+  been published is never picked up by an auto-publishing run again. The condition is
+  `slug is null`: a slug is minted at publish and the schema refuses to remove one, so
+  "has been public before" is already a fact in the database — no new column, one
+  condition covering both withdrawing and unpublishing, and one less thing for the
+  M4.2 reviewer to reason about.
+  **Why, in Alex's words:** "My unpublish click means 'not this one', and a rule that
+  can silently undo it isn't a control. Silent is the problem more than the reversal —
+  I'd click, it'd come back, and I'd doubt whether I'd clicked at all. One manual click
+  on the rare occasion I change my mind is the cheaper side of that trade."
+  The cost is accepted: after an unpublish, only Alex's own Publish button republishes.
+- **A refusal has to be as visible as a choice** (Alex, M2.2). The Publishing panel
+  lists every draft inside the lead window, published or not, each with its reason in
+  one line — "skipped, previously published", "the week was already full at 5",
+  "Scotiabank Arena already has 2 that week", "below the floor of 70". A draft that was
+  passed over must say so rather than merely be absent. **Why:** "I want to be able to
+  see why something didn't publish, not only why something did." Routine refusals
+  (below the floor, unscored, no venue) fold into a collapsed row so the four lines
+  that say something are not buried under three hundred that do not. This applies to
+  every admin surface over an automated run, not only this one.
+- **Seeded means somebody recorded posting it** (Alex, M2.2). A new
+  `gathering_promotions` table: one row per post, naming the channel as whoever posted
+  it would say it (`r/leafs`, Instagram, a Discord), who posted it and when. It is
+  ticked next to the share link in the admin, in the same motion as copying the link —
+  by whoever posts it, in that minute.
+  - **Not inferred from `publish_mark`.** That stays what it is: Alex's instruction to
+    the publisher, nothing to do with promotion. The two coincide only until the
+    auto-publisher picks a good Leafs game and someone posts it anyway, "which is the
+    common case, not an edge", and seeded-vs-organic is the number that decides when
+    the seeding labour stops and what the publisher's floor rests on.
+  - **Not a weekly reconciliation either.** "A manual tick per gathering, every week,
+    on the number I'd most easily forget, is a metric that quietly lies."
+  - **The bias is stated and runs against us.** A gathering with no promotion row
+    counts as organic, so a forgotten tick makes organic reach look *better* than it
+    is, never worse. The unseeded number is therefore a floor, not a measurement, and
+    nobody should read it as exact. Both splits are shown; neither decides anything —
+    the whole population does.
+- **The weekly adjust reads live pins until M4.5, and says so in code** (Alex, M2.2).
+  `gathering_stats` (spec §7) is M4.5 work, so the adjust computes `reach_rate` and
+  `median_pins` from live pins. That is exact today: the trailing window is 14 days and
+  pins live 30 days past the effective end (Part 3), so nothing in range has been
+  deleted. Two things keep it from rotting quietly, at Alex's instruction:
+  - **The dependency is asserted, not noted.** If the trailing window ever reaches pin
+    retention the adjust throws rather than computing something wrong — it would
+    otherwise find few pins and return a confident shrink that looks like evidence.
+    A check constraint caps `adjust_window_days` at 29 and `src/publish/plan.ts` throws
+    at the same line; the unit tests cover both sides of the boundary.
+  - **The weekly log keeps its raw inputs** — the gatherings counted, their pins,
+    open-to-meeting counts and whether each reached 5 — so when `gathering_stats`
+    lands, M4.5 can point the same arithmetic at it and confirm on the same weeks that
+    the repoint did not change the answer.
+- **Publishing is still one door** (Claude, M2.2, following M2.1). The nightly fill has
+  no privilege Alex's button does not: it calls `public.admin_publish_gathering` for
+  every pick, which mints the slug, tops up the spot poll and writes the moderation log.
+  The selection rules live in `src/publish/plan.ts` as pure arithmetic with unit tests,
+  because that is what they are — a ranking over a queue, not a visibility rule. Nothing
+  about who sees whom moved out of the database (H11).
+- **The publisher is the actor, even on a manual run** (Claude, M2.2). A run started
+  from "Run import now" still logs `publisher:auto` against the gatherings it fills, so
+  the moderation log keeps "Alex pressed Publish" and "a run filled a slot" apart.
+  `import_runs` already records who triggered the run.

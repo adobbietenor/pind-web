@@ -40,7 +40,10 @@ sourcing"). Fields: name, starts_at,
 `ends_at` (nullable), venue, `event_url` (tickets or event info; optional), `is_free`,
 `featured` flag, status (draft / published / dismissed / withdrawn),
 `publish_mark` (null / publish / never — Alex's marks for the auto-publisher, §8), and
-`review_only` (boolean, default false). A **review-only** gathering exists only for
+`review_only` (boolean, default false). A published gathering also carries any number
+of **promotion** records (`gathering_promotions`): where the team posted it, who
+posted it and when, ticked as it happens. They are what "seeded" means in §8, and
+nothing else reads them. A **review-only** gathering exists only for
 App Review: it is visible only to review-only people and admin, and never appears in
 lists, counts or the digest. Nothing in it is ever visible to a real person, so H6
 holds (decisions Part 5, "Review-only gatherings"). **Withdrawn**
@@ -600,7 +603,7 @@ working. Hours are Alex's, agent-assisted.
 | **Phase 2** | **The public layer and publishing, on the Worker** | | 18–26 |
 | M2.0 | Repo + Expo scaffold | **Done** — merged as `7fc973a` | 6–8 |
 | M2.1 | Public web layer on pind.social (W1–W4, the real map, the domain) | **Done** — merged as `6fea4a3` | 8–12 |
-| M2.2 | Auto-publishing v1 — fixed target (§8) | Not started | 4–6 |
+| M2.2 | Auto-publishing v1 — fixed target (§8) | **Ready to check on device** — branch `phase2/m2.2-auto-publishing` | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | Not started | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel, universal links (A5–A9, A19, A26, A27) | Not started | 12–18 |
@@ -931,6 +934,26 @@ the current pace, raise the hours or shrink the phase.
   - **Not a merge blocker** (Alex, M2.1). M2.2 picks it up. Do not rediscover this from
     scratch: start from the token and the `"spa":2` flag, and check whether it survives
     a deploy that changes the assets configuration.
+  - **Checked in M2.2 (2026-09-20), after the M2.2 deploy: it survived, unchanged.**
+    Same token `6fbd9c00…`, same `"spa":2`, same reproduction — clean on plain `curl`,
+    present with `Sec-Fetch-Dest: document`. Injected into **every HTML response** (W1
+    `/` and `/health` alike) and into **nothing else**: `/robots.txt` (text/plain) and a
+    404 carry none, so it is content-type-triggered edge injection, not something a
+    route or an asset pulls in.
+  - **Nothing left in the repo can turn it off.** It is still absent from the source,
+    wrangler's schema still has no key for it, and it is still added after the Worker
+    returns, so there is no Worker-side strip. Nothing M2.2 changed about the Worker,
+    its routes or its deploy touched it — which was the experiment M2.1 proposed, and
+    it came back negative.
+  - **What is left is Alex's, and it is one query.** The dashboard's Web Analytics
+    list shows two sites and neither is pind.social, so the site holding this token is
+    not in that list — an implicitly created one would not be. The Cloudflare API can
+    say outright: list the account's Web Analytics sites and find the one whose token
+    is `6fbd9c007d0e4740bc718720ec35af43`, then check the Worker's own observability /
+    Web Analytics setting. Both need an account API token, which is Alex's
+    (CLAUDE.md, "Things that are mine, not yours"). **Carried into M2.3/M4.1 as Alex's,
+    not as a code task** — it is a rule problem, not a speed problem (10.6 KB from a
+    second host, no measurable time), and it stays open until that query answers it.
 
 - **M3.2 — tab icons** (Alex, M2.0). Add `expo-symbols` and choose the four icons
   when Crowds has content. The tabs are labels only until then.
@@ -939,6 +962,16 @@ the current pace, raise the hours or shrink the phase.
   room. The production internal TestFlight group has Alex only: EAS auto-created
   "Team (Expo)" with all six App Store Connect users on the first staging submit.
   In `docs/build-plan.md` §8 M4.3 acceptance.
+- **M4.5 — repoint the weekly adjust, and switch adaptive on** (M2.2). Two things,
+  both small because M2.2 left the plumbing in place. (1) `adaptive` becomes a
+  checkbox on the Publishing panel; the adjust has been running and logging every
+  Monday since M2.2, including the target it would have moved to, so nothing new is
+  built. (2) `public.admin_publish_outcomes` moves from live pins to the
+  `gathering_stats` snapshots §7 adds. `publish_target_log.inputs` holds every row the
+  arithmetic counted on every past week, so the repoint is checked by running both
+  sources over the same weeks and comparing — not by trusting it. The 14-day window
+  must stay under pin retention until that swap happens; the planner and a check
+  constraint both refuse otherwise.
 - **M4.5 — PostHog** (Alex, M2.0). No `$geoip_*` properties and no `$ip` were
   stored (checked 2026-09-19), so M4.5 re-checks this rather than building a
   transformation. One iPhone visit produced two `app_open` events 1 ms apart with
@@ -1155,9 +1188,21 @@ below the target, publish the highest-scoring eligible drafts until it is met: i
 the lead window, at or above the score floor, not dismissed by Alex, not withdrawn, at
 most two per venue per week, one slot held for a community gathering when the
 community run has a candidate. Drafts Alex has marked **"publish"** go first regardless
-of score; drafts marked **"never"** are skipped forever (`publish_mark`, §1). Withdrawing
-a published gathering never leads a later run to re-publish the same draft. Alex
-withdraws (any time) or unpublishes (zero pins) whatever is wrong; manual publish stays.
+of score; drafts marked **"never"** are skipped forever (`publish_mark`, §1). A
+gathering that has **ever been public is never picked up by a run again** — it carries
+a slug, and a slug is minted at publish and can never be removed, so the database
+already records it (Alex, M2.2). That one condition covers both withdrawing and
+unpublishing: Alex withdraws (any time) or unpublishes (zero pins) whatever is wrong,
+and only he can put it back. Manual publish stays.
+
+The weeks are the **city's** weeks, Monday to Sunday, counted by the week a gathering
+**starts** in. `publish_lead_days_max` is 21 for that reason: the far end of the third
+week is at most 20 days away, so the lead window always covers every week the run
+fills. Ranking inside a week is marked drafts first, then final score, then the sooner
+start. A withdrawn gathering is not published, so its week is genuinely short and the
+next run refills it. The community slot is held **only when a community gathering is
+waiting** — holding an empty slot would publish four where the target says five — so
+it reserves nothing until M4.4.
 
 ### The weekly adjust (Monday's run, before the 6pm digest)
 Look at gatherings that ended in the trailing 14 days and had been published at least
@@ -1170,11 +1215,41 @@ and `median_pins`. Then:
 - clamp to `publish_min … publish_max`; if fewer than 3 gatherings qualify in the
   window, hold.
 
-Written in M2.2 but gated by `adaptive = off`; switched on in M4.5.
+Written in M2.2 but gated by `adaptive = off`; switched on in M4.5. While it is off it
+still runs every Monday and still logs, including the target it *would* have moved to,
+so M4.5 is a checkbox and not new plumbing.
+
+Until M4.5 it reads **live pins**, which is exact only because the trailing window (14
+days) is shorter than pin retention (30 days, Part 3). If the two ever crossed it would
+read gatherings whose pins had gone and return a confident shrink from incomplete data,
+so both halves refuse rather than guess: a check constraint caps
+`adjust_window_days` at 29, and the planner throws before computing anything (Alex,
+M2.2).
 
 ### Logging
 Every nightly choice is logged with its score, distance and the slot it filled, and
-shown on the admin's Publishing panel in one line each. Every weekly decision is logged
-with its inputs. Seeded and unseeded gatherings are shown side by side. In week one
-there is no evidence: the target starts at 5 and Alex marks the two or three the team
-will seed as "publish". Nothing reads ticket availability — off-sale is not a problem.
+shown on the admin's Publishing panel in one line each. **The refusals are logged too**
+(Alex, M2.2): a draft passed over because it had been public before reads "skipped,
+previously published" rather than simply not appearing, and the same goes for the
+venue cap, the score floor and a full week. A rule whose refusals are invisible is a
+rule nobody can tell is working. Every draft inside the lead window gets a line;
+drafts outside it are not candidates and are not logged, so the log is three weeks of
+queue rather than the whole 8-week import.
+
+Every weekly decision is logged with its inputs — the per-gathering rows it counted,
+kept verbatim, so M4.5 can point the same arithmetic at `gathering_stats` and confirm
+on the same weeks that the answer did not change.
+
+**Seeded and organic are shown side by side, and "seeded" means somebody recorded
+posting it** (Alex, M2.2) — a `gathering_promotions` row naming the channel, who
+posted it and when, ticked next to the share link at the moment of posting rather than
+reconciled from a list afterwards. It is deliberately *not* inferred from
+`publish_mark`, which is only Alex's instruction to the publisher: the two coincide
+only until the publisher picks a good game and someone posts it anyway, which is the
+common case. A gathering with no promotion row counts as organic, so a forgotten tick
+flatters the organic number rather than ours — the unseeded reach rate is a floor, not
+a measurement. Neither split decides anything; the whole population does.
+
+In week one there is no evidence: the target starts at 5 and Alex marks the two or
+three the team will seed as "publish". Nothing reads ticket availability — off-sale is
+not a problem.

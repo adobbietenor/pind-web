@@ -353,6 +353,8 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 - Withdrawing a published gathering does not lead the next run to re-publish the same draft.
 - The Publishing panel explains every choice in one line.
 
+**Settled during M2.2** (decisions.md, "Decided in Phase 2 M2.2"): the re-publish guard is `slug is null`, so unpublishing is as final as withdrawing and only Alex undoes either; refusals are logged and shown, not only choices; "seeded" is a `gathering_promotions` row ticked at the moment of posting, never inferred from `publish_mark`, with the forgotten-tick bias running against us; and the weekly adjust reads live pins with the 14-vs-30-day dependency asserted in code and in a check constraint, keeping its raw inputs for M4.5 to check the repoint against.
+
 ### Phase 3 — The product, in Expo (68–96 h)
 
 12–16 h
