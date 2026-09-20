@@ -40,7 +40,12 @@
   // (ScheduledController) into the database on every run — so if this line ever
   // changes, or if the above is ever wrong, the watchdog follows it instead of
   // raising a phantom alarm.
-  "triggers": { "crons": ["0 8 * * *"] },
+  // M2.3b adds the second: the community liveness check at 13:00 UTC (9am EDT), which
+  // reads a few series' own pages and records whether they still say the gathering
+  // happens. Its own schedule, its own run row and its own lock — src/index.ts picks
+  // the job by the expression that fired, and src/community/run.ts holds the matching
+  // constant.
+  "triggers": { "crons": ["0 8 * * *", "0 13 * * *"] },
 
   // M2.2: Workers Logs, on and unsampled. Without it there is no invocation history
   // at all, which is why nobody could tell whether the cron fired on the two nights

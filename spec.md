@@ -1150,6 +1150,23 @@ owed:
    (minutes), two or three pre-rendered zooms with a no-JavaScript switch (1–2 h), and a
    real map behind a tap once the pipeline exists (2–4 h).
 
+**M2.3b — the liveness check** (Alex chose it over the W2 zoom switch; full entry in
+decisions.md, "Is that run club still a run club?"). 28 hand-entered series had produced
+**188 published occurrences running to 31 December** and nothing re-checked any of them.
+Two migrations:  (provenance and verification, not recurrence),
+ on gatherings,  capping the generator, a
+ table with its own lock, and  extended to
+sum both jobs — it read  only, so a second job's spend was invisible to the
+daily cap.
+Its own cron at 13:00 UTC reads the four least-recently-checked series' own pages and
+asks one narrow question each. **Measured on the first full pass: 27 of 28 confirmed, 1
+unreadable, not one false absence, /usr/bin/bash.42 for all 28.** A deterministic check was tried
+first and rejected on evidence: 27 of 28 pages answer 200 so liveness is no signal, four
+name no dates at all ("every Tuesday, 6:30pm"), and seven series share one page. Nothing
+is ever withdrawn by a machine; the loudest output is a line in the admin, and "I looked,
+leave it" clears it. The count also runs the other way — **seven series have fewer than
+21 days of dates left**, which nothing counted before.
+
 **Not signed off.** Alex holds the merge until he can run Lighthouse and list the
 requests from a browser on a laptop.
 

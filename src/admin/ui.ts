@@ -30,6 +30,7 @@ const NAV: [string, string][] = [
   ["/admin/published", "Published"],
   ["/admin/publishing", "Publishing"],
   ["/admin/gatherings/new", "Add manually"],
+  ["/admin/community", "Community"],
   ["/admin/venues", "Venues"],
   ["/admin/photos", "Photos"],
   ["/admin/reports", "Reports"],

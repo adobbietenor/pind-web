@@ -1723,3 +1723,95 @@ change). Where the plan has more detail, the plan is the reference.
   chain, and the venue's coordinates are what the whole picture is drawn from. On iOS
   the same small script that rewrites the spot links sends this one to Apple Maps.
   Measured cost: **180 bytes**.
+
+### Is that run club still a run club? — the liveness check (M2.3b)
+
+Alex chose this over the W2 zoom switch after the M2.3 walk: "188 rows running to
+mid-November with nothing re-checking them is a live problem, and a map you can't zoom
+isn't. A defunct run club on the site costs more than any amount of map polish." The
+real horizon turned out to be worse than either of us said — **the generator had written
+occurrences to 31 December**, three and a half months out.
+
+- **The cheap version does not work, and the numbers say so.** All 28 series' pages were
+  fetched on 20 September: **27 answered 200 and not one was gone**, so "is the page
+  alive" carries almost no information. Two things kill a deterministic check outright:
+  - **four of the 27 name no future date at all** — Running Rats and all three
+    Frontrunners runs say "every Tuesday, 6:30pm" and nothing else. A "does it name a
+    date" rule would have flagged four live run clubs in its first week, which is the
+    guard-fires-in-normal-weather failure for the third time in one milestone;
+  - **a page is not a series**: seven series share one 582 KB Snakes & Lattes page, five
+    share `tbn.ca`, three share the same 519 page. Keyword or date matching on a shared
+    page says nothing about one game night.
+  So the check **reads the page and asks one narrow question**: does this page still say
+  this gathering happens, how often does it say, and what is the furthest future date it
+  names. Deliberately the smallest slice of M4.4's extraction, measured early against 28
+  pages whose answers are already known (`docs/m4.4-brief.md`).
+- **The lifecycle, confirmed before it was built.** Per series: **unverified** (never
+  read) → **confirmed** (the last read found it, with the horizon it named, which may be
+  null) → **doubtful** (the page is gone — unambiguous, on the first read — or two
+  consecutive good reads did not find it) → **settled** (Alex looked and said leave it),
+  with **unverifiable** off to one side for a page that cannot be read at all. Only a
+  read moves it.
+  - **"No evidence is not evidence" is the rule the design turns on** (Alex). A page that
+    times out, blocks us, or simply does not say is `unverifiable`, and it **never**
+    accumulates towards doubt however many times it happens. The model's own "unclear"
+    answer maps here too, not to absence — which is what protects those four run clubs.
+    The admin says the two things in **visibly different sentences**, from one function
+    so they cannot drift apart per surface: *"Its page loaded, and did not mention this
+    gathering"* against *"We cannot tell from this page… which is not the same as the
+    gathering having stopped."*
+  - **Nothing is ever withdrawn or unpublished by a machine.** Withdrawing keeps the
+    pins and can be undone; **unpublishing cannot be undone by any automatic run**,
+    because the slug is already minted and `slug is null` is the re-publish guard (M2.2)
+    — so the worse of the two is also the irreversible one. The check's loudest possible
+    output is a line in the admin.
+  - **"I looked, leave it" clears it**, stamps who and when, and shows the note beside
+    the series, because **a flag that cannot be cleared becomes a flag nobody reads**
+    (Alex). A settling does not silence the next change: anything that strikes afterwards
+    is a fresh doubt and says so.
+- **The first full pass, measured:** 28 series read, **27 confirmed, 1 unreadable
+  (Kensington Market's page would not load), and not one false absence.** Cost **$0.42
+  for all 28** — about 1.5 cents a page — so four a night is six cents a day. The four
+  no-date pages confirmed exactly as designed, each with its cadence in the page's own
+  words ("Tuesdays and Thursdays @ 6:15pm", "every Friday from 4-11 PM").
+- **Its own cron, run row and budget line** (Alex). 13:00 UTC, four series a night, so
+  all 28 come round weekly; a separate `community_check_runs` table with its own lock, so
+  neither job can report the other as busy; and the credential check sits *inside* the
+  try, after the run row is opened, so a night that fails on a missing key leaves a
+  failed run behind (M2.2's founding rule).
+  - **And `admin_ai_spend_today` now sums both tables.** It read `import_runs` only, so
+    **any AI spend outside that table was invisible to the daily cap** — M1.3b's cost
+    blind spot, one table over, and the way a $3 cap quietly becomes a $6 day.
+- **Eight weeks is the generator's horizon**, on the `cities` row rather than in code
+  (`community_weeks`, replacing a guard that allowed a year from the first date).
+  **Why eight:** it is the horizon the Ticketmaster import already looks over
+  (`import_weeks`), so the product has one idea of how far ahead it looks rather than
+  two; it is comfortably more than any of these pages actually confirms; and it is a
+  setting because it is a judgement that should move with evidence. Measured **from
+  today, not from the first date**, so a series starting in March does not inherit a
+  year's licence.
+  - **A cap without a top-up is a decay mechanism**, so the same page counts the other
+    side: **seven of the 28 already have fewer than 21 days of dates left**. Nothing
+    counted that before, which is the same shape as a venue whose map was never fetched —
+    unset is a different state from broken.
+  - **Nothing already published was touched.** An unconfirmed far date is not evidence of
+    anything, and unpublishing 188 rows to tidy a horizon would have cost more than it
+    bought (Alex: "lighting up most of the list on day one to tell me something I already
+    know is the same mistake as the red 'short by'").
+- **Two findings out of the first pass, neither a bug:**
+  - **several pages name dates further ahead than we hold** — TBN's Sunday rides confirm
+    to late October where our rows stop in September. That is the top-up signal the
+    running-out count is for, and it is the first evidence that a source can *extend* a
+    series as well as end it.
+  - **one horizon looks too good:** College Social Game Night came back confirmed
+    through September **2027**. Harmless today, because nothing reads
+    `confirmed_through` except the admin, but it is the kind of number that would quietly
+    silence a rule later. Worth a sanity ceiling when anything starts depending on it.
+- **The gap, stated rather than left implied.** The import's watchdog is a pg_cron job in
+  Postgres, because a Worker cannot report its own cron being dead (Alex, M2.2) — and it
+  watches the import, not this. The Community page says loudly when no run has finished
+  in 48 hours, which is the half that answers somebody who looks; **the half that reaches
+  out does not cover this job yet**, and generalising M2.2's machinery to N jobs is a
+  refactor rather than a copy. The difference in urgency is real: a missed import means
+  the city's list stops refreshing, a missed check means a series is re-read a few days
+  late.
