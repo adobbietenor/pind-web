@@ -406,6 +406,7 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 - **"Put me in a crew"** (decided here, see §10): one button that places the person in the open crew with the most room, respecting women-only — the closest thing to a host the product will ever have. 2–3 hours inside this milestone.
 - A14 thread on Supabase Realtime using `postgres_changes` only (it respects RLS; broadcast does not); auto-posted card and rules; long-press to report with the message body snapshotted onto the report; close at +24 h, read-only 30 days, delete.
 - A13 "I'm here": unlocks 3 hours before; requires a line of text; posts to the thread; never geofenced.
+- **Crew vibe** (Alex, M2.1; spec §3, under A11–A13): up to nine preset chips, never free text, set by whoever starts the crew and changeable by any member, shown on the crew card and in the crews list so someone choosing between two open crews has something to choose on. Tatiana rewrites the starting set. No substances, nothing that reads as a dating signal, and any chip most crews would tick gets cut.
 - A16 after the event: mutual-only "we met" and "keep in touch", invisible until mutual; the "showed up" badge; connections; A20 with the single verb "invite"; the one after-event question from §7.
 - Fallback if Realtime misbehaves on one platform: poll the thread every 10 seconds while it is open. The spot and time are on the card, so the meeting never depends on the chat.
 
@@ -415,6 +416,7 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 - A crew of one accepts two requests (any member can approve); the third request is declined and the requester sees nothing; the crew cannot set a spot until it has 3.
 - The poll shows up to 3 curated spots and three times; setting them makes the crew card the hero; the share button sends a card with no names.
 - At 8/8, a ninth request is offered a prefilled sibling crew at the same spot 15 minutes later.
+- Two open crews at the same gathering read differently at a glance because their vibe chips differ, and a member who did not start the crew can change them.
 - A women-only crew is invisible to a man test account (list and direct URL) and visible to a nonbinary account with women-only inclusion.
 - The thread opens with the card and rules, updates live between two phones, reports a long-pressed message, and contains no phone numbers.
 - Three hours before the fake start the crew turns live; "I'm here" refuses an empty line and posts the description; after the effective end the crew is done; a forming crew of two dissolves at six hours before with one notification.

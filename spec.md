@@ -331,6 +331,30 @@ link out, pins, opt-ins, gender mix, crews badge. **No map, no feed, no algorith
 - **A17 done** — terminal state; member count and check-in count; thread closure
   explained; the only action points at A16.
 
+#### Crew vibe — presets, shown on the crew card (Alex, M2.1; built in M3.3)
+
+Someone choosing between two open crews has **nothing to choose on** today. A crew can
+say what kind of night it is.
+
+- **Presets, never free text.** Free text on a forming crew is an unmoderated surface
+  visible to strangers before anyone has met, and it is where the product acquires copy
+  nobody wants attributed to it.
+- Set by whoever starts the crew, **changeable by any member**, shown on the crew card
+  (A12) and in the crews list (A10).
+- **The test for any chip: would most crews tick it?** If yes, cut it — a vibe everyone
+  shares tells nobody anything. That is why there is no "love meeting new people":
+  everyone on the list already opted into meeting people.
+- **Nothing about substances, and nothing that reads as a dating signal.** Cap it around
+  nine, or it stops being a glance and becomes a form.
+
+Starting set, **Tatiana's to rewrite**, grouped so they help someone choose:
+
+| Timing | The night | The company |
+|---|---|---|
+| getting there early | quiet pint first | first time here |
+| just walking in together | out all night | happy to explain the rules |
+| staying after | food before | small and chatty |
+
 ### A14 — Crew thread
 Realtime group chat scoped to one crew. Opens with the auto-posted crew card and
 rules. Long-press any message to report. No phone numbers are exchanged. Closes 24h
@@ -496,6 +520,30 @@ the web build must be the complete product.
 - The three house rules, verbatim, on every crowd surface (see W2).
 - Never use the phrase "not a dating app" in user-facing copy except the single
   onboarding line at A1. Use crew language everywhere else.
+
+### The voice — a full pass is owed before the first real crowds
+
+(Alex, M2.1. With Tatiana.)
+
+Pin'd's position is that it creates **real human connection** — people meeting properly,
+in person, comfortably. Most screens today read like a **safety notice**, which is the
+wrong register for a product whose whole pitch is meeting people.
+
+- **The three house rules stay verbatim** on every crowd surface. They are safety copy,
+  they are what makes a stranger trust this, and they are what App Review is pointed at
+  under Guideline 1.2. They are never softened.
+- **Everything else is an invitation**: empty states, buttons, the crews section,
+  nudges, onboarding, confirmations. Warm, low-commitment, curious. Closer to *"find a
+  good spot, meet people who are going anyway"* than *"named spots only, before the
+  event."*
+- **Never write anything implying you can message someone first and decide later.**
+  There are no DMs, and solo has no free text before a mutual accept. Copy that suggests
+  otherwise describes a different app.
+
+M2.1 wrote its own non-house-rule copy in this register — W1's empty state, the line
+under W2's button, the map caption, the headings, the not-found pages and `/about`. The
+**full pass across every screen is owed before the first real crowds**, done once and
+properly with Tatiana rather than drifted into screen by screen.
 
 *Each piece marked **Draft** below was written by Claude when the plan was merged and
 is **not final copy**: only the label "Meet 1-on-1" and preset line 1 come from the

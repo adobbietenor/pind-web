@@ -86,7 +86,7 @@ ${body}`,
 }
 
 function emptyWeek(): string {
-  return `<div class="empty" style="margin-top:22px">No crowds are up yet. Check back — new ones go up through the week.</div>`;
+  return `<div class="empty" style="margin-top:22px">Nothing up just yet. New crowds go up through the week — come back and see who&#39;s going.</div>`;
 }
 
 // Grouped by day, ordered by date, never by size (Q10). Small counts are shown,
@@ -143,7 +143,7 @@ export async function w2(request: Request, env: Env, slug: string, ctx?: Executi
     return notice("No longer on Pin'd", "This gathering is no longer on Pin'd.", 410);
   }
   if (door.status === "gone") {
-    return notice("Not found", "There is no crowd page at this link.", 404);
+    return notice("Nothing here", "There's no crowd page at this link — it may have moved.", 404);
   }
 
   const g = door.gathering;
@@ -171,14 +171,14 @@ ${tallies(door.counts)}
 ${map.html}
 
 <a class="cta" id="cta" href="/g/${escape(g.slug)}/pin">${escape(button)}</a>
-<p class="note">Names and photos unlock after you pin in and opt to meet.</p>
+<p class="note">Pin in and say you&#39;d like to meet, and you&#39;ll see everyone else who did.</p>
 
 <h2>House rules</h2>
 <ol class="rules">${HOUSE_RULES.map((r) => `<li>${escape(r)}</li>`).join("")}</ol>
 
 ${spotList(door, tz, map.kind)}
 
-<h2>Share</h2>
+<h2>Pass it on</h2>
 <p class="quiet" style="font-size:.9rem">
 <a href="${escape(url)}">${escape(url)}</a>${DOT}<a href="/g/${escape(g.slug)}.ics">add to calendar</a>
 ${g.event_url ? `${DOT}<a href="${escape(g.event_url)}" rel="nofollow noopener">tickets</a>` : ""}
@@ -244,7 +244,7 @@ function mapFigure(door: Crowd2): { html: string; kind: MapKind } {
     // The schematic fits itself to the spots, so everything it has is on it — the
     // "not shown on the map" line below must not appear under this one.
     return {
-      html: `<figure>${svg}<figcaption>The venue and its meeting spots. Never people.</figcaption></figure>`,
+      html: `<figure>${svg}<figcaption>The venue, and the spots crews meet at — never where anyone is.</figcaption></figure>`,
       kind: "schematic",
     };
   }
@@ -257,7 +257,7 @@ function readyMapUrl(v: Crowd2["venue"]): string | null {
 }
 
 const credit = () =>
-  `<figcaption>The venue and its meeting spots. Never people.<br>` +
+  `<figcaption>The venue, and the spots crews meet at — never where anyone is.<br>` +
   `<span class="credit">© <a href="https://www.mapbox.com/about/maps/" rel="nofollow noopener">Mapbox</a> ` +
   `© <a href="https://www.openstreetmap.org/copyright" rel="nofollow noopener">OpenStreetMap</a> contributors</span></figcaption>`;
 
@@ -332,7 +332,7 @@ function spotList(door: Crowd2, tz: string, kind: MapKind): string {
       if (walk) bits.push(`${walk} min walk`);
       // Not on the map, and said out loud: someone comparing the list to the picture
       // should never have to wonder whether the marker is missing or the spot is.
-      if (framed && !at?.onMap) bits.push("not shown on the map — it is further away");
+      if (framed && !at?.onMap) bits.push("a bit further out, so not on the map above");
       const link =
         spot.latitude !== null
           ? ` <a class="dirs" href="${escape(directions(spot))}" target="_blank" rel="noopener">Directions</a>`
@@ -341,7 +341,7 @@ function spotList(door: Crowd2, tz: string, kind: MapKind): string {
 <div class="meta">${escape(bits.join(" · "))}</div></li>`;
     })
     .join("");
-  return `<h2>Meeting spots</h2><ul class="spots">${items}</ul>`;
+  return `<h2>Where crews meet</h2><ul class="spots">${items}</ul>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -354,7 +354,7 @@ export async function w3(request: Request, env: Env, slug: string): Promise<Resp
 
   if (door.status === "redirect") return Response.redirect(`${origin}/g/${door.slug}/spot`, 301);
   if (door.status === "withdrawn") return notice("No longer on Pin'd", "This gathering is no longer on Pin'd.", 410);
-  if (door.status === "gone") return notice("Not found", "There is no share card at this link.", 404);
+  if (door.status === "gone") return notice("Nothing here", "There's no crowd page at this link — it may have moved.", 404);
 
   const tz = door.venue.timezone;
   const spots = door.spots
@@ -368,7 +368,7 @@ export async function w3(request: Request, env: Env, slug: string): Promise<Resp
     `${header()}
 <h1>${escape(door.gathering.name)}</h1>
 <p class="lede">${escape(longWhen(door.gathering.starts_at, tz))}${DOT}${escape(door.venue.name)}</p>
-${spots ? `<h2>Meeting spots</h2><ul class="spots">${spots}</ul>` : `<p class="quiet">No meeting spots yet.</p>`}`,
+${spots ? `<h2>Where crews meet</h2><ul class="spots">${spots}</ul>` : `<p class="quiet">Spots for this one aren&#39;t set yet.</p>`}`,
     {
       title: `${door.gathering.name} · meeting spots · Pin'd`,
       canonical: `${origin}/g/${door.gathering.slug}/spot`,
@@ -430,19 +430,22 @@ export function about(): Response {
   return page(
     `${header()}
 <h1>About Pin&#39;d</h1>
-<p>${escape(ONE_LINER)} Pin in to a gathering you are already going to, and if you want company, opt in to meeting. When ${THRESHOLD} people have opted in, crews open: small groups of three to eight who agree a public spot and walk in together.</p>
+<p>You&#39;re already going. So are other people. Pin&#39;d is how you find each other beforehand and walk in together, instead of arriving alone because nobody knew who else was coming.</p>
+<p>Pin in to something you have a ticket for, or are just going to. If you fancy company, say so — that part is optional, and you can change your mind at any point. Once ${THRESHOLD} people have said so, crews open: small groups of three to eight who pick a spot nearby, meet there beforehand, and go in together.</p>
+<p>No messaging strangers, no swiping, no feed. Just the people who are going to the same thing as you.</p>
 
 <h2>House rules</h2>
 <ol class="rules">${HOUSE_RULES.map((r) => `<li>${escape(r)}</li>`).join("")}</ol>
 
 <h2 id="safety">Safety</h2>
-<p>Nobody sees your name or your photo until you have both pinned in and opted to meet at the same gathering. Every meeting happens at a named public spot, before the event, and Pin&#39;d is never there.</p>
-<p>Blocking is mutual and silent: the other person is never told, and neither of you can see the other again. Report and block sit one tap from any person, crew or message in the app. Some reasons hide the person the moment they are used.</p>
-<p>Pin&#39;d never asks for your location, and holds no coordinates except venues and their meeting spots.</p>
-<p>19+ only.</p>
+<p>Nobody sees your name or your photo until you have both pinned in and said you&#39;d like to meet at the same gathering. Until then there is nothing to browse — which is the point.</p>
+<p>Crews meet at named public places, before the event, and Pin&#39;d is never there. There are no direct messages: the only conversation is inside a crew, once one has formed.</p>
+<p>Blocking is mutual and silent — the other person is never told, and neither of you sees the other again. Block and report sit one tap from any person, crew or message in the app, and some reasons hide the person the moment they are used.</p>
+<p>Pin&#39;d never asks where you are. The only coordinates we hold belong to venues and the spots crews meet at.</p>
+<p>19+.</p>
 
-<h2>Get in touch</h2>
-<p><a href="mailto:${SUGGEST_TO}">${SUGGEST_TO}</a> to suggest a gathering${DOT}<a href="mailto:${REPORT_TO}">${REPORT_TO}</a> for anything about safety</p>`,
+<h2>Say hello</h2>
+<p>Know a gathering that belongs here? <a href="mailto:${SUGGEST_TO}">${SUGGEST_TO}</a>.${DOT}Anything about safety goes to <a href="mailto:${REPORT_TO}">${REPORT_TO}</a>, and a person reads it.</p>`,
     { title: "About · Pin'd", description: ONE_LINER, footer: `<a href="/">this week&#39;s crowds</a>${DOT}19+` },
   );
 }

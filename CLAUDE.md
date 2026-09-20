@@ -184,6 +184,14 @@ referring Reddit thread, or a cookie, on a page that needs no account.
   environment variables.
 - If you need a credential I have not provided, ask — do not stub a fake one and
   carry on.
+- **A missing credential must report itself once, as a configuration problem — not as
+  N identical runtime failures, and never silently.** M2.1's venue maps returned early
+  when `MAPBOX_TOKEN` was unset, before the code that records why a map failed, so the
+  one failure most likely to happen on day one was the one failure nothing logged. The
+  admin now says "MAPBOX_TOKEN is not set" once, where maps are managed, instead of
+  either saying nothing or listing seventy-four identical venue errors. Check this for
+  every secret a feature depends on: unset is a different state from broken, and it
+  belongs in front of whoever can fix it.
 
 ## Things that are mine, not yours
 
