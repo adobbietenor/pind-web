@@ -322,10 +322,12 @@ profile.
   - Each poll shows the **top 2 proven spots plus 1 newer or rising spot**, with "see
     all spots", so new suggestions can earn their way up.
   - At scale, crews spread across the pool's spots and staggered times.
-- **Maps generated automatically** (Alex, after Phase 1 M1.3). The venue map on public
-  pages is drawn from the venue's and its spots' coordinates — venue and spots only,
-  never people (H1), and never device location (H4). No manual upload needed; upload
-  stays only as an optional override.
+- **Maps generated automatically** (Alex, after Phase 1 M1.3) — **SUPERSEDED in Phase 2
+  M2.1, see "A real map, not a schematic"**. The venue map on public pages is drawn from
+  the venue's and its spots' coordinates — venue and spots only, never people (H1), and
+  never device location (H4). No manual upload needed; upload stays only as an optional
+  override. *Kept here rather than deleted: the reasoning held, and what replaced it
+  keeps the same two hard rules. What it got wrong was the picture.*
 - **Look** (Alex, after Phase 1 M1.3). Public pages use the dark, on-brand look:
   near-black background, purple `#582883`, white text, the logo — matching the app and
   pindscene.com. Mobile-first, and still loading in under a second inside a Reddit tab.
@@ -650,3 +652,22 @@ change). Where the plan has more detail, the plan is the reference.
     bought roughly 400 ms on a route only crawlers hit, in exchange for stored objects,
     a failure path at publish and a backfill. Revisit only if the OG route ever gets
     hot, which it should not: previews are cached by whoever posts the link.
+- **A real map, not a schematic** (Alex, Phase 2 M2.1). **Supersedes "Maps generated
+  automatically"** above. M2.1 built the schematic that decision asked for — venue, spots,
+  walking minutes, north arrow, scale bar, drawn from coordinates with no tiles and no
+  key. On the page it **reads as a placeholder**, and it is the weakest thing on W2, which
+  is one of the three screens that carry the first impression. So the crowd page gets
+  real geography: streets, buildings, the actual shape of the block.
+
+  What does not change, and is not negotiable whichever shape is chosen:
+  - the map shows the venue and its meeting spots and **nothing else** — no user pins,
+    no crowd density, nothing about who is where (H1);
+  - **no geolocation**: no locate control, no permission prompt, no IP-based centring.
+    The venue is always the centre (H4). A library that ships a locate control by
+    default has it **removed, not hidden**.
+  - the walking minutes, the spot names and the north arrow stay — they were the useful
+    part of the schematic and they are ours, drawn over the map rather than baked into
+    somebody else's tiles.
+
+  The schematic generator (`src/public/map.ts`) stays in the repo until the replacement
+  is proven on Alex's phone.
