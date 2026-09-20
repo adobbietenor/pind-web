@@ -2294,7 +2294,12 @@ export type Database = {
       contact_kind: "email" | "sms"
       crew_state: "forming" | "spot_set" | "live" | "done" | "dissolved"
       entry_kind: "free" | "door" | "ticketed"
-      gathering_category: "sports" | "concerts" | "bars" | "clubs" | "community"
+      gathering_category:
+        | "live_music"
+        | "sport"
+        | "comedy"
+        | "taking_part"
+        | "markets"
       gathering_flag_kind:
         | "date_changed"
         | "rescheduled"
@@ -2448,7 +2453,13 @@ export const Constants = {
       contact_kind: ["email", "sms"],
       crew_state: ["forming", "spot_set", "live", "done", "dissolved"],
       entry_kind: ["free", "door", "ticketed"],
-      gathering_category: ["sports", "concerts", "bars", "clubs", "community"],
+      gathering_category: [
+        "live_music",
+        "sport",
+        "comedy",
+        "taking_part",
+        "markets",
+      ],
       gathering_flag_kind: [
         "date_changed",
         "rescheduled",

@@ -1188,3 +1188,50 @@ change). Where the plan has more detail, the plan is the reference.
   same fetch, and the spot poll should then attach only spots open at the meet time —
   and say "this venue has no spot open then" where none is, which is a flag that can
   actually fire. Until then it is Alex's eye, per gathering, in the admin.
+- **One list, one product — the categories were never structural** (Alex, after the
+  community pass; recorded because it is the thing he would otherwise re-litigate).
+  Community gatherings and big ticketed events belong in the same structure. The
+  product is **commit, see who else committed, form a crew by vibe**, and *a Leafs
+  game and a run club differ only in what you are committing to*. So the chips are a
+  browse aid for a long list, nothing more — **no split, no second mode, no separate
+  community product.**
+- **The five chips, and why not the four verbs** (Alex, after the community pass). The
+  distinction that matters to someone scanning is what they would be *doing*, not what
+  the subject is — a run club and a Leafs game are not both "sports". But measured
+  against the real feed the pure verb split does not survive: Music 523, Arts & Theatre
+  102, Sports 83, Miscellaneous 9. "Watching" would be **87% of the list, which filters
+  nothing**. So the watching kinds stay separate, because a reader who wants to watch
+  still has to pick what, and the verb idea is kept where it actually divides the list:
+  **live_music, sport, comedy, taking_part, markets**.
+  - **Comedy singular**: theatre, classical and opera are capped at 35 by the AI rubric
+    and never clear the floor of 60, so a "Comedy & theatre" chip would name something
+    that cannot appear.
+  - **Null is a real answer** — unclassified and still visible. Unfiltered is the
+    default, so only a chip can hide a row and nothing disappears for want of a label.
+  - **The stored value is an identifier; the label is copy.** Changing what a chip is
+    called is one line in `packages/shared`, never a migration.
+- **No "going out" chip: the feed cannot tell a DJ night from a gig** (measured,
+  after the community pass — recorded with the numbers so nobody tries again from the
+  same data). Dance/Electronic looked like a proxy for a club night. It is not, because
+  **the same rooms host both**:
+
+  | venue | Dance/Electronic | the rest of Music |
+  |---|---|---|
+  | History Toronto | 13 | 25 |
+  | The Opera House | 6 | 28 |
+  | Lee's Palace | 5 | 27 |
+  | The Mod Club | 4 | 38 |
+
+  Neither genre nor venue separates them, so a "going out" chip would be a guess, wrong
+  often enough to be noticed. **M4.4's own sourcing can do it properly**, because a
+  club-night source knows what it is; Ticketmaster never will.
+- **The chips and the publisher's category cap are different taxonomies** (measured,
+  after the community pass). The chips are what a reader browses by. The cap is a
+  monotony guard and needs the finest honest split it can get. They are tempting to
+  merge and **merging them is not free**: folding every kind of Music into one bucket
+  takes the three upcoming weeks from **23 / 16 / 15 published to 6 / 6 / 6**. So the
+  cap keeps its own vocabulary, a stored chip value is translated into it
+  (`capBucket`), and the two are changed independently. The cap's concerts/clubs split
+  rests on the same unreliable Dance/Electronic proxy as above — it is guarding against
+  a distinction it cannot reliably make, which is worth revisiting when M4.4 brings a
+  source that knows.

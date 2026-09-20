@@ -16,7 +16,7 @@ import {
   withdrawForm,
   withdrawnNote,
 } from "./imports";
-import { entryLine } from "@pind/shared";
+import { CATEGORIES, entryLine } from "@pind/shared";
 import { places, venueOptions, type Places } from "./places";
 import { markCell, promoteInline, promotionPanel, publishingPanel } from "./publishing";
 import { formatLocal, fromLocalInput, localDate, toLocalInput } from "./time";
@@ -330,7 +330,7 @@ function readFields(form: FormData, tz: string): GatheringFields | string {
     ends_at: ends,
     event_url: eventUrl || null,
     ...entry,
-    category: CATEGORIES.includes(str(form, "category")) ? str(form, "category") : null,
+    category: CATEGORY_VALUES.includes(str(form, "category")) ? str(form, "category") : null,
     featured: form.get("featured") === "on",
     venue_name_raw: str(form, "venue_name_raw") || null,
   };
@@ -365,13 +365,13 @@ function readEntry(form: FormData): Entry | string {
 // The five a reader will filter by (M2.3). Null is a real answer — "nobody has said"
 // — and the publisher falls back to deriving a coarse kind from the source, so a
 // guess and a statement stay distinguishable.
-const CATEGORIES = ["sports", "concerts", "bars", "clubs", "community"];
+const CATEGORY_VALUES: string[] = CATEGORIES.map((c) => c.value);
 
 function categoryField(g: any): string {
-  const options = [`<option value="">— not said; derived from the source —</option>`]
-    .concat(CATEGORIES.map((c) => `<option value="${c}"${g?.category === c ? " selected" : ""}>${c}</option>`))
+  const options = [`<option value="">— not said; unclassified, and still on every unfiltered list —</option>`]
+    .concat(CATEGORIES.map((c) => `<option value="${c.value}"${g?.category === c.value ? " selected" : ""}>${e(c.label)}</option>`))
     .join("");
-  return `<label>Category <span class="muted">(what a reader filters by; "bars" and "community" have no source until M4.4, so a hand-entered one is the only way they appear)</span><br>
+  return `<label>Category <span class="muted">(the chip a reader filters by. "Take part" and "Markets &amp; street" have no source until M4.4, so hand entry is the only way they appear)</span><br>
 <select name="category">${options}</select></label>`;
 }
 
