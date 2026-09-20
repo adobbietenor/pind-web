@@ -1235,3 +1235,25 @@ change). Where the plan has more detail, the plan is the reference.
   rests on the same unreliable Dance/Electronic proxy as above — it is guarding against
   a distinction it cannot reliably make, which is worth revisiting when M4.4 brings a
   source that knows.
+- **`create or replace` on a function somebody has already replaced is a silent
+  revert** (Claude, publishing the community list — a bug I caused and found). Adding
+  the entry states I rewrote `public_gathering` by copying the definition from
+  `m2_1_public_visibility`, which `m2_1_venue_maps` had already superseded. The
+  statement did exactly what it says and put the older body back, and four things went
+  quietly at once:
+  - `map_key` and `map_ready` vanished, so `isReady()` was false everywhere and **every
+    crowd page on the site fell back to the schematic** — the real Mapbox picture M2.1
+    was built for was gone, ticketed pages included;
+  - `timezone` became `city_timezone`, which nothing reads;
+  - spots lost their `active` filter and their `sort_order` ordering;
+  - counts were rebuilt by hand with three fields, dropping women/men/other, so the
+    **gender-mix chip (V3, Q3) had nothing to render**.
+
+  **Nothing caught it.** The typecheck passes because the function returns `jsonb`;
+  the unit tests do not call it; the policy harness asks what a visitor may *see*, and
+  every one of these was a key that simply stopped being there rather than a row that
+  leaked. It showed the instant somebody loaded a page and the map was a drawing.
+  **The rule: before replacing a database function, read the live definition** — `\sf`
+  or the last migration that touched it — never the migration that first created it.
+  And a jsonb-returning function needs a test that names the keys its readers expect,
+  which is the gap M2.3 should close while it is in there.

@@ -33,6 +33,7 @@ export interface Crowd {
   entry: "free" | "door" | "ticketed";
   door_price_cents: number | null;
   entry_note: string | null;
+  category: string | null;
   source: "manual" | "ticketmaster" | "ai";
   venue_name: string;
   city_name: string;
@@ -72,6 +73,7 @@ export interface Crowd2 {
     entry: "free" | "door" | "ticketed";
   door_price_cents: number | null;
   entry_note: string | null;
+  category: string | null;
     source: "manual" | "ticketmaster" | "ai";
     event_url: string | null;
   };

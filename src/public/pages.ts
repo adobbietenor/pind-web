@@ -3,7 +3,7 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, PIN_IN_FREE, THRESHOLD } from "@pind/shared";
+import { categoryLabel, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, PIN_IN_FREE, THRESHOLD } from "@pind/shared";
 import type { Env } from "../env";
 import { localDate } from "../admin/time";
 import { markSvg } from "./brand";
@@ -112,7 +112,11 @@ function byDay(list: Crowd[]): string {
 function card(g: Crowd): string {
   // Community and free gatherings are marked; a Ticketmaster listing is the default
   // and says nothing extra.
-  const mark = g.source === "manual" || g.source === "ai" ? `<span class="tag">community</span>` : "";
+  // The chip a reader filters by, when somebody has said. It used to read "community"
+  // for anything hand-entered, which was a guess from how a row arrived rather than
+  // what it is — and wrong the moment a run club became "Take part". Unclassified
+  // shows no chip and stays on every unfiltered list.
+  const mark = g.category ? `<span class="tag">${escape(categoryLabel(g.category))}</span>` : "";
   // Never "free" unless it is free. A pay-at-the-door gathering wears its price, or
   // the words "pay at the door" when the price is not known — silence would read as
   // free to anyone scanning (Alex, after M2.2).
