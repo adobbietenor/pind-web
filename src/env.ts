@@ -38,6 +38,13 @@ export interface Env {
   // AI spot suggestions: "on" to enable in the nightly run and the admin. Off unless
   // exactly "on" — moved to M1.3b (spec §6). Not a secret: wrangler.jsonc "vars".
   AI_SPOT_SUGGESTIONS?: string;
+  // Resend API key (M2.2, for operational alerts; the five notifications follow in
+  // M3.5). Secret. Without it a failed nightly run is recorded and shown in the admin
+  // but reaches nobody, which the Configuration panel says in as many words.
+  RESEND_API_KEY?: string;
+  // Where operational alerts go, and who they come from (M2.2). Not secrets.
+  ALERT_EMAIL?: string;
+  ALERT_FROM?: string;
 }
 
 export const spotSuggestionsOn = (env: Env): boolean => env.AI_SPOT_SUGGESTIONS === "on";

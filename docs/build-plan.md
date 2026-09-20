@@ -353,6 +353,26 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 - Withdrawing a published gathering does not lead the next run to re-publish the same draft.
 - The Publishing panel explains every choice in one line.
 
+**Settled during M2.2** (decisions.md, "Decided in Phase 2 M2.2"): the re-publish guard is `slug is null`, so unpublishing is as final as withdrawing and only Alex undoes either; refusals are logged and shown, not only choices; "seeded" is a `gathering_promotions` row ticked at the moment of posting, never inferred from `publish_mark`, with the forgotten-tick bias running against us; and the weekly adjust reads live pins with the 14-vs-30-day dependency asserted in code and in a check constraint, keeping its raw inputs for M4.5 to check the repoint against.
+
+4–6 h
+
+#### M2.3 · The list at fifty a week (W1)
+
+**Why its own milestone.** M2.2 raised the target from 5 to 50, and a list of fifty is a different screen from a list of five. Two things make it usable, and both are W1 work with a schema question behind them rather than anything in the publisher — so they do not belong on M2.2's acceptance list, and W1 is a first-impression page that gets real design attention rather than a bolt-on (CLAUDE.md).
+
+- **Today / tomorrow split.** At this volume there is reliably something under both, which is the whole point of the lead minimum being 0.
+- **Category filter chips** — sports, concerts, bars, clubs, community — **multi-select**, so sports *and* concerts, or community *and* bars. **A filter that narrows, never a sort that reorders**, so it cannot become a ranking by the back door (Alex, M2.2). Unfiltered is the default. Server-rendered as links with query parameters: no client-side JavaScript, no framework, nothing that costs the one-second budget inside a Reddit tab.
+- **The schema question, first.** A gathering has no category column today; the classification sits in `gathering_sources.snapshot`. It has to be a real column, exposed through `public_gatherings` — the public web reads through one door (M2.1, H11) — and mapped to the five names deliberately, because Ticketmaster's segments are Music, Sports and Arts & Theatre and none of them is "bars" or "community".
+- **Filter by venue and by neighbourhood, alongside the categories** (Alex, M2.2). Venue needs no new data; neighbourhood comes from the venue's coordinates against the list in `packages/shared`. The same rule applies — filters narrow, they never reorder. And the reason it matters beyond convenience: a cap is a crude way of stopping one venue dominating the list *for everybody*, whereas a filter lets a reader dominate their own list on purpose. As filtering lands the caps should get looser, not tighter.
+- **Two chips have no source until M4.4.** Nothing in the Ticketmaster feed is a bar or a community gathering, so "bars" and "community" are empty until the Community & free run exists. Decide what an empty category does — hidden, or shown greyed — before building the chips, and treat this as an argument for M4.4 being close.
+
+**Acceptance**
+
+- The landing page opens on today and tomorrow with something under both, and still loads in under a second on a phone.
+- Tapping two chips shows the union of those two categories and nothing else; the order of what remains is unchanged from unfiltered.
+- No chip is shown for a category nothing can fill.
+
 ### Phase 3 — The product, in Expo (68–96 h)
 
 12–16 h
@@ -386,10 +406,12 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 - Opt-in toggle; A9 locked state with the number named; the reciprocal list (RLS already does the work — the screen just renders what the policy returns); tapping a person opens A22, never a chat.
 - Edit and remove my pin; A19 My Events; universal links into the app; the "get the app" nudge shown once at crews-open.
 - The +1: shown as "+1 friend"; a +1 who wants to be seen pins in themselves through the share link; no claim page (§10).
+- **Close the pinning window at the effective end** (found and dated in M2.2, harness P37b). Pinning has no upper time bound today: a pin can be taken at a gathering that ended two days ago. It is a gap left from M1.1, not a decision, and A26 is the first screen with a real button to hang the rule on. Decide the exact edge with A26 — almost certainly the effective end, matching everything else time-driven — enforce it in the database, and **invert P37b rather than treating its failure as a regression**; the case is written to say so.
 
 **Acceptance**
 
 - From a link in iMessage on a phone with no app: tap → Worker page → Pin in → pinned in under 30 seconds with no account and no photo; the Worker page's count is one higher on reload.
+- Pinning is refused at a gathering that has ended, and still works an hour before doors; P37b is inverted and green.
 - **The quick pin screen is measured, not assumed.** One Lighthouse mobile run on `/g/<slug>/pin`, compared with the crowd page's, and a byte budget agreed for it. M2.1 measured the empty holding route at 828 KB and a score of 37 against the crowd page's 78 KB and 99; whatever A26 costs on top of that, the number is looked at rather than inherited.
 - Ticking "meet up" asks for DOB, gender, photo and an email code; afterwards the pin is still there under the same user.
 - Two test people opted in each see the other's first name and, once approved, photo; a third who pinned without opting in sees nobody and is not seen.
@@ -526,16 +548,37 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 
 #### M4.4 · Community & free sourcing
 
+**Open: should this move earlier?** (Alex asked in M2.2; **not decided, nothing reordered.**) The prompt was a measurement, not enthusiasm: Ticketmaster classifies everything as Music, Sports or Arts & Theatre, so "bars" and "community" have no source at all, and the breadth a 50-a-week target exists to show is three categories wearing five labels. The variety problem is a *sourcing* problem, and no publishing setting fixes it.
+
+**Cost of moving it before Phase 3:** 8–12 h of its own, plus 8–12 h of delay to M3.1 and M3.2 — which pushes the six-week checkpoint ("M3.2 showable to a friend") back by the same amount.
+
+**What it needs that does not exist yet:**
+- `gathering_source` has no `community` value — a migration, trivial.
+- **The web-search mechanism M1.3b proved unreliable.** M4.4 is Claude with web search over Toronto sources, which is the same tool that took 43 s for one venue and 219 s for another, returned empty lists, and stalled mid-stream until a run hung for 40 minutes (spec §6, M5.2). That work is built and switched off *because* it is not trusted. M4.4 would be fighting that battle now, before the crew loop is proven.
+- **Venues and meeting spots for places that are not buildings.** A run club meets at a park entrance; publishing needs a venue row, and a crew needs a spot. The manual spot pass (decisions Part 5) is not scheduled yet, and a published community gathering with nowhere to meet fails at the crew step, which is the product.
+
+**The honest case against:**
+1. The loop is still the risk, and it is why M4.4 sits after it. A varied list that cannot form a crew is a prettier empty room.
+2. Nothing is pointed at these pages yet — they are noindex and unlinked until M4.1 — so the thin-list problem has no audience today. Its cost is near zero now and rises sharply at first-crowd time.
+3. The 50-a-week change already bought most of the available breadth: 41 gatherings over three weeks at 49/32/20, against 18 before.
+
+**The option that may make the question moot: add the community gatherings by hand.** M4.4's value *to the list* is the gatherings, not the automation. Eight to twelve recurring community gatherings — run clubs, markets, a games night — entered through the manual-add admin that already exists, with their venues and spots done in the same pass, is roughly **2–3 h** and needs no new machinery, no web search and no reordering. It fills both empty chips, tests whether community crowds behave differently, and doubles as the first half of the manual spot pass that has to happen anyway. The automated weekly run then stays where it is, and arrives with a rubric written from real examples rather than guessed.
+
+**Decide after M2.2's acceptance walk, with M2.3 on the table at the same time.**
+
+
 **Why here.** The decision says the first real crowds include at least one small community gathering, so this must exist before them; it is independent of the app, and it comes after the crew loop because the loop is the risk. It runs as its own cron, applying M1.3b's lessons from the start.
 
 - A weekly run: Claude with web search over a fixed list of Toronto sources (city listings, run-club and market pages, festival calendars, community boards) producing drafts with `source = community`, its own rubric (social by design, solo-friendly, free or low-cost, recurring — not crowd size), ranked separately; a "Community & free" tab in the admin with source pages; duplicates against Ticketmaster merged.
 - Every call streamed and aborted at four minutes, at most one retry, a per-run budget and the daily cap, aborted usage estimated (M1.3b's cost blind spot).
 - The auto-publisher's community slot fed from this tab.
+- **Community venues are the hard case, and the spot work must not assume arenas** (Alex, M2.2). A run club, a market or a pickup game often has no venue in the Ticketmaster sense: a park entrance, a corner of a street, a community centre. Those need meeting spots too, and **harder ones, not easier** — there is no box office to meet outside of, and "the north gate" means nothing to someone who has never been. If the manual spot pass (decisions.md, "Spot content starts as a manual pass") covers only Scotiabank Arena and Rogers Centre, M4.4 arrives with nowhere for community crews to meet and the slot cannot be filled. **The manual pass must carry community locations from the start**, and the card's fields must survive a place that is not a building.
 
 **Acceptance**
 
 - A run finishes within its budget and fills the tab with real, dated, free or low-cost gatherings with links Alex can open.
 - At least one community gathering is published and visible on pind.social before the first real crowd.
+- **That gathering has meeting spots** — its location, whatever shape it is, has somewhere a crew can actually meet.
 - A run that stalls is aborted and reported, not hung.
 
 6–8 h

@@ -40,7 +40,10 @@ sourcing"). Fields: name, starts_at,
 `ends_at` (nullable), venue, `event_url` (tickets or event info; optional), `is_free`,
 `featured` flag, status (draft / published / dismissed / withdrawn),
 `publish_mark` (null / publish / never — Alex's marks for the auto-publisher, §8), and
-`review_only` (boolean, default false). A **review-only** gathering exists only for
+`review_only` (boolean, default false). A published gathering also carries any number
+of **promotion** records (`gathering_promotions`): where the team posted it, who
+posted it and when, ticked as it happens. They are what "seeded" means in §8, and
+nothing else reads them. A **review-only** gathering exists only for
 App Review: it is visible only to review-only people and admin, and never appears in
 lists, counts or the digest. Nothing in it is ever visible to a real person, so H6
 holds (decisions Part 5, "Review-only gatherings"). **Withdrawn**
@@ -600,7 +603,8 @@ working. Hours are Alex's, agent-assisted.
 | **Phase 2** | **The public layer and publishing, on the Worker** | | 18–26 |
 | M2.0 | Repo + Expo scaffold | **Done** — merged as `7fc973a` | 6–8 |
 | M2.1 | Public web layer on pind.social (W1–W4, the real map, the domain) | **Done** — merged as `6fea4a3` | 8–12 |
-| M2.2 | Auto-publishing v1 — fixed target (§8) | Not started | 4–6 |
+| M2.2 | Auto-publishing v1 — fixed target (§8) | **Ready to check on device** — branch `phase2/m2.2-auto-publishing` | 4–6 |
+| M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | Not started | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | Not started | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel, universal links (A5–A9, A19, A26, A27) | Not started | 12–18 |
@@ -847,6 +851,62 @@ the current pace, raise the hours or shrink the phase.
     - **the M5.2 distance ceiling** — Poetry Jazz Cafe is a 30-minute walk and was
       already approved and in a live spot poll.
 
+#### M2.2 — the nightly import had never actually run on schedule
+Found on 2026-09-20, when the admin showed "TICKETMASTER_CONSUMER_KEY is missing" and
+the last run was Friday evening. The diagnosis matters more than the credential.
+
+- **`import_runs` has never held a single row started at the 08:00 UTC cron time.**
+  Every "cron" row on record (18 Sep, 19:51 / 20:07 / 20:49 UTC) is a hand-invoked
+  M1.3 run labelled cron. The trigger has been live for two nights and produced
+  nothing both times.
+- **Why nothing was recorded:** `runImport` checked `TICKETMASTER_CONSUMER_KEY`
+  **before** calling `admin_start_import_run`, so a night that failed on a credential
+  wrote no run row at all. The admin went on showing the last good run and looked
+  fine. **A failed run must leave a failed run behind**; the check now sits inside the
+  try, after the row is opened.
+- **The secret is bound to the Worker** — `wrangler secret list` names it — so "it was
+  lost when workers.dev was turned off" is **wrong**: Cloudflare secrets belong to the
+  Worker, not to a route or a hostname, and M2.1 removed a hostname. What `secret
+  list` cannot show is the *value*: a secret set to an empty string lists exactly like
+  a real one and fails at the first `.trim()`. That is why "set but EMPTY" is its own
+  state on the Configuration panel.
+- **Two clocks now, deliberately.** Cloudflare's cron runs the import; a **pg_cron job
+  in Postgres** checks **every hour** whether the run that was due has succeeded, and
+  writes a failed `import_runs` row once its grace has passed without one. A Worker
+  cannot report its own cron being dead, so the watchdog cannot live in the Worker. It
+  caught this immediately on installation: 43 hours since the last success.
+- **The watchdog's threshold is relative to the schedule, never a fixed hour** (Alex,
+  M2.2, who spotted the trap before it sprang). The first version ran at 09:00 UTC and
+  called a night missed after 26 hours, which quietly assumed the import fires at
+  08:00 UTC. Had the cron really been 08:00 local — 12:00 UTC — the watchdog would
+  have cried wolf every day, three hours before the import could run; a daylight-saving
+  shift or an edited cron line does the same thing less visibly. **An alerting rule
+  that fires when nothing is wrong is worse than no rule**, because it teaches the
+  reader to ignore it and then the real missed night looks like all the others. So:
+  the cron expression is stored in `ops_import_schedule`, the watchdog computes the
+  most recent due time from it plus a 120-minute grace, and it runs hourly so it has
+  no schedule of its own to drift out of step with. Harness P64 covers it.
+- **Cloudflare cron triggers are always UTC**, so `"0 8 * * *"` is 08:00 UTC and the
+  dashboard's "Runs At 08:00 AM" is UTC too. Nothing depends on that being true: the
+  Worker reports `ScheduledController.cron` and `.scheduledTime` into the database on
+  every scheduled run, so the next firing settles it with evidence from the scheduler
+  itself rather than from documentation, and the threshold follows whatever it says.
+- **Workers Logs are on, unsampled, in `wrangler.jsonc`** (Alex, M2.2). Observability
+  was disabled on `pind-web-staging`, which is why no invocation history existed for
+  the two missed nights and the dashboard could say nothing about them. Enabled in the
+  repo rather than the dashboard, for the reason the routes are: config that cannot be
+  reproduced from this repo is a broken repo. `head_sampling_rate` stays at 1 — a
+  sampled log is worse than none when the question is "did this one invocation
+  happen". Logs and the watchdog both stay: logs answer that question for someone who
+  goes and looks, and the watchdog is the half that reaches out.
+- **The next cron firing is self-diagnosing.** A row at 08:00 UTC means the trigger
+  fires and the row says what failed; no row plus a watchdog row at 09:00 means the
+  trigger is not firing at all. Until then the two cannot be told apart from data.
+- **What now reaches Alex:** a failed run sends one email (Resend, at most one of a
+  kind per Toronto day), and every admin page carries a red banner while the import is
+  stale. The email needs `RESEND_API_KEY` and `ALERT_EMAIL`; until they are set the
+  banner says in as many words that nothing emailed him.
+
 #### Notes carried into the next milestones
 - **M3.1 — the photo check** (recorded by Alex in M1.2; decisions Part 5, "Automated
   photo moderation"). On upload, a Claude vision check auto-approves clear real-person
@@ -931,6 +991,26 @@ the current pace, raise the hours or shrink the phase.
   - **Not a merge blocker** (Alex, M2.1). M2.2 picks it up. Do not rediscover this from
     scratch: start from the token and the `"spa":2` flag, and check whether it survives
     a deploy that changes the assets configuration.
+  - **Checked in M2.2 (2026-09-20), after the M2.2 deploy: it survived, unchanged.**
+    Same token `6fbd9c00…`, same `"spa":2`, same reproduction — clean on plain `curl`,
+    present with `Sec-Fetch-Dest: document`. Injected into **every HTML response** (W1
+    `/` and `/health` alike) and into **nothing else**: `/robots.txt` (text/plain) and a
+    404 carry none, so it is content-type-triggered edge injection, not something a
+    route or an asset pulls in.
+  - **Nothing left in the repo can turn it off.** It is still absent from the source,
+    wrangler's schema still has no key for it, and it is still added after the Worker
+    returns, so there is no Worker-side strip. Nothing M2.2 changed about the Worker,
+    its routes or its deploy touched it — which was the experiment M2.1 proposed, and
+    it came back negative.
+  - **What is left is Alex's, and it is one query.** The dashboard's Web Analytics
+    list shows two sites and neither is pind.social, so the site holding this token is
+    not in that list — an implicitly created one would not be. The Cloudflare API can
+    say outright: list the account's Web Analytics sites and find the one whose token
+    is `6fbd9c007d0e4740bc718720ec35af43`, then check the Worker's own observability /
+    Web Analytics setting. Both need an account API token, which is Alex's
+    (CLAUDE.md, "Things that are mine, not yours"). **Carried into M2.3/M4.1 as Alex's,
+    not as a code task** — it is a rule problem, not a speed problem (10.6 KB from a
+    second host, no measurable time), and it stays open until that query answers it.
 
 - **M3.2 — tab icons** (Alex, M2.0). Add `expo-symbols` and choose the four icons
   when Crowds has content. The tabs are labels only until then.
@@ -939,6 +1019,16 @@ the current pace, raise the hours or shrink the phase.
   room. The production internal TestFlight group has Alex only: EAS auto-created
   "Team (Expo)" with all six App Store Connect users on the first staging submit.
   In `docs/build-plan.md` §8 M4.3 acceptance.
+- **M4.5 — repoint the weekly adjust, and switch adaptive on** (M2.2). Two things,
+  both small because M2.2 left the plumbing in place. (1) `adaptive` becomes a
+  checkbox on the Publishing panel; the adjust has been running and logging every
+  Monday since M2.2, including the target it would have moved to, so nothing new is
+  built. (2) `public.admin_publish_outcomes` moves from live pins to the
+  `gathering_stats` snapshots §7 adds. `publish_target_log.inputs` holds every row the
+  arithmetic counted on every past week, so the repoint is checked by running both
+  sources over the same weeks and comparing — not by trusting it. The 14-day window
+  must stay under pin retention until that swap happens; the planner and a check
+  constraint both refuse otherwise.
 - **M4.5 — PostHog** (Alex, M2.0). No `$geoip_*` properties and no `$ip` were
   stored (checked 2026-09-19), so M4.5 re-checks this rather than building a
   transformation. One iPhone visit produced two `app_open` events 1 ms apart with
@@ -972,6 +1062,19 @@ real crowd"). What M1.3 learned, measured on 2026-09-18 with Sonnet 5, effort me
     retry, and a venue is started only if its call can finish before the deadline.
   - **Basic `web_search_20250305`** was faster (57 s) but returned an empty list in its
     one trial, with more input tokens (99k).
+  - **A spot should be a card, and the content comes by hand first** (Alex, M2.2 —
+    filed, not built; full entries in decisions.md Part 5, "A spot is a card, not a
+    maps link" and "Spot content starts as a manual pass"). A meeting spot currently
+    opens Google Maps and that is the whole interaction; it should open a card — what
+    the place is like, food and drink, rough capacity, noise, whether six can get a
+    table without booking — with the maps link inside it. A crew choosing between three
+    spots otherwise has a name and a walking time to choose on. **The content starts as
+    a manual pass**, whose real output is a definition of "a good spot" that becomes
+    this run's rubric; the card's fields are designed first so the spreadsheet is an
+    import, not notes. **It must not be arena-first**: run clubs, markets and pickup
+    games have the harder locations, and M4.4 needs them (`docs/build-plan.md` §8 M4.4).
+    Sourcing is the open question, and **this run already fetches an evidence page per
+    spot**, so richer data may belong here rather than in a second job.
   - **Quality:** suggestions came back for 2 venues (Scotiabank Arena in a direct
     test; Sneaky Dee's in a run, 3 pending on staging) — sensible but not perfect
     (one "east of the venue" was west). Alex's approval stays the gate.
@@ -1138,12 +1241,12 @@ to be legible in the admin and correct with sparse data.
 
 | Setting | Start | Meaning |
 |---|---|---|
-| `publish_target_weekly` | 5 | How many gatherings should be published per calendar week of start dates |
-| `publish_min` / `publish_max` | 3 / 20 | Floor and ceiling for the target |
+| `publish_target_weekly` | **50** | How many gatherings should be published per calendar week of start dates. Raised from 5 in M2.2: build assuming it is popular (decisions Part 5) |
+| `publish_min` / `publish_max` | 3 / **75** | Floor and ceiling for the target. The ceiling rose with the target; the floor only binds once adaptive is on (M4.5) |
 | `publish_lead_days_min` / `_max` | 4 / 21 | Publish a draft only if it starts within this window; nearer first |
 | `max_per_venue_per_week` | 2 | A Jays homestand does not fill the week |
-| `community_slots_weekly` | 1 | Reserved for a "Community & free" gathering above its own threshold (from M4.4) |
-| `score_floor` | 70 | Final score (AI score minus distance adjustment) below which a draft is never auto-published |
+| `community_slots_weekly` | 1 | Reserved for a "Community & free" gathering above its own threshold (from M4.4). **One in five was chosen before any evidence — revisit at M4.4** |
+| `score_floor` | 70 | Final score (AI score minus distance adjustment) below which a draft is never auto-published. **At a target of 50 this, not the target, is what limits the list** — and lowering it needs a per-category cap in the same change (decisions Part 5) |
 | `grow_reach` · `grow_median_pins` | 0.60 · 8 | Both must hold to grow |
 | `shrink_reach` | 0.30 | Below this, shrink |
 | `step_up` · `step_down` | +2 · −1 | The most the target can move in one week |
@@ -1155,9 +1258,21 @@ below the target, publish the highest-scoring eligible drafts until it is met: i
 the lead window, at or above the score floor, not dismissed by Alex, not withdrawn, at
 most two per venue per week, one slot held for a community gathering when the
 community run has a candidate. Drafts Alex has marked **"publish"** go first regardless
-of score; drafts marked **"never"** are skipped forever (`publish_mark`, §1). Withdrawing
-a published gathering never leads a later run to re-publish the same draft. Alex
-withdraws (any time) or unpublishes (zero pins) whatever is wrong; manual publish stays.
+of score; drafts marked **"never"** are skipped forever (`publish_mark`, §1). A
+gathering that has **ever been public is never picked up by a run again** — it carries
+a slug, and a slug is minted at publish and can never be removed, so the database
+already records it (Alex, M2.2). That one condition covers both withdrawing and
+unpublishing: Alex withdraws (any time) or unpublishes (zero pins) whatever is wrong,
+and only he can put it back. Manual publish stays.
+
+The weeks are the **city's** weeks, Monday to Sunday, counted by the week a gathering
+**starts** in. `publish_lead_days_max` is 21 for that reason: the far end of the third
+week is at most 20 days away, so the lead window always covers every week the run
+fills. Ranking inside a week is marked drafts first, then final score, then the sooner
+start. A withdrawn gathering is not published, so its week is genuinely short and the
+next run refills it. The community slot is held **only when a community gathering is
+waiting** — holding an empty slot would publish four where the target says five — so
+it reserves nothing until M4.4.
 
 ### The weekly adjust (Monday's run, before the 6pm digest)
 Look at gatherings that ended in the trailing 14 days and had been published at least
@@ -1170,11 +1285,102 @@ and `median_pins`. Then:
 - clamp to `publish_min … publish_max`; if fewer than 3 gatherings qualify in the
   window, hold.
 
-Written in M2.2 but gated by `adaptive = off`; switched on in M4.5.
+**Open: is one community slot in five too few?** (Alex, M2.2; revisit once M4.4 can
+actually fill the slot.) The number was set before there was any evidence, alongside
+everything else in the table. The case for raising it: free recurring gatherings may
+be where this product actually works — **the same people every Saturday is how repeat
+attendance happens**, where 18,000 strangers once is a single shot at reaching 5.
+Community gatherings are first-class, not the minor half (decisions Part 5,
+"Community gatherings are first-class"). The case for leaving it: nothing sources them
+until M4.4, so raising it now would hold slots nothing can fill, and the fill already
+refuses to hold an empty slot for exactly that reason. It stays at 1 until there is a
+queue to measure; then it is a setting on the cities row, not a rebuild.
+
+**The lead minimum is 0** (Alex, M2.2, on the first real fill): `publish_lead_days_min`
+starts at **0**, not 4. Someone landing on the site tonight has to see what is on
+tonight — people are last-minute, and a five-day hole at the front of the list reads as
+an abandoned site. Nothing else changes: `admin_publish_gathering` still refuses a
+gathering that has already started, so "today" means the rest of today.
+
+**Open: what the target counts — a week, or a shelf** (Alex, M2.2; decide after real
+weeks, not by reasoning). The target is currently *five gatherings starting per
+calendar week*, and the first read-only run surfaced the consequence: by mid-week
+everything still on the shelf for that week starts inside the 4-day lead minimum, so
+the current week's target can no longer be met and the list sags as the week runs
+out. Two shapes:
+- **Per starting week (built).** Legible — "five a week" is a sentence anyone can
+  check against a calendar — and the unit the weekly adjust already measures in.
+  The list thins towards the end of each week by construction.
+- **A rolling shelf.** Five *live at any time* across the lead window, so the list
+  carries roughly the same amount every day and refills as gatherings fall out of the
+  window. Steadier for a visitor arriving on a Friday, but "the target" stops matching
+  the week the adjust reasons about, and the per-venue-per-week cap needs re-stating.
+
+The rule stays as built. Watch a few real weeks first: how often the current week
+actually empties, and whether anyone lands on the thin end of one.
+
+**First evidence, 20 September 2026 — the hole is inside the week, not at its front.**
+Dropping the lead minimum to 0 did not fill Monday to Thursday, and the publishing log
+says exactly why: the week of 21 Sep was already at its target of 5, and all five fall
+on Friday, Saturday and Sunday. Twenty-nine eligible drafts were skipped as "week
+full", **five of them on the empty days, including Charli xcx (88) and a Leafs game
+(88) — scoring higher than things that published in other weeks.** Part of that is
+sequencing: the week was filled while the 4-day minimum still hid the near days, and a
+week filled from scratch under a 0-day minimum would have ranked Charli xcx first. But
+the shape of the problem survives that: a per-week target says nothing about *which*
+days inside the week get filled, so a strong weekend can legitimately consume a whole
+week's quota. A rolling shelf, a higher weekly target, or a floor on the next 72 hours
+would each address it differently. Decision still deferred; the evidence is no longer
+hypothetical.
+
+**Pinning has no time gate, and never had one** (confirmed in M2.2, harness P37b).
+`publish_lead_days_min` decides only when a draft may be *auto-published*; it is read
+by the publisher and nowhere else. The only conditions on taking a pin are "it is me"
+and "the gathering is published, not withdrawn, not seeded", so someone can pin in on
+the morning of, or an hour before doors. **They can also pin in after it has ended** —
+there is no upper bound either. That is a gap left from M1.1 rather than a decision,
+and it is **M3.2's to close** (`docs/build-plan.md` §8 M3.2): pins close at the
+effective end, decided with A26, which is the first screen with a button to hang the
+rule on. P37b records the gap deliberately and says in the case itself that M3.2
+should invert it, so nobody fixing the bound reads a red test as a regression. The
+people list still closes 24h after the effective end (V1); that is a read rule and
+unaffected.
+
+Written in M2.2 but gated by `adaptive = off`; switched on in M4.5. While it is off it
+still runs every Monday and still logs, including the target it *would* have moved to,
+so M4.5 is a checkbox and not new plumbing.
+
+Until M4.5 it reads **live pins**, which is exact only because the trailing window (14
+days) is shorter than pin retention (30 days, Part 3). If the two ever crossed it would
+read gatherings whose pins had gone and return a confident shrink from incomplete data,
+so both halves refuse rather than guess: a check constraint caps
+`adjust_window_days` at 29, and the planner throws before computing anything (Alex,
+M2.2).
 
 ### Logging
 Every nightly choice is logged with its score, distance and the slot it filled, and
-shown on the admin's Publishing panel in one line each. Every weekly decision is logged
-with its inputs. Seeded and unseeded gatherings are shown side by side. In week one
-there is no evidence: the target starts at 5 and Alex marks the two or three the team
-will seed as "publish". Nothing reads ticket availability — off-sale is not a problem.
+shown on the admin's Publishing panel in one line each. **The refusals are logged too**
+(Alex, M2.2): a draft passed over because it had been public before reads "skipped,
+previously published" rather than simply not appearing, and the same goes for the
+venue cap, the score floor and a full week. A rule whose refusals are invisible is a
+rule nobody can tell is working. Every draft inside the lead window gets a line;
+drafts outside it are not candidates and are not logged, so the log is three weeks of
+queue rather than the whole 8-week import.
+
+Every weekly decision is logged with its inputs — the per-gathering rows it counted,
+kept verbatim, so M4.5 can point the same arithmetic at `gathering_stats` and confirm
+on the same weeks that the answer did not change.
+
+**Seeded and organic are shown side by side, and "seeded" means somebody recorded
+posting it** (Alex, M2.2) — a `gathering_promotions` row naming the channel, who
+posted it and when, ticked next to the share link at the moment of posting rather than
+reconciled from a list afterwards. It is deliberately *not* inferred from
+`publish_mark`, which is only Alex's instruction to the publisher: the two coincide
+only until the publisher picks a good game and someone posts it anyway, which is the
+common case. A gathering with no promotion row counts as organic, so a forgotten tick
+flatters the organic number rather than ours — the unseeded reach rate is a floor, not
+a measurement. Neither split decides anything; the whole population does.
+
+In week one there is no evidence: the target starts at 5 and Alex marks the two or
+three the team will seed as "publish". Nothing reads ticket availability — off-sale is
+not a problem.

@@ -629,6 +629,82 @@ change). Where the plan has more detail, the plan is the reference.
   Mapbox GL bills $5 per 1,000 map loads past the free 50,000. It also ships no API key,
   because there is no key. The pins are gatherings, never people (H1), and the map still
   never asks where the viewer is (H4).
+
+  **The three surfaces, and which is the default** (Alex, M2.2 — filed, not built).
+  When the landing page eventually has both views, they sit like this:
+  1. **List is the default, and it is date-first.** Q10 stands. This is not a layout
+     preference: a popularity sort as the *default* is a rich-get-richer loop, and it is
+     backwards in a product where everything needs to reach 5. The gatherings that most
+     need eyes are the ones a popularity sort buries.
+  2. **Map is a toggle**, the deferred city map described above — Protomaps on R2, a pin
+     per published gathering, tap to open its crowd page, no per-load billing, no
+     geolocation.
+  3. **"Popular events" is an option the user chooses**, from either view. Never a
+     default, never an automatic re-ordering, never a "for you". The difference that
+     matters is who asked for it: a reader who chooses to sort by popularity has decided
+     what they want, and nothing has decided it for them.
+  5. **Filter by venue, and by neighbourhood** (Alex, M2.2 — filed, not built). Every
+     gathering already has a venue and every venue has coordinates, so venue filtering
+     needs no new data at all; neighbourhoods exist in `packages/shared` and can be
+     derived from those coordinates. **"What is on in the west end" is a more common
+     question than "what is on at The Mod Club"**, so neighbourhood is likely the more
+     used of the two — but venue is nearly free and matters to someone who goes to one
+     place regularly or lives beside it.
+
+     **The connection to the caps, which is the point** (Alex): a venue cap is a crude
+     way of stopping one place dominating the list, applied to everybody because nobody
+     can choose. Once a reader can filter, they can make one venue dominate their own
+     list *deliberately*, which is the better version of the same thing. **So as
+     filtering lands, the caps should get looser rather than tighter** — the per-venue
+     cap going from 2 to 6 in M2.2 is the first step of that, and the category share
+     should be re-examined the same way once the chips exist.
+  4. **A category filter across the top of the list** (Alex, M2.2 — filed, not built):
+     sports, concerts, bars, clubs, community. A filter, not a sort: it narrows what is
+     shown without reordering what is left, so it cannot become a ranking by the back
+     door. Unfiltered stays the default. Two things to settle when it is picked up —
+     where the categories come from, since Ticketmaster's own classifications are close
+     but not these five and the Community & free run (M4.4) has its own shape; and what
+     an empty category looks like, because "Clubs (0)" on a Tuesday is worse than no
+     chip at all when a handful of gatherings a week are published.
+- **A spot is a card, not a maps link** (Alex, M2.2 — filed, not built). Tapping a
+  meeting spot opens Google Maps today, and that is the whole interaction. It should
+  open a **card**: what the place is like, food and drink, rough capacity, how loud it
+  is, whether six people can get a table without booking — with the maps link *inside*
+  the card rather than being the card.
+
+  **Why it is not decoration.** A crew choosing between three spots has a name and a
+  walking time, which is nothing to choose on; someone new to the city has less than
+  that. The card is what turns the spot poll from a coin toss into a decision, and the
+  spot poll is the last step before a crew actually meets.
+
+  **The open question is sourcing**, and it is open on purpose:
+  - **Google Places** gives photos and hours, and adds a per-request cost plus a third
+    party to a page we keep fast. It would have to be fetched server-side and served
+    from our own origin like the venue maps (CLAUDE.md), never called from the page.
+  - **AI descriptions** are cheap and scale, and **a wrong vibe is worse than none** —
+    "quiet enough to talk" about a room nobody can hear in costs more trust than a
+    blank field.
+  - **Hand-written** is honest and does not scale.
+
+  M1.3b's automated approval check already fetches an evidence page per spot, so the
+  richer data may come from **that same run** rather than a second one — worth checking
+  before any new job is designed. Picked up with M5.2 (M1.3b) or M3.3, whichever
+  reaches the spot poll first.
+- **Spot content starts as a manual pass, deliberately** (Alex, M2.2 — filed, not
+  built). Before any automation: gather candidate spots, filter to what actually
+  belongs in the app, write the details by hand into a spreadsheet, import once.
+  Quality and accuracy first.
+
+  **The point is to learn what "a good spot" means**, in specifics, from real places —
+  and that definition becomes the rubric M1.3b automates against later. Automating
+  first would encode a guess at the standard instead of a standard. Poetry Jazz Cafe is
+  the argument: it was approved, sits in a live spot poll, and is a thirty-minute walk
+  (spec §6, "the M5.2 distance ceiling"). A rule that would have caught it is easy to
+  write *after* looking at spots and hard to guess at beforehand.
+
+  **Design the card's fields before gathering anything**, so the spreadsheet is an
+  import and not notes that need reshaping afterwards. The field list is the first
+  deliverable of the pass, not a by-product of it.
 - **crowds@ and safety@ are real, monitored inboxes** (Alex, M2.1). The public pages
   carry `crowds@pind.social` (suggest a gathering) and `safety@pind.social` (report).
   **Resend sends mail, it does not receive it**, so both would bounce silently as they
@@ -772,3 +848,252 @@ change). Where the plan has more detail, the plan is the reference.
   Alex's decision, made after walking it on a phone — not a placeholder, and not
   Tatiana's to revisit. The **register** of everything that is not a house rule is
   still hers, in the copy pass spec §5 says is owed.
+
+### Decided in Phase 2 M2.2
+
+- **Once public, only Alex brings it back** (Alex, M2.2). A gathering that has ever
+  been published is never picked up by an auto-publishing run again. The condition is
+  `slug is null`: a slug is minted at publish and the schema refuses to remove one, so
+  "has been public before" is already a fact in the database — no new column, one
+  condition covering both withdrawing and unpublishing, and one less thing for the
+  M4.2 reviewer to reason about.
+  **Why, in Alex's words:** "My unpublish click means 'not this one', and a rule that
+  can silently undo it isn't a control. Silent is the problem more than the reversal —
+  I'd click, it'd come back, and I'd doubt whether I'd clicked at all. One manual click
+  on the rare occasion I change my mind is the cheaper side of that trade."
+  The cost is accepted: after an unpublish, only Alex's own Publish button republishes.
+- **A refusal has to be as visible as a choice** (Alex, M2.2). The Publishing panel
+  lists every draft inside the lead window, published or not, each with its reason in
+  one line — "skipped, previously published", "the week was already full at 5",
+  "Scotiabank Arena already has 2 that week", "below the floor of 70". A draft that was
+  passed over must say so rather than merely be absent. **Why:** "I want to be able to
+  see why something didn't publish, not only why something did." Routine refusals
+  (below the floor, unscored, no venue) fold into a collapsed row so the four lines
+  that say something are not buried under three hundred that do not. This applies to
+  every admin surface over an automated run, not only this one.
+- **Seeded means somebody recorded posting it** (Alex, M2.2). A new
+  `gathering_promotions` table: one row per post, naming the channel as whoever posted
+  it would say it (`r/leafs`, Instagram, a Discord), who posted it and when. It is
+  ticked next to the share link in the admin, in the same motion as copying the link —
+  by whoever posts it, in that minute.
+  - **Not inferred from `publish_mark`.** That stays what it is: Alex's instruction to
+    the publisher, nothing to do with promotion. The two coincide only until the
+    auto-publisher picks a good Leafs game and someone posts it anyway, "which is the
+    common case, not an edge", and seeded-vs-organic is the number that decides when
+    the seeding labour stops and what the publisher's floor rests on.
+  - **Not a weekly reconciliation either.** "A manual tick per gathering, every week,
+    on the number I'd most easily forget, is a metric that quietly lies."
+  - **The bias is stated and runs against us.** A gathering with no promotion row
+    counts as organic, so a forgotten tick makes organic reach look *better* than it
+    is, never worse. The unseeded number is therefore a floor, not a measurement, and
+    nobody should read it as exact. Both splits are shown; neither decides anything —
+    the whole population does.
+- **The weekly adjust reads live pins until M4.5, and says so in code** (Alex, M2.2).
+  `gathering_stats` (spec §7) is M4.5 work, so the adjust computes `reach_rate` and
+  `median_pins` from live pins. That is exact today: the trailing window is 14 days and
+  pins live 30 days past the effective end (Part 3), so nothing in range has been
+  deleted. Two things keep it from rotting quietly, at Alex's instruction:
+  - **The dependency is asserted, not noted.** If the trailing window ever reaches pin
+    retention the adjust throws rather than computing something wrong — it would
+    otherwise find few pins and return a confident shrink that looks like evidence.
+    A check constraint caps `adjust_window_days` at 29 and `src/publish/plan.ts` throws
+    at the same line; the unit tests cover both sides of the boundary.
+  - **The weekly log keeps its raw inputs** — the gatherings counted, their pins,
+    open-to-meeting counts and whether each reached 5 — so when `gathering_stats`
+    lands, M4.5 can point the same arithmetic at it and confirm on the same weeks that
+    the repoint did not change the answer.
+- **Publishing is still one door** (Claude, M2.2, following M2.1). The nightly fill has
+  no privilege Alex's button does not: it calls `public.admin_publish_gathering` for
+  every pick, which mints the slug, tops up the spot poll and writes the moderation log.
+  The selection rules live in `src/publish/plan.ts` as pure arithmetic with unit tests,
+  because that is what they are — a ranking over a queue, not a visibility rule. Nothing
+  about who sees whom moved out of the database (H11).
+- **The publisher is the actor, even on a manual run** (Claude, M2.2). A run started
+  from "Run import now" still logs `publisher:auto` against the gatherings it fills, so
+  the moderation log keeps "Alex pressed Publish" and "a run filled a slot" apart.
+  `import_runs` already records who triggered the run.
+- **A failed job must leave a record, and a dead clock needs a second clock**
+  (Alex, M2.2, after the nightly import turned out never to have run on schedule).
+  Three rules, all of them general:
+  1. **Open the run row before anything that can fail.** The import checked its
+     Ticketmaster key before `admin_start_import_run` and returned early, so a night
+     that failed on a credential wrote nothing and the admin kept showing the last
+     good run. Any job with a run record opens it first and records the failure into
+     it.
+  2. **A watchdog cannot live inside the thing it watches.** The Worker cannot report
+     its own cron being dead, so the watchdog is a pg_cron job in Postgres — the one
+     clock in this system that does not depend on Cloudflare — writing a failed
+     `import_runs` row when no run has started in 26 hours. It is scheduled from a
+     migration, not the dashboard, for the same reason schema is.
+  3. **Alerts go one way and are rate-limited.** A failed nightly run emails once
+     (Resend), at most one of a kind per Toronto day, enforced by a unique index
+     rather than by the Worker; a channel that repeats itself gets muted, and a muted
+     channel is the silent failure again. Only a *sent* alert suppresses the next, so
+     a failed send does not silence tomorrow.
+
+  **Why it matters more than the credential:** M2.2's premise is that the city's list
+  refreshes without anyone watching. A silent failure therefore means pind.social
+  quietly stops updating and starts looking abandoned, and the first person to notice
+  is a visitor. Alex found this one by happening to look.
+- **The admin answers "is this thing configured"** (Alex, M2.2). `/admin/config` lists
+  every setting the Worker needs with three states — set, **set but EMPTY**, not set —
+  what stops working without each, and the exact `wrangler secret put` to fix it. No
+  value is ever read, rendered or logged. "Empty" is its own state because a secret set
+  to an empty string lists in `wrangler secret list` exactly like a real one and then
+  fails at the first `.trim()`, which is the hardest version of this bug to see.
+  It is the general form of CLAUDE.md's rule after M2.1's `MAPBOX_TOKEN`: unset is a
+  different state from broken, and it belongs in front of whoever can fix it. Checking
+  one secret because one broke would have left the rest exactly as invisible.
+
+- **The target is 50 a week, and that is the working assumption** (Alex, M2.2).
+  Not a temporary setting to be tuned down: **build assuming it is popular, not
+  assuming ten users.**
+  **In Alex's words:** "Five events doesn't represent what this app is. Someone landing
+  on it needs to see a broad variety across the city — sports, concerts, clubs,
+  community — so they understand it's about going out in Toronto and exploring, not
+  about arena sports. A thin list teaches people the wrong thing about the product, and
+  that costs more than pin concentration buys. We'll adjust with real data; we're not
+  launching thin."
+  This reverses the emphasis of "Publishing selectively is deliberate: pins must
+  concentrate so crowds reach 5" (above). Concentration is still why the floor and the
+  caps exist; it is no longer why the *number* is small. `publish_max` rose to 75 so
+  the ceiling does not block the target, and `publish_min` stays at 3 — it only binds
+  once the adaptive loop is on in M4.5, and it is the floor that keeps the list from
+  disappearing after a bad fortnight, not a statement of intent.
+- **At 50, the score floor is the limiter, not the target** (measured, M2.2). The real
+  Toronto queue holds **88 eligible drafts across 8 weeks at a floor of 70 — about 11 a
+  week**, so a target of 50 publishes everything that clears the bar and stays short.
+  Lowering the floor is the lever that actually widens the list:
+
+  | floor | eligible over 8 weeks | per week | mix |
+  |---|---|---|---|
+  | 70 | 88 | ~11 | clubs 31, concerts 29, sports 28 |
+  | 60 | 223 | ~28 | concerts 130, clubs 59, sports 30 |
+  | 50 | 424 | ~53 | concerts 287, clubs 77, sports 48 |
+
+  **The floor and a per-category cap are one decision, not two.** At 70 the mix is
+  already even and a category cap would bind on nothing. At 50 concerts are **68% of
+  the queue**, and a list meant to say "going out in Toronto" becomes a concert
+  listing. So: keep the floor at 70 until the category cap exists; ship them together.
+- **The per-venue cap stays at 2** (checked at the new target, M2.2). At a floor of 70
+  it binds almost nowhere — in the busiest week only Scotiabank Arena had more than two
+  eligible drafts — so it costs the list nothing today and is exactly what stops a Jays
+  homestand or an arena run dominating once the floor drops. Keeping it cheap and in
+  place is better than adding it back under pressure.
+- **No 72-hour floor** (Alex, M2.2; checked). At a target of 50 with a lead minimum of
+  0 the near-term gap closes by itself: over the next fortnight only three days are
+  empty, and they are mid-week days when Toronto genuinely has little above the bar.
+  A special rule for the first 72 hours would be machinery earning nothing.
+- **Bars and community have no source yet, and two chips would be empty** (found in
+  M2.2). Ticketmaster classifies everything as Music, Sports or Arts & Theatre. There is
+  no "bars" and no "community" in the feed at all, so two of the five categories Alex
+  wants across the top of the list have nothing behind them until **M4.4**. This is the
+  sharpest argument yet for M4.4 being close: the breadth the 50-a-week target is meant
+  to show is, today, three categories wearing five labels.
+- **Floor 60 with a per-category cap, together** (Alex, M2.2). "28 a week with a real
+  mix beats 53 a week of concerts." `score_floor` drops to 60 and `max_category_share`
+  (0.40) lands in the same migration; neither is correct alone. The share is of what is
+  actually being published, not of the target, because a count derived from a target of
+  50 would never bind on a queue supplying 28 — which is exactly when crowding happens.
+  `min_per_category` (3) is the allowance before the share applies, or the first pick
+  would be 100% of one kind. Gatherings already published that week count against the
+  share, so a week filled by hand is not doubled. Per-venue stays at 2.
+  Measured after the change: **41 published over three weeks — concerts 49%, clubs 32%,
+  sports 20%**, with 33 concerts held back. The arithmetic to know before changing the
+  share: a week can only reach (everything that is not the dominant category) ÷
+  (1 − share), so two categories at 40% each can never fill a week between them.
+- **An empty category chip is hidden, not greyed** (Alex, M2.2, for M2.3). "Community
+  (0)" every day advertises an absence. A chip appears only when something can fill it.
+- **The share is of the finished week, solved for — not grown into** (Alex, M2.2 walk).
+  The first cap tested each category against the *running* count, so the week grew one
+  slot at a time and stopped the moment no category could take the next slot without
+  breaching its share at that instant — even though a larger week existed in which
+  everyone was inside their share. On the real queue it stopped at **11 where 15 was
+  available at exactly 40/40/20**. The publisher now searches for the largest week
+  that can be filled with nobody over their share, and uses that week's ceiling. A
+  refusal names the ceiling — "the week of 28 Sep is capped at 6 concerts for its 40%
+  share" — rather than a tally that was true for one instant, which audits better a
+  month later.
+  What freezes a week is **the smallest category running out**: once it cannot grow,
+  every other category is pinned to its share of a total that can no longer rise. So
+  the cap's cost is a function of how many kinds of gathering have real supply, not of
+  the share.
+  Two rejected alternatives, both measured rather than argued:
+  - **Share of the target** (40% of 50 = 20 concerts) — the ceiling lands above what
+    the queue supplies, so the cap never binds: **31 published at 65% concerts**. It
+    arrives at the concert listing by arithmetic instead of choice.
+  - **Raise the allowance to 8** — 19 published at 42–47% concerts, but at these
+    volumes the allowance does all the work and the share almost none. It hits the
+    number by loosening the definition.
+- **A varied Toronto list cannot be built out of Ticketmaster alone** (measured,
+  M2.2 walk — the strongest argument in the project for the community work). With the
+  algorithm correct and the share honest, the week of 21 September had **49 candidates
+  above the floor and published 15**. The numbers that explain it:
+  - **three categories, not five** — sports, concerts and clubs; the feed has no bars
+    and no community at all;
+  - **concerts are 69% of what is available** (35 of 49), so holding them to 40%
+    mathematically bounds the week near 15;
+  - **the per-venue cap trims the rest** — 49 candidates reduce to ~35 reachable;
+  - fixing the algorithm recovered **4 of the 37 missing slots**. The cap was never
+    the constraint. **The supply is.**
+
+  Three categories against a 40% share leaves 20% of slack, and the smallest category
+  runs out first. Add bars and community and the same share stops binding almost
+  entirely. This is why the manual community pass (decisions Part 5) matters more than
+  its position in the plan suggests: it is not decoration on the list, it is what makes
+  every other rule in the publisher affordable.
+- **A mark outranks every automatic rule** (Alex, M2.2 walk). "Publish first" used to
+  mean only "skips the score floor", so three drafts Alex marked were refused by the
+  venue cap and the category cap and stayed drafts while the confirmation promised they
+  would publish. It now means what the button means.
+  **The argument that settled it:** the Publish button already ignores every rule, so a
+  mark that did not was a *weaker* version of a power Alex already had — which grants
+  nothing and only confuses. A mark is "click Publish for me on the next run", and it
+  therefore outranks the score floor, the lead window, the weekly target, the per-venue
+  cap, the category cap and the community slot.
+  What still stops it is what stops the button: no venue, already started (the database
+  refuses), or **having been public before** — his own rule that an unpublish is final,
+  which a mark left over from earlier must not silently reverse. That case is logged
+  saying exactly that, rather than going quiet.
+  Marked picks **count towards the caps**, so the automatic picks after them see them:
+  the override is for the draft he named, not for everything that follows.
+  `Never` was checked at the same time and is safe — it is the first test in the walk,
+  before any cap, so a banned draft never enters the ranking at all. It fails closed.
+- **No destructive control is ever pre-selected** (Alex, M2.2 walk). The draft queue's
+  "Merge into" dropdown had no empty first option, so the browser selected the first
+  gathering of that day on *every* row — an unrelated event offered as the merge target
+  everywhere. Merge is genuinely two-step (it shows a confirmation page naming both
+  gatherings before anything happens), but a wrong default on a destructive action is
+  its own bug. There is now a "— merge into… —" placeholder, and a duplicate the queue
+  has actually spotted is still pre-selected, because that is a suggestion with evidence
+  behind it.
+- **The per-venue cap is 6 a week, and is meant to be inert** (Alex, M2.2 walk).
+  Raised from 2: six popular nights at Scotiabank Arena in a week is what is actually
+  on in Toronto, and a cap of 2 was refusing Phoebe Bridgers, Gorillaz and a Leafs game
+  in the week of 28 September alone. Measured over three real weeks:
+
+  | venue cap | week 21 Sep | week 28 Sep | week 5 Oct |
+  |---|---|---|---|
+  | 2 | 15 | 15 | 15 |
+  | 4 | 20 | 16 | 15 |
+  | **6** | **23** | **16** | **15** |
+  | none at all | 23 | 16 | 15 |
+
+  **At 6 the cap already binds on nothing** — it matches "no cap at all" exactly. That
+  is the point rather than an objection: it sits dormant and only fires in the case it
+  was written for, a genuine homestand filling a week. A guard that never fires in
+  normal weather is a good guard. Past week 21 Sep the binding constraint is the
+  category share, not the venue, which is why raising it gains 8 in one week and 1 in
+  the next.
+- **Per-venue-per-day was considered and is a cap in name only** (Alex asked, M2.2
+  walk; measured). The argument for it is sound — a Leafs game on Tuesday and Gorillaz
+  on Thursday are different crowds and should not compete, while two shows at one venue
+  on one night is the real duplicate problem. But **the same venue is used twice on the
+  same day exactly once in three weeks of the eligible queue** (Lee's Palace, 9 Oct), so
+  a per-day cap of 2 produces results identical to having no cap at all. It would be a
+  rule that never fires.
+  The distinction worth keeping from the question: the cap was doing two jobs that were
+  indistinguishable at a target of 5 and separate at 50 — stopping the *list* looking
+  like one venue's programme (a week question), and stopping one venue's same-night
+  shows *splitting a crowd* (a day question). Only the first is live today. If crowd
+  splitting shows up in practice, add a per-day cap then, with the evidence.

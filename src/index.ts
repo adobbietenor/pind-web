@@ -2,7 +2,7 @@ import { spotSuggestionsOn, type Env } from "./env";
 import { escape, page } from "./html";
 import { IMPORTER, runImport } from "./import/run";
 import { route } from "./router";
-import { ConfigError } from "./supabase";
+import { ConfigError, serviceClient } from "./supabase";
 
 // The cron trigger has 15 minutes; AI calls stop starting after 13.
 const CRON_BUDGET_MS = 13 * 60 * 1000;
@@ -23,7 +23,25 @@ export default {
   },
 
   // M1.3: the nightly Ticketmaster import (wrangler.jsonc "triggers").
-  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+  async scheduled(controller: ScheduledController, env: Env): Promise<void> {
+    // First, tell the database what schedule actually fired this — the cron
+    // expression Cloudflare matched and the instant it meant to fire (M2.2). The
+    // watchdog measures "is the import overdue" against that rather than against a
+    // fixed hour, so a changed cron line, or a wrong assumption about which timezone
+    // cron triggers use, moves the threshold with it instead of raising a phantom
+    // alarm every day. It is also the only evidence that settles the question: this
+    // is the scheduler reporting itself, not documentation.
+    //
+    // Best-effort and first: if this throws, the import still runs.
+    try {
+      await serviceClient(env).rpc("admin_report_import_schedule", {
+        p_cron: controller.cron,
+        p_scheduled_time: new Date(controller.scheduledTime).toISOString(),
+      });
+    } catch (err) {
+      console.error("could not report the cron schedule:", err instanceof Error ? err.message : err);
+    }
+
     const outcome = await runImport(env, {
       trigger: "cron",
       actor: IMPORTER,

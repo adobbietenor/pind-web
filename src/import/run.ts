@@ -9,12 +9,15 @@
 //   5. purge Ticketmaster data 30 days after each gathering's end
 //   6. score new drafts with Claude, within the $3 daily cap
 //   7. nightly only: suggest 3 meeting spots for up to 10 venues that need them
-//   8. write the run summary Alex sees in the admin
+//   8. fill each of the next three weeks to the publishing target (M2.2)
+//   9. write the run summary Alex sees in the admin
 //
 // Service key throughout: this is the importer, not a visitor (decisions Part 5).
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatLocal } from "../admin/time";
 import type { Env } from "../env";
+import { importFailedAlert, sendAlert } from "../ops/alert";
+import { PUBLISHER, runPublishing } from "../publish/run";
 import { serviceClient } from "../supabase";
 import { canSpend, ESTIMATE, MODEL, type ScoreInput } from "./ai";
 import { claudeClient, scoreBatch, SPOTS_CALL_MS, suggestSpots } from "./claude";
@@ -34,10 +37,12 @@ import {
 } from "./ticketmaster";
 
 export const IMPORTER = "importer:ticketmaster";
-// decisions Part 5. Drafts whose final score (after the distance adjustment) is below
-// FOLD_THRESHOLD are collapsed in the draft queue (Alex, M1.3: raised from 40 to 70).
-// SCORE_THRESHOLD still decides which venues count as needing spots.
-export const FOLD_THRESHOLD = 70;
+// The draft queue folds low scores away at the publisher's own floor, read from the
+// cities row (src/admin/gatherings.ts). It used to be a constant here, set to 70;
+// when M2.2 moved the floor to 60 the queue went on hiding drafts the publisher was
+// about to publish, under a label naming the old number. One threshold, one home.
+// SCORE_THRESHOLD is a different question — which venues count as needing spots — and
+// stays a constant until something needs it not to be.
 export const SCORE_THRESHOLD = 40;
 const SCORE_BATCH = 25;
 const SCORE_PARALLEL = 4;
@@ -126,9 +131,14 @@ function capOf(env: Env): number {
 
 export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome> {
   const db = serviceClient(env);
-  const tmKey = env.TICKETMASTER_CONSUMER_KEY?.trim();
-  if (!tmKey) return { status: "failed", message: "TICKETMASTER_CONSUMER_KEY is missing" };
   const city = await loadCity(db);
+
+  // The run row is opened BEFORE anything that can fail, which is the whole point of
+  // this ordering (Alex, M2.2). It used to check the Ticketmaster key first and
+  // return early, so a night that failed on a missing credential wrote no row at
+  // all: the admin went on showing the last good run and two nights passed with
+  // nothing saying the city's list had stopped refreshing. A failed run must leave
+  // a failed run behind.
 
   const started = await db.rpc("admin_start_import_run", {
     p_source: "ticketmaster",
@@ -151,6 +161,16 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
   const saveCost = () => db.from("import_runs").update({ ai_cost_usd: aiCost.toFixed(6) }).eq("id", runId);
 
   try {
+    // 1b. Now the credentials, inside the try, so a missing one is recorded as a
+    // failed run and alerted on rather than vanishing. Unset is named as unset.
+    const tmKey = env.TICKETMASTER_CONSUMER_KEY?.trim();
+    if (!tmKey) {
+      throw new Error(
+        "TICKETMASTER_CONSUMER_KEY is not set on the Worker, so the nightly import cannot run. " +
+          "Set it with `npx wrangler secret put TICKETMASTER_CONSUMER_KEY`.",
+      );
+    }
+
     // 2–3. Fetch, filter, plan.
     const now = new Date();
     const windowEnd = new Date(now.getTime() + city.importWeeks * 7 * 24 * 60 * 60 * 1000);
@@ -218,6 +238,26 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
         if (spots.failures) status = "partial";
       }
     }
+
+    // 8. Publishing (M2.2). Deliberately outside the AI branch: a missing Anthropic
+    // key leaves new drafts unscored, but the ones already scored still deserve
+    // their week filled, and the daily cap must never quietly stop the city's list
+    // from refreshing.
+    // The actor is the publisher even on a manual run: the rule chose these, not
+    // the click that started the run. The moderation log has to keep "Alex pressed
+    // Publish" and "a run filled a slot" apart, and import_runs already records who
+    // triggered the run.
+    const publishing = await runPublishing(db, { city, runId, actor: PUBLISHER });
+    Object.assign(counts, {
+      published: publishing.published,
+      publish_considered: publishing.considered,
+      publish_weeks: publishing.weeks,
+      publish_adjust: publishing.adjust ? { decision: publishing.adjust.decision, applied: publishing.adjust.applied, reason: publishing.adjust.reason } : null,
+    });
+    if (publishing.errors.length) {
+      errors.push(...publishing.errors);
+      status = "partial";
+    }
   } catch (err) {
     status = "failed";
     errors.push(err instanceof Error ? err.message : String(err));
@@ -235,7 +275,22 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
       : `Import ${status === "partial" ? "finished with problems" : "done"}: ${a.new ?? 0} new, ${a.updated ?? 0} updated, ` +
         `${a.dismissed ?? 0} dismissed, ${a.flagged ?? 0} flagged; ${counts.scored ?? 0} scored` +
         (counts.unscored_left ? `, ${counts.unscored_left} still unscored` : "") +
-        `; AI $${aiCost.toFixed(2)}.`;
+        `; ${counts.published ?? 0} published; AI $${aiCost.toFixed(2)}.`;
+
+  // A failed run tells somebody. M2.2's premise is that the city's list refreshes
+  // without anyone watching, so a failure nobody hears about means pind.social
+  // quietly stops updating and starts looking abandoned — which is worse than
+  // whatever broke. At most one of these a day, and if no alert channel is
+  // configured the run says so in its own summary rather than failing twice over.
+  if (status === "failed") {
+    const alert = importFailedAlert(summary, errors);
+    const outcome = await sendAlert(env, db, "import_failed", alert.subject, alert.body).catch((err) => ({
+      sent: false,
+      why: err instanceof Error ? err.message : String(err),
+    }));
+    if (!outcome.sent) return { status, message: `${summary} (alert not sent: ${outcome.why})` };
+  }
+
   return { status, message: summary };
 }
 

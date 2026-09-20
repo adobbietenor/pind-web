@@ -579,6 +579,51 @@ describe("After the gathering — V1 (list closes 24h after effective end)", () 
     assert.equal(row.pinned, 2);
     assert.equal(row.open_to_meeting, 2);
   });
+
+  // Asked by Alex in M2.2 and written down here rather than inferred: nothing about
+  // publishing lead times reaches pinning. The only conditions on inserting a pin are
+  // "it is me" and "the gathering is published, not withdrawn, not seeded".
+  //
+  // The first half is the rule and is meant to hold: pinning an hour before doors
+  // works, and nothing about publish_lead_days_min reaches it.
+  //
+  // THE SECOND HALF RECORDS A BUG, NOT AN INTENTION. There is no upper bound either,
+  // so a pin can be taken after the gathering has ended. That is a gap left over from
+  // M1.1, not a decision, and M3.2 closes it when A26 exists: pins close at the
+  // effective end. WHEN M3.2 LANDS THIS ASSERTION IS SUPPOSED TO FAIL — invert it to
+  // `assert.ok(ended.error)` and rename the case. It is here so the gap is visible and
+  // dated rather than discovered again, not because anyone wants it (Alex, M2.2).
+  it("P37b pinning has no lower time gate (intended) / and no upper one either — CURRENT BEHAVIOUR, A BUG M3.2 CLOSES", async () => {
+    const ava = c(M("Ava"));
+    const ended = await ava
+      .from("pins")
+      .insert({ gathering_id: w.P, person_id: id("Ava"), party_total: 1, open_to_meeting: false })
+      .select("id")
+      .single();
+    // Pending M3.2: this is the bug, recorded. Invert it there, do not "fix" the test.
+    assert.equal(
+      ended.error,
+      null,
+      "pinning after the end was refused — if M3.2 closed the bound, invert this assertion rather than treating it as a regression",
+    );
+    await ok(w.service.from("pins").delete().eq("id", ended.data!.id));
+
+    // The same for a gathering about to start: published is the only gate.
+    const soon = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} Doors Soon`, starts_at: new Date(Date.now() + 3_600_000).toISOString(), venue_id: w.venue })
+        .select("id")
+        .single(),
+    );
+    await ok(w.service.from("gatherings").update({ published_at: new Date().toISOString() }).eq("id", soon.id));
+    const late = await ava
+      .from("pins")
+      .insert({ gathering_id: soon.id, person_id: id("Ava"), party_total: 1, open_to_meeting: false })
+      .select("id")
+      .single();
+    assert.equal(late.error, null, `pinning an hour before doors was refused: ${late.error?.message}`);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -586,6 +631,8 @@ describe("After the gathering — V1 (list closes 24h after effective end)", () 
 // ---------------------------------------------------------------------------
 
 const admin = (fn: string, args: Record<string, unknown>) => w.service.rpc(fn, { ...args, p_actor: ACTOR });
+// The operational functions take no actor: they are the machine talking to itself.
+const admin2 = (fn: string, args: Record<string, unknown>) => w.service.rpc(fn, args);
 
 async function readable(client: SupabaseClient, gathering: string): Promise<boolean> {
   return (await rows(client.from("gatherings").select("id").eq("id", gathering))).length === 1;
@@ -1268,5 +1315,155 @@ describe("The public web layer reads through one door — M2.1 (W1–W4)", () =>
 
     assert.equal((await publicDoor(w.anon, "no-such-crowd-anywhere")).status, "gone");
     assert.equal((await publicDoor(w.anon, "Not A Slug!")).status, "gone");
+  });
+});
+
+describe("Auto-publishing — M2.2 (spec §8)", () => {
+  // The publisher has no privilege Alex's button does not, and publishing is still
+  // only ever admin_publish_gathering. These are the refusals that hold whoever
+  // calls it, including the service key: they are function and trigger rules, not
+  // application code.
+  it("P62 a draft CANNOT be published twice, or after dismissal / unpublishing keeps the slug, which is what stops a later run re-publishing it", async () => {
+    const g = (
+      await ok(
+        w.service
+          .from("gatherings")
+          .insert({ name: `pindhx ${w.run} Auto Candidate`, starts_at: inDays(10), venue_id: w.venue })
+          .select("id")
+          .single(),
+      )
+    ).id;
+
+    await ok(admin("admin_publish_gathering", { p_gathering: g }));
+    const slug = (await serviceRow("gatherings", "id", g, "slug")).slug;
+    assert.ok(slug, "publishing did not mint a slug");
+    assert.match((await admin("admin_publish_gathering", { p_gathering: g })).error?.message ?? "", /Already published/);
+
+    // Alex unpublishes: back to draft, and the URL it has been seen at stays on the
+    // row forever. A run reads that as "this has been public before" and leaves it
+    // alone, so his click cannot be silently undone (Alex, M2.2).
+    await ok(admin("admin_unpublish_gathering", { p_gathering: g }));
+    const after = await serviceRow("gatherings", "id", g, "status, slug");
+    assert.equal(after.status, "draft");
+    assert.equal(after.slug, slug, "unpublishing took the slug away");
+    await denied(w.service.from("gatherings").update({ slug: null }).eq("id", g));
+
+    // Dismissed: refused until it is restored, whatever a run thinks of its score.
+    await ok(admin("admin_dismiss_gathering", { p_gathering: g }));
+    assert.match((await admin("admin_publish_gathering", { p_gathering: g })).error?.message ?? "", /Dismissed: restore it first/);
+    await ok(admin("admin_restore_gathering", { p_gathering: g }));
+    await ok(admin("admin_publish_gathering", { p_gathering: g }));
+    assert.equal((await serviceRow("gatherings", "id", g, "slug")).slug, slug, "re-publishing minted a second URL");
+  });
+
+  it("P63 marks and promotions are the admin's alone: anon and Ava CANNOT read or write the publishing log, the target log or promotions, and CANNOT call any M2.2 action", async () => {
+    const g = (
+      await ok(
+        w.service
+          .from("gatherings")
+          .insert({ name: `pindhx ${w.run} Marked`, starts_at: inDays(9), venue_id: w.venue })
+          .select("id")
+          .single(),
+      )
+    ).id;
+    await ok(admin("admin_set_publish_mark", { p_gathering: g, p_mark: "never" }));
+    assert.equal((await serviceRow("gatherings", "id", g, "publish_mark")).publish_mark, "never");
+    await ok(admin("admin_set_publish_mark", { p_gathering: g, p_mark: "" }));
+    assert.equal((await serviceRow("gatherings", "id", g, "publish_mark")).publish_mark, null);
+
+    // Promotion is a record of a post, so it needs a published gathering.
+    assert.match((await admin("admin_record_promotion", { p_gathering: g, p_channel: "r/leafs", p_note: null })).error?.message ?? "", /published/);
+    await ok(admin("admin_publish_gathering", { p_gathering: g }));
+    const promotion = await ok(admin("admin_record_promotion", { p_gathering: g, p_channel: "r/leafs", p_note: "pindhx" }));
+    assert.equal((await rows(w.service.from("gathering_promotions").select("id").eq("gathering_id", g))).length, 1);
+
+    for (const client of [w.anon, c(M("Ava"))]) {
+      for (const table of ["publish_decisions", "publish_target_log", "gathering_promotions", "ops_alerts"]) {
+        await noAccess(client, table);
+      }
+      const calls: [string, Record<string, unknown>][] = [
+        ["admin_set_publish_mark", { p_gathering: g, p_mark: "publish", p_actor: "x" }],
+        ["admin_record_promotion", { p_gathering: g, p_channel: "r/evil", p_note: null, p_actor: "x" }],
+        ["admin_delete_promotion", { p_promotion: promotion, p_actor: "x" }],
+        ["admin_publish_outcomes", { p_city: "toronto", p_days: 14 }],
+        ["admin_save_publish_settings", { p_city: "toronto", p_settings: { publish_target_weekly: 20 }, p_actor: "x" }],
+        ["admin_apply_publish_target", { p_city: "toronto", p_target: 20, p_actor: "x" }],
+        // M2.2's operational functions: the health of the import and the alert log
+        // are the admin's business, not a visitor's.
+        ["admin_import_health", {}],
+        ["admin_watchdog_import", {}],
+        ["admin_alert_already_sent_today", { p_kind: "import_failed" }],
+        ["admin_record_alert", { p_kind: "import_failed", p_subject: "x", p_sent: true, p_error: null }],
+      ];
+      for (const [fn, args] of calls) await denied(client.rpc(fn, args), "42501");
+    }
+
+    // Nothing a visitor tried changed anything.
+    assert.equal((await serviceRow("gatherings", "id", g, "publish_mark")).publish_mark, null);
+    assert.equal((await serviceRow("cities", "slug", "toronto", "publish_target_weekly")).publish_target_weekly, 5);
+    assert.equal((await rows(w.service.from("gathering_promotions").select("id").eq("gathering_id", g))).length, 1);
+
+    // Removing the last record makes it organic again, which is the honest state if
+    // it was never posted.
+    await ok(admin("admin_delete_promotion", { p_promotion: promotion }));
+    assert.equal((await rows(w.service.from("gathering_promotions").select("id").eq("gathering_id", g))).length, 0);
+  });
+});
+
+describe("The import watchdog follows the schedule — M2.2", () => {
+  // Alex, M2.2: the threshold must be relative to the import's own schedule, not to a
+  // fixed hour, so that a changed cron line — or a wrong assumption about which
+  // timezone Cloudflare cron triggers use — cannot produce a phantom alarm every day
+  // before the import has had a chance to run. An alerting rule that fires when
+  // nothing is wrong is worse than no rule.
+  it("P64 the due time moves with the cron, nothing is called missed inside its grace, and the schedule is restored afterwards", async () => {
+    const before = await ok(
+      w.service
+        .from("ops_import_schedule")
+        .select("cron, utc_hour, utc_minute, grace_minutes, reported_cron, reported_scheduled_time, reported_at")
+        .eq("id", true)
+        .single(),
+    );
+
+    try {
+      // The exact case that would have cried wolf: a schedule three hours later than
+      // the watchdog's old fixed hour.
+      await ok(admin2("admin_report_import_schedule", { p_cron: "0 12 * * *", p_scheduled_time: new Date().toISOString() }));
+      const noon = await ok(w.service.rpc("admin_import_due"));
+      assert.equal(noon.due_at.slice(11, 16), "12:00", "the due time did not follow the cron");
+      assert.equal(noon.cron, "0 12 * * *");
+
+      // Back to what wrangler.jsonc says, and the due time follows again.
+      await ok(admin2("admin_report_import_schedule", { p_cron: "0 8 * * *", p_scheduled_time: new Date().toISOString() }));
+      const eight = await ok(w.service.rpc("admin_import_due"));
+      assert.equal(eight.due_at.slice(11, 16), "08:00");
+
+      // Late is not missed. With a full day of grace nothing is overdue, whatever the
+      // last run did, so the watchdog stays quiet.
+      await ok(w.service.from("ops_import_schedule").update({ grace_minutes: 1440 }).eq("id", true));
+      const inGrace = await ok(w.service.rpc("admin_import_due"));
+      assert.equal(inGrace.past_grace, false, "a run still inside its grace was treated as overdue");
+      assert.equal((await ok(w.service.rpc("admin_import_health"))).stale, false, "stale while still inside the grace");
+      assert.equal((await ok(w.service.rpc("admin_watchdog_import"))).missed, false, "the watchdog cried wolf inside the grace");
+
+      // A cron shape it cannot parse leaves the stored schedule alone rather than
+      // guessing at one nobody can check.
+      await ok(admin2("admin_report_import_schedule", { p_cron: "*/5 * * * *", p_scheduled_time: new Date().toISOString() }));
+      assert.equal((await ok(w.service.rpc("admin_import_due"))).due_at.slice(11, 16), "08:00", "an unparsable cron moved the due time");
+    } finally {
+      // Including reported_cron and reported_scheduled_time: the Configuration page
+      // shows those as "last fired by Cloudflare", so a harness run that left its own
+      // values there would have the admin quietly reporting a fiction.
+      await ok(w.service.from("ops_import_schedule").update(before).eq("id", true));
+    }
+
+    const after = await ok(
+      w.service
+        .from("ops_import_schedule")
+        .select("cron, utc_hour, utc_minute, grace_minutes, reported_cron, reported_scheduled_time, reported_at")
+        .eq("id", true)
+        .single(),
+    );
+    assert.deepEqual(after, before, "the harness left the import schedule changed");
   });
 });
