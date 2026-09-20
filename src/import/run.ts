@@ -9,12 +9,14 @@
 //   5. purge Ticketmaster data 30 days after each gathering's end
 //   6. score new drafts with Claude, within the $3 daily cap
 //   7. nightly only: suggest 3 meeting spots for up to 10 venues that need them
-//   8. write the run summary Alex sees in the admin
+//   8. fill each of the next three weeks to the publishing target (M2.2)
+//   9. write the run summary Alex sees in the admin
 //
 // Service key throughout: this is the importer, not a visitor (decisions Part 5).
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatLocal } from "../admin/time";
 import type { Env } from "../env";
+import { PUBLISHER, runPublishing } from "../publish/run";
 import { serviceClient } from "../supabase";
 import { canSpend, ESTIMATE, MODEL, type ScoreInput } from "./ai";
 import { claudeClient, scoreBatch, SPOTS_CALL_MS, suggestSpots } from "./claude";
@@ -218,6 +220,26 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
         if (spots.failures) status = "partial";
       }
     }
+
+    // 8. Publishing (M2.2). Deliberately outside the AI branch: a missing Anthropic
+    // key leaves new drafts unscored, but the ones already scored still deserve
+    // their week filled, and the daily cap must never quietly stop the city's list
+    // from refreshing.
+    // The actor is the publisher even on a manual run: the rule chose these, not
+    // the click that started the run. The moderation log has to keep "Alex pressed
+    // Publish" and "a run filled a slot" apart, and import_runs already records who
+    // triggered the run.
+    const publishing = await runPublishing(db, { city, runId, actor: PUBLISHER });
+    Object.assign(counts, {
+      published: publishing.published,
+      publish_considered: publishing.considered,
+      publish_weeks: publishing.weeks,
+      publish_adjust: publishing.adjust ? { decision: publishing.adjust.decision, applied: publishing.adjust.applied, reason: publishing.adjust.reason } : null,
+    });
+    if (publishing.errors.length) {
+      errors.push(...publishing.errors);
+      status = "partial";
+    }
   } catch (err) {
     status = "failed";
     errors.push(err instanceof Error ? err.message : String(err));
@@ -235,7 +257,7 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
       : `Import ${status === "partial" ? "finished with problems" : "done"}: ${a.new ?? 0} new, ${a.updated ?? 0} updated, ` +
         `${a.dismissed ?? 0} dismissed, ${a.flagged ?? 0} flagged; ${counts.scored ?? 0} scored` +
         (counts.unscored_left ? `, ${counts.unscored_left} still unscored` : "") +
-        `; AI $${aiCost.toFixed(2)}.`;
+        `; ${counts.published ?? 0} published; AI $${aiCost.toFixed(2)}.`;
   return { status, message: summary };
 }
 

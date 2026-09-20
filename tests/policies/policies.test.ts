@@ -1270,3 +1270,87 @@ describe("The public web layer reads through one door — M2.1 (W1–W4)", () =>
     assert.equal((await publicDoor(w.anon, "Not A Slug!")).status, "gone");
   });
 });
+
+describe("Auto-publishing — M2.2 (spec §8)", () => {
+  // The publisher has no privilege Alex's button does not, and publishing is still
+  // only ever admin_publish_gathering. These are the refusals that hold whoever
+  // calls it, including the service key: they are function and trigger rules, not
+  // application code.
+  it("P62 a draft CANNOT be published twice, or after dismissal / unpublishing keeps the slug, which is what stops a later run re-publishing it", async () => {
+    const g = (
+      await ok(
+        w.service
+          .from("gatherings")
+          .insert({ name: `pindhx ${w.run} Auto Candidate`, starts_at: inDays(10), venue_id: w.venue })
+          .select("id")
+          .single(),
+      )
+    ).id;
+
+    await ok(admin("admin_publish_gathering", { p_gathering: g }));
+    const slug = (await serviceRow("gatherings", "id", g, "slug")).slug;
+    assert.ok(slug, "publishing did not mint a slug");
+    assert.match((await admin("admin_publish_gathering", { p_gathering: g })).error?.message ?? "", /Already published/);
+
+    // Alex unpublishes: back to draft, and the URL it has been seen at stays on the
+    // row forever. A run reads that as "this has been public before" and leaves it
+    // alone, so his click cannot be silently undone (Alex, M2.2).
+    await ok(admin("admin_unpublish_gathering", { p_gathering: g }));
+    const after = await serviceRow("gatherings", "id", g, "status, slug");
+    assert.equal(after.status, "draft");
+    assert.equal(after.slug, slug, "unpublishing took the slug away");
+    await denied(w.service.from("gatherings").update({ slug: null }).eq("id", g));
+
+    // Dismissed: refused until it is restored, whatever a run thinks of its score.
+    await ok(admin("admin_dismiss_gathering", { p_gathering: g }));
+    assert.match((await admin("admin_publish_gathering", { p_gathering: g })).error?.message ?? "", /Dismissed: restore it first/);
+    await ok(admin("admin_restore_gathering", { p_gathering: g }));
+    await ok(admin("admin_publish_gathering", { p_gathering: g }));
+    assert.equal((await serviceRow("gatherings", "id", g, "slug")).slug, slug, "re-publishing minted a second URL");
+  });
+
+  it("P63 marks and promotions are the admin's alone: anon and Ava CANNOT read or write the publishing log, the target log or promotions, and CANNOT call any M2.2 action", async () => {
+    const g = (
+      await ok(
+        w.service
+          .from("gatherings")
+          .insert({ name: `pindhx ${w.run} Marked`, starts_at: inDays(9), venue_id: w.venue })
+          .select("id")
+          .single(),
+      )
+    ).id;
+    await ok(admin("admin_set_publish_mark", { p_gathering: g, p_mark: "never" }));
+    assert.equal((await serviceRow("gatherings", "id", g, "publish_mark")).publish_mark, "never");
+    await ok(admin("admin_set_publish_mark", { p_gathering: g, p_mark: "" }));
+    assert.equal((await serviceRow("gatherings", "id", g, "publish_mark")).publish_mark, null);
+
+    // Promotion is a record of a post, so it needs a published gathering.
+    assert.match((await admin("admin_record_promotion", { p_gathering: g, p_channel: "r/leafs", p_note: null })).error?.message ?? "", /published/);
+    await ok(admin("admin_publish_gathering", { p_gathering: g }));
+    const promotion = await ok(admin("admin_record_promotion", { p_gathering: g, p_channel: "r/leafs", p_note: "pindhx" }));
+    assert.equal((await rows(w.service.from("gathering_promotions").select("id").eq("gathering_id", g))).length, 1);
+
+    for (const client of [w.anon, c(M("Ava"))]) {
+      for (const table of ["publish_decisions", "publish_target_log", "gathering_promotions"]) await noAccess(client, table);
+      const calls: [string, Record<string, unknown>][] = [
+        ["admin_set_publish_mark", { p_gathering: g, p_mark: "publish", p_actor: "x" }],
+        ["admin_record_promotion", { p_gathering: g, p_channel: "r/evil", p_note: null, p_actor: "x" }],
+        ["admin_delete_promotion", { p_promotion: promotion, p_actor: "x" }],
+        ["admin_publish_outcomes", { p_city: "toronto", p_days: 14 }],
+        ["admin_save_publish_settings", { p_city: "toronto", p_settings: { publish_target_weekly: 20 }, p_actor: "x" }],
+        ["admin_apply_publish_target", { p_city: "toronto", p_target: 20, p_actor: "x" }],
+      ];
+      for (const [fn, args] of calls) await denied(client.rpc(fn, args), "42501");
+    }
+
+    // Nothing a visitor tried changed anything.
+    assert.equal((await serviceRow("gatherings", "id", g, "publish_mark")).publish_mark, null);
+    assert.equal((await serviceRow("cities", "slug", "toronto", "publish_target_weekly")).publish_target_weekly, 5);
+    assert.equal((await rows(w.service.from("gathering_promotions").select("id").eq("gathering_id", g))).length, 1);
+
+    // Removing the last record makes it organic again, which is the honest state if
+    // it was never posted.
+    await ok(admin("admin_delete_promotion", { p_promotion: promotion }));
+    assert.equal((await rows(w.service.from("gathering_promotions").select("id").eq("gathering_id", g))).length, 0);
+  });
+});

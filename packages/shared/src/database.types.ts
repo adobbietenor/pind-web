@@ -49,39 +49,90 @@ export type Database = {
       }
       cities: {
         Row: {
+          adaptive: boolean
+          adjust_min_gatherings: number
+          adjust_min_lead_days: number
+          adjust_window_days: number
           centre_lat: number | null
           centre_lng: number | null
+          community_slots_weekly: number
           core_radius_km: number | null
           distance_penalty_max: number | null
           distance_penalty_per_km: number | null
+          grow_median_pins: number
+          grow_reach: number
           import_weeks: number | null
+          max_per_venue_per_week: number
           name: string
+          publish_lead_days_max: number
+          publish_lead_days_min: number
+          publish_max: number
+          publish_min: number
+          publish_target_weekly: number
+          score_floor: number
           search_radius_km: number | null
+          shrink_reach: number
           slug: string
+          step_down: number
+          step_up: number
           timezone: string
         }
         Insert: {
+          adaptive?: boolean
+          adjust_min_gatherings?: number
+          adjust_min_lead_days?: number
+          adjust_window_days?: number
           centre_lat?: number | null
           centre_lng?: number | null
+          community_slots_weekly?: number
           core_radius_km?: number | null
           distance_penalty_max?: number | null
           distance_penalty_per_km?: number | null
+          grow_median_pins?: number
+          grow_reach?: number
           import_weeks?: number | null
+          max_per_venue_per_week?: number
           name: string
+          publish_lead_days_max?: number
+          publish_lead_days_min?: number
+          publish_max?: number
+          publish_min?: number
+          publish_target_weekly?: number
+          score_floor?: number
           search_radius_km?: number | null
+          shrink_reach?: number
           slug: string
+          step_down?: number
+          step_up?: number
           timezone: string
         }
         Update: {
+          adaptive?: boolean
+          adjust_min_gatherings?: number
+          adjust_min_lead_days?: number
+          adjust_window_days?: number
           centre_lat?: number | null
           centre_lng?: number | null
+          community_slots_weekly?: number
           core_radius_km?: number | null
           distance_penalty_max?: number | null
           distance_penalty_per_km?: number | null
+          grow_median_pins?: number
+          grow_reach?: number
           import_weeks?: number | null
+          max_per_venue_per_week?: number
           name?: string
+          publish_lead_days_max?: number
+          publish_lead_days_min?: number
+          publish_max?: number
+          publish_min?: number
+          publish_target_weekly?: number
+          score_floor?: number
           search_radius_km?: number | null
+          shrink_reach?: number
           slug?: string
+          step_down?: number
+          step_up?: number
           timezone?: string
         }
         Relationships: []
@@ -602,6 +653,41 @@ export type Database = {
           },
         ]
       }
+      gathering_promotions: {
+        Row: {
+          channel: string
+          gathering_id: string
+          id: string
+          note: string | null
+          promoted_at: string
+          promoted_by: string
+        }
+        Insert: {
+          channel: string
+          gathering_id: string
+          id?: string
+          note?: string | null
+          promoted_at?: string
+          promoted_by: string
+        }
+        Update: {
+          channel?: string
+          gathering_id?: string
+          id?: string
+          note?: string | null
+          promoted_at?: string
+          promoted_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gathering_promotions_gathering_id_fkey"
+            columns: ["gathering_id"]
+            isOneToOne: false
+            referencedRelation: "gatherings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gathering_slug_history: {
         Row: {
           gathering_id: string
@@ -784,6 +870,7 @@ export type Database = {
           is_seed: boolean
           merged_into_id: string | null
           name: string
+          publish_mark: Database["public"]["Enums"]["publish_mark"] | null
           published_at: string | null
           slug: string | null
           source: Database["public"]["Enums"]["gathering_source"]
@@ -805,6 +892,7 @@ export type Database = {
           is_seed?: boolean
           merged_into_id?: string | null
           name: string
+          publish_mark?: Database["public"]["Enums"]["publish_mark"] | null
           published_at?: string | null
           slug?: string | null
           source?: Database["public"]["Enums"]["gathering_source"]
@@ -826,6 +914,7 @@ export type Database = {
           is_seed?: boolean
           merged_into_id?: string | null
           name?: string
+          publish_mark?: Database["public"]["Enums"]["publish_mark"] | null
           published_at?: string | null
           slug?: string | null
           source?: Database["public"]["Enums"]["gathering_source"]
@@ -1311,6 +1400,206 @@ export type Database = {
           },
         ]
       }
+      publish_decisions: {
+        Row: {
+          adjustment: number | null
+          ai_score: number | null
+          at: string
+          candidates: number | null
+          city: string
+          distance_km: number | null
+          final_score: number | null
+          gathering_id: string | null
+          gathering_name: string
+          id: number
+          outcome: Database["public"]["Enums"]["publish_outcome"]
+          publish_mark: Database["public"]["Enums"]["publish_mark"] | null
+          published_before: number
+          rank: number | null
+          reason: string
+          reason_code: string
+          run_id: number | null
+          slot: number | null
+          slot_kind: string | null
+          starts_at: string
+          target: number
+          venue_id: string | null
+          venue_name: string | null
+          week_start: string
+        }
+        Insert: {
+          adjustment?: number | null
+          ai_score?: number | null
+          at?: string
+          candidates?: number | null
+          city: string
+          distance_km?: number | null
+          final_score?: number | null
+          gathering_id?: string | null
+          gathering_name: string
+          id?: never
+          outcome: Database["public"]["Enums"]["publish_outcome"]
+          publish_mark?: Database["public"]["Enums"]["publish_mark"] | null
+          published_before: number
+          rank?: number | null
+          reason: string
+          reason_code: string
+          run_id?: number | null
+          slot?: number | null
+          slot_kind?: string | null
+          starts_at: string
+          target: number
+          venue_id?: string | null
+          venue_name?: string | null
+          week_start: string
+        }
+        Update: {
+          adjustment?: number | null
+          ai_score?: number | null
+          at?: string
+          candidates?: number | null
+          city?: string
+          distance_km?: number | null
+          final_score?: number | null
+          gathering_id?: string | null
+          gathering_name?: string
+          id?: never
+          outcome?: Database["public"]["Enums"]["publish_outcome"]
+          publish_mark?: Database["public"]["Enums"]["publish_mark"] | null
+          published_before?: number
+          rank?: number | null
+          reason?: string
+          reason_code?: string
+          run_id?: number | null
+          slot?: number | null
+          slot_kind?: string | null
+          starts_at?: string
+          target?: number
+          venue_id?: string | null
+          venue_name?: string | null
+          week_start?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publish_decisions_city_fkey"
+            columns: ["city"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["slug"]
+          },
+          {
+            foreignKeyName: "publish_decisions_gathering_id_fkey"
+            columns: ["gathering_id"]
+            isOneToOne: false
+            referencedRelation: "gatherings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publish_decisions_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "import_runs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "publish_decisions_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      publish_target_log: {
+        Row: {
+          applied: boolean
+          at: string
+          city: string
+          decision: string
+          from_target: number
+          id: number
+          inputs: Json
+          median_pins: number | null
+          min_lead_days: number
+          organic_median_pins: number | null
+          organic_qualifying: number
+          organic_reach_rate: number | null
+          qualifying: number
+          reach_rate: number | null
+          reason: string
+          run_id: number | null
+          seeded_median_pins: number | null
+          seeded_qualifying: number
+          seeded_reach_rate: number | null
+          to_target: number
+          week_start: string
+          window_days: number
+        }
+        Insert: {
+          applied: boolean
+          at?: string
+          city: string
+          decision: string
+          from_target: number
+          id?: never
+          inputs?: Json
+          median_pins?: number | null
+          min_lead_days: number
+          organic_median_pins?: number | null
+          organic_qualifying: number
+          organic_reach_rate?: number | null
+          qualifying: number
+          reach_rate?: number | null
+          reason: string
+          run_id?: number | null
+          seeded_median_pins?: number | null
+          seeded_qualifying: number
+          seeded_reach_rate?: number | null
+          to_target: number
+          week_start: string
+          window_days: number
+        }
+        Update: {
+          applied?: boolean
+          at?: string
+          city?: string
+          decision?: string
+          from_target?: number
+          id?: never
+          inputs?: Json
+          median_pins?: number | null
+          min_lead_days?: number
+          organic_median_pins?: number | null
+          organic_qualifying?: number
+          organic_reach_rate?: number | null
+          qualifying?: number
+          reach_rate?: number | null
+          reason?: string
+          run_id?: number | null
+          seeded_median_pins?: number | null
+          seeded_qualifying?: number
+          seeded_reach_rate?: number | null
+          to_target?: number
+          week_start?: string
+          window_days?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "publish_target_log_city_fkey"
+            columns: ["city"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["slug"]
+          },
+          {
+            foreignKeyName: "publish_target_log_run_id_fkey"
+            columns: ["run_id"]
+            isOneToOne: false
+            referencedRelation: "import_runs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reports: {
         Row: {
           created_at: string
@@ -1608,6 +1897,44 @@ export type Database = {
           },
         ]
       }
+      venue_map_renders: {
+        Row: {
+          attempts: number
+          bytes: number | null
+          last_error: string | null
+          map_key: string
+          status: string
+          updated_at: string
+          venue_id: string
+        }
+        Insert: {
+          attempts?: number
+          bytes?: number | null
+          last_error?: string | null
+          map_key: string
+          status?: string
+          updated_at?: string
+          venue_id: string
+        }
+        Update: {
+          attempts?: number
+          bytes?: number | null
+          last_error?: string | null
+          map_key?: string
+          status?: string
+          updated_at?: string
+          venue_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "venue_map_renders_venue_id_fkey"
+            columns: ["venue_id"]
+            isOneToOne: false
+            referencedRelation: "venues"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       venues: {
         Row: {
           address: string | null
@@ -1658,6 +1985,10 @@ export type Database = {
     }
     Functions: {
       admin_ai_spend_today: { Args: { p_city: string }; Returns: number }
+      admin_apply_publish_target: {
+        Args: { p_actor: string; p_city: string; p_target: number }
+        Returns: number
+      }
       admin_approve_spot: {
         Args: {
           p_actor: string
@@ -1673,6 +2004,10 @@ export type Database = {
       }
       admin_delete_pin: {
         Args: { p_actor: string; p_note?: string; p_pin: string }
+        Returns: undefined
+      }
+      admin_delete_promotion: {
+        Args: { p_actor: string; p_promotion: string }
         Returns: undefined
       }
       admin_dismiss_gathering: {
@@ -1708,9 +2043,32 @@ export type Database = {
         Args: { p_actor: string; p_gathering: string }
         Returns: undefined
       }
+      admin_publish_outcomes: {
+        Args: { p_city: string; p_days: number }
+        Returns: Json
+      }
       admin_purge_ticketmaster_data: {
         Args: { p_days?: number }
         Returns: Json
+      }
+      admin_record_map_render: {
+        Args: {
+          p_bytes?: number
+          p_error?: string
+          p_key: string
+          p_ok: boolean
+          p_venue: string
+        }
+        Returns: number
+      }
+      admin_record_promotion: {
+        Args: {
+          p_actor: string
+          p_channel: string
+          p_gathering: string
+          p_note: string
+        }
+        Returns: string
       }
       admin_reject_spot: {
         Args: { p_actor: string; p_suggestion: string }
@@ -1724,6 +2082,10 @@ export type Database = {
         Args: { p_actor: string; p_gathering: string }
         Returns: undefined
       }
+      admin_save_publish_settings: {
+        Args: { p_actor: string; p_city: string; p_settings: Json }
+        Returns: undefined
+      }
       admin_set_photo_status: {
         Args: {
           p_actor: string
@@ -1731,6 +2093,10 @@ export type Database = {
           p_photo_path: string
           p_status: Database["public"]["Enums"]["photo_status"]
         }
+        Returns: undefined
+      }
+      admin_set_publish_mark: {
+        Args: { p_actor: string; p_gathering: string; p_mark: string }
         Returns: undefined
       }
       admin_set_slug: {
@@ -1812,6 +2178,7 @@ export type Database = {
           votes: number
         }[]
       }
+      venue_map_key: { Args: { p_lat: number; p_lng: number }; Returns: string }
       women_only_offer: { Args: { p_gathering: string }; Returns: boolean }
     }
     Enums: {
@@ -1831,6 +2198,8 @@ export type Database = {
       message_kind: "system" | "user" | "arrival"
       outbound_kind: "threshold" | "survey"
       photo_status: "pending" | "approved" | "rejected"
+      publish_mark: "publish" | "never"
+      publish_outcome: "published" | "skipped"
       report_reason: "uncomfortable" | "not_who_they_said" | "under_19" | "spam"
       report_status: "open" | "auto_hidden" | "actioned" | "dismissed"
       report_target: "person" | "crew" | "message"
@@ -1982,6 +2351,8 @@ export const Constants = {
       message_kind: ["system", "user", "arrival"],
       outbound_kind: ["threshold", "survey"],
       photo_status: ["pending", "approved", "rejected"],
+      publish_mark: ["publish", "never"],
+      publish_outcome: ["published", "skipped"],
       report_reason: ["uncomfortable", "not_who_they_said", "under_19", "spam"],
       report_status: ["open", "auto_hidden", "actioned", "dismissed"],
       report_target: ["person", "crew", "message"],
