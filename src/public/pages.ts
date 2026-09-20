@@ -114,7 +114,14 @@ export async function w1(request: Request, env: Env, tab: TabValue): Promise<Res
   const path = TABS.find((t) => t.value === tab)!.path;
   const other = TABS.find((t) => t.value !== tab)!;
   const otherCount = rowsInTab(thisWeek, other.value).length;
-  const later = all.filter((g) => localDate(g.starts_at, g.city_timezone) >= win.end);
+  // Next week, **in this tab**. Counted per tab because the pager is per tab: the
+  // Ticketmaster feed stops at the 21-day lead window while the recurrence generator
+  // runs community rows months out, so a "later" link counted across both tabs sends
+  // an Events reader to an empty week — which is worse than no link.
+  const later = rowsInTab(
+    all.filter((g) => localDate(g.starts_at, g.city_timezone) >= win.end),
+    tab,
+  );
 
   const origin = url.origin;
   const body = shown.length
