@@ -643,6 +643,45 @@ change). Where the plan has more detail, the plan is the reference.
      default, never an automatic re-ordering, never a "for you". The difference that
      matters is who asked for it: a reader who chooses to sort by popularity has decided
      what they want, and nothing has decided it for them.
+- **A spot is a card, not a maps link** (Alex, M2.2 — filed, not built). Tapping a
+  meeting spot opens Google Maps today, and that is the whole interaction. It should
+  open a **card**: what the place is like, food and drink, rough capacity, how loud it
+  is, whether six people can get a table without booking — with the maps link *inside*
+  the card rather than being the card.
+
+  **Why it is not decoration.** A crew choosing between three spots has a name and a
+  walking time, which is nothing to choose on; someone new to the city has less than
+  that. The card is what turns the spot poll from a coin toss into a decision, and the
+  spot poll is the last step before a crew actually meets.
+
+  **The open question is sourcing**, and it is open on purpose:
+  - **Google Places** gives photos and hours, and adds a per-request cost plus a third
+    party to a page we keep fast. It would have to be fetched server-side and served
+    from our own origin like the venue maps (CLAUDE.md), never called from the page.
+  - **AI descriptions** are cheap and scale, and **a wrong vibe is worse than none** —
+    "quiet enough to talk" about a room nobody can hear in costs more trust than a
+    blank field.
+  - **Hand-written** is honest and does not scale.
+
+  M1.3b's automated approval check already fetches an evidence page per spot, so the
+  richer data may come from **that same run** rather than a second one — worth checking
+  before any new job is designed. Picked up with M5.2 (M1.3b) or M3.3, whichever
+  reaches the spot poll first.
+- **Spot content starts as a manual pass, deliberately** (Alex, M2.2 — filed, not
+  built). Before any automation: gather candidate spots, filter to what actually
+  belongs in the app, write the details by hand into a spreadsheet, import once.
+  Quality and accuracy first.
+
+  **The point is to learn what "a good spot" means**, in specifics, from real places —
+  and that definition becomes the rubric M1.3b automates against later. Automating
+  first would encode a guess at the standard instead of a standard. Poetry Jazz Cafe is
+  the argument: it was approved, sits in a live spot poll, and is a thirty-minute walk
+  (spec §6, "the M5.2 distance ceiling"). A rule that would have caught it is easy to
+  write *after* looking at spots and hard to guess at beforehand.
+
+  **Design the card's fields before gathering anything**, so the spreadsheet is an
+  import and not notes that need reshaping afterwards. The field list is the first
+  deliverable of the pass, not a by-product of it.
 - **crowds@ and safety@ are real, monitored inboxes** (Alex, M2.1). The public pages
   carry `crowds@pind.social` (suggest a gathering) and `safety@pind.social` (report).
   **Resend sends mail, it does not receive it**, so both would bounce silently as they

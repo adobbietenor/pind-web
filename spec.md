@@ -1005,6 +1005,19 @@ real crowd"). What M1.3 learned, measured on 2026-09-18 with Sonnet 5, effort me
     retry, and a venue is started only if its call can finish before the deadline.
   - **Basic `web_search_20250305`** was faster (57 s) but returned an empty list in its
     one trial, with more input tokens (99k).
+  - **A spot should be a card, and the content comes by hand first** (Alex, M2.2 —
+    filed, not built; full entries in decisions.md Part 5, "A spot is a card, not a
+    maps link" and "Spot content starts as a manual pass"). A meeting spot currently
+    opens Google Maps and that is the whole interaction; it should open a card — what
+    the place is like, food and drink, rough capacity, noise, whether six can get a
+    table without booking — with the maps link inside it. A crew choosing between three
+    spots otherwise has a name and a walking time to choose on. **The content starts as
+    a manual pass**, whose real output is a definition of "a good spot" that becomes
+    this run's rubric; the card's fields are designed first so the spreadsheet is an
+    import, not notes. **It must not be arena-first**: run clubs, markets and pickup
+    games have the harder locations, and M4.4 needs them (`docs/build-plan.md` §8 M4.4).
+    Sourcing is the open question, and **this run already fetches an evidence page per
+    spot**, so richer data may belong here rather than in a second job.
   - **Quality:** suggestions came back for 2 venues (Scotiabank Arena in a direct
     test; Sneaky Dee's in a run, 3 pending on staging) — sensible but not perfect
     (one "east of the venue" was west). Alex's approval stays the gate.
@@ -1175,7 +1188,7 @@ to be legible in the admin and correct with sparse data.
 | `publish_min` / `publish_max` | 3 / 20 | Floor and ceiling for the target |
 | `publish_lead_days_min` / `_max` | 4 / 21 | Publish a draft only if it starts within this window; nearer first |
 | `max_per_venue_per_week` | 2 | A Jays homestand does not fill the week |
-| `community_slots_weekly` | 1 | Reserved for a "Community & free" gathering above its own threshold (from M4.4) |
+| `community_slots_weekly` | 1 | Reserved for a "Community & free" gathering above its own threshold (from M4.4). **One in five was chosen before any evidence — revisit at M4.4** |
 | `score_floor` | 70 | Final score (AI score minus distance adjustment) below which a draft is never auto-published |
 | `grow_reach` · `grow_median_pins` | 0.60 · 8 | Both must hold to grow |
 | `shrink_reach` | 0.30 | Below this, shrink |
@@ -1215,6 +1228,17 @@ and `median_pins`. Then:
 - clamp to `publish_min … publish_max`; if fewer than 3 gatherings qualify in the
   window, hold.
 
+**Open: is one community slot in five too few?** (Alex, M2.2; revisit once M4.4 can
+actually fill the slot.) The number was set before there was any evidence, alongside
+everything else in the table. The case for raising it: free recurring gatherings may
+be where this product actually works — **the same people every Saturday is how repeat
+attendance happens**, where 18,000 strangers once is a single shot at reaching 5.
+Community gatherings are first-class, not the minor half (decisions Part 5,
+"Community gatherings are first-class"). The case for leaving it: nothing sources them
+until M4.4, so raising it now would hold slots nothing can fill, and the fill already
+refuses to hold an empty slot for exactly that reason. It stays at 1 until there is a
+queue to measure; then it is a setting on the cities row, not a rebuild.
+
 **Open: what the target counts — a week, or a shelf** (Alex, M2.2; decide after real
 weeks, not by reasoning). The target is currently *five gatherings starting per
 calendar week*, and the first read-only run surfaced the consequence: by mid-week
@@ -1237,9 +1261,13 @@ actually empties, and whether anyone lands on the thin end of one.
 by the publisher and nowhere else. The only conditions on taking a pin are "it is me"
 and "the gathering is published, not withdrawn, not seeded", so someone can pin in on
 the morning of, or an hour before doors. **They can also pin in after it has ended** —
-there is no upper bound either, which is a gap rather than a decision, and one to
-settle in M3.2 when A26 exists. The people list still closes 24h after the effective
-end (V1); that is a read rule and unaffected.
+there is no upper bound either. That is a gap left from M1.1 rather than a decision,
+and it is **M3.2's to close** (`docs/build-plan.md` §8 M3.2): pins close at the
+effective end, decided with A26, which is the first screen with a button to hang the
+rule on. P37b records the gap deliberately and says in the case itself that M3.2
+should invert it, so nobody fixing the bound reads a red test as a regression. The
+people list still closes 24h after the effective end (V1); that is a read rule and
+unaffected.
 
 Written in M2.2 but gated by `adaptive = off`; switched on in M4.5. While it is off it
 still runs every Monday and still logs, including the target it *would* have moved to,

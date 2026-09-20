@@ -388,10 +388,12 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 - Opt-in toggle; A9 locked state with the number named; the reciprocal list (RLS already does the work — the screen just renders what the policy returns); tapping a person opens A22, never a chat.
 - Edit and remove my pin; A19 My Events; universal links into the app; the "get the app" nudge shown once at crews-open.
 - The +1: shown as "+1 friend"; a +1 who wants to be seen pins in themselves through the share link; no claim page (§10).
+- **Close the pinning window at the effective end** (found and dated in M2.2, harness P37b). Pinning has no upper time bound today: a pin can be taken at a gathering that ended two days ago. It is a gap left from M1.1, not a decision, and A26 is the first screen with a real button to hang the rule on. Decide the exact edge with A26 — almost certainly the effective end, matching everything else time-driven — enforce it in the database, and **invert P37b rather than treating its failure as a regression**; the case is written to say so.
 
 **Acceptance**
 
 - From a link in iMessage on a phone with no app: tap → Worker page → Pin in → pinned in under 30 seconds with no account and no photo; the Worker page's count is one higher on reload.
+- Pinning is refused at a gathering that has ended, and still works an hour before doors; P37b is inverted and green.
 - **The quick pin screen is measured, not assumed.** One Lighthouse mobile run on `/g/<slug>/pin`, compared with the crowd page's, and a byte budget agreed for it. M2.1 measured the empty holding route at 828 KB and a score of 37 against the crowd page's 78 KB and 99; whatever A26 costs on top of that, the number is looked at rather than inherited.
 - Ticking "meet up" asks for DOB, gender, photo and an email code; afterwards the pin is still there under the same user.
 - Two test people opted in each see the other's first name and, once approved, photo; a third who pinned without opting in sees nobody and is not seen.
@@ -533,11 +535,13 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 - A weekly run: Claude with web search over a fixed list of Toronto sources (city listings, run-club and market pages, festival calendars, community boards) producing drafts with `source = community`, its own rubric (social by design, solo-friendly, free or low-cost, recurring — not crowd size), ranked separately; a "Community & free" tab in the admin with source pages; duplicates against Ticketmaster merged.
 - Every call streamed and aborted at four minutes, at most one retry, a per-run budget and the daily cap, aborted usage estimated (M1.3b's cost blind spot).
 - The auto-publisher's community slot fed from this tab.
+- **Community venues are the hard case, and the spot work must not assume arenas** (Alex, M2.2). A run club, a market or a pickup game often has no venue in the Ticketmaster sense: a park entrance, a corner of a street, a community centre. Those need meeting spots too, and **harder ones, not easier** — there is no box office to meet outside of, and "the north gate" means nothing to someone who has never been. If the manual spot pass (decisions.md, "Spot content starts as a manual pass") covers only Scotiabank Arena and Rogers Centre, M4.4 arrives with nowhere for community crews to meet and the slot cannot be filled. **The manual pass must carry community locations from the start**, and the card's fields must survive a place that is not a building.
 
 **Acceptance**
 
 - A run finishes within its budget and fills the tab with real, dated, free or low-cost gatherings with links Alex can open.
 - At least one community gathering is published and visible on pind.social before the first real crowd.
+- **That gathering has meeting spots** — its location, whatever shape it is, has somewhere a crew can actually meet.
 - A run that stalls is aborted and reported, not hung.
 
 6–8 h

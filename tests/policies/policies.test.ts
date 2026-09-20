@@ -582,18 +582,30 @@ describe("After the gathering — V1 (list closes 24h after effective end)", () 
 
   // Asked by Alex in M2.2 and written down here rather than inferred: nothing about
   // publishing lead times reaches pinning. The only conditions on inserting a pin are
-  // "it is me" and "the gathering is published, not withdrawn, not seeded" — there is
-  // no lower bound and, as the second half of this case records, no upper bound
-  // either. Pinning an hour before doors is fine; so, today, is pinning after the
-  // gathering has ended. The second is a gap, not a rule (spec §8, M2.2 note).
-  it("P37b pinning has no time gate at all: Ava CAN pin in at P two days after it ended, and at G an hour before it starts", async () => {
+  // "it is me" and "the gathering is published, not withdrawn, not seeded".
+  //
+  // The first half is the rule and is meant to hold: pinning an hour before doors
+  // works, and nothing about publish_lead_days_min reaches it.
+  //
+  // THE SECOND HALF RECORDS A BUG, NOT AN INTENTION. There is no upper bound either,
+  // so a pin can be taken after the gathering has ended. That is a gap left over from
+  // M1.1, not a decision, and M3.2 closes it when A26 exists: pins close at the
+  // effective end. WHEN M3.2 LANDS THIS ASSERTION IS SUPPOSED TO FAIL — invert it to
+  // `assert.ok(ended.error)` and rename the case. It is here so the gap is visible and
+  // dated rather than discovered again, not because anyone wants it (Alex, M2.2).
+  it("P37b pinning has no lower time gate (intended) / and no upper one either — CURRENT BEHAVIOUR, A BUG M3.2 CLOSES", async () => {
     const ava = c(M("Ava"));
     const ended = await ava
       .from("pins")
       .insert({ gathering_id: w.P, person_id: id("Ava"), party_total: 1, open_to_meeting: false })
       .select("id")
       .single();
-    assert.equal(ended.error, null, `pinning after the end was refused: ${ended.error?.message}`);
+    // Pending M3.2: this is the bug, recorded. Invert it there, do not "fix" the test.
+    assert.equal(
+      ended.error,
+      null,
+      "pinning after the end was refused — if M3.2 closed the bound, invert this assertion rather than treating it as a regression",
+    );
     await ok(w.service.from("pins").delete().eq("id", ended.data!.id));
 
     // The same for a gathering about to start: published is the only gate.
