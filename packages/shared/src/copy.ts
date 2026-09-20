@@ -22,9 +22,12 @@ export function entryLine(g: {
   door_price_cents?: number | null;
   entry_note?: string | null;
 }): string {
-  if (g.entry === "free") return "Free";
-  if (g.entry === "ticketed") return "";
   const note = g.entry_note?.trim();
+  // The note is about the cost whatever the cost is: Frontrunners is a free drop-in
+  // with an optional $30/yr membership, and dropping that made the page say less than
+  // the truth. Found entering the community list.
+  if (g.entry === "free") return note ? `Free — ${note}` : "Free";
+  if (g.entry === "ticketed") return note ?? "";
   if (g.door_price_cents === null || g.door_price_cents === undefined) {
     return note ? `Pay at the door — ${note}` : "Pay at the door";
   }

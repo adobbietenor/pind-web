@@ -184,6 +184,19 @@ describe("what it costs to walk in", () => {
     assert.equal(entryLine({ entry: "ticketed", door_price_cents: null, entry_note: null }), "");
   });
 
+  // The note is about the cost whatever the cost is. Frontrunners is a free drop-in
+  // with an optional membership, and dropping it made the page say less than the truth.
+  it("keeps the note on a free or ticketed gathering too", () => {
+    assert.equal(
+      entryLine({ entry: "free", door_price_cents: null, entry_note: "optional $30/yr membership" }),
+      "Free — optional $30/yr membership",
+    );
+    assert.equal(
+      entryLine({ entry: "ticketed", door_price_cents: null, entry_note: "sold out at the door" }),
+      "sold out at the door",
+    );
+  });
+
   it("shows the amount at the door", () => {
     assert.equal(entryLine({ entry: "door", door_price_cents: 1000, entry_note: null }), "$10 at the door");
     assert.equal(entryLine({ entry: "door", door_price_cents: 2000, entry_note: null }), "$20 at the door");
