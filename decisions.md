@@ -629,6 +629,20 @@ change). Where the plan has more detail, the plan is the reference.
   Mapbox GL bills $5 per 1,000 map loads past the free 50,000. It also ships no API key,
   because there is no key. The pins are gatherings, never people (H1), and the map still
   never asks where the viewer is (H4).
+
+  **The three surfaces, and which is the default** (Alex, M2.2 — filed, not built).
+  When the landing page eventually has both views, they sit like this:
+  1. **List is the default, and it is date-first.** Q10 stands. This is not a layout
+     preference: a popularity sort as the *default* is a rich-get-richer loop, and it is
+     backwards in a product where everything needs to reach 5. The gatherings that most
+     need eyes are the ones a popularity sort buries.
+  2. **Map is a toggle**, the deferred city map described above — Protomaps on R2, a pin
+     per published gathering, tap to open its crowd page, no per-load billing, no
+     geolocation.
+  3. **"Popular events" is an option the user chooses**, from either view. Never a
+     default, never an automatic re-ordering, never a "for you". The difference that
+     matters is who asked for it: a reader who chooses to sort by popularity has decided
+     what they want, and nothing has decided it for them.
 - **crowds@ and safety@ are real, monitored inboxes** (Alex, M2.1). The public pages
   carry `crowds@pind.social` (suggest a gathering) and `safety@pind.social` (report).
   **Resend sends mail, it does not receive it**, so both would bounce silently as they

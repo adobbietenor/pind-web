@@ -1215,6 +1215,32 @@ and `median_pins`. Then:
 - clamp to `publish_min … publish_max`; if fewer than 3 gatherings qualify in the
   window, hold.
 
+**Open: what the target counts — a week, or a shelf** (Alex, M2.2; decide after real
+weeks, not by reasoning). The target is currently *five gatherings starting per
+calendar week*, and the first read-only run surfaced the consequence: by mid-week
+everything still on the shelf for that week starts inside the 4-day lead minimum, so
+the current week's target can no longer be met and the list sags as the week runs
+out. Two shapes:
+- **Per starting week (built).** Legible — "five a week" is a sentence anyone can
+  check against a calendar — and the unit the weekly adjust already measures in.
+  The list thins towards the end of each week by construction.
+- **A rolling shelf.** Five *live at any time* across the lead window, so the list
+  carries roughly the same amount every day and refills as gatherings fall out of the
+  window. Steadier for a visitor arriving on a Friday, but "the target" stops matching
+  the week the adjust reasons about, and the per-venue-per-week cap needs re-stating.
+
+The rule stays as built. Watch a few real weeks first: how often the current week
+actually empties, and whether anyone lands on the thin end of one.
+
+**Pinning has no time gate, and never had one** (confirmed in M2.2, harness P37b).
+`publish_lead_days_min` decides only when a draft may be *auto-published*; it is read
+by the publisher and nowhere else. The only conditions on taking a pin are "it is me"
+and "the gathering is published, not withdrawn, not seeded", so someone can pin in on
+the morning of, or an hour before doors. **They can also pin in after it has ended** —
+there is no upper bound either, which is a gap rather than a decision, and one to
+settle in M3.2 when A26 exists. The people list still closes 24h after the effective
+end (V1); that is a read rule and unaffected.
+
 Written in M2.2 but gated by `adaptive = off`; switched on in M4.5. While it is off it
 still runs every Monday and still logs, including the target it *would* have moved to,
 so M4.5 is a checkbox and not new plumbing.

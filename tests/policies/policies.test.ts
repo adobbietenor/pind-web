@@ -579,6 +579,39 @@ describe("After the gathering — V1 (list closes 24h after effective end)", () 
     assert.equal(row.pinned, 2);
     assert.equal(row.open_to_meeting, 2);
   });
+
+  // Asked by Alex in M2.2 and written down here rather than inferred: nothing about
+  // publishing lead times reaches pinning. The only conditions on inserting a pin are
+  // "it is me" and "the gathering is published, not withdrawn, not seeded" — there is
+  // no lower bound and, as the second half of this case records, no upper bound
+  // either. Pinning an hour before doors is fine; so, today, is pinning after the
+  // gathering has ended. The second is a gap, not a rule (spec §8, M2.2 note).
+  it("P37b pinning has no time gate at all: Ava CAN pin in at P two days after it ended, and at G an hour before it starts", async () => {
+    const ava = c(M("Ava"));
+    const ended = await ava
+      .from("pins")
+      .insert({ gathering_id: w.P, person_id: id("Ava"), party_total: 1, open_to_meeting: false })
+      .select("id")
+      .single();
+    assert.equal(ended.error, null, `pinning after the end was refused: ${ended.error?.message}`);
+    await ok(w.service.from("pins").delete().eq("id", ended.data!.id));
+
+    // The same for a gathering about to start: published is the only gate.
+    const soon = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} Doors Soon`, starts_at: new Date(Date.now() + 3_600_000).toISOString(), venue_id: w.venue })
+        .select("id")
+        .single(),
+    );
+    await ok(w.service.from("gatherings").update({ published_at: new Date().toISOString() }).eq("id", soon.id));
+    const late = await ava
+      .from("pins")
+      .insert({ gathering_id: soon.id, person_id: id("Ava"), party_total: 1, open_to_meeting: false })
+      .select("id")
+      .single();
+    assert.equal(late.error, null, `pinning an hour before doors was refused: ${late.error?.message}`);
+  });
 });
 
 // ---------------------------------------------------------------------------
