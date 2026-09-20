@@ -33,6 +33,7 @@ const NAV: [string, string][] = [
   ["/admin/venues", "Venues"],
   ["/admin/photos", "Photos"],
   ["/admin/reports", "Reports"],
+  ["/admin/config", "Config"],
 ];
 
 // Admin responses are never cached or indexed, and never framed. Referrer policy

@@ -1376,7 +1376,9 @@ describe("Auto-publishing — M2.2 (spec §8)", () => {
     assert.equal((await rows(w.service.from("gathering_promotions").select("id").eq("gathering_id", g))).length, 1);
 
     for (const client of [w.anon, c(M("Ava"))]) {
-      for (const table of ["publish_decisions", "publish_target_log", "gathering_promotions"]) await noAccess(client, table);
+      for (const table of ["publish_decisions", "publish_target_log", "gathering_promotions", "ops_alerts"]) {
+        await noAccess(client, table);
+      }
       const calls: [string, Record<string, unknown>][] = [
         ["admin_set_publish_mark", { p_gathering: g, p_mark: "publish", p_actor: "x" }],
         ["admin_record_promotion", { p_gathering: g, p_channel: "r/evil", p_note: null, p_actor: "x" }],
@@ -1384,6 +1386,12 @@ describe("Auto-publishing — M2.2 (spec §8)", () => {
         ["admin_publish_outcomes", { p_city: "toronto", p_days: 14 }],
         ["admin_save_publish_settings", { p_city: "toronto", p_settings: { publish_target_weekly: 20 }, p_actor: "x" }],
         ["admin_apply_publish_target", { p_city: "toronto", p_target: 20, p_actor: "x" }],
+        // M2.2's operational functions: the health of the import and the alert log
+        // are the admin's business, not a visitor's.
+        ["admin_import_health", {}],
+        ["admin_watchdog_import", {}],
+        ["admin_alert_already_sent_today", { p_kind: "import_failed" }],
+        ["admin_record_alert", { p_kind: "import_failed", p_subject: "x", p_sent: true, p_error: null }],
       ];
       for (const [fn, args] of calls) await denied(client.rpc(fn, args), "42501");
     }

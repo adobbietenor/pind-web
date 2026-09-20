@@ -850,6 +850,38 @@ the current pace, raise the hours or shrink the phase.
     - **the M5.2 distance ceiling** — Poetry Jazz Cafe is a 30-minute walk and was
       already approved and in a live spot poll.
 
+#### M2.2 — the nightly import had never actually run on schedule
+Found on 2026-09-20, when the admin showed "TICKETMASTER_CONSUMER_KEY is missing" and
+the last run was Friday evening. The diagnosis matters more than the credential.
+
+- **`import_runs` has never held a single row started at the 08:00 UTC cron time.**
+  Every "cron" row on record (18 Sep, 19:51 / 20:07 / 20:49 UTC) is a hand-invoked
+  M1.3 run labelled cron. The trigger has been live for two nights and produced
+  nothing both times.
+- **Why nothing was recorded:** `runImport` checked `TICKETMASTER_CONSUMER_KEY`
+  **before** calling `admin_start_import_run`, so a night that failed on a credential
+  wrote no run row at all. The admin went on showing the last good run and looked
+  fine. **A failed run must leave a failed run behind**; the check now sits inside the
+  try, after the row is opened.
+- **The secret is bound to the Worker** — `wrangler secret list` names it — so "it was
+  lost when workers.dev was turned off" is **wrong**: Cloudflare secrets belong to the
+  Worker, not to a route or a hostname, and M2.1 removed a hostname. What `secret
+  list` cannot show is the *value*: a secret set to an empty string lists exactly like
+  a real one and fails at the first `.trim()`. That is why "set but EMPTY" is its own
+  state on the Configuration panel.
+- **Two clocks now, deliberately.** Cloudflare's cron runs the import at 08:00 UTC; a
+  **pg_cron job in Postgres** checks at 09:00 UTC that a run started, and writes a
+  failed `import_runs` row when none did. A Worker cannot report its own cron being
+  dead, so the watchdog cannot live in the Worker. It caught this immediately on
+  installation: 43 hours since the last success.
+- **The next cron firing is self-diagnosing.** A row at 08:00 UTC means the trigger
+  fires and the row says what failed; no row plus a watchdog row at 09:00 means the
+  trigger is not firing at all. Until then the two cannot be told apart from data.
+- **What now reaches Alex:** a failed run sends one email (Resend, at most one of a
+  kind per Toronto day), and every admin page carries a red banner while the import is
+  stale. The email needs `RESEND_API_KEY` and `ALERT_EMAIL`; until they are set the
+  banner says in as many words that nothing emailed him.
+
 #### Notes carried into the next milestones
 - **M3.1 — the photo check** (recorded by Alex in M1.2; decisions Part 5, "Automated
   photo moderation"). On upload, a Claude vision check auto-approves clear real-person

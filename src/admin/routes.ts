@@ -1,6 +1,8 @@
 import type { Env } from "../env";
 import { serviceClient } from "../supabase";
-import type { AdminHandler } from "./context";
+import { alertsConfigured } from "../ops/secrets";
+import * as cfg from "./config";
+import type { AdminContext, AdminHandler } from "./context";
 import * as g from "./gatherings";
 import { requireAdmin } from "./guard";
 import * as i from "./imports";
@@ -13,6 +15,7 @@ import * as v from "./venues";
 const ROUTES: [string, AdminHandler][] = [
   ["GET /admin", g.draftQueue],
   ["GET /admin/published", g.publishedList],
+  ["GET /admin/config", cfg.configPage],
   // M2.2 — auto-publishing: the panel, the loop's settings, Alex's marks, promotions
   ["GET /admin/publishing", pub.publishingPage],
   ["POST /admin/publishing/settings", pub.savePublishSettings],
@@ -64,6 +67,28 @@ const ROUTES: [string, AdminHandler][] = [
   ["POST /admin/people/:id/dismiss-reports", m.dismissReports],
 ];
 
+// A stale nightly import means the public site has stopped refreshing, which is the
+// kind of thing that should be unmissable from wherever Alex happens to be standing —
+// not tucked into one panel on one page (Alex, M2.2). Injecting it here rather than
+// in each handler means every admin page carries it, including ones added later.
+//
+// Only HTML pages: redirects have no body and the CSV export is a file. A failure to
+// read the health is swallowed — the banner is a warning, and it must never be the
+// reason a page does not load.
+async function withStalenessBanner(response: Response, ctx: AdminContext): Promise<Response> {
+  const type = response.headers.get("content-type") ?? "";
+  if (!response.ok || !type.startsWith("text/html")) return response;
+  try {
+    const health = await cfg.importHealth(ctx);
+    if (!health.stale) return response;
+    const banner = cfg.stalenessBanner(health, alertsConfigured(ctx.env));
+    const html = (await response.text()).replace("</nav>", `</nav>${banner}`);
+    return new Response(html, { status: response.status, headers: response.headers });
+  } catch {
+    return response;
+  }
+}
+
 function match(method: string, pathname: string): { handler: AdminHandler; params: Record<string, string> } | null {
   const path = pathname.replace(/\/+$/, "") || "/";
   const segments = path.split("/");
@@ -95,8 +120,9 @@ export async function admin(request: Request, env: Env): Promise<Response> {
 
   const found = match(request.method, new URL(request.url).pathname);
   if (!found) return notFound(request, who.email);
+  const ctx: AdminContext = { env, email: who.email, params: found.params, db: serviceClient(env) };
   try {
-    return await found.handler(request, { env, email: who.email, params: found.params, db: serviceClient(env) });
+    return await withStalenessBanner(await found.handler(request, ctx), ctx);
   } catch (err) {
     if (err instanceof AdminError) {
       return adminPage(request, who.email, "Database error", `<p class="err">${err.message.replace(/[<>&"']/g, "")}</p>`, 500);

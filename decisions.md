@@ -889,3 +889,35 @@ change). Where the plan has more detail, the plan is the reference.
   from "Run import now" still logs `publisher:auto` against the gatherings it fills, so
   the moderation log keeps "Alex pressed Publish" and "a run filled a slot" apart.
   `import_runs` already records who triggered the run.
+- **A failed job must leave a record, and a dead clock needs a second clock**
+  (Alex, M2.2, after the nightly import turned out never to have run on schedule).
+  Three rules, all of them general:
+  1. **Open the run row before anything that can fail.** The import checked its
+     Ticketmaster key before `admin_start_import_run` and returned early, so a night
+     that failed on a credential wrote nothing and the admin kept showing the last
+     good run. Any job with a run record opens it first and records the failure into
+     it.
+  2. **A watchdog cannot live inside the thing it watches.** The Worker cannot report
+     its own cron being dead, so the watchdog is a pg_cron job in Postgres — the one
+     clock in this system that does not depend on Cloudflare — writing a failed
+     `import_runs` row when no run has started in 26 hours. It is scheduled from a
+     migration, not the dashboard, for the same reason schema is.
+  3. **Alerts go one way and are rate-limited.** A failed nightly run emails once
+     (Resend), at most one of a kind per Toronto day, enforced by a unique index
+     rather than by the Worker; a channel that repeats itself gets muted, and a muted
+     channel is the silent failure again. Only a *sent* alert suppresses the next, so
+     a failed send does not silence tomorrow.
+
+  **Why it matters more than the credential:** M2.2's premise is that the city's list
+  refreshes without anyone watching. A silent failure therefore means pind.social
+  quietly stops updating and starts looking abandoned, and the first person to notice
+  is a visitor. Alex found this one by happening to look.
+- **The admin answers "is this thing configured"** (Alex, M2.2). `/admin/config` lists
+  every setting the Worker needs with three states — set, **set but EMPTY**, not set —
+  what stops working without each, and the exact `wrangler secret put` to fix it. No
+  value is ever read, rendered or logged. "Empty" is its own state because a secret set
+  to an empty string lists in `wrangler secret list` exactly like a real one and then
+  fails at the first `.trim()`, which is the hardest version of this bug to see.
+  It is the general form of CLAUDE.md's rule after M2.1's `MAPBOX_TOKEN`: unset is a
+  different state from broken, and it belongs in front of whoever can fix it. Checking
+  one secret because one broke would have left the rest exactly as invisible.

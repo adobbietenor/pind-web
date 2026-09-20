@@ -1141,6 +1141,36 @@ export type Database = {
         }
         Relationships: []
       }
+      ops_alerts: {
+        Row: {
+          at: string
+          error: string | null
+          id: number
+          kind: string
+          local_day: string
+          sent: boolean
+          subject: string
+        }
+        Insert: {
+          at?: string
+          error?: string | null
+          id?: never
+          kind: string
+          local_day?: string
+          sent: boolean
+          subject: string
+        }
+        Update: {
+          at?: string
+          error?: string | null
+          id?: never
+          kind?: string
+          local_day?: string
+          sent?: boolean
+          subject?: string
+        }
+        Relationships: []
+      }
       outbound_messages: {
         Row: {
           channel: Database["public"]["Enums"]["contact_kind"]
@@ -1985,6 +2015,10 @@ export type Database = {
     }
     Functions: {
       admin_ai_spend_today: { Args: { p_city: string }; Returns: number }
+      admin_alert_already_sent_today: {
+        Args: { p_kind: string }
+        Returns: boolean
+      }
       admin_apply_publish_target: {
         Args: { p_actor: string; p_city: string; p_target: number }
         Returns: number
@@ -2026,6 +2060,7 @@ export type Database = {
         Args: { p_plan: Json; p_run: number }
         Returns: Json
       }
+      admin_import_health: { Args: never; Returns: Json }
       admin_keep_hidden: {
         Args: { p_actor: string; p_note?: string; p_person: string }
         Returns: undefined
@@ -2050,6 +2085,15 @@ export type Database = {
       admin_purge_ticketmaster_data: {
         Args: { p_days?: number }
         Returns: Json
+      }
+      admin_record_alert: {
+        Args: {
+          p_error: string
+          p_kind: string
+          p_sent: boolean
+          p_subject: string
+        }
+        Returns: undefined
       }
       admin_record_map_render: {
         Args: {
@@ -2128,6 +2172,7 @@ export type Database = {
         Args: { p_actor: string; p_gathering: string }
         Returns: undefined
       }
+      admin_watchdog_import: { Args: never; Returns: Json }
       admin_withdraw_gathering: {
         Args: {
           p_actor: string

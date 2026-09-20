@@ -16,6 +16,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatLocal } from "../admin/time";
 import type { Env } from "../env";
+import { importFailedAlert, sendAlert } from "../ops/alert";
 import { PUBLISHER, runPublishing } from "../publish/run";
 import { serviceClient } from "../supabase";
 import { canSpend, ESTIMATE, MODEL, type ScoreInput } from "./ai";
@@ -128,9 +129,14 @@ function capOf(env: Env): number {
 
 export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome> {
   const db = serviceClient(env);
-  const tmKey = env.TICKETMASTER_CONSUMER_KEY?.trim();
-  if (!tmKey) return { status: "failed", message: "TICKETMASTER_CONSUMER_KEY is missing" };
   const city = await loadCity(db);
+
+  // The run row is opened BEFORE anything that can fail, which is the whole point of
+  // this ordering (Alex, M2.2). It used to check the Ticketmaster key first and
+  // return early, so a night that failed on a missing credential wrote no row at
+  // all: the admin went on showing the last good run and two nights passed with
+  // nothing saying the city's list had stopped refreshing. A failed run must leave
+  // a failed run behind.
 
   const started = await db.rpc("admin_start_import_run", {
     p_source: "ticketmaster",
@@ -153,6 +159,16 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
   const saveCost = () => db.from("import_runs").update({ ai_cost_usd: aiCost.toFixed(6) }).eq("id", runId);
 
   try {
+    // 1b. Now the credentials, inside the try, so a missing one is recorded as a
+    // failed run and alerted on rather than vanishing. Unset is named as unset.
+    const tmKey = env.TICKETMASTER_CONSUMER_KEY?.trim();
+    if (!tmKey) {
+      throw new Error(
+        "TICKETMASTER_CONSUMER_KEY is not set on the Worker, so the nightly import cannot run. " +
+          "Set it with `npx wrangler secret put TICKETMASTER_CONSUMER_KEY`.",
+      );
+    }
+
     // 2–3. Fetch, filter, plan.
     const now = new Date();
     const windowEnd = new Date(now.getTime() + city.importWeeks * 7 * 24 * 60 * 60 * 1000);
@@ -258,6 +274,21 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
         `${a.dismissed ?? 0} dismissed, ${a.flagged ?? 0} flagged; ${counts.scored ?? 0} scored` +
         (counts.unscored_left ? `, ${counts.unscored_left} still unscored` : "") +
         `; ${counts.published ?? 0} published; AI $${aiCost.toFixed(2)}.`;
+
+  // A failed run tells somebody. M2.2's premise is that the city's list refreshes
+  // without anyone watching, so a failure nobody hears about means pind.social
+  // quietly stops updating and starts looking abandoned — which is worse than
+  // whatever broke. At most one of these a day, and if no alert channel is
+  // configured the run says so in its own summary rather than failing twice over.
+  if (status === "failed") {
+    const alert = importFailedAlert(summary, errors);
+    const outcome = await sendAlert(env, db, "import_failed", alert.subject, alert.body).catch((err) => ({
+      sent: false,
+      why: err instanceof Error ? err.message : String(err),
+    }));
+    if (!outcome.sent) return { status, message: `${summary} (alert not sent: ${outcome.why})` };
+  }
+
   return { status, message: summary };
 }
 
