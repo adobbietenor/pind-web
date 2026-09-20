@@ -8,7 +8,8 @@
 import { ONE_LINER } from "@pind/shared";
 import type { Env } from "../env";
 import { crowd } from "./data";
-import { appSiteAssociation, ogImage, ogResponse } from "./og";
+import { appSiteAssociation, ogImage } from "./og";
+import { pngResponse, rasterise } from "./ogpng";
 import { about, favicon, ics, robots, w1, w2, w3 } from "./pages";
 
 // Anything that is not one of ours is the app's (M2.0).
@@ -31,8 +32,8 @@ export async function publicRoutes(request: Request, env: Env): Promise<Response
   if (pathname === "/favicon.svg") return favicon();
   if (pathname === "/.well-known/apple-app-site-association") return appSiteAssociation();
 
-  // The OG image: /og/<slug>.svg
-  const og = /^\/og\/([a-z0-9-]+)\.svg$/.exec(pathname);
+  // The OG image: /og/<slug>.png
+  const og = /^\/og\/([a-z0-9-]+)\.png$/.exec(pathname);
   if (og) return ogFor(env, og[1]!);
 
   if (!pathname.startsWith("/g/")) return null;
@@ -64,5 +65,6 @@ async function ogFor(env: Env, slug: string): Promise<Response> {
     hour: "numeric",
     minute: "2-digit",
   }).format(new Date(door.gathering.starts_at));
-  return ogResponse(ogImage({ name: door.gathering.name, when, venue: door.venue.name, oneLiner: ONE_LINER }));
+  const svg = ogImage({ name: door.gathering.name, when, venue: door.venue.name, oneLiner: ONE_LINER });
+  return pngResponse(rasterise(svg));
 }

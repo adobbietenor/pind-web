@@ -103,7 +103,7 @@ browser in under a second.
 | `/g/<slug>` | W2, the crowd page before you pin: facts, the generated map, counts, the house rules, one button |
 | `/g/<slug>/spot` | W3, the share card: gathering, spot, time |
 | `/g/<slug>.ics` | add to calendar |
-| `/og/<slug>.svg` | W4, the link preview image — no counts, ever |
+| `/og/<slug>.png` | W4, the link preview image — no counts, ever |
 | `/.well-known/apple-app-site-association` | universal links, both bundle IDs |
 | `/about`, `/robots.txt`, `/favicon.svg` | the footer's page, and the two small files |
 
@@ -125,6 +125,20 @@ fill for `currentColor`, and composes the mark-and-wordmark lockup the header an
 OG image use. `brand/` is never modified. **The lockup is provisional and Tatiana's to
 change**: no such lockup has ever been designed, so `CAP_HEIGHT` and `GAP` at the top
 of `scripts/build-brand.ts` are the whole layout.
+
+### The link preview image
+
+`src/public/og.ts` draws the card as an SVG; `src/public/ogpng.ts` rasterises it with
+`@cf-wasm/resvg`, the Worker's only wasm dependency. Cloudflare Images will not convert
+SVG to raster, so this has to happen in the Worker. The two Poppins faces are imported
+as bytes (the `Data` rule in `wrangler.jsonc`) rather than fetched, so a link preview
+never depends on an outside CDN.
+
+Workers block dynamic WebAssembly compilation, so the module is on every route's cold
+start whether or not `/og/` is hit. Measured on the deployed Worker: startup **8 ms ->
+10 ms**, bundle 288 KB gzipped -> 1.37 MB, the image about 410 ms of CPU and cached a
+day at the edge. If that ever needs re-checking, `wrangler deploy` prints
+"Worker Startup Time" on every deploy.
 
 ### The generated map
 

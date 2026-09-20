@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.127.0",
+    "@cf-wasm/resvg": "0.4.0",
     "@supabase/supabase-js": "2.116.0"
   },
   "scripts": {

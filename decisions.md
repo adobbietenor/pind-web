@@ -624,3 +624,29 @@ change). Where the plan has more detail, the plan is the reference.
   before those addresses go on a page anyone is pointed at. `safety@` on a public page
   is an App Review 1.2 requirement and a promise to users, so it has to work — the M4.1
   acceptance list carries "the support address is a real, monitored inbox".
+- **The OG image is rasterised in the Worker, by resvg alone** (Alex asked, verified
+  and built M2.1). The card is drawn as an SVG (`src/public/og.ts`, unit-tested) and
+  turned into a PNG before it is served, because SVG is not a link preview — iMessage,
+  Discord and Slack all want a bitmap.
+  - **Cloudflare Images cannot do it.** Its own docs: "Cloudflare does not resize SVG
+    files and will ignore any optimization parameters", and Images "does not have plans
+    to convert svg to raster" — it sanitises SVGs with `svg-hush` and serves them as
+    they are. Checked 2026-09-19. Not a pricing question; it does not exist.
+  - **One dependency, `@cf-wasm/resvg`, pinned.** Not satori: satori would mean
+    rebuilding the card in its flexbox layout, a second wasm module (yoga), and a font
+    fetched from Google's CDN at runtime. resvg takes the SVG we already have.
+  - **Measured on this Worker, deployed**, which was Alex's condition: Worker Startup
+    Time **8 ms → 10 ms**; bundle 288 KB gzipped → 1.37 MB; `/og/<slug>.png` about
+    410 ms of CPU, cached 24 h at the edge; W2 unchanged at 80–270 ms. The satori route
+    was measured too and cost 33 ms of startup, so it was dropped. Workers **block
+    dynamic WebAssembly compilation**, so a wasm module is always a static import and
+    always on every route's cold start — which is why the number mattered and why it
+    was measured rather than assumed.
+  - **Fonts are embedded, not fetched.** The two Poppins faces the app already bundles
+    live in `src/public/fonts/` and are imported as bytes (a wrangler `Data` rule). A
+    link preview must not depend on somebody else's CDN being up.
+  - **Rendering at publish and storing the PNG was considered and not taken.** It would
+    not have removed the wasm from the bundle — only a second Worker would — so it
+    bought roughly 400 ms on a route only crawlers hit, in exchange for stored objects,
+    a failure path at publish and a backfill. Revisit only if the OG route ever gets
+    hot, which it should not: previews are cached by whoever posts the link.

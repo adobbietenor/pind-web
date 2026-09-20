@@ -35,6 +35,10 @@
   // AI spot suggestions stay off until M1.3b ("on" to enable).
   "vars": { "AI_DAILY_CAP_USD": "3", "AI_SPOT_SUGGESTIONS": "off" },
 
+  // M2.1: the two Poppins faces the OG image is rasterised with are imported as
+  // bytes, not base64 (src/public/ogpng.ts). Nothing else in the Worker loads a font.
+  "rules": [{ "type": "Data", "globs": ["**/*.ttf"] }],
+
   // M2.0: the Expo web export (app/dist, built by `npm run build:web`) is served
   // from the same host. The Worker's own routes run first; every other path is
   // the app, with single-page-app fallback to index.html (spec §4). Deploy with

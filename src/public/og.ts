@@ -5,9 +5,9 @@
 // post time, and a stale number would be a dishonest one (H6). Counts live in the
 // post title and on the page, where they are live.
 //
-// Drawn as an SVG, for the same reason the venue map is: no dependency, no build
-// step, nothing to fetch. Whether it is SERVED as an SVG or rasterised to PNG is
-// Alex's call — see src/public/routes.ts.
+// Drawn as an SVG, for the same reason the venue map is: it is text, it is diffable,
+// and it can be unit-tested without a bundler. It is rasterised to a PNG before it is
+// served, because SVG is not a link preview — see src/public/ogpng.ts.
 
 import { lockupSvg } from "./brand.ts";
 import { escape } from "./escape.ts";
@@ -15,9 +15,9 @@ import { escape } from "./escape.ts";
 const W = 1200;
 const H = 630;
 
-// The system font's average advance, as a fraction of the font size. Only used to
-// decide where to break a line, so being a little out is harmless.
-const ADVANCE = 0.53;
+// Poppins' average advance, as a fraction of the font size. Only used to decide where
+// to break a line, so being a little out is harmless.
+const ADVANCE = 0.55;
 
 function wrap(text: string, size: number, maxWidth: number, maxLines: number): string[] {
   const perLine = Math.floor(maxWidth / (size * ADVANCE));
@@ -69,7 +69,7 @@ export function ogImage(card: OgCard): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${escape(card.name)}">
 <rect width="${W}" height="${H}" fill="#0B0A0D"/>
 <rect x="0" y="0" width="${W}" height="8" fill="#582883"/>
-<g font-family="-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica Neue,Arial,sans-serif">
+<g font-family="Poppins">
 <g transform="translate(80,74)" color="#FFFFFF">${lockupSvg(40, null)}</g>
 ${nameLines}
 <text x="80" y="430" font-size="34" fill="#C9C4D1">${escape(card.when)}</text>
@@ -77,17 +77,6 @@ ${nameLines}
 <text x="80" y="566" font-size="28" fill="#A7A2AF">${escape(card.oneLiner)}</text>
 </g>
 </svg>`;
-}
-
-export function ogResponse(svg: string): Response {
-  return new Response(svg, {
-    headers: {
-      "content-type": "image/svg+xml; charset=utf-8",
-      // Previews are fetched once and cached by the poster's platform, so this can
-      // be long. The image holds no numbers, so it never goes stale (H6).
-      "cache-control": "public, max-age=600, s-maxage=86400",
-    },
-  });
 }
 
 // Universal links (W4). iOS fetches this file from pind.social and, when the app is

@@ -178,7 +178,7 @@ ${g.event_url ? `${DOT}<a href="${escape(g.event_url)}" rel="nofollow noopener">
       // would be a dishonest one (H6, W4).
       description: `${when} · ${door.venue.name}. ${ONE_LINER}`,
       canonical: url,
-      image: `${origin}/og/${g.slug}.svg`,
+      image: `${origin}/og/${g.slug}.png`,
       head: `<link rel="alternate" type="text/calendar" href="/g/${escape(g.slug)}.ics">`,
       footer: W2_FOOTER(g.slug),
       // If this browser already has a session, the button says Open instead. The
