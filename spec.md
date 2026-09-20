@@ -206,10 +206,13 @@ The founder answers "is this a dating thing?" in the comments with the house rul
 
 ### W1 — This week's crowds *(landing; was T9)*
 The public browse surface. Grouped by day, **ordered by date, never by size** (Q10).
-Published gatherings: name, venue, time, pin count, and "crews forming" **only when
-they are**; the chip a reader filters by, and what it costs to walk in. Small counts
-shown, never hidden, including zero. **The threshold never leads**: a row short of five
-says nothing about five (Alex, closing M2.3). Footer: suggest a gathering (a mailto link,
+Published gatherings: name, venue, time, the chip a reader filters by, what it costs to
+walk in, and one line about the crowd. Small counts shown, never hidden, including zero.
+**The threshold never leads**: a row short of five says nothing about five (Alex,
+closing M2.3). The crowd line has three states — "0 pinned · be the first", "3 pinned ·
+1 open to meeting", "12 pinned · crews forming" — so the second clause is always a fact
+about that gathering rather than one phrase repeated down the page.
+The header carries the mark top left and the wordmark top right (Alex, closing M2.3). Footer: suggest a gathering (a mailto link,
 nothing stored) · about · 19+.
 
 **A list of fifty is a different screen from a list of five** (built in M2.3):

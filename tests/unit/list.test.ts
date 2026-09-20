@@ -22,6 +22,7 @@ import {
   windowFor,
   WINDOW_DAYS,
   type ListRow,
+  crowdLine,
 } from "../../src/public/list.ts";
 
 const TZ = "America/Toronto";
@@ -267,5 +268,38 @@ describe("the links every control is made of", () => {
     // "Running" into Events would filter for something that tab does not have.
     assert.equal(tabHref("community", "2026-09-27"), "/community?from=2026-09-27");
     assert.equal(tabHref("events", null), "/");
+  });
+});
+
+// M2.3, after the walk: what a card says about its crowd. Alex's objection was that
+// "0 pinned" alone reads as dead rather than as early, and the fix must not swing into
+// putting one slogan on two hundred rows.
+describe("what a card says about its crowd", () => {
+  const card = (pinned: number, open: number, crews = false) => ({ pinned, open_to_meeting: open, crews_open: crews });
+
+  it("invites on zero, and still shows the zero", () => {
+    // Small counts are shown, never hidden, including zero (H6) — so the invitation
+    // sits beside the number rather than instead of it.
+    assert.equal(crowdLine(card(0, 0)), "0 pinned · be the first");
+  });
+
+  it("says the count alone when there is nobody to meet yet", () => {
+    assert.equal(crowdLine(card(3, 0)), "3 pinned");
+    assert.equal(crowdLine(card(1, 0)), "1 pinned");
+  });
+
+  it("names the people worth turning up for when there are some", () => {
+    assert.equal(crowdLine(card(3, 1)), "3 pinned · 1 open to meeting");
+    assert.equal(crowdLine(card(9, 4)), "9 pinned · 4 open to meeting");
+  });
+
+  it("leads with crews forming once they are, because that is the stronger fact", () => {
+    assert.equal(crowdLine(card(12, 5, true)), "12 pinned · crews forming");
+  });
+
+  it("never repeats one phrase on every row", () => {
+    const lines = [card(0, 0), card(2, 0), card(4, 2), card(12, 6, true)].map(crowdLine);
+    assert.equal(new Set(lines).size, lines.length, "two states said the same thing");
+    for (const l of lines) assert.doesNotMatch(l, /see who|crews open at/);
   });
 });

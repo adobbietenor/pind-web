@@ -13,7 +13,7 @@
 // The palette is the one in packages/shared, never retyped.
 
 import { colors } from "@pind/shared";
-import { lockupSvg } from "./brand";
+import { markSvg, wordmarkSvg } from "./brand";
 import { escape } from "./escape.ts";
 
 export { escape };
@@ -35,9 +35,10 @@ body{
 a{color:#c9a6ee;text-underline-offset:2px}
 a:hover{color:#fff}
 
-/* Header: the logo, and nothing else competing with it. */
+/* Header: the mark at one end, the wordmark at the other, and nothing else competing
+   with either. The anchor is the whole row, so the tap target spans the header. */
 .top{padding:22px 0 8px}
-.top a{display:inline-block;color:var(--text);line-height:0}
+.top a{display:flex;align-items:center;justify-content:space-between;color:var(--text);line-height:0}
 .top svg{display:block}
 
 h1{font-size:1.75rem;line-height:1.2;letter-spacing:-.015em;margin:14px 0 6px;font-weight:650}
@@ -253,8 +254,13 @@ export interface PageOptions {
 // 19+", W2 has "block · report · leave any time · 19+").
 export const DOT = `<span class="dot">·</span>`;
 
+// **The mark top left, the wordmark top right** (Alex, closing M2.3), rather than the
+// composed lockup M2.1 put in the corner. One anchor spanning the header, so there is
+// one link to home with one accessible name rather than two adjacent links to the same
+// place; both pieces of artwork are decorative inside it. The composed lockup is still
+// what the OG image uses, where it has a whole card to sit in the middle of.
 export function header(): string {
-  return `<div class="top"><a href="/">${lockupSvg(26)}</a></div>`;
+  return `<div class="top"><a href="/" aria-label="Pin&#39;d">${markSvg(24)}${wordmarkSvg(19, null)}</a></div>`;
 }
 
 // Every M2.1 page is noindex and unlinked until the privacy policy lands in M4.1

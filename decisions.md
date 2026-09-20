@@ -1915,3 +1915,29 @@ occurrences to 31 December**, three and a half months out.
   **The rule this does not weaken:** load the page in a browser and list its requests.
   That is how M2.1 found the injected beacon and how M2.3 found `/community` serving the
   wrong app, and both were found with `curl` and a request list rather than with a score.
+- **What a card says about its crowd, in three states** (Alex, closing M2.3 — taking the
+  threshold out was right, and leaving "0 pinned" alone overshot: it reads as dead
+  rather than as early).
+
+  | state | the line |
+  |---|---|
+  | nobody yet | 0 pinned · be the first |
+  | some, nobody open to meeting | 3 pinned |
+  | some, with some open | 3 pinned · 1 open to meeting |
+  | crews forming | 12 pinned · crews forming |
+
+  - **The zero is never hidden.** "Be the first" alone would read better and say less;
+    the digit stays, because small counts are shown, never hidden, including zero (H6,
+    spec §2 W1), and the invitation sits beside it rather than instead of it. It is also
+    the phrase A5–A7 already use for this state.
+  - **"See who's going" is deliberately not on every row.** It was the obvious option
+    and it has the same failure as the line it replaced: two hundred rows repeating one
+    phrase is a slogan said at a reader, not a fact about that gathering — and the page
+    already says it once, at the top. What a reader wants to know is whether there is
+    anybody to meet, so the second clause is the open-to-meeting count where there is
+    one. It differs on every row, which is the test a card line has to pass.
+- **The mark top left, the wordmark top right** (Alex, closing M2.3), replacing the
+  composed lockup in the corner. One anchor spanning the header, so there is one link
+  home with one accessible name rather than two adjacent links to the same place. The
+  composed lockup stays in the OG image, where it has a whole card to sit in the middle
+  of — and it is still provisional and Tatiana's to change.

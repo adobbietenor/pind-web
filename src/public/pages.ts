@@ -11,6 +11,8 @@ import { crowd, crowds, type Counts, type Crowd, type Crowd2, type Spot } from "
 import { DOT, escape, header, notice, page } from "./layout";
 import {
   addDays,
+  crowdLine,
+  plural,
   applyChips,
   chipsFor,
   dayGroups,
@@ -60,8 +62,6 @@ const longWhen = (iso: string, tz: string) => `${dateLong(iso, tz)}, ${clock(iso
 // Counts, said honestly (H6). Zero is a number and it is shown.
 // ---------------------------------------------------------------------------
 
-const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
-
 // **The threshold is our mechanic, not the reader's reason** (Alex, after the M2.3
 // walk, and he had never liked the old line). "Crews open at 5" describes a rule
 // somebody is waiting on; what they came for is to see who else is going. So the
@@ -78,6 +78,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 function crewLine(c: { crews_open: boolean }): string {
   return c.crews_open ? "crews forming" : "";
 }
+
 
 // The mix appears only at 5+ opted in, and "Other" only above zero (Q3, V3).
 function mixLine(counts: Counts): string {
@@ -294,9 +295,10 @@ function card(g: Crowd): string {
 <div class="when">${escape(clock(g.starts_at, g.city_timezone))}</div>
 <div class="name">${escape(g.name)}${mark}${free}</div>
 <div class="where">${escape(g.venue_name)}</div>
-<div class="tally">${escape(plural(g.pinned, "pinned", "pinned"))}${
-    crewLine(g) ? `${DOT}${escape(crewLine(g))}` : ""
-  }</div>
+<div class="tally">${crowdLine(g)
+    .split(" · ")
+    .map((part) => escape(part))
+    .join(DOT)}</div>
 </a>`;
 }
 
