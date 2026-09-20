@@ -866,6 +866,7 @@ export type Database = {
       }
       gatherings: {
         Row: {
+          category: Database["public"]["Enums"]["gathering_category"] | null
           created_at: string
           dismissed_at: string | null
           door_price_cents: number | null
@@ -890,6 +891,7 @@ export type Database = {
           withdrawn_at: string | null
         }
         Insert: {
+          category?: Database["public"]["Enums"]["gathering_category"] | null
           created_at?: string
           dismissed_at?: string | null
           door_price_cents?: number | null
@@ -914,6 +916,7 @@ export type Database = {
           withdrawn_at?: string | null
         }
         Update: {
+          category?: Database["public"]["Enums"]["gathering_category"] | null
           created_at?: string
           dismissed_at?: string | null
           door_price_cents?: number | null
@@ -2084,6 +2087,10 @@ export type Database = {
         Args: { p_actor: string; p_venue: string }
         Returns: undefined
       }
+      admin_create_weekly_series: {
+        Args: { p_actor: string; p_template: Json; p_until: string }
+        Returns: Json
+      }
       admin_delete_pin: {
         Args: { p_actor: string; p_note?: string; p_pin: string }
         Returns: undefined
@@ -2255,6 +2262,7 @@ export type Database = {
       public_gatherings: {
         Args: { p_from: string; p_to: string }
         Returns: {
+          category: Database["public"]["Enums"]["gathering_category"]
           city_name: string
           city_timezone: string
           crews_open: boolean
@@ -2286,6 +2294,7 @@ export type Database = {
       contact_kind: "email" | "sms"
       crew_state: "forming" | "spot_set" | "live" | "done" | "dissolved"
       entry_kind: "free" | "door" | "ticketed"
+      gathering_category: "sports" | "concerts" | "bars" | "clubs" | "community"
       gathering_flag_kind:
         | "date_changed"
         | "rescheduled"
@@ -2439,6 +2448,7 @@ export const Constants = {
       contact_kind: ["email", "sms"],
       crew_state: ["forming", "spot_set", "live", "done", "dissolved"],
       entry_kind: ["free", "door", "ticketed"],
+      gathering_category: ["sports", "concerts", "bars", "clubs", "community"],
       gathering_flag_kind: [
         "date_changed",
         "rescheduled",

@@ -306,6 +306,7 @@ interface GatheringFields {
   entry: "free" | "door" | "ticketed";
   door_price_cents: number | null;
   entry_note: string | null;
+  category: string | null;
   featured: boolean;
   venue_name_raw: string | null;
 }
@@ -329,6 +330,7 @@ function readFields(form: FormData, tz: string): GatheringFields | string {
     ends_at: ends,
     event_url: eventUrl || null,
     ...entry,
+    category: CATEGORIES.includes(str(form, "category")) ? str(form, "category") : null,
     featured: form.get("featured") === "on",
     venue_name_raw: str(form, "venue_name_raw") || null,
   };
@@ -358,6 +360,19 @@ function readEntry(form: FormData): Entry | string {
   const amount = Number(raw);
   if (!Number.isFinite(amount) || amount < 0 || amount > 1000) return "Door price must be an amount in dollars, up to 1000";
   return { entry, door_price_cents: Math.round(amount * 100), entry_note: note };
+}
+
+// The five a reader will filter by (M2.3). Null is a real answer — "nobody has said"
+// — and the publisher falls back to deriving a coarse kind from the source, so a
+// guess and a statement stay distinguishable.
+const CATEGORIES = ["sports", "concerts", "bars", "clubs", "community"];
+
+function categoryField(g: any): string {
+  const options = [`<option value="">— not said; derived from the source —</option>`]
+    .concat(CATEGORIES.map((c) => `<option value="${c}"${g?.category === c ? " selected" : ""}>${c}</option>`))
+    .join("");
+  return `<label>Category <span class="muted">(what a reader filters by; "bars" and "community" have no source until M4.4, so a hand-entered one is the only way they appear)</span><br>
+<select name="category">${options}</select></label>`;
 }
 
 function fieldsHtml(p: Places, g: any, lockVenue: boolean): string {
@@ -394,6 +409,7 @@ ${(
 <label>Note <span class="muted">(up to 60 characters — "cash only", "$15 for students")</span><br>
 <input name="entry_note" maxlength="60" size="40" value="${e(g?.entry_note)}"></label>
 </fieldset>
+${categoryField(g)}
 <label><input type="checkbox" name="featured"${g?.featured ? " checked" : ""}> Featured</label>`;
 }
 
@@ -403,10 +419,20 @@ ${(
 
 export const newGatheringForm: AdminHandler = async (request, ctx) => {
   const p = await places(ctx.db);
-  const body = `<p class="muted">Fallback only: most gatherings arrive from Ticketmaster or the AI run. This creates a draft; publish it from the queue.
+  const body = `<p class="muted">Most gatherings arrive from Ticketmaster. This is how community gatherings get in until M4.4 — and how anything
+the importer cannot see gets in at all. It creates drafts; publish them from the queue.
 Times are read in the chosen venue's timezone (Toronto if no venue).</p>
 <form method="post" action="/admin/gatherings/new"><input type="hidden" name="back" value="/admin/gatherings/new">
 ${fieldsHtml(p, null, false)}
+<fieldset><legend>Repeats</legend>
+<p class="muted">There is no recurrence in the database and this does not add one: a crew meets on a night, not on a series, so the
+dated rows have to exist either way. This only saves the typing — one form, one draft per week, each an ordinary gathering from
+the moment it exists. A Saturday run club is thirteen rows a quarter otherwise.</p>
+<label><input type="checkbox" name="repeats"> Repeats weekly</label>
+<label>…until <span class="muted">(the last date to create, in the venue's timezone)</span><br>
+<input type="date" name="repeat_until"></label>
+<p class="muted">The time is kept in the venue's own timezone, so an 8am run club stays at 8am across the daylight-saving change.</p>
+</fieldset>
 <button>Create draft</button></form>`;
   return adminPage(request, ctx.email, "Add a gathering manually", body);
 };
@@ -418,6 +444,19 @@ export const createGathering: AdminHandler = async (request, ctx) => {
   if (venueId && !p.byId.has(venueId)) return back(form, { err: "Unknown venue" });
   const fields = readFields(form, p.tz(venueId));
   if (typeof fields === "string") return back(form, { err: fields });
+  if (form.get("repeats") === "on") {
+    const until = str(form, "repeat_until");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(until)) return back(form, { err: "Repeats weekly needs a date to repeat until" });
+    const { data, error } = await ctx.db.rpc("admin_create_weekly_series", {
+      p_template: { ...fields, venue_id: venueId },
+      p_until: until,
+      p_actor: ctx.email,
+    });
+    if (error) return back(form, { err: error.message });
+    const made = (data as { created: number }).created;
+    return back(form, { ok: `${made} drafts created, one a week until ${until}. Publish them from the queue.` });
+  }
+
   const { data, error } = await ctx.db
     .from("gatherings")
     .insert({ ...fields, venue_id: venueId, source: "manual" })

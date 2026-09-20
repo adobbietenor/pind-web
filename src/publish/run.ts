@@ -166,7 +166,7 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
   const live = await must<any[]>(
     db
       .from("gatherings")
-      .select("id, starts_at, venue_id, gathering_sources(snapshot)")
+      .select("id, starts_at, venue_id, category, gathering_sources(snapshot)")
       .eq("status", "published")
       .eq("is_seed", false)
       .gte("starts_at", spanFrom)
@@ -183,7 +183,7 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
     w.perVenue[g.venue_id] = (w.perVenue[g.venue_id] ?? 0) + 1;
     // What is already published counts against the share too, or a week filled by
     // hand with six concerts would let the run add six more.
-    const cat = categoryOf((g.gathering_sources ?? []).map((x: any) => x.snapshot?.category).find(Boolean));
+    const cat = g.category ?? categoryOf((g.gathering_sources ?? []).map((x: any) => x.snapshot?.category).find(Boolean));
     w.perCategory[cat] = (w.perCategory[cat] ?? 0) + 1;
   }
 
@@ -194,7 +194,7 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
   const drafts = await must<any[]>(
     db
       .from("gatherings")
-      .select("id, name, starts_at, venue_id, slug, publish_mark, source, gathering_triage(score), gathering_sources(snapshot)")
+      .select("id, name, starts_at, venue_id, slug, publish_mark, source, category, gathering_triage(score), gathering_sources(snapshot)")
       .eq("status", "draft")
       .eq("is_seed", false)
       .gt("starts_at", now.toISOString())
@@ -226,7 +226,10 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
         mark: g.publish_mark ?? null,
         hasSlug: g.slug !== null,
         source: g.source,
-        category: categoryOf((g.gathering_sources ?? []).map((x: any) => x.snapshot?.category).find(Boolean)),
+        // What somebody said beats what the source implies. Null means nobody has
+        // said, and only then is a coarse kind derived (M2.3 decides whether the
+        // importer starts filling it in).
+        category: g.category ?? categoryOf((g.gathering_sources ?? []).map((x: any) => x.snapshot?.category).find(Boolean)),
       };
     });
 
