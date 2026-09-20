@@ -5,6 +5,7 @@ import * as g from "./gatherings";
 import { requireAdmin } from "./guard";
 import * as i from "./imports";
 import * as m from "./moderation";
+import * as pub from "./publishing";
 import { AdminError, adminPage, notFound, UUID } from "./ui";
 import * as v from "./venues";
 
@@ -12,6 +13,12 @@ import * as v from "./venues";
 const ROUTES: [string, AdminHandler][] = [
   ["GET /admin", g.draftQueue],
   ["GET /admin/published", g.publishedList],
+  // M2.2 — auto-publishing: the panel, the loop's settings, Alex's marks, promotions
+  ["GET /admin/publishing", pub.publishingPage],
+  ["POST /admin/publishing/settings", pub.savePublishSettings],
+  ["POST /admin/gatherings/:id/mark", pub.setPublishMark],
+  ["POST /admin/gatherings/:id/promote", pub.recordPromotion],
+  ["POST /admin/promotions/:id/delete", pub.deletePromotion],
   ["GET /admin/gatherings/new", g.newGatheringForm],
   ["POST /admin/gatherings/new", g.createGathering],
   ["GET /admin/gatherings/:id", g.editGathering],

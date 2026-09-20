@@ -28,6 +28,7 @@ fieldset{border:1px solid #ccc;margin:0 0 12px;padding:8px 10px}
 const NAV: [string, string][] = [
   ["/admin", "Drafts"],
   ["/admin/published", "Published"],
+  ["/admin/publishing", "Publishing"],
   ["/admin/gatherings/new", "Add manually"],
   ["/admin/venues", "Venues"],
   ["/admin/photos", "Photos"],

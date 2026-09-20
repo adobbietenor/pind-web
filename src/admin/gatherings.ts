@@ -16,6 +16,7 @@ import {
   withdrawnNote,
 } from "./imports";
 import { places, venueOptions, type Places } from "./places";
+import { markCell, promoteInline, promotionPanel, publishingPanel } from "./publishing";
 import { formatLocal, fromLocalInput, localDate, toLocalInput } from "./time";
 import { adminPage, back, e, here, link, must, notFound, one, postButton, str, UUID } from "./ui";
 
@@ -74,7 +75,7 @@ export const draftQueue: AdminHandler = async (request, ctx) => {
       db
         .from("gatherings")
         .select(
-          "id, name, starts_at, is_free, source, venue_id, venue_name_raw, event_url, gathering_sources(source, urls, snapshot), gathering_triage(score, reason)",
+          "id, name, starts_at, is_free, source, venue_id, venue_name_raw, event_url, publish_mark, slug, gathering_sources(source, urls, snapshot), gathering_triage(score, reason)",
         )
         .eq("status", "draft")
         .gt("starts_at", now)
@@ -152,6 +153,7 @@ export const draftQueue: AdminHandler = async (request, ctx) => {
 <td>${venueCell(p, g)}</td>
 <td>${e(sourcesOf(g))}</td>
 <td>${scoreCell(p, g.venue_id, triage?.score ?? null, triage?.reason ?? null)}</td>
+<td>${markCell(g, backTo)}${g.slug ? `<br><span class="muted">published before</span>` : ""}</td>
 <td>${g.is_free ? "free" : "ticketed"}</td>
 <td>${spotsBadge(p, g.venue_id)}</td>
 <td>${postButton(`/admin/gatherings/${g.id}/publish`, "Publish", backTo)}
@@ -161,7 +163,7 @@ ${postButton(`/admin/gatherings/${g.id}/dismiss`, "Dismiss", backTo, { cls: "pla
   };
 
   // By day; within a day by start time. Low scores fold into a collapsed row.
-  const HEAD = `<tr><th>When</th><th>Gathering</th><th>Venue</th><th>Source</th><th>Score</th><th>Entry</th><th>Spots</th><th></th></tr>`;
+  const HEAD = `<tr><th>When</th><th>Gathering</th><th>Venue</th><th>Source</th><th>Score</th><th>Auto-publish</th><th>Entry</th><th>Spots</th><th></th></tr>`;
   const days = new Map<string, any[]>();
   for (const g of drafts) {
     const day = localDate(g.starts_at, p.tz(g.venue_id));
@@ -191,8 +193,9 @@ ${folded.length ? `<details><summary class="muted">${folded.length} scoring unde
     )
     .join("");
 
-  const [panel, flags, crewsNoSpots, newVenues, needSpots] = await Promise.all([
+  const [panel, publishing, flags, crewsNoSpots, newVenues, needSpots] = await Promise.all([
     importPanel(ctx, backTo),
+    publishingPanel(ctx),
     flagsPanel(ctx, p, backTo),
     crewsWithoutSpotsPanel(ctx, p),
     newVenuesPanel(ctx, p, backTo),
@@ -212,10 +215,12 @@ ${folded.length ? `<details><summary class="muted">${folded.length} scoring unde
 
   const body = `
 ${panel}
+${publishing}
 ${flags}
 ${crewsNoSpots}
-<p>Published in the last 7 days: <strong>${recent.count ?? 0}</strong>. Publish a handful: pins must concentrate so crowds reach 5.</p>
-<p class="muted">Publishing needs a venue, not meeting spots: spots are needed when crews open (5 opted in). Score = AI score minus the distance adjustment.</p>
+<p>Published in the last 7 days: <strong>${recent.count ?? 0}</strong>. The nightly run fills each week to the target; publish by hand whenever you want one sooner.</p>
+<p class="muted">Publishing needs a venue, not meeting spots: spots are needed when crews open (5 opted in). Score = AI score minus the distance adjustment.
+"Publish first" jumps the queue and ignores the score floor; "Never" keeps a draft out for good. A draft that has been published before is left to you.</p>
 <p>${toggles}${hidden ? ` · <span class="muted">${hidden} folded</span>` : ""}</p>
 ${sections || `<p>No upcoming drafts in this range.</p>`}
 ${needSpots}
@@ -231,29 +236,45 @@ ${newVenues}
 
 export const publishedList: AdminHandler = async (request, ctx) => {
   const since = new Date(Date.now() - 2 * 24 * HOUR).toISOString();
+  const backTo = here(request);
   const [list, p] = await Promise.all([
     must(
       ctx.db
         .from("gatherings")
-        .select("id, name, starts_at, venue_id, is_free, status")
+        .select("id, name, starts_at, venue_id, is_free, status, slug")
         .in("status", ["published", "withdrawn"])
         .gt("starts_at", since)
         .order("starts_at"),
     ),
     places(ctx.db),
   ]);
-  const c = await counts(ctx, list.map((g: any) => g.id));
+  const ids = list.map((g: any) => g.id);
+  const [c, promotions] = await Promise.all([
+    counts(ctx, ids),
+    ids.length
+      ? must(ctx.db.from("gathering_promotions").select("gathering_id, channel").in("gathering_id", ids))
+      : Promise.resolve([]),
+  ]);
+  const posted = new Map<string, string[]>();
+  for (const x of promotions as { gathering_id: string; channel: string }[]) {
+    posted.set(x.gathering_id, [...(posted.get(x.gathering_id) ?? []), x.channel]);
+  }
   const rows = list
     .map((g: any) => {
       const n = c.get(g.id);
       return `<tr><td>${e(formatLocal(g.starts_at, p.tz(g.venue_id)))}</td>
-<td><a href="/admin/gatherings/${e(g.id)}">${e(g.name)}</a>${g.status === "withdrawn" ? ` <span class="bad">withdrawn</span>` : ""}</td><td>${venueCell(p, { ...g, venue_name_raw: null })}</td>
+<td><a href="/admin/gatherings/${e(g.id)}">${e(g.name)}</a>${g.status === "withdrawn" ? ` <span class="bad">withdrawn</span>` : ""}
+${g.slug ? `<br><a href="/g/${e(g.slug)}" rel="noreferrer noopener" target="_blank"><code>/g/${e(g.slug)}</code></a>` : ""}</td><td>${venueCell(p, { ...g, venue_name_raw: null })}</td>
 <td>${n?.pinned ?? 0}</td><td>${n?.open_to_meeting ?? 0}${n?.crews_open ? " · crews open" : ""}</td>
+<td>${promoteInline(g.id, posted.get(g.id) ?? [], backTo)}</td>
 <td><a href="/admin/gatherings/${e(g.id)}/export.csv">CSV</a></td></tr>`;
     })
     .join("");
-  const body = `${await crewsWithoutSpotsPanel(ctx, p)}<table><tr><th>When</th><th>Gathering</th><th>Venue</th><th>Pinned</th><th>Open to meeting</th><th></th></tr>
-${rows || `<tr><td colspan="6">Nothing published.</td></tr>`}</table>`;
+  const body = `${await crewsWithoutSpotsPanel(ctx, p)}
+<p class="muted">Copy the link, then say where you posted it in the same motion. A gathering nobody records posting counts as organic
+in the weekly adjust, so a forgotten tick flatters the organic number rather than ours.</p>
+<table><tr><th>When</th><th>Gathering</th><th>Venue</th><th>Pinned</th><th>Open to meeting</th><th>Posted where</th><th></th></tr>
+${rows || `<tr><td colspan="7">Nothing published.</td></tr>`}</table>`;
   return adminPage(request, ctx.email, "Published", body);
 };
 
@@ -413,14 +434,17 @@ export const editGathering: AdminHandler = async (request, ctx) => {
   }
 
   const pinsSection = published ? await pinsHtml(request, ctx, id, backTo) : "";
-  const [flags, withdrawal] = await Promise.all([
+  const [flags, withdrawal, promotions] = await Promise.all([
     published ? flagsPanel(ctx, p, backTo, id) : Promise.resolve(""),
     withdrawn ? withdrawnNote(ctx, id, backTo) : Promise.resolve(g.status === "published" ? withdrawForm(id, backTo) : ""),
+    promotionPanel(ctx, id, g.slug, backTo),
   ]);
 
   const body = `
 <p>Status: <strong>${e(g.status)}</strong> · origin: ${e(g.source)} · venue spots ${spotsBadge(p, g.venue_id)} ${actions}</p>
+${g.status === "draft" ? `<p>Auto-publisher: ${markCell(g, backTo)}${g.slug ? ` <span class="muted">— it has been public before, so no run will publish it again</span>` : ""}</p>` : ""}
 ${slugPanel(g, backTo)}
+${promotions}
 ${withdrawn ? withdrawal : ""}
 ${flags}
 ${triage ? `<p>Score ${scoreCell(p, g.venue_id, triage.score ?? null, triage.reason ?? null)}</p>` : ""}
