@@ -3,15 +3,33 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { categoryLabel, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, THRESHOLD } from "@pind/shared";
+import { categoryLabel, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, THRESHOLD, THRESHOLD_EXPLANATION } from "@pind/shared";
 import type { Env } from "../env";
-import { localDate } from "../admin/time";
+import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
 import { markSvg } from "./brand";
 import { crowd, crowds, type Counts, type Crowd, type Crowd2, type Spot } from "./data";
 import { DOT, escape, header, notice, page } from "./layout";
+import {
+  addDays,
+  applyChips,
+  chipsFor,
+  dayGroups,
+  href,
+  parseChips,
+  rowsInTab,
+  TABS,
+  tabHref,
+  toggle,
+  windowFor,
+  WINDOW_DAYS,
+  type Chip,
+  type DayGroup,
+  type TabValue,
+  type ListWindow,
+} from "./list";
 import { venueMap, walkMinutes } from "./map";
 import { ensureVenueMap } from "./mapserve";
-import { isReady, mapKey, mapUrl, place, uploadUrl, type Placed } from "./venuemap";
+import { chooseZoom, isReady, mapKey, mapUrl, place, uploadUrl, type Placed } from "./venuemap";
 
 // Where "suggest a gathering" and "report" go. Nothing is stored (spec §2 W1):
 // it is a mailto and no more. One place to change when Alex picks the addresses.
@@ -26,13 +44,17 @@ function fmt(iso: string, tz: string, opts: Intl.DateTimeFormatOptions): string 
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz, ...opts }).format(new Date(iso));
 }
 
-const dayHeading = (iso: string, tz: string) =>
-  fmt(iso, tz, { weekday: "long", day: "numeric", month: "long" });
-
 const clock = (iso: string, tz: string) => fmt(iso, tz, { hour: "numeric", minute: "2-digit" });
 
-const longWhen = (iso: string, tz: string) =>
-  fmt(iso, tz, { weekday: "long", day: "numeric", month: "long", hour: "numeric", minute: "2-digit" });
+// The date in this product's own voice — "Saturday 26 September", not en-CA's
+// "Saturday, September 26" — with the time still on a 12-hour clock, which is what
+// Toronto reads. Two locales because each is right for its half.
+const dateLong = (iso: string, tz: string) =>
+  new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "long", day: "numeric", month: "long" }).format(
+    new Date(iso),
+  );
+
+const longWhen = (iso: string, tz: string) => `${dateLong(iso, tz)}, ${clock(iso, tz)}`;
 
 // ---------------------------------------------------------------------------
 // Counts, said honestly (H6). Zero is a number and it is shown.
@@ -40,8 +62,21 @@ const longWhen = (iso: string, tz: string) =>
 
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
+// **The threshold is our mechanic, not the reader's reason** (Alex, after the M2.3
+// walk, and he had never liked the old line). "Crews open at 5" describes a rule
+// somebody is waiting on; what they came for is to see who else is going. So the
+// number never leads anywhere:
+//
+//   - W2's counts sit under the heading "Who else is going?" and the threshold is a
+//     quiet line beneath them, in the fixed wording from packages/shared;
+//   - a card on W1 says what is true — "3 pinned", and "crews forming" only when they
+//     are. A row that has not reached five now says nothing about five, because a
+//     hundred rows all saying "crews open at 5" was the rule being repeated at a
+//     reader rather than anything about that gathering;
+//   - the pinned page in M3.3 leads with "Find your crew", where forming one is
+//     genuinely the next action (Alex; recorded for A9/A10).
 function crewLine(c: { crews_open: boolean }): string {
-  return c.crews_open ? "crews forming" : `crews open at ${THRESHOLD}`;
+  return c.crews_open ? "crews forming" : "";
 }
 
 // The mix appears only at 5+ opted in, and "Other" only above zero (Q3, V3).
@@ -56,57 +91,187 @@ function mixLine(counts: Counts): string {
 // W1 — This week's crowds
 // ---------------------------------------------------------------------------
 
+// **The back button, and what should be in the history** (Alex, after the walk).
+//
+// Every control on this page is a link, which is what keeps the page server-rendered
+// and working with JavaScript off — and it meant that four chip taps left four
+// entries, so "back" walked through a filter state nobody was trying to return to.
+//
+//   - **the tab and the chips replace the current entry.** They are query-parameter
+//     state on one page, not places you went. So the whole visit to the list is one
+//     entry, and back from it leaves for wherever you arrived from;
+//   - **the pager and the cards push.** Next week is somewhere else, and so is a
+//     crowd page. Back from a crowd page lands on the list exactly as it was, chips
+//     and week included, because that URL carries all of it.
+//
+// Progressive enhancement, and the page is complete without it: with JavaScript off
+// every one of these is still an ordinary link that works, it simply also leaves a
+// history entry. Modifier clicks and middle clicks are left alone so "open in a new
+// tab" still does what it always did.
+const REPLACE_SCRIPT =
+  `try{var n=document.querySelectorAll("a[data-replace]");` +
+  `for(var i=0;i<n.length;i++)n[i].addEventListener("click",function(e){` +
+  `if(e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;` +
+  `e.preventDefault();location.replace(this.href)});}catch(e){}`;
+
 const W1_FOOTER =
   `<a href="mailto:${SUGGEST_TO}?subject=A%20gathering%20for%20Pin%27d">suggest a gathering</a>` +
   `${DOT}<a href="/about">about</a>${DOT}19+`;
 
-export async function w1(request: Request, env: Env): Promise<Response> {
-  const now = new Date();
-  // From the start of today in Toronto through the next four weeks: "this week"
-  // with enough after it that the page is never empty the moment a week turns.
-  const from = new Date(now.getTime() - 12 * 3600_000);
-  const to = new Date(now.getTime() + 28 * 86_400_000);
-  const list = await crowds(env, from, to);
+// The window the list is read over: the week being shown, plus the week after it so
+// the pager knows whether there is anything later to point at. One round trip.
+const READ_WEEKS = 2;
 
-  const origin = new URL(request.url).origin;
-  const body = list.length === 0 ? emptyWeek() : byDay(list);
+// W1 — the landing page, one tab and one week at a time.
+//
+// Four controls, all of them server-rendered links with query parameters: the tab,
+// the chips, and the two ends of the pager. No client-side JavaScript at all, because
+// this page is pasted into Reddit threads and has to open inside Reddit's in-app
+// browser in under a second (CLAUDE.md, "Keep the Worker lean").
+export async function w1(request: Request, env: Env, tab: TabValue): Promise<Response> {
+  const url = new URL(request.url);
+  const now = new Date();
+  const win = windowFor(now, DEFAULT_TZ, url.searchParams.get("from"));
+
+  // Local midnight to local midnight, in the city's own zone: a Friday night show at
+  // 11pm belongs to Friday, and a week boundary in Toronto is not one in UTC.
+  const from = new Date(fromLocalInput(`${win.start}T00:00`, DEFAULT_TZ)!);
+  const to = new Date(fromLocalInput(`${addDays(win.start, WINDOW_DAYS * READ_WEEKS)}T00:00`, DEFAULT_TZ)!);
+  const all = await crowds(env, from, to);
+
+  // This week's rows, in both tabs, before any chip is applied. The chips are counted
+  // from these, so a chip can never filter to an empty page.
+  const thisWeek = all.filter((g) => localDate(g.starts_at, g.city_timezone) < win.end);
+  const mine = rowsInTab(thisWeek, tab);
+  const offered = chipsFor(thisWeek, tab);
+  const chips = parseChips(url.searchParams.get("c"), offered);
+  const shown = applyChips(mine, chips);
+
+  const path = TABS.find((t) => t.value === tab)!.path;
+  const other = TABS.find((t) => t.value !== tab)!;
+  const otherCount = rowsInTab(thisWeek, other.value).length;
+  // Next week, **in this tab**. Counted per tab because the pager is per tab: the
+  // Ticketmaster feed stops at the 21-day lead window while the recurrence generator
+  // runs community rows months out, so a "later" link counted across both tabs sends
+  // an Events reader to an empty week — which is worse than no link.
+  const later = rowsInTab(
+    all.filter((g) => localDate(g.starts_at, g.city_timezone) >= win.end),
+    tab,
+  );
+
+  const origin = url.origin;
+  const body = shown.length
+    ? dayGroups(shown, DEFAULT_TZ, win.today)
+        .map((d) => dayHeading(d) + d.rows.map(card).join(""))
+        .join("")
+    : emptyWeek(tab, other, otherCount, win);
 
   return page(
     `${header()}
-<h1>This week&#39;s crowds</h1>
+<h1>${escape(tab === "community" ? "Community this week" : "This week’s crowds")}</h1>
 <p class="lede">${escape(ONE_LINER)}</p>
-${body}`,
+${tabs(tab, win)}
+${chipRow(path, offered, chips, win)}
+${weekLine(win)}
+${body}
+${pager(path, chips, win, later.length)}`,
     {
-      title: "This week's crowds · Pin'd",
+      title: tab === "community" ? "Community · Pin'd" : "This week's crowds · Pin'd",
       description: ONE_LINER,
-      canonical: `${origin}/`,
+      // The unfiltered tab, whatever is being filtered or paged: the canonical page
+      // is the one worth sharing.
+      canonical: `${origin}${path}`,
       footer: W1_FOOTER,
+      script: REPLACE_SCRIPT,
     },
   );
 }
 
-function emptyWeek(): string {
-  return `<div class="empty" style="margin-top:22px">Nothing up just yet. New crowds go up through the week — come back and see who&#39;s going.</div>`;
+// Two tabs, always both, even when one of them is empty this week. They are the shape
+// of the page, not a result of the data: hiding one would move everything else on the
+// page depending on what Toronto happened to have on, and a reader who came for the
+// run clubs would find no way to ask for them.
+function tabs(current: TabValue, win: ListWindow): string {
+  const links = TABS.map(
+    (t) =>
+      `<a class="tab${t.value === current ? " on" : ""}"${t.value === current ? ' aria-current="page"' : ""} data-replace href="${escape(tabHref(t.value, win.asked))}">${escape(t.label)}</a>`,
+  ).join("");
+  return `<nav class="tabs" aria-label="Events or community">${links}</nav>`;
 }
 
-// Grouped by day, ordered by date, never by size (Q10). Small counts are shown,
-// never hidden, including zero (H6).
-function byDay(list: Crowd[]): string {
-  const days = new Map<string, Crowd[]>();
-  for (const g of list) {
-    const key = localDate(g.starts_at, g.city_timezone);
-    const bucket = days.get(key);
-    if (bucket) bucket.push(g);
-    else days.set(key, [g]);
-  }
+// **A filter that narrows, never a sort that reorders** (Alex, M2.2). Tapping two
+// chips shows the union of the two and leaves the order exactly as it was.
+//
+// "Everything" is a chip rather than a separate "clear" link, so the default state is
+// visible as the thing it is: one of the choices, and the one that is on.
+function chipRow(path: string, offered: Chip[], chosen: string[], win: ListWindow): string {
+  if (offered.length === 0) return "";
+  const all = `<a class="chip${chosen.length === 0 ? " on" : ""}" data-replace href="${escape(href(path, [], win.asked))}">Everything</a>`;
+  const rest = offered
+    .map((c) => {
+      const on = chosen.includes(c.value);
+      return `<a class="chip${on ? " on" : ""}"${on ? ' aria-current="true"' : ""} data-replace href="${escape(href(path, toggle(chosen, c.value), win.asked))}">${escape(c.label)}</a>`;
+    })
+    .join("");
+  return `<nav class="chips" aria-label="Filter by kind">${all}${rest}</nav>`;
+}
 
-  const out: string[] = [];
-  for (const [, group] of days) {
-    const first = group[0]!;
-    out.push(`<h2>${escape(dayHeading(first.starts_at, first.city_timezone))}</h2>`);
-    for (const g of group) out.push(card(g));
-  }
-  return out.join("");
+// Which week this is, said plainly, so a link somebody opens a fortnight later is
+// never quietly about a different week than they think.
+function weekLine(win: ListWindow): string {
+  if (!win.asked) return "";
+  const span = `${escape(dayRange(win.start, addDays(win.end, -1)))}`;
+  return `<p class="weekline">${span}</p>`;
+}
+
+function dayRange(start: string, end: string): string {
+  const one = (d: string, withMonth: boolean) =>
+    new Intl.DateTimeFormat("en-GB", {
+      timeZone: "UTC",
+      day: "numeric",
+      ...(withMonth ? { month: "long" } : {}),
+    }).format(new Date(`${d}T00:00:00Z`));
+  const sameMonth = start.slice(0, 7) === end.slice(0, 7);
+  return `${one(start, !sameMonth)} – ${one(end, true)}`;
+}
+
+// The day, and how many are on. A count per day is a fact a reader uses to decide
+// whether to scroll; it is not a ranking, and the days stay in date order (Q10).
+function dayHeading(d: DayGroup<Crowd>): string {
+  return `<h2 class="day"><span class="dayname">${escape(d.label)}</span>${
+    d.sub ? `<span class="daydate">${escape(d.sub)}</span>` : ""
+  }<span class="daycount">${d.rows.length}</span></h2>`;
+}
+
+// Empty, and every version of it says what to do next rather than only what is
+// missing. The one case that cannot happen is "this chip has nothing": chips are
+// counted from the rows on the page, so every one of them has at least three.
+function emptyWeek(tab: TabValue, other: (typeof TABS)[number], otherCount: number, win: ListWindow): string {
+  const mineName = tab === "community" ? "community gatherings" : "events";
+  const elsewhere = otherCount
+    ? ` <a data-replace href="${escape(tabHref(other.value, win.asked))}">${other.label} has ${otherCount} that week.</a>`
+    : "";
+  const thisWeek = win.asked ? ` <a href="${escape(tabHref(tab, null))}">Back to this week.</a>` : "";
+  return `<div class="empty">No ${mineName} up for these days yet — new ones go up through the week.${elsewhere}${thisWeek}</div>`;
+}
+
+// One week at a time, forwards and back. "Later" only appears when there is something
+// later to see: a link that leads to an empty page is worse than no link.
+function pager(path: string, chips: string[], win: ListWindow, laterCount: number): string {
+  const back = win.asked
+    ? `<a class="page" href="${escape(href(path, chips, prevWindow(win)))}">← Earlier</a>`
+    : "";
+  const next = laterCount
+    ? `<a class="page next" href="${escape(href(path, chips, win.end))}">${escape(dayRange(win.end, addDays(win.end, WINDOW_DAYS - 1)))} →</a>`
+    : "";
+  if (!back && !next) return "";
+  return `<nav class="pager">${back}${next}</nav>`;
+}
+
+// One week back, but never behind today: the page before this week is this week.
+function prevWindow(win: ListWindow): string | null {
+  const earlier = addDays(win.start, -WINDOW_DAYS);
+  return earlier > win.today ? earlier : null;
 }
 
 function card(g: Crowd): string {
@@ -129,7 +294,9 @@ function card(g: Crowd): string {
 <div class="when">${escape(clock(g.starts_at, g.city_timezone))}</div>
 <div class="name">${escape(g.name)}${mark}${free}</div>
 <div class="where">${escape(g.venue_name)}</div>
-<div class="tally">${escape(plural(g.pinned, "pinned", "pinned"))}${DOT}${escape(crewLine(g))}</div>
+<div class="tally">${escape(plural(g.pinned, "pinned", "pinned"))}${
+    crewLine(g) ? `${DOT}${escape(crewLine(g))}` : ""
+  }</div>
 </a>`;
 }
 
@@ -160,11 +327,17 @@ export async function w2(request: Request, env: Env, slug: string, ctx?: Executi
   const g = door.gathering;
   const tz = door.venue.timezone;
 
+  // How far in this venue's picture goes, from the venue's own active spots — never
+  // from this gathering's poll, so every gathering here shares one picture
+  // (chooseZoom). The markers below are placed at the same zoom, because they are
+  // placed from the same number.
+  const zoom = chooseZoom(door.venue, door.venue.map_spots);
+
   // The safety net. If this venue has no picture yet, the page below falls back and
   // the image is made AFTER the response has been sent, so no visitor ever waits for
   // Mapbox and the next one gets the real map. renderVenueMap stops at the attempt
   // cap, so a venue that can never render does not loop against a paid API.
-  if (!door.venue.map_image_path && !isReady(door.venue) && ctx) {
+  if (!door.venue.map_image_path && !isReady(door.venue, zoom) && ctx) {
     ctx.waitUntil(ensureVenueMap(env, door.venue.id));
   }
   const url = `${origin}/g/${g.slug}`;
@@ -172,7 +345,7 @@ export async function w2(request: Request, env: Env, slug: string, ctx?: Executi
   const button = PIN_IN;
   // Beside the button, never inside it.
   const cost = entryLine(g);
-  const map = mapFigure(door);
+  const map = mapFigure(door, zoom);
 
   return page(
     `${header()}
@@ -192,7 +365,7 @@ ${cost ? `<p class="cost">${escape(cost)}</p>` : ""}
 <ol class="rules">${HOUSE_RULES.map((r) => `<li>${escape(r)}</li>`).join("")}</ol>
 <p class="crews-meet">${escape(CREWS_MEET)}</p>
 
-${spotList(door, tz, map.kind)}
+${spotList(door, tz, map.kind, zoom)}
 
 <h2>Pass it on</h2>
 <p class="quiet" style="font-size:.9rem">
@@ -215,24 +388,45 @@ ${g.event_url ? `${DOT}<a href="${escape(g.event_url)}" rel="nofollow noopener">
       // links point at Apple Maps instead of Google. With JavaScript off, the button
       // still works and the links still open Google Maps on every platform.
       script:
+        // A map dot opens its card without leaving a history entry behind. Tapping
+        // three dots used to leave three, so "back" appeared to do nothing — it was
+        // undoing a hash change on the same page. With JavaScript off the anchor still
+        // works and :target still lights the card; it simply also pushes an entry.
+        `try{var p=document.querySelectorAll("a.pin");` +
+        `for(var i=0;i<p.length;i++)p[i].addEventListener("click",function(e){` +
+        `if(e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;` +
+        `var t=document.getElementById(this.getAttribute("href").slice(1));if(!t)return;` +
+        `e.preventDefault();var l=document.querySelector(".spot.lit");if(l)l.className="spot";` +
+        `t.className="spot lit";t.scrollIntoView({behavior:"smooth",block:"center"})});}catch(e){}` +
         `try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);` +
         `if(k&&k.indexOf("sb-")===0&&k.indexOf("-auth-token")>0){` +
         `document.getElementById("cta").textContent="Open";break}}}catch(e){}` +
         `try{if(/iPad|iPhone|iPod/.test(navigator.platform)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)){` +
         `var a=document.querySelectorAll('a[href*="google.com/maps/dir"]');` +
         `for(var j=0;j<a.length;j++){var d=new URL(a[j].href).searchParams.get("destination");` +
-        `if(d)a[j].href="https://maps.apple.com/?daddr="+encodeURIComponent(d)+"&dirflg=w"}}}catch(e){}`,
+        `if(d)a[j].href="https://maps.apple.com/?daddr="+encodeURIComponent(d)+"&dirflg=w"}` +
+        `var m=document.querySelectorAll("a.openmap");` +
+        `for(var k=0;k<m.length;k++)m[k].href="https://maps.apple.com/?ll="+encodeURIComponent(m[k].getAttribute("data-ll"))+"&q="+encodeURIComponent(m[k].getAttribute("data-q"));` +
+        `}}catch(e){}`,
     },
   );
 }
 
+// "Who else is going?" rather than "See who's going", for two reasons: the page's own
+// description already says "See who's going, meet them there.", so the heading would
+// have restated the tagline — and on a page about one gathering, the question is the
+// sentence already in the reader's head.
 function tallies(c: Counts): string {
   const mix = mixLine(c);
-  return `<div class="tallies">
+  const crews = crewLine(c);
+  return `<h2 class="asks">Who else is going?</h2>
+<div class="tallies">
 <div class="tally-box"><b>${c.pinned}</b><span>pinned</span></div>
 <div class="tally-box"><b>${c.open_to_meeting}</b><span>open to meeting</span></div>
 </div>
-<p class="mix">${mix ? escape(mix) : escape(crewLine(c))}</p>`;
+${mix ? `<p class="mix">${escape(mix)}</p>` : ""}
+${crews ? `<p class="mix">${escape(crews)}</p>` : ""}
+<p class="rule">${escape(THRESHOLD_EXPLANATION)}</p>`;
 }
 
 // The venue and its meeting spots, never people (H1), and never the viewer (H4).
@@ -244,10 +438,30 @@ function tallies(c: Counts): string {
 //   3. nothing at all, and the spots list below reads perfectly well on its own.
 //
 // The image carries explicit width and height so its box is reserved before the bytes
-// arrive. Everything with meaning sits on top of it in HTML: the markers, the names,
-// the walking minutes, the north arrow, and the link that opens walking directions in
-// the phone's own maps app. None of it is baked into the picture, so approving a spot
-// later changes the page without re-rendering anything.
+// arrive. Everything with meaning sits on top of it in HTML: the numbered markers, the
+// north arrow, the venue's own name. None of it is baked into the picture, so
+// approving a spot later changes the page without re-rendering anything.
+//
+// **What the markers say, and what they no longer say** (M2.3). Each spot used to
+// carry its name, its walking minutes and a "Directions" link in a box beside its dot,
+// and the box WAS the whole interaction: tapping it left the page for Google Maps.
+// Two things were wrong with that, one measured and one a decision:
+//
+//   - **The boxes overlap.** Of the six venues with more than one spot, three have
+//     spots that land within one label's width of each other, and Snakes & Lattes
+//     College has three inside a box 23% of the picture wide. Adaptive zoom fixes the
+//     cause and is not sufficient on its own: at zoom 17 its closest pair is still
+//     14% apart against a label 19.5% wide. Three boxes fill a phone-width picture
+//     whatever the zoom.
+//   - **A spot should be a card, with the maps link inside it** (Alex; decisions Part
+//     5, "A spot is a card, not a maps link"). A crew choosing between three spots has
+//     a name and a walking time to choose on, which is not enough. The card is where
+//     what-it-is-like will live when the manual pass writes it (M5.2); this milestone
+//     builds the shape and puts today's facts in it.
+//
+// So the map answers "how far, and which way" with numbered dots, and the numbered
+// cards under it answer "what, and when". Tapping a dot is a link to its own card —
+// an anchor, no JavaScript — and the directions link lives in the card.
 type MapKind = "real" | "schematic" | "none";
 
 // Above the button, never inside it. Pinning in means "I am going" — a statement
@@ -262,67 +476,119 @@ function signupNotice(g: Crowd2["gathering"]): string {
   return `<p class="signup">${where} — then pin in here so you can see who else is going.</p>`;
 }
 
-function mapFigure(door: Crowd2): { html: string; kind: MapKind } {
+function mapFigure(door: Crowd2, zoom: number): { html: string; kind: MapKind } {
   const v = door.venue;
-  const real = v.map_image_path ? uploadUrl(v.id, v.map_image_path) : readyMapUrl(v);
-  if (real) return { html: `<figure>${frame(real, door)}${credit()}</figure>`, kind: "real" };
+  // An uploaded override is somebody's own picture at an unknown scale, so no marker
+  // is placed on it: our coordinates mean nothing over it, and a dot 200 m out is
+  // worse than no dot. Its spots are in the cards below like everyone else's. (No
+  // public venue has one today — the only upload on staging is a seed row.)
+  if (v.map_image_path) {
+    return { html: `<figure>${plainFrame(uploadUrl(v.id, v.map_image_path), v)}${caption(v, false)}</figure>`, kind: "none" };
+  }
+  const real = readyMapUrl(v, zoom);
+  if (real) return { html: `<figure>${frame(real, door, zoom)}${caption(v, true)}</figure>`, kind: "real" };
 
   const svg = venueMap(v, door.spots);
   if (svg) {
     // The schematic fits itself to the spots, so everything it has is on it — the
     // "not shown on the map" line below must not appear under this one.
     return {
-      html: `<figure>${svg}<figcaption>The venue, and the spots crews meet at — never where anyone is.</figcaption></figure>`,
+      html: `<figure>${svg}${caption(v, false)}</figure>`,
       kind: "schematic",
     };
   }
   return { html: "", kind: "none" };
 }
 
-function readyMapUrl(v: Crowd2["venue"]): string | null {
-  const key = mapKey(v);
-  return key && isReady(v) ? mapUrl(v.id, key) : null;
+function readyMapUrl(v: Crowd2["venue"], zoom: number): string | null {
+  const key = mapKey(v, zoom);
+  return key && isReady(v, zoom) ? mapUrl(v.id, key) : null;
 }
 
-const credit = () =>
-  `<figcaption>The venue, and the spots crews meet at — never where anyone is.<br>` +
-  `<span class="credit">© <a href="https://www.mapbox.com/about/maps/" rel="nofollow noopener">Mapbox</a> ` +
-  `© <a href="https://www.openstreetmap.org/copyright" rel="nofollow noopener">OpenStreetMap</a> contributors</span></figcaption>`;
+// The caption under every version of the figure: what it shows, a way into a real map,
+// and Mapbox's attribution where the picture is Mapbox's.
+//
+// **"Open in Maps" is the cheapest interactivity there is** (Alex, after the M2.3
+// walk). The phone's own map app pans, zooms, searches and routes; it costs this page
+// one link, against roughly 200 KB of JavaScript for a map library on a page that is
+// 9 KB. It goes beside the caption rather than near the button: the button is the
+// commitment, this is a convenience.
+function caption(v: Crowd2["venue"], attribution: boolean): string {
+  const open = venueDirections(v);
+  const link = open
+    ? ` <a class="openmap" href="${escape(open)}" target="_blank" rel="noopener" data-ll="${escape(
+        `${v.latitude},${v.longitude}`,
+      )}" data-q="${escape(v.name)}">Open in Maps</a>`
+    : "";
+  const mapbox = attribution
+    ? `<br><span class="credit">© <a href="https://www.mapbox.com/about/maps/" rel="nofollow noopener">Mapbox</a> ` +
+      `© <a href="https://www.openstreetmap.org/copyright" rel="nofollow noopener">OpenStreetMap</a> contributors</span>`
+    : "";
+  return `<figcaption>The venue, and the spots crews meet at — never where anyone is.${link}${mapbox}</figcaption>`;
+}
 
 // Where each spot sits on the picture. A spot outside the frame gets no marker and is
 // told so in the list, rather than quietly lacking one.
-export function placedSpots(door: Crowd2): { spot: Spot; at: Placed | null }[] {
+export function placedSpots(door: Crowd2, zoom: number): { spot: Spot; at: Placed | null }[] {
   const v = door.venue;
   return door.spots.map((spot) => ({
     spot,
     at:
       v.latitude !== null && v.longitude !== null && spot.latitude !== null && spot.longitude !== null
-        ? place({ latitude: v.latitude, longitude: v.longitude }, { latitude: spot.latitude, longitude: spot.longitude })
+        ? place(
+            { latitude: v.latitude, longitude: v.longitude },
+            { latitude: spot.latitude, longitude: spot.longitude },
+            zoom,
+          )
         : null,
   }));
 }
 
-function frame(src: string, door: Crowd2): string {
+// The number a spot wears. **Only the spots actually on the picture are numbered, and
+// they are numbered consecutively**, so the map never shows 1 and 3 and leaves a
+// reader hunting for a 2 that is a two-kilometre walk away (seen on Sneaky Dee's page
+// the first time this deployed). A spot off the frame keeps its own card and its own
+// anchor, and says where it is instead.
+function numbered(door: Crowd2, zoom: number): { spot: Spot; at: Placed | null; id: string; n: number | null }[] {
+  let n = 0;
+  return placedSpots(door, zoom).map(({ spot, at }, i) => ({
+    spot,
+    at,
+    id: `spot-${i + 1}`,
+    n: at?.onMap ? ++n : null,
+  }));
+}
+
+function frame(src: string, door: Crowd2, zoom: number): string {
   const v = door.venue;
-  const markers = placedSpots(door)
-    .filter((p) => p.at?.onMap)
-    .map(({ spot, at }) => {
+  const markers = numbered(door, zoom)
+    .filter((p) => p.n !== null)
+    .map(({ spot, at, id, n }) => {
       const walk = spot.walk_minutes ?? walkMetres(v, spot);
-      // Past the middle, the label goes on the left of its dot so it stays in frame.
-      const flip = at!.left > 55 ? " flip" : "";
-      return `<a class="pin${flip}" style="left:${at!.left.toFixed(2)}%;top:${at!.top.toFixed(2)}%" href="${escape(directions(spot))}" target="_blank" rel="noopener">
-<span class="dotm" aria-hidden="true"></span>
-<span class="lbl"><b>${escape(spot.name)}</b>${walk ? `<i>${walk} min walk</i>` : ""}<u>Directions</u></span>
-</a>`;
+      // The dot is a link to its own card, so tapping the map explains the place
+      // rather than leaving the site. It is a plain anchor: no JavaScript, and it
+      // works with the keyboard.
+      return `<a class="pin" style="left:${at!.left.toFixed(2)}%;top:${at!.top.toFixed(2)}%" href="#${id}" aria-label="${escape(
+        `${spot.name}${walk ? `, ${walk} ${walk === 1 ? "minute" : "minutes"}' walk` : ""} — see the details`,
+      )}"><span class="num">${n}</span></a>`;
     })
     .join("");
 
   return `<div class="mapbox">
-<img src="${escape(src)}" width="768" height="480" alt="Map of ${escape(v.name)} and its meeting spots. No people are shown." decoding="async">
+<img src="${escape(src)}" width="768" height="480" alt="Map of ${escape(v.name)} and the numbered spots crews meet at. No people are shown." decoding="async">
 <span class="venue-pin" aria-hidden="true"></span>
 <span class="venue-name">${escape(v.name)}</span>
 <span class="north" aria-hidden="true">N</span>
 ${markers}
+</div>`;
+}
+
+// The same picture with nothing placed over it but the venue's own name: for an
+// uploaded override, whose scale we do not know.
+function plainFrame(src: string, v: Crowd2["venue"]): string {
+  return `<div class="mapbox">
+<img src="${escape(src)}" width="768" height="480" alt="Map of ${escape(v.name)}. No people are shown." decoding="async">
+<span class="north" aria-hidden="true">N</span>
 </div>`;
 }
 
@@ -345,8 +611,29 @@ export function directions(spot: Spot): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(to)}&travelmode=walking`;
 }
 
-function spotList(door: Crowd2, tz: string, kind: MapKind): string {
-  const placed = placedSpots(door);
+// **The venue itself, in the phone's own map** (Alex, after the M2.3 walk: the cheapest
+// thing on the interactivity list and the one he would use). A real map app pans, zooms,
+// searches and routes, and it costs this page a link rather than 200 KB of JavaScript.
+// The name goes in the query so the destination reads as a place rather than a pair of
+// numbers; the coordinates decide where it actually is.
+export function venueDirections(v: { name: string; latitude: number | null; longitude: number | null }): string | null {
+  if (v.latitude === null || v.longitude === null) return null;
+  // The coordinates, not the name: a name search can land on the wrong branch of a
+  // chain, and this venue's coordinates are the thing the whole map is drawn from.
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${v.latitude},${v.longitude}`)}`;
+}
+
+// One card per spot, numbered to match the map, with the walking directions link
+// inside it. The card is the interaction; the dot on the map is a way into it.
+//
+// What a card holds today is what we honestly know: the name, what it is (where
+// somebody has written that), how far the walk is, when the crew meets there, and the
+// link out. **The rest of the card — what the place is like, whether six can get a
+// table without booking, how loud it is — is the manual spot pass, and it is not
+// invented here** (decisions Part 5, "Spot content starts as a manual pass"). An
+// empty field says nothing rather than saying something we guessed.
+function spotList(door: Crowd2, tz: string, kind: MapKind, zoom: number): string {
+  const placed = numbered(door, zoom);
   if (placed.length === 0) return "";
   // Only the real map has a fixed frame that a spot can fall outside of. The
   // schematic fits itself to whatever it is given, and when there is no map at all
@@ -354,19 +641,24 @@ function spotList(door: Crowd2, tz: string, kind: MapKind): string {
   const framed = kind === "real";
 
   const items = placed
-    .map(({ spot, at }) => {
-      const bits = [`meet ${clock(spot.meet_at, tz)}`];
+    .map(({ spot, at, id, n }) => {
       const walk = spot.walk_minutes ?? walkMetres(door.venue, spot);
+      const bits = [`meet ${clock(spot.meet_at, tz)}`];
       if (walk) bits.push(`${walk} min walk`);
-      // Not on the map, and said out loud: someone comparing the list to the picture
+      // Not on the map, and said out loud: someone comparing the cards to the picture
       // should never have to wonder whether the marker is missing or the spot is.
       if (framed && !at?.onMap) bits.push("a bit further out, so not on the map above");
+      // The badge appears only where the map is showing that number.
+      const badge = framed && n !== null ? `<span class="num">${n}</span>` : "";
       const link =
         spot.latitude !== null
-          ? ` <a class="dirs" href="${escape(directions(spot))}" target="_blank" rel="noopener">Directions</a>`
+          ? `<a class="dirs" href="${escape(directions(spot))}" target="_blank" rel="noopener">Walking directions</a>`
           : "";
-      return `<li><b>${escape(spot.name)}</b>${spot.description ? ` — ${escape(spot.description)}` : ""}${link}
-<div class="meta">${escape(bits.join(" · "))}</div></li>`;
+      return `<li id="${id}" class="spot">
+<div class="spot-top">${badge}<b>${escape(spot.name)}</b></div>
+${spot.description ? `<p class="spot-what">${escape(spot.description)}</p>` : ""}
+<div class="meta">${escape(bits.join(" · "))}</div>
+${link}</li>`;
     })
     .join("");
   return `<h2>Where crews meet</h2><ul class="spots">${items}</ul>`;

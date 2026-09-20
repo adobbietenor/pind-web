@@ -10,7 +10,7 @@ import assert from "node:assert/strict";
 import { entryLine } from "../../packages/shared/src/copy.ts";
 import { venueMap, walkMinutes, type MapSpot } from "../../src/public/map.ts";
 import { ogImage } from "../../src/public/og.ts";
-import { frameMetres, isReady, mapKey, mapUrl, place, uploadUrl } from "../../src/public/venuemap.ts";
+import { chooseZoom, frameMetres, isReady, mapKey, mapUrl, place, uploadUrl } from "../../src/public/venuemap.ts";
 
 const spot = (over: Partial<MapSpot>): MapSpot => ({
   name: "Gate 1",
@@ -114,17 +114,19 @@ describe("the OG card (W4)", () => {
 // whether a spot is inside the frame at all, so it is worth testing on its own.
 describe("placing spots on the real map", () => {
   const ARENA_C = { latitude: 43.6435, longitude: -79.3791 };
+  // Zoom 16 is the widest frame we draw, and what "on the map" is measured against.
+  const Z = 16;
 
   it("puts the venue's own coordinates dead centre", () => {
-    const at = place(ARENA_C, ARENA_C);
+    const at = place(ARENA_C, ARENA_C, Z);
     assert.ok(Math.abs(at.left - 50) < 0.001, `left was ${at.left}`);
     assert.ok(Math.abs(at.top - 50) < 0.001, `top was ${at.top}`);
     assert.equal(at.onMap, true);
   });
 
   it("puts north up and east right", () => {
-    const north = place(ARENA_C, { latitude: 43.6465, longitude: -79.3791 });
-    const east = place(ARENA_C, { latitude: 43.6435, longitude: -79.3751 });
+    const north = place(ARENA_C, { latitude: 43.6465, longitude: -79.3791 }, Z);
+    const east = place(ARENA_C, { latitude: 43.6435, longitude: -79.3751 }, Z);
     assert.ok(north.top < 50, "north was not up");
     assert.ok(Math.abs(north.left - 50) < 0.001, "north drifted sideways");
     assert.ok(east.left > 50, "east was not right");
@@ -133,26 +135,26 @@ describe("placing spots on the real map", () => {
 
   it("calls a nearby spot on the map and a far one off it", () => {
     // ~250 m away: comfortably inside a frame about 1.3 km across.
-    assert.equal(place(ARENA_C, { latitude: 43.6457, longitude: -79.3791 }).onMap, true);
+    assert.equal(place(ARENA_C, { latitude: 43.6457, longitude: -79.3791 }, Z).onMap, true);
     // Poetry Jazz Cafe, the M5.2 finding: about 2 km from Sneaky Dee's, so off it.
     const sneaky = { latitude: 43.656413, longitude: -79.407486 };
-    const poetry = place(sneaky, { latitude: 43.64283, longitude: -79.42031 });
+    const poetry = place(sneaky, { latitude: 43.64283, longitude: -79.42031 }, Z);
     assert.equal(poetry.onMap, false, "a 2 km spot was drawn on the map");
   });
 
   it("reports a frame wide enough for a five-minute walk, and no wider", () => {
-    const m = frameMetres(43.65);
+    const m = frameMetres(43.65, 16);
     assert.ok(m > 900 && m < 1600, `the frame was ${m} m across`);
   });
 });
 
 describe("the map's URLs", () => {
   it("changes the image URL when the venue's coordinates change, so nothing stale survives", () => {
-    const a = mapKey({ map_key: "abc1234567" });
-    const b = mapKey({ map_key: "9999999999" });
+    const a = mapKey({ map_key: "abc1234567" }, 16);
+    const b = mapKey({ map_key: "9999999999" }, 16);
     assert.ok(a && b && a !== b, "two different coordinate keys produced the same URL");
     assert.notEqual(mapUrl("v", a!), mapUrl("v", b!));
-    assert.equal(mapKey({ map_key: null }), null, "a venue with no coordinates has no map URL");
+    assert.equal(mapKey({ map_key: null }, 16), null, "a venue with no coordinates has no map URL");
   });
 
   it("versions an uploaded override by its path, so replacing the file changes the URL", () => {
@@ -165,9 +167,12 @@ describe("the map's URLs", () => {
 
   it("knows a venue is ready only for the key its current coordinates produce", () => {
     const v = { id: "v", name: "V", latitude: 1, longitude: 2, map_key: "abc1234567", map_ready: [] as string[] };
-    assert.equal(isReady(v), false);
-    assert.equal(isReady({ ...v, map_ready: [mapKey(v)!] }), true);
-    assert.equal(isReady({ ...v, map_ready: ["someoldkey-v1"] }), false, "a stale key counted as ready");
+    assert.equal(isReady(v, 16), false);
+    assert.equal(isReady({ ...v, map_ready: [mapKey(v, 16)!] }, 16), true);
+    assert.equal(isReady({ ...v, map_ready: ["someoldkey-v1"] }, 16), false, "a stale key counted as ready");
+    // The zoom is part of the key, so a picture drawn before a spot moved the zoom is
+    // gone rather than stale — which is what lets both URLs be cached for a year.
+    assert.equal(isReady({ ...v, map_ready: [mapKey(v, 16)!] }, 17), false, "a picture at the wrong zoom counted as ready");
   });
 });
 
@@ -223,5 +228,73 @@ describe("what it costs to walk in", () => {
     assert.equal(unknown, "Pay at the door");
     assert.doesNotMatch(unknown, /free/i);
     assert.equal(entryLine({ entry: "door", door_price_cents: null, entry_note: "cash only" }), "Pay at the door — cash only");
+  });
+});
+
+// M2.3 — how far in the picture goes. The numbers here are the real venues, so the
+// test says what happens to the actual crowd pages rather than to invented ones.
+describe("choosing a venue's zoom", () => {
+  const SNAKES = { latitude: 43.6559759, longitude: -79.4093377 };
+  const SNAKES_SPOTS = [
+    { latitude: 43.6556037, longitude: -79.4111487 }, // Liu Loqum Atelier
+    { latitude: 43.6562462, longitude: -79.4074325 }, // Sneaky Dee's
+    { latitude: 43.6558305, longitude: -79.409924 }, // Bar Raval
+  ];
+  const SNEAKY = { latitude: 43.656413, longitude: -79.407486 };
+  const SNEAKY_SPOTS = [
+    { latitude: 43.65731, longitude: -79.40213 }, // Free Times Cafe, near the frame's edge
+    { latitude: 43.65513, longitude: -79.4131 }, // Grace Restaurant
+    { latitude: 43.64283, longitude: -79.42031 }, // Poetry Jazz Cafe, 2 km out
+  ];
+
+  it("zooms in on a venue whose spots are all close, which is what pulls them apart", () => {
+    const zoom = chooseZoom(SNAKES, SNAKES_SPOTS);
+    assert.equal(zoom, 17, "the three spots two minutes apart did not get a tighter frame");
+    // Every one of them is still on the map at the zoom chosen: zooming in must never
+    // push a spot out of the frame it was already in.
+    for (const s of SNAKES_SPOTS) assert.equal(place(SNAKES, s, zoom).onMap, true, "a spot fell off the map");
+    // And the closest pair is genuinely further apart than it was.
+    const before = Math.abs(place(SNAKES, SNAKES_SPOTS[0]!, 16).left - place(SNAKES, SNAKES_SPOTS[2]!, 16).left);
+    const after = Math.abs(place(SNAKES, SNAKES_SPOTS[0]!, zoom).left - place(SNAKES, SNAKES_SPOTS[2]!, zoom).left);
+    assert.ok(after > before * 1.5, `the closest pair went from ${before.toFixed(1)}% to ${after.toFixed(1)}% apart`);
+  });
+
+  it("leaves every marker room, rather than filling the frame to its edges", () => {
+    // Seen on the deployed page: "still inside the picture" chose zoom 18 and put two
+    // of three dots at 6% and 96% across — clipped at phone width. Zooming in has to
+    // clear a wider margin than being drawn at all does.
+    const zoom = chooseZoom(SNAKES, SNAKES_SPOTS);
+    for (const s of SNAKES_SPOTS) {
+      const at = place(SNAKES, s, zoom);
+      assert.ok(at.left > 8 && at.left < 92, `a marker sat at ${at.left.toFixed(1)}% across`);
+      assert.ok(at.top > 12 && at.top < 88, `a marker sat at ${at.top.toFixed(1)}% down`);
+    }
+  });
+
+  it("stays wide when a spot sits near the edge of the frame", () => {
+    // Free Times Cafe is at 83% across at zoom 16; one step in and it is off the
+    // picture, so Sneaky Dee's keeps the wide frame.
+    assert.equal(chooseZoom(SNEAKY, SNEAKY_SPOTS), 16);
+  });
+
+  it("ignores a spot that is already off the map, rather than zooming out to reach it", () => {
+    // Poetry Jazz Cafe is 2 km away. It is listed on the page and said to be further
+    // out; it must not drag the picture wider for everybody else.
+    const zoom = chooseZoom(SNAKES, [...SNAKES_SPOTS, { latitude: 43.64283, longitude: -79.42031 }]);
+    assert.equal(zoom, chooseZoom(SNAKES, SNAKES_SPOTS));
+  });
+
+  it("falls back to the wide frame with no spots, no coordinates, or nothing placeable", () => {
+    assert.equal(chooseZoom(SNAKES, []), 16);
+    assert.equal(chooseZoom({ latitude: null, longitude: null }, SNAKES_SPOTS), 16);
+    assert.equal(chooseZoom(SNAKES, [{ latitude: null, longitude: null }]), 16);
+  });
+
+  it("never goes further in than the ceiling, however tight the spots are", () => {
+    const onTop = [
+      { latitude: SNAKES.latitude + 0.00002, longitude: SNAKES.longitude },
+      { latitude: SNAKES.latitude - 0.00002, longitude: SNAKES.longitude },
+    ];
+    assert.equal(chooseZoom(SNAKES, onTop), 18);
   });
 });

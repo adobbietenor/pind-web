@@ -1407,3 +1407,511 @@ change). Where the plan has more detail, the plan is the reference.
   **On W1 it is suppressed**, because a "Ticketed" tag on two hundred rows tells a
   reader nothing — unless the gathering carries a note worth reading, like "tickets
   are sold per table".
+
+### Decided in Phase 2 M2.3
+
+- **A chip is set once, at draft, and never overwritten** (Alex, M2.3). Every
+  Ticketmaster gathering now carries the chip its own listing implies — Music / * →
+  Music, Sports / * → Sport, Arts & Theatre / Comedy → Comedy, everything else nothing —
+  written when the draft is created and **only where the column is null**. So an edit in
+  the admin is final, and a genre Ticketmaster changes later never silently re-tags a
+  published gathering. Null stays a real answer: unclassified, and on every unfiltered
+  list, because unfiltered is the default and only a chip can hide a row.
+  **The rule lives in the database** (`public.chip_category`), called by both things
+  that need it — the nightly import for every new draft, and the one-off backfill — so
+  there is no second copy in the Worker to drift away from it. Harness P66.
+- **"Music", not "Live music"** (Alex, M2.3). Fifteen of the 39 published Events rows
+  are Dance/Electronic club nights, and a DJ set is not live music. The feed cannot tell
+  a DJ night from a gig (above, "No 'going out' chip"), so the honest move is the wider
+  word rather than a chip claiming a distinction we cannot make. The stored value stays
+  `live_music`: an identifier is not copy, and changing a label is one line in
+  `packages/shared`.
+- **A chip is counted from the rows on the page, not from a table** (Claude, M2.3,
+  within Alex's rule). The bar is unchanged — three gatherings at two venues — but it is
+  applied to the week and tab being shown, before any chip is applied. Two properties
+  follow, and both are the point: **no chip can filter to an empty page**, and **no chip
+  advertises an absence**. A hand-typed `?c=` value that did not earn a chip is dropped
+  rather than honoured, for the same reason.
+  A consequence worth stating: a category is offered in whichever tab has the rows for
+  it. An open mic entered by hand is Community *and* is music, and three of them in two
+  places should put a Music chip on Community. The `tab` field in `CATEGORIES` is where
+  a chip is expected to live and the order it appears in, not a gate.
+- **Every chip selected is not the same as no chips selected** (Claude, M2.3). They look
+  identical and are not: unfiltered also shows the rows nobody has classified. The first
+  version collapsed one into the other and would have quietly added back rows a reader
+  had filtered out.
+- **The two tabs are two paths** — `/` and `/community` (Claude's call, M2.3; Alex left
+  it to me). "pind.social/community" is a link worth pasting into a run-club thread on
+  its own, and `/` stays the shortest thing to paste anywhere else. Chips ride as
+  `?c=games,running` on either, and **the chips do not follow you across tabs**: they
+  are counted per tab, so carrying "Running" into Events would filter for something that
+  tab does not have.
+- **Both tabs are always shown, even when one is empty this week** (Claude, M2.3). They
+  are the shape of the page, not a result of the data. Hiding one would move everything
+  else depending on what Toronto happened to have on, and a reader who came for the run
+  clubs would find no way to ask for them. An empty tab gets an invitation and a line
+  saying what the other tab has that week.
+- **A week at a time, with a pager** (Alex, M2.3). At fifty a week the whole published
+  horizon is 112 rows today and over 200 once the publisher is full, which is 60 KB of
+  HTML on a page with a one-second budget. **In Alex's words:** "Option 2 puts 60 KB of
+  HTML on a page with a one-second budget, and option 3 hides most of the list behind a
+  tap on the page that exists to show someone the city." A `?from=` in the past, or that
+  is not a date, opens on this week rather than on a week that has been — a link kept in
+  a Reddit thread should not open on gatherings that have happened.
+- **The cap reads the listing's own classification; the stored chip is the fallback**
+  (Claude, M2.3 — measured, and the reversal of what it was). Until M2.3 only
+  hand-entered rows had a stored category, so "stored wins" and "classification wins"
+  were the same rule on different rows. Filling the chip in for every Ticketmaster row
+  made them different, and the old precedence folded all 189 music candidates into one
+  bucket — losing the club-night-versus-rock-show split the cap exists for.
+  Measured on the real queue the night it was filled:
+
+  | precedence | published tonight | the three weeks end at |
+  |---|---|---|
+  | stored chip first (as it was) | **0** | 4 / 48 / 30 |
+  | classification first (now) | **12** | 4 / 50 / 40 |
+
+  **This is the `FOLD_THRESHOLD` shape again**: a data improvement that silently
+  switches off a rule, with every line of code still looking right. `CAP_BUCKET` now
+  names all eight chip values too — the version that still said `taking_part` after that
+  split into four let unlisted values fall through `?? stored` and quietly become cap
+  buckets of their own, each with its own allowance.
+- **The five Community chips deliberately do not share one cap bucket** (Claude, M2.3;
+  measured). Folding them changes nothing today — identical weeks, identical refusals —
+  and it would sit Community permanently at or above its 40% share, since 21 of the 50
+  rows in the week of 21 September are community. **A guard that fires in normal weather
+  teaches the reader to ignore it**, which is Alex's own rule about the watchdog, applied
+  to the cap.
+- **The map's zoom is a property of the venue, chosen from its own spots** (Alex, M2.3:
+  "adaptive zoom first, since it treats the cause"). At a fixed zoom 16 one frame covers
+  about 1.3 km in a city where every spot is inside 500 m, so three spots a two-minute
+  walk apart landed inside one label's width of each other — measured: of the six venues
+  with more than one spot, **three overlap**, and Snakes & Lattes College has three
+  inside a box 23% of the picture wide. The picture now zooms in as far as it can while
+  every spot that fits at the wide frame still has room. Zoom 16 still decides **what is
+  on the map at all**, so nothing changes about a spot being listed as further out, and
+  zooming in never adds a spot, so the choice cannot oscillate.
+  - **It must be the venue's spots, not the gathering's poll**, or two gatherings at one
+    venue would want two different pictures and "one Mapbox image per venue, ever"
+    becomes one per gathering. `public_gathering` returns the venue's active spot
+    coordinates for exactly this.
+  - **The zoom is part of the image's key**, like the coordinates and the renderer
+    version, so approving a spot that moves the zoom mints a new immutable URL and
+    nothing stale can be served.
+  - **"Still inside the frame" was the wrong test for zooming in**, found on the
+    deployed page: it chose zoom 18 for Snakes & Lattes and put two of three dots at 6%
+    and 96% across, clipped at phone width. Being drawn at all and being drawn with room
+    are different questions, and they now have different margins.
+- **A spot is a numbered card, and the map is the way into it** (Alex; decisions Part 5,
+  "A spot is a card, not a maps link" — the interaction half, built in M2.3). The dot
+  used to carry the spot's name, its walking minutes and a Directions link in a box, and
+  the box *was* the interaction: tapping it left the site for Google Maps. Now the map
+  answers "how far, and which way" with numbered dots, and the cards under it answer
+  "what, and when", with the walking directions link inside. It is a plain anchor —
+  no JavaScript, and it works with a keyboard.
+  - **Adaptive zoom alone was not enough**, which is why the labels went: even at the
+    zoom chosen, Snakes & Lattes' closest pair is 14% apart against a label 19.5% wide,
+    and three label boxes fill a phone-width picture at any zoom.
+  - **Only the spots on the picture are numbered, and consecutively.** The first deploy
+    showed dots 1 and 3, with 2 being a two-kilometre walk away and not on the map,
+    which leaves a reader hunting for a number that is not there. An off-frame spot
+    keeps its card and says where it is instead.
+  - **What a card holds is only what we honestly know** — the name, what it is where
+    somebody has written it, the walk, the meet time, the link. What the place is like,
+    and whether six can get a table, arrive with the manual pass (M5.2). An empty field
+    prints nothing rather than something guessed.
+- **An uploaded map override carries no markers** (Claude, M2.3). It is somebody else's
+  picture at a scale we do not know, so our coordinates mean nothing over it and a dot
+  200 m out is worse than no dot. Its spots appear in the cards like everyone else's.
+- **A Worker route that is not in `run_worker_first` never runs** (found in M2.3).
+  `/community` came back as the Expo app's own `index.html` with a 200 — the
+  single-page fallback — so a missing route looked like a working page of the wrong app
+  rather than like a 404, and Cloudflare then cached it. It is the same lesson as M2.1's
+  injected beacon one layer down: **the deployed URL is the only thing that can tell you
+  what a route does.** Adding a public page means adding it to `wrangler.jsonc` and then
+  fetching it.
+- **Comedy is refused by the scoring, and the admin has to say so** (Alex, M2.3, on the
+  finding). A chip appears only where something can fill it, which correctly hides
+  Comedy — and thereby hides the fact that **51 comedy listings have never produced a
+  single published gathering**, because the AI scores stand-up like seated theatre:
+  25–60 against a floor of 60. **In Alex's words:** "That's a scoring problem, not a chip
+  problem — and it's the same shape as FOLD_THRESHOLD: a number that looks right and
+  quietly excludes things. I'd rather comedy earned its chip than have it hidden
+  correctly." The Publishing panel now prints, for every category, whether its chip is
+  live, whether it is below the bar, or how many drafts are waiting and the best score
+  they have against the floor. **Fixing the rubric is a separate, measured pass** — what
+  it involves is in spec §6, M2.3.
+
+### After the M2.3 walk (Alex, on the phone)
+
+- **A visitor must never be the thing that fetches the map** (Alex: "the map doesn't
+  load consistently; I often have to refresh before it appears"). Diagnosed and
+  measured: **29 of the 37 venues behind a published gathering had no picture at their
+  current key**, so the first view of each of those pages showed the schematic — or
+  nothing at all, at the 24 venues with no spots to draw one from. The second view
+  showed the real map, which is why it looked intermittent rather than broken.
+  - **The cause is not a race.** M2.1 built the fetch as a safety net — the page falls
+    back and `waitUntil` renders the picture for whoever comes next — and it had quietly
+    become *the mechanism*, because nothing else ever rendered anything. M2.3 made it
+    visible rather than causing it: putting the zoom into the key retired every existing
+    render at once, so every venue needed a new picture and every venue's first visitor
+    paid for it. The orphaned `-v1` keys are still in `venue_map_renders`, recorded ok,
+    for pictures nothing asks for any more.
+  - **So the nightly run renders them**, immediately after publishing, because
+    publishing is what creates a page a stranger can open. The fallback stays as a net.
+    Mapbox requests still scale with venues and never with traffic — tens, ever — and
+    the pass is bounded per night, reports what it did in the run summary, and counts
+    whatever is left as missing rather than dropping it.
+  - **The admin now says it out loud, and says the right thing.** "Never fetched" leaves
+    no render record at all, so it was neither "ready" nor "failing" and read as fine —
+    unset is a different state from broken (CLAUDE.md). Worse, the venue list called a
+    venue "ready" if it had *ever* rendered anything, so a venue whose key had moved on
+    read ready while its crowd page asked for an image that answered 404. **A status
+    computed against the wrong fact reads as correct while being wrong**, which is the
+    M2.2 venue-cap line again.
+  - **Two smaller defects found on the way**, both of which turned an ordinary event
+    into a missing map:
+    - the image route **recomputed the zoom** from its own read of the venue's spots and
+      compared keys, so a transient failure reading them, or a spot approved in the
+      seconds between the page rendering and the browser asking for the image, produced
+      a 404 for a picture that existed and was correct for the markers drawn over it. It
+      now checks the coordinate half of the key against the venue's current coordinates
+      — the safety property, which is why the URL is content-addressed — and the rest
+      against the render record, which is the fact;
+    - the spots read **swallowed its error**, so a failed read meant "no spots", which
+      means zoom 16, which means a different key. Null now means "we do not know" and
+      the caller declines to guess.
+  - **Which venues, asked of the one door.** Both new passes first asked the database
+    with a service-key filter — published, not withdrawn, not seeded, carrying a slug —
+    which *looked* identical to the public definition and was not: a gathering Alex
+    unpublished keeps its slug (M2.2, "once public, only Alex brings it back"), so
+    Scotiabank Arena was counted as a venue needing a map for a page nobody can open.
+    They now read `public_gatherings` through the anon key, as a visitor, and let RLS
+    answer; the service key then fetches the operational detail for exactly those
+    venues. **The same hole caught me twice in one milestone** — the admin's chip panel
+    had it too — which is the argument for H11 being about more than policies: any
+    second copy of "what is public" drifts.
+- **What should be in the back button** (Alex: "moving between tabs, chips and crowd
+  pages, back doesn't always go where I expect").
+  - **The tab and the chips replace the current history entry.** They are
+    query-parameter state on one page, not places you went, so four chip taps left four
+    entries and "back" walked through a filter state nobody was trying to return to.
+    The whole visit to the list is now one entry.
+  - **The pager and the cards push.** Next week is somewhere else, and so is a crowd
+    page. Back from a crowd page lands on the list exactly as it was, chips and week
+    included, because the URL carries all of it.
+  - **The map dots no longer push either.** Each `#spot-N` was a history entry, so after
+    tapping three dots "back" appeared to do nothing — it was undoing a hash change on
+    the same page.
+  - **The accepted cost, stated:** because the chips replace, pressing back from a
+    filtered list leaves for wherever the visitor arrived from rather than stepping back
+    to the unfiltered list. That is the trade Alex asked for; the alternative (the first
+    filter pushes, later ones replace) is a state machine in a page that has none.
+  - It is 247 bytes of JavaScript on W1 and it is progressive: with JavaScript off every
+    control is still an ordinary link that works, it simply also leaves an entry.
+    Modifier and middle clicks are left alone, so "open in a new tab" still works.
+- **The chip names are not settled** (Alex, M2.3 walk — **owed, nothing to build now**).
+  "Community" as a tab name, and cycling and running as separate chips, may not be how a
+  reader would divide this. There might be a "clubs" or a "wellness" shape that reads
+  better than activity-by-activity.
+  **What must survive the rethink, because it was measured:** running is 4 gatherings,
+  59 dated rows, 2 venues — clubs meeting constantly in two places — and cycling is 5
+  gatherings, 13 rows, 8 venues, a different place every Saturday. **They look alike and
+  behave oppositely**, so one chip over both would hide both facts: somebody filtering
+  "running" wants a fixture near them, somebody filtering "cycling" is choosing a day
+  out. Any renaming has to keep that distinction available even if the words change.
+  Cheap to change either way: a chip's label is copy in `packages/shared`, and only the
+  stored value would need a migration.
+- **The comedy rubric, measured before and after** (Alex, M2.3 walk: "measured
+  before-and-after, not a prompt tweak"). Two edits to `SCORING_SYSTEM`: stand-up joins
+  the "people come in ones and twos" group rather than the seated-theatre one, and it is
+  named as **not** subject to the seated-theatre cap — while panel talks, readings,
+  literary events and anything billed "in conversation" are named as capped at 35
+  whatever a ticketing site files them under. Run over all 48 comedy drafts in the queue
+  plus 17 controls, each set scored twice — once with the current prompt, to measure the
+  noise, and once with the candidate:
+
+  | | stored today | current prompt, run again | candidate |
+  |---|---|---|---|
+  | comedy (48) median | 35 | 40 | **65** |
+  | comedy at or over the floor of 60 | 3 | 4 | **32** |
+  | theatre / classical / opera (8) | 15–30 | 22–32 | **25–35, still capped** |
+  | Jaipur Literature Festival | 32 | 35 | **35** |
+
+  The literature festival is the one Alex named, and the candidate's own reason for it
+  is *"In-conversation literary event, capped despite comedian guest and decent theatre
+  crowd"* — it holds.
+  **The noise floor is worth writing down:** re-running the *same* prompt moved
+  individual rows by 5 to 15 points and lifted one extra comedy show over the floor. So
+  this is a distribution result, not a per-row promise, and any future rubric change
+  should be judged the same way — twice, with a control set.
+  **Shipped with its re-score, in one commit** (Alex: "new drafts scored generously
+  while the existing 51 aren't is a worse state than either"). Only new drafts are
+  scored by the nightly run, so a rubric change without a re-score leaves the publisher
+  ranking two wordings against each other under one floor. As applied: all 48 comedy
+  drafts re-scored, median **35 → 60**, **3 → 28 at or over the floor**; the literature
+  festival held at 35; theatre, classical and opera were not re-scored and did not move
+  in the controls. `scripts/rescore.ts` does it, **dry by default and `--write` to
+  save**, because a score is what decides whether a stranger ever sees a gathering.
+  Whole exercise: **$0.26**.
+  **The general rule this establishes:** a change to a rubric or a threshold is judged
+  by running it twice with a control set — once with the current wording to find the
+  noise floor — and it ships together with the re-score of whatever it has already
+  judged. "It reads better" is not evidence, and neither is a single run.
+- **Where the map's interactivity goes from here** (Alex asked; costed, nothing built).
+  Filed against the city map already being **Protomaps on R2 + MapLibre, in the app**
+  (decisions, "When it comes, half the decision is already made"), because that decides
+  most of this.
+  1. **The pipeline is the shared cost, and it belongs to the city map.** A Toronto
+     vector extract as a `.pmtiles` file in R2, served through a Worker route that
+     answers HTTP range requests, with the glyphs and sprite in the same bucket so
+     nothing loads from a third-party host. **No per-load billing and no egress fee**,
+     against Mapbox GL's $5 per 1,000 loads past the free tier, and no API key in any
+     page. Roughly **6–12 hours** all in, and every hour of it is reused by the deferred
+     city map and by A8.
+  2. **Real pan and zoom belongs in the app (A8/A10), not on W2.** The app is already a
+     bundle, already has a session, and has no one-second budget inside a Reddit tab.
+     Once the pipeline exists this is a MapLibre component with the venue centred and
+     its spots as markers: **3–6 hours**, inside M3.2's own map work rather than on top
+     of it.
+  3. **W2 keeps the static image as its default, for a measured reason.** MapLibre GL JS
+     is about 200 KB gzipped before a single tile, against a crowd page that is **9 KB
+     of HTML and a 30 KB picture today**. That is twenty times the page, on the surface
+     whose whole job is opening in a second inside somebody else's browser.
+  4. **What W2 can have cheaply, in rising order of cost:**
+     - **"Open in Maps" for the venue as well as each spot** — the phone's own map app
+       is a genuinely interactive map, and it is a link. Minutes.
+     - **Two or three pre-rendered zooms and a no-JavaScript switch between them.** The
+       picture is already content-addressed per zoom, so this is mostly bookkeeping:
+       three renders per venue instead of one, a couple of links, no new dependencies,
+       no budget change. **1–2 hours.**
+     - **A real map behind a tap** — the static image stays the default and MapLibre
+       loads only for the visitor who asks for it, from our own R2. The default page
+       costs nothing, the person who wanted a map pays for it, and it needs the pipeline
+       from (1) plus **2–4 hours** and a measured check inside a Reddit in-app browser,
+       which is where heavy JavaScript maps go wrong.
+  **The recommendation:** nothing on W2 now; when M3.2 builds A8, build the pipeline for
+  it rather than a one-off; then W2's zoom switch and, if it is still wanted, the
+  behind-a-tap map. The order matters because every step after the first is cheap only
+  once the pipeline exists.
+- **One definition of public, and a test that fails if anyone hand-rolls a lookalike**
+  (Alex, after the walk: "is there a way to make it structurally hard?"). Yes, and it
+  was cheap. Two of M2.3's four map defects were a service-key filter that read exactly
+  like the real rule —
+  `.not("slug","is",null).is("withdrawn_at",null).eq("is_seed",false)` — and is not it,
+  because an unpublished gathering keeps its slug.
+  - **`publicVenueIds()` joins `crowds()` in `src/public/data.ts`**, the door module, so
+    the question "which venues can a visitor reach" has one answer and a name. The rule
+    in one line: *a server-side job that needs to know what is public asks the door, as
+    a visitor, through the anon key, and lets RLS answer* — the service key is for the
+    operational detail behind those rows, never for a second opinion about visibility.
+  - **`tests/unit/door.test.ts` scans every Worker source file** and fails if those
+    PostgREST spellings appear outside the door module, naming the file and pointing at
+    the helper. It was checked by reintroducing the bug: the test goes red.
+  - What it deliberately does not ban: reading `is_seed` on a single row already in
+    hand (the map routes check the venue they were asked about), or the publisher
+    counting published rows for a week's arithmetic. Those are different questions.
+  - It is a grep in a unit test rather than a type, which is the honest level for a repo
+    with no build step — a type would need the PostgREST builder wrapped, which is more
+    machinery than the mistake is worth.
+- **"Open in Maps" for the venue itself** (Alex: the cheapest thing on the
+  interactivity list and the one he would use). Beside the figure's caption, on all
+  three versions of it — the real picture, the schematic and an uploaded override. It is
+  one link; the phone's own map app is a real interactive map that pans, zooms, searches
+  and routes, against roughly 200 KB of JavaScript for a map library on a 9 KB page.
+  Coordinates rather than a name, because a name search lands on the wrong branch of a
+  chain, and the venue's coordinates are what the whole picture is drawn from. On iOS
+  the same small script that rewrites the spot links sends this one to Apple Maps.
+  Measured cost: **180 bytes**.
+
+### Is that run club still a run club? — the liveness check (M2.3b)
+
+Alex chose this over the W2 zoom switch after the M2.3 walk: "188 rows running to
+mid-November with nothing re-checking them is a live problem, and a map you can't zoom
+isn't. A defunct run club on the site costs more than any amount of map polish." The
+real horizon turned out to be worse than either of us said — **the generator had written
+occurrences to 31 December**, three and a half months out.
+
+- **The cheap version does not work, and the numbers say so.** All 28 series' pages were
+  fetched on 20 September: **27 answered 200 and not one was gone**, so "is the page
+  alive" carries almost no information. Two things kill a deterministic check outright:
+  - **four of the 27 name no future date at all** — Running Rats and all three
+    Frontrunners runs say "every Tuesday, 6:30pm" and nothing else. A "does it name a
+    date" rule would have flagged four live run clubs in its first week, which is the
+    guard-fires-in-normal-weather failure for the third time in one milestone;
+  - **a page is not a series**: seven series share one 582 KB Snakes & Lattes page, five
+    share `tbn.ca`, three share the same 519 page. Keyword or date matching on a shared
+    page says nothing about one game night.
+  So the check **reads the page and asks one narrow question**: does this page still say
+  this gathering happens, how often does it say, and what is the furthest future date it
+  names. Deliberately the smallest slice of M4.4's extraction, measured early against 28
+  pages whose answers are already known (`docs/m4.4-brief.md`).
+- **The lifecycle, confirmed before it was built.** Per series: **unverified** (never
+  read) → **confirmed** (the last read found it, with the horizon it named, which may be
+  null) → **doubtful** (the page is gone — unambiguous, on the first read — or two
+  consecutive good reads did not find it) → **settled** (Alex looked and said leave it),
+  with **unverifiable** off to one side for a page that cannot be read at all. Only a
+  read moves it.
+  - **"No evidence is not evidence" is the rule the design turns on** (Alex). A page that
+    times out, blocks us, or simply does not say is `unverifiable`, and it **never**
+    accumulates towards doubt however many times it happens. The model's own "unclear"
+    answer maps here too, not to absence — which is what protects those four run clubs.
+    The admin says the two things in **visibly different sentences**, from one function
+    so they cannot drift apart per surface: *"Its page loaded, and did not mention this
+    gathering"* against *"We cannot tell from this page… which is not the same as the
+    gathering having stopped."*
+  - **Nothing is ever withdrawn or unpublished by a machine.** Withdrawing keeps the
+    pins and can be undone; **unpublishing cannot be undone by any automatic run**,
+    because the slug is already minted and `slug is null` is the re-publish guard (M2.2)
+    — so the worse of the two is also the irreversible one. The check's loudest possible
+    output is a line in the admin.
+  - **"I looked, leave it" clears it**, stamps who and when, and shows the note beside
+    the series, because **a flag that cannot be cleared becomes a flag nobody reads**
+    (Alex). A settling does not silence the next change: anything that strikes afterwards
+    is a fresh doubt and says so.
+- **The first full pass, measured:** 28 series read, **27 confirmed, 1 unreadable
+  (Kensington Market's page would not load), and not one false absence.** Cost **$0.42
+  for all 28** — about 1.5 cents a page — so four a night is six cents a day. The four
+  no-date pages confirmed exactly as designed, each with its cadence in the page's own
+  words ("Tuesdays and Thursdays @ 6:15pm", "every Friday from 4-11 PM").
+- **Its own cron, run row and budget line** (Alex). 13:00 UTC, four series a night, so
+  all 28 come round weekly; a separate `community_check_runs` table with its own lock, so
+  neither job can report the other as busy; and the credential check sits *inside* the
+  try, after the run row is opened, so a night that fails on a missing key leaves a
+  failed run behind (M2.2's founding rule).
+  - **And `admin_ai_spend_today` now sums both tables.** It read `import_runs` only, so
+    **any AI spend outside that table was invisible to the daily cap** — M1.3b's cost
+    blind spot, one table over, and the way a $3 cap quietly becomes a $6 day.
+- **Eight weeks is the generator's horizon**, on the `cities` row rather than in code
+  (`community_weeks`, replacing a guard that allowed a year from the first date).
+  **Why eight:** it is the horizon the Ticketmaster import already looks over
+  (`import_weeks`), so the product has one idea of how far ahead it looks rather than
+  two; it is comfortably more than any of these pages actually confirms; and it is a
+  setting because it is a judgement that should move with evidence. Measured **from
+  today, not from the first date**, so a series starting in March does not inherit a
+  year's licence.
+  - **A cap without a top-up is a decay mechanism**, so the same page counts the other
+    side: **seven of the 28 already have fewer than 21 days of dates left**. Nothing
+    counted that before, which is the same shape as a venue whose map was never fetched —
+    unset is a different state from broken.
+  - **Nothing already published was touched.** An unconfirmed far date is not evidence of
+    anything, and unpublishing 188 rows to tidy a horizon would have cost more than it
+    bought (Alex: "lighting up most of the list on day one to tell me something I already
+    know is the same mistake as the red 'short by'").
+- **Two findings out of the first pass, neither a bug:**
+  - **several pages name dates further ahead than we hold** — TBN's Sunday rides confirm
+    to late October where our rows stop in September. That is the top-up signal the
+    running-out count is for, and it is the first evidence that a source can *extend* a
+    series as well as end it.
+  - **one horizon looks too good:** College Social Game Night came back confirmed
+    through September **2027**. Harmless today, because nothing reads
+    `confirmed_through` except the admin, but it is the kind of number that would quietly
+    silence a rule later. Worth a sanity ceiling when anything starts depending on it.
+- **The gap, stated rather than left implied.** The import's watchdog is a pg_cron job in
+  Postgres, because a Worker cannot report its own cron being dead (Alex, M2.2) — and it
+  watches the import, not this. The Community page says loudly when no run has finished
+  in 48 hours, which is the half that answers somebody who looks; **the half that reaches
+  out does not cover this job yet**, and generalising M2.2's machinery to N jobs is a
+  refactor rather than a copy. The difference in urgency is real: a missed import means
+  the city's list stops refreshing, a missed check means a series is re-read a few days
+  late.
+
+- **The threshold is our mechanic, not the reader's reason** (Alex, closing M2.3 — and
+  he had never liked the old line). "Crews open at 5" describes a rule somebody is
+  waiting on. What a reader came for is to see who else is going, so **the number never
+  leads on any surface**:
+  - **W2, before pinning, is headed "Who else is going?"** with the counts under it as
+    the answer, and `THRESHOLD_EXPLANATION` — still the fixed §5 sentence, unchanged —
+    as a quiet line beneath them. "Who else is going?" rather than "See who's going"
+    for two reasons: the page's own description already reads "See who's going, meet
+    them there.", so the heading would have restated the tagline, and on a page about
+    one gathering the question is the sentence already in the reader's head.
+  - **A card on W1 says what is true**: "3 pinned", and "crews forming" only when they
+    are. A row short of five now says nothing about five — two hundred rows all reading
+    "crews open at 5" was the rule being repeated at a reader rather than anything about
+    that gathering.
+  - **The pinned page leads with "Find your crew"** (Alex; recorded here for A9/A10 in
+    M3.3), where forming one is genuinely the next action rather than a state to wait
+    for. This is the screen decision the earlier note predicted would cost nothing in
+    the data layer: `private.can_see_at` never mentions five, so the reciprocal list
+    already works at two, and only crews opening and the gender-mix chip are gated at
+    the threshold (V3, Q3).
+  - The sentence itself stays fixed copy. It is where it belongs — underneath, in
+    smaller grey type — rather than rewritten, because the full copy pass with Tatiana
+    is still owed (spec §5, "The voice").
+- **A source can extend a series as well as end one, and that is cheap** (Alex asked, at
+  the M2.3 close; **costed, not built**). The first liveness pass found TBN's Sunday
+  rides confirmed into late October where our rows stop in September — the opposite of
+  the problem the check was built for, on day one.
+  - The shape: where a page's `confirmed_through` runs past our last occurrence, **top
+    up by generating drafts** — never published rows — to the nearer of that date and
+    the `community_weeks` horizon. Publishing stays where it is: the mark, the
+    publisher, or Alex.
+  - The one thing it needs that does not exist: **the cadence**, because there is
+    deliberately no recurrence in the schema. It does not need storing — the spacing of
+    the occurrences we already hold gives it away (seven days apart is weekly), and all
+    28 were generated from a fixed cadence. Inferring it from the rows is both cheaper
+    and safer than trusting `cadence_seen`, which is the page's prose.
+  - **Two to three hours**, including a "top up" button next to the running-out count
+    and its tests. It belongs with M4.4's daily run as a step, or stands alone whenever
+    the running-out banner becomes annoying enough to act on.
+- **A source claiming a year of horizon is not evidence** (Alex: "note it now rather
+  than when something depends on it"). College Social Game Night came back confirmed
+  through **September 2027**. Nothing reads `confirmed_through` today except the admin,
+  so it is harmless — and it is exactly the kind of number that silences a rule later:
+  a top-up that trusted it would generate a year of drafts, and a running-out check that
+  trusted it would never fire. **So whatever first depends on that field clamps it** —
+  to the city's own horizon plus a small margin — and treats anything beyond as "the
+  page said something we are not going to act on". Noted in `readAnswer` where the field
+  is parsed, which is where the clamp will go.
+- **A search bar: settled in design, filed for M3.2** (Alex asked; his own rule was to
+  file anything over an hour or two).
+  - **It needs no client JavaScript at all**, which was the open question. A form with
+    `method="get"` in the header is a navigation: the magnifying glass submits, the
+    Worker renders `/search?q=…` with the same card renderer as W1. Nothing to hydrate,
+    nothing to bundle, and it works with JavaScript off, which is the same property the
+    chips have.
+  - **One door, one predicate.** Search is `public_gatherings` with an optional query
+    parameter rather than a third function — "on the public web" stays one definition
+    (M2.1, H11), and `ilike` over name and venue is nothing at 235 rows or at ten
+    thousand. About **two hours** with the route, the header, the empty state and its
+    tests.
+  - **Why M3.2 rather than now:** the app's crowds list (A5–A7) needs the same search,
+    and the same door function serves both. Building it twice is the expensive order,
+    and a search box on the web with no equivalent in the app reads as an oversight.
+  - **What "no results" says, which was the real question.** Searching only published
+    rows, and **saying plainly what the site is**: we publish a selection of what is on
+    in Toronto each week, so most of it is not here. Then two things rather than a dead
+    end — the nearest thing we *do* have (the same venue, or the same chip, or simply
+    this week), and the suggest-a-gathering mailto with the query already in it.
+  - **Rejected: searching the draft queue and offering to publish.** It is a different
+    product, and the cost is not hours. Drafts are admin-only by policy (V12), so
+    exposing them is a visibility change with harness cases and the M4.2 reviewer's
+    attention — call it 6–10 hours plus a policy review. And it inverts the publisher:
+    a stranger's search would drive what gets published, where **publishing selectively
+    is the point** (decisions Part 5). "We know about it and chose not to show you" is
+    also a worse sentence than "we show a selection".
+  - **One question it raises, deliberately not answered:** whether to count the searches
+    that find nothing. It would be the best possible input to publishing decisions —
+    what a hundred people looked for and we did not have — and it is new data collection
+    on a page that needs no account, so it belongs with the privacy policy in M4.1
+    rather than smuggled in with a search box (Part 4, "Data deliberately not
+    collected").
+- **Lighthouse on W1 and W2: deliberately skipped, and moved to M3.2** (Alex, closing
+  M2.3). Not an oversight and not a shortcut. Three reasons, his:
+  1. **The byte measurements are more precise than the score.** Events with 26 cards is
+     **9.0 KB against a 7.9 KB empty-page floor** — about 1.1 KB for the whole list —
+     with two requests of ours and no image. There is no room in that for a surprise
+     that a score would reveal.
+  2. **The last Lighthouse run measured the wrong URL** and cost an hour chasing a bug
+     that did not exist.
+  3. **There is nothing on these pages for it to find.** No framework, no fonts, no
+     images on W1, and 247 bytes of JavaScript. M3.2 is where that changes — the quick
+     pin (A26) is a real Expo bundle, and M2.1 already measured that holding route at
+     **828 KB and a score of 37** against the crowd page's 78 KB and 99. That is where
+     a Lighthouse run and a full request list earn their hour, and M3.2's acceptance
+     already asks for exactly that.
+
+  **The rule this does not weaken:** load the page in a browser and list its requests.
+  That is how M2.1 found the injected beacon and how M2.3 found `/community` serving the
+  wrong app, and both were found with `curl` and a request list rather than with a score.

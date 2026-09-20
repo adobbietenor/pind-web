@@ -206,9 +206,28 @@ The founder answers "is this a dating thing?" in the comments with the house rul
 
 ### W1 — This week's crowds *(landing; was T9)*
 The public browse surface. Grouped by day, **ordered by date, never by size** (Q10).
-Published gatherings: name, venue, time, pin count, and either "crews forming" or
-"crews open at 5"; community gatherings marked. Small counts shown, never hidden,
-including zero. Footer: suggest a gathering (a mailto link, nothing stored) · about · 19+.
+Published gatherings: name, venue, time, pin count, and "crews forming" **only when
+they are**; the chip a reader filters by, and what it costs to walk in. Small counts
+shown, never hidden, including zero. **The threshold never leads**: a row short of five
+says nothing about five (Alex, closing M2.3). Footer: suggest a gathering (a mailto link,
+nothing stored) · about · 19+.
+
+**A list of fifty is a different screen from a list of five** (built in M2.3):
+- **Two tabs, split on `source`** — **Events** is the Ticketmaster feed at `/`,
+  **Community** is everything entered by hand and, later, M4.4's run, at `/community`.
+  No editorial call per gathering. Both tabs are always shown; one of them being empty
+  this week is a fact about the week, not a reason to move the furniture.
+- **Category chips within a tab, never across it**, multi-select, showing the union of
+  what is chosen. **A filter that narrows, never a sort that reorders**: the order of
+  what remains is the unfiltered order (Q10). Unfiltered is the default, and a chip
+  appears only where there are **three gatherings at two venues** on the page
+  (`CHIP_MIN_*`), counted before any chip is applied — so no chip can filter to an
+  empty page and none advertises an absence.
+- **Today and tomorrow are named**, then the rest of the week by date, with the day's
+  count beside each heading.
+- **One week at a time, with a pager** forwards and back. Everything — tab, chips,
+  both ends of the pager — is a server-rendered link with query parameters: no
+  client-side JavaScript, nothing that costs the one-second budget.
 
 ### W2 — Crowd page, pre-pin *(was T2)*
 Public, no account, shareable. Contains:
@@ -216,8 +235,11 @@ Public, no account, shareable. Contains:
 - The generated map: **venue and its meeting spots, never people** (H1) — a schematic
   SVG drawn from the venue's and spots' coordinates (decisions Part 5, "Maps generated
   automatically"); an uploaded image is an optional override
-- Counts: pinned, open to meeting, gender mix (Women · Men, plus Other when above zero;
-  only at 5+ opted in — Q3)
+- **Headed "Who else is going?"**, with the counts under it as the answer: pinned, open
+  to meeting, gender mix (Women · Men, plus Other when above zero; only at 5+ opted in
+  — Q3), and the threshold explanation as a quiet line beneath rather than the message
+  (Alex, closing M2.3). The pinned page leads with "Find your crew" instead (A9/A10,
+  M3.3), where forming one is the next action.
 - **House rules**, verbatim (Alex, after the M2.1 on-device walk):
   1. Make friends how you used to — in person.
   2. You see each other, or neither of you does.
@@ -604,7 +626,7 @@ working. Hours are Alex's, agent-assisted.
 | M2.0 | Repo + Expo scaffold | **Done** — merged as `7fc973a` | 6–8 |
 | M2.1 | Public web layer on pind.social (W1–W4, the real map, the domain) | **Done** — merged as `6fea4a3` | 8–12 |
 | M2.2 | Auto-publishing v1 — fixed target (§8) | **Done** — merged as `ec9d74d` | 4–6 |
-| M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | Not started | 4–6 |
+| M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | **Done** — merged as `M2.3` | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | Not started | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel, universal links (A5–A9, A19, A26, A27) | Not started | 12–18 |
@@ -851,6 +873,81 @@ the current pace, raise the hours or shrink the phase.
     - **the M5.2 distance ceiling** — Poetry Jazz Cafe is a 30-minute walk and was
       already approved and in a live spot poll.
 
+- **Phase 2 M2.3 complete** (branch `phase2/m2.3-the-list`, merged to `main` on
+  20 Sept 2026). The list at fifty a week, plus the three things the on-device walk
+  found and the liveness check Alex chose over map polish. Four migrations.
+  - **Data and rules first, and the data was the milestone.** All 49 published Events
+    rows carried `category = null`, so the Events tab would have shown a chip row with
+    nothing in it. `public.chip_category` maps Ticketmaster's "Segment / Genre" to the
+    chip a reader filters by — **one rule, in the database**, called by the nightly
+    import and by the backfill — and a category is **set once at draft and never
+    overwritten**, so an admin edit is final (P66).
+  - **W1.** Two tabs on `source` (`/` and `/community`), chips within a tab and never
+    across, multi-select and always a union, Today and Tomorrow named, a week at a time
+    with a pager, a count beside each day. **A chip is counted from the rows on the
+    page**, so it can never filter to an empty one and never advertises an absence.
+    Every control is a server-rendered link.
+  - **W2.** The map's zoom is chosen per venue from its own spots; a spot is a numbered
+    card with the walking directions inside it; "Open in Maps" for the venue itself; and
+    the counts are now headed **"Who else is going?"** with the threshold demoted to a
+    quiet line — the threshold is our mechanic, not the reader's reason.
+  - **Measured, deployed.** `/about` is 7.9 KB with no list; W1 Events with 26 cards is
+    **9.0 KB**, so the whole list costs about 1.1 KB. W2 is 8.8 KB plus a 30 KB map,
+    down from 57 KB because the tighter zoom draws fewer features.
+  - **What measurement caught that reading the code would not**, four times:
+    1. **filling the category in would have stopped the publisher dead** — 0 published
+       against 12, weeks at 4/48/30 against 4/50/40, because `capBucket` preferred the
+       stored chip and stopped telling a club night from a rock show;
+    2. **`/community` served the Expo app's own index.html with a 200** until it was
+       added to `run_worker_first`;
+    3. **29 of 37 venues had no map at their current key** — a visitor's first view was
+       fetching it;
+    4. **`admin_ai_spend_today` summed one table**, so a second job's AI cost would have
+       been invisible to the $3 cap.
+  - **Comedy earns its chip.** Stand-up was capped as seated theatre by analogy: 48
+    drafts at a median of 35 against a floor of 60, three ever publishable. Naming it as
+    its own case — and naming panel talks and "in conversation" as capped — moved the
+    median to 60 and 3 → 28 over the floor, with theatre, classical and opera unmoved
+    and the Jaipur Literature Festival holding at 35. Measured twice against a control
+    set first, so the ±5–15 noise floor was known before the shift was claimed, and
+    shipped with the re-score in one commit.
+  - **The liveness check** (M2.3b). 28 hand-entered series had produced 188 published
+    occurrences to 31 December with nothing re-checking them. Its own cron, run table,
+    lock and budget line; 27 of 28 confirmed on the first pass, one unreadable, no false
+    absences, $0.42. Nothing is withdrawn by a machine, "we cannot tell" and "its page
+    dropped it" are different sentences, and "I looked" clears the doubt. The generator
+    is capped at eight weeks, and seven series already have under 21 days of dates left.
+  - **One definition of public, enforced.** `publicVenueIds()` joins `crowds()` in the
+    door module, and `tests/unit/door.test.ts` fails if the lookalike service-key filter
+    appears anywhere else — verified by reintroducing the bug.
+  - **Checks:** `npm run typecheck`, `test:unit` **191**, `test:policies` **68/68**
+    (P66 new), and the app typechecks.
+  - **Walked on device, 20 Sept 2026** (Alex): "Looks pretty good overall." Three
+    problems found on the phone, all fixed and redeployed — the map loading
+    inconsistently, the back button, and the map's lack of interactivity answered with a
+    costed path rather than a build. **Lighthouse was deliberately skipped** and moved to
+    M3.2 (decisions, "Lighthouse on W1 and W2"): the byte floor leaves no room for a
+    surprise, the last run measured the wrong URL and cost an hour, and there is nothing
+    on these pages for it to find. The rule it does not weaken is the one that found the
+    injected beacon and `/community`: load the page and list its requests.
+  - **Carried out of M2.3:**
+    - **the chip names are owed** — "Community" as a tab name, and cycling and running as
+      separate chips, may not be how a reader divides this. What any rethink must keep:
+      running is 4 gatherings / 59 rows / 2 venues and cycling is 5 / 13 / 8, so they
+      look alike and behave oppositely;
+    - **a search bar is designed and filed for M3.2** — no client JavaScript needed, one
+      door with an optional query, about two hours, and the app's list needs the same
+      thing;
+    - **a source can extend a series as well as end one**, found on day one: two to three
+      hours, and the cadence comes from the spacing of the rows we already hold;
+    - **a horizon a year out is not evidence** — one page confirmed through September
+      2027, noted where the clamp will go;
+    - **the injected Cloudflare beacon is unchanged**, and the one query that would
+      answer it needs an account API token, which is Alex's;
+    - **the liveness cron has no watchdog**: the Community page says when no run has
+      finished in 48 hours, but M2.2's pg_cron watchdog covers the import only, and
+      generalising it is a refactor rather than a copy.
+
 #### M2.2 — the nightly import had never actually run on schedule
 Found on 2026-09-20, when the admin showed "TICKETMASTER_CONSUMER_KEY is missing" and
 the last run was Friday evening. The diagnosis matters more than the credential.
@@ -976,6 +1073,199 @@ fortnightly and monthly, one form to N dated drafts.
   now names every key its readers need, and a standing admin panel flags any spot more
   than a kilometre from its venue — the check that caught a geocode four kilometres out
   that passed every is-this-Toronto test.
+
+#### Phase 2 M2.3 — the list at fifty a week (W1)
+Built on `phase2/m2.3-the-list`, one migration (`20260920203410_m2_3_the_list`), on
+staging at pind.social. **Data and rules first**, and the data turned out to be the
+milestone: W1's chips had nothing to stand on.
+
+- **Every Ticketmaster gathering had `category = null`** — all 49 published Events rows
+  — because only the 31 hand-entered ones were ever tagged. The Events tab would have
+  had no chips at all. The classification sits in `gathering_sources.snapshot` as
+  "Segment / Genre", and now maps to a chip in **one place in the database**
+  (`public.chip_category`), called both by the nightly import and by the backfill:
+  Music / * → **Music** (523 in the queue, club nights included — the feed cannot tell
+  a DJ night from a gig), Sports / * → **Sport** (83), Arts & Theatre / Comedy →
+  **Comedy** (51), everything else → no chip and still on every unfiltered list.
+- **The lifecycle Alex fixed:** a category is set **once**, when the draft is created,
+  from that listing's own classification; the importer never overwrites it, so an admin
+  edit is final and a genre Ticketmaster changes later never silently re-tags a
+  published gathering. Harness **P66** proves all four branches, the "never
+  overwritten" rule, that a second pass writes nothing, and that no visitor may call
+  either function.
+- **The chip is "Music", not "Live music"** (Alex): 15 of the 39 published are
+  Dance/Electronic, and a DJ set is not live music. One line in `packages/shared`.
+- **The page.** Two tabs on `source` (`/` and `/community`), chips within a tab,
+  Today and Tomorrow named, a week at a time with a pager, and a count beside each day.
+  Every control is a server-rendered link; the page runs no JavaScript.
+- **The two map fixes on W2.** The picture's zoom is now chosen per venue from the
+  venue's own active spots — as far in as it can go while every spot that fits at the
+  wide frame still has room — and a spot is a **numbered card** with the walking
+  directions link inside it, tied to a numbered dot on the map by a plain anchor.
+- **Venue and neighbourhood filters are deferred**, following Alex's scope for the
+  session rather than the build plan's longer list. Neighbourhood has no data behind it:
+  the 30 rows carry a name and a sort order, no coordinates and no boundaries.
+
+**What the real data said, before anything was drawn:**
+
+| | rows in 7 days | chips it earns |
+|---|---|---|
+| Events | 26 | Music (20 gatherings at 14 venues), Sport (5 at 4) |
+| Community | 18 | Games, Cycling, Running — Outdoors and Markets sit below the bar and are still listed |
+
+**Three findings, each one measured rather than argued.**
+1. **Comedy is a chip with no supply, and the cause is the rubric, not the data.** 20
+   comedy drafts inside the lead window score **25–60** against a floor of 60; exactly
+   one touches it, and none has ever been published. The chip is correctly hidden,
+   which is precisely the problem: nothing anywhere said that a whole category is being
+   refused. The Publishing panel now prints it — "nothing published; 20 drafts in the
+   lead window, best score 60 against a floor of 60" — for every category, beside the
+   chips that are live and the ones below the bar. **Fixing the scoring is Alex's call**
+   (see "What fixing the comedy rubric would involve", below).
+2. **Filling in the category would have stopped the publisher dead.** `capBucket` read
+   the stored chip first, which was harmless while only hand-entered rows had one. With
+   every Ticketmaster row carrying `live_music`, the cap stopped distinguishing a club
+   night from a rock show — the distinction it exists for. Measured on the real queue
+   the night it was filled: **stored-first published 0 tonight and left the weeks at
+   4 / 48 / 30; classification-first published 12 and left them at 4 / 50 / 40.** The
+   precedence is now classification-first, with the stored chip used only where there
+   is no classification, and a unit test pinning it. This is the `FOLD_THRESHOLD` shape
+   exactly: a data improvement quietly switching off a rule, with nothing looking wrong.
+   `CAP_BUCKET` also now names all eight chip values, because the version that still
+   said `taking_part` after that split into four let unlisted values fall through and
+   become cap buckets of their own. Folding the five Community chips into one bucket was
+   measured too — identical weeks, identical refusals — and **deliberately not done**:
+   it would sit Community permanently at or above its 40% share (21 of 50 rows this
+   week) and the guard would fire in normal weather.
+3. **A Worker route that is not in `run_worker_first` never runs.** `/community`
+   returned the Expo app's own `index.html` with a 200 — the single-page fallback — so
+   the new page looked like a working page of the wrong app rather than like a 404, and
+   the stale asset response sat in Cloudflare's cache afterwards. Found by fetching the
+   deployed URL; reading the code would never have shown it. The same shape as M2.1's
+   injected beacon: **check it from outside, not from the source.**
+
+**Measured on the deployed pages** (compressed transfer, warm):
+
+| | bytes | requests of ours |
+|---|---|---|
+| `/about` — the floor, no list and no image | 7.9 KB | 1 + favicon |
+| W1 Events, 26 cards across 7 days | 9.0 KB | 1 + favicon |
+| W1 Community, 18 cards | 8.6 KB | 1 + favicon |
+| W2 crowd page | 8.8 KB + a 30 KB map | 2 + favicon |
+
+So **the whole list costs about 1.1 KB more than an empty page**: the shell is the page
+weight, and the fifty rows are nearly free. The crowd page's map came down from 57 KB
+to 30 KB as a side effect of the tighter zoom — fewer features in a smaller frame.
+**Lighthouse and the request list in a real browser are Alex's**, on the phone, per
+CLAUDE.md; the numbers above are `curl`, which is the thing that rule says not to stop
+at.
+
+**What fixing the comedy rubric would involve** (asked by Alex; not built, because the
+rubric is a product decision and the AI score is what strangers end up seeing):
+- The cap that is biting is "seated theatre and classical at most 35" (spec §6, AI
+  vetting). Comedy is not named in it, so the model is applying it by analogy — a
+  stand-up show is seated — and the scores cluster at 25–45 with one at 60.
+- The smallest honest change is **naming comedy in the rubric as its own case**, with
+  its own ceiling, and saying why: a comedy crowd is 19–35, goes in twos, and arrives
+  early to a bar near the venue, which is most of what the other four criteria reward.
+  It is a prompt change in `src/import/ai.ts` plus a **re-score of the comedy drafts
+  already in the queue** — only new drafts are scored today, so nothing would change
+  for the 51 already there without one.
+- It costs about **$0.001 a draft** at Sonnet 5 prices (M1.3 measured 740 drafts for
+  $0.77), so re-scoring the comedy queue is cents.
+- **The risk to weigh is that the rubric is the one thing deciding what strangers see**,
+  and a ceiling lifted for comedy lifts it for everything the model reads as comedy —
+  including the "Jaipur Literature Festival: In Conversation" listing currently scoring
+  32. So it wants a measured before-and-after on the real queue, the way the category
+  share had one, rather than a prompt tweak and a hope. Roughly an hour, and it belongs
+  with M4.4's rubric work or its own small pass — not inside a page milestone.
+
+**What the on-device walk found** (Alex, 20 Sept 2026; full entries in decisions.md,
+"After the M2.3 walk"). Three problems, all fixed and re-deployed, plus two things
+owed:
+1. **The map loaded inconsistently — because a visitor was fetching it.** Measured:
+   **29 of 37 venues behind a published gathering had no picture at their current key**,
+   so the first view of each showed the schematic or nothing and the second showed the
+   map. M2.1's `waitUntil` net had become the only thing that ever rendered anything,
+   and M2.3's zoom-in-the-key retired every existing render at once. The nightly run now
+   renders every reachable venue's map straight after publishing; the fallback stays a
+   net; the admin counts what is still missing and no longer calls a venue "ready"
+   because it once rendered *something*. Two smaller defects went with it: the image
+   route recomputed the zoom and 404'd on any disagreement, and the spots read swallowed
+   its error so a failure silently meant zoom 16. **All 38 venue maps now answer 200 at
+   the key their page asks for, and 37 of 37 crowd pages show the real map on a first
+   load.** Now a rule in CLAUDE.md, "A visitor is never the thing that does the work".
+2. **The back button.** The tab and the chips now replace the history entry — they are
+   query-parameter state on one page — while the pager and the cards push, and the map
+   dots no longer push a hash entry each. 247 bytes of progressive JavaScript; every
+   control still works without it.
+3. **`/community` had been serving the app's own index.html with a 200** until it was
+   added to `run_worker_first`. Alex's rule, now in CLAUDE.md: a missing Worker route
+   does not 404, it silently serves the wrong app and then gets cached.
+4. **The chip names are owed** (Alex): "Community" as a tab name, and cycling and
+   running as separate chips, may not be how a reader divides this — there may be a
+   "clubs" or "wellness" shape instead. Not touched this milestone. What any rethink
+   must keep: running is 4 gatherings / 59 rows / 2 venues and cycling is 5 / 13 / 8, so
+   they look alike and behave oppositely.
+5. **The comedy rubric, measured both ways, then shipped with its re-score** (Alex).
+   Stand-up is named as its own case and is not capped as seated theatre; panel talks,
+   readings, lectures and anything billed "in conversation" are named as capped at 35
+   whatever a ticketing site files them under. Measured before shipping, each set scored
+   **twice with the current prompt first to establish the noise floor** — individual
+   rows move 5–15 points between identical runs, so this is a distribution result and
+   not a per-row promise.
+   **As applied on staging:** all 48 comedy drafts re-scored, median **35 → 60**, and
+   **3 → 28 at or over the floor of 60**. Theatre (28 rows, 15–32), classical (8,
+   15–30) and opera (4, 20–30) were not re-scored and did not move in the controls. The
+   Jaipur Literature Festival, the one Alex named, sits at **35**, with the model's own
+   reason: "In-conversation literary event, capped despite comedian guest." Prompt and
+   re-score in one commit, because new drafts judged generously beside old ones that are
+   not is worse than either wording. `scripts/rescore.ts` is the re-score, dry by
+   default; the whole exercise cost **$0.26**.
+6. **The path to an interactive map is costed** in decisions.md: the Protomaps-on-R2
+   pipeline (6–12 h) belongs to the city map and A8, real pan and zoom belongs in the
+   app (3–6 h on top), and W2 keeps the static image because MapLibre GL JS is ~200 KB
+   gzipped against a 9 KB page. What W2 can have cheaply: "Open in Maps" for the venue
+   (minutes), two or three pre-rendered zooms with a no-JavaScript switch (1–2 h), and a
+   real map behind a tap once the pipeline exists (2–4 h).
+
+**M2.3b — the liveness check** (Alex chose it over the W2 zoom switch; full entry in
+decisions.md, "Is that run club still a run club?"). 28 hand-entered series had produced
+**188 published occurrences running to 31 December** and nothing re-checked any of them.
+Two migrations: `community_series` (provenance and verification, never recurrence),
+`gatherings.series_id`, `cities.community_weeks = 8` capping the generator,
+`community_check_runs` with its own lock, and `admin_ai_spend_today` extended to sum
+both jobs — it read `import_runs` only, so a second job's AI spend was invisible to the
+daily cap.
+Its own cron at 13:00 UTC reads the four least-recently-checked series' own pages and
+asks one narrow question each. **Measured on the first full pass: 27 of 28 confirmed, 1
+unreadable, not one false absence, $0.42 for all 28** — six cents a day at four a night.
+A deterministic check was tried first and rejected on evidence: 27 of 28 pages answer
+200, so being alive is no signal; four name no future date at all ("every Tuesday,
+6:30pm"); and seven series share one 582 KB page. Nothing is ever withdrawn by a
+machine — the loudest output is a line in the admin, and "I looked, leave it" clears it.
+The count also runs the other way: **seven series already have fewer than 21 days of
+dates left**, which nothing counted before, because a cap without a top-up is a decay
+mechanism.
+
+**Not signed off.** Alex holds the merge until he can run Lighthouse and list the
+requests from a browser on a laptop.
+
+**Carried out of M2.3:**
+- **the injected Cloudflare beacon is unchanged** — same token, same `"spa":2`, on
+  every HTML response including the two new pages. Still not in the repo, still
+  unstoppable from it; the one query that would answer it needs an account API token,
+  which is Alex's.
+- **Events run out before Community does.** Ticketmaster rows stop at the 21-day lead
+  window and the recurrence generator runs community rows to mid-November, so the second
+  and third pager pages are Community-only. Predicted, not a bug.
+- **Community has nothing on a Sunday.** The landing page (Events) has something under
+  both Today and Tomorrow; the Community tab's first heading today is Tomorrow. Honest,
+  and worth a second look once M4.4 widens the supply.
+- **An uploaded map override now carries no markers.** Our coordinates mean nothing over
+  somebody else's picture at an unknown scale, and a dot 200 m out is worse than no dot;
+  its spots are in the cards like everyone else's. No public venue has an upload today —
+  the only one on staging is a seed row — so this is latent either way.
 
 #### Superseded copy — the pin-in button
 "Pin in — I've got a ticket" is **retired** (Alex, after the M2.2 walk). Every crowd

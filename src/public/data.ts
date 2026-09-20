@@ -36,6 +36,10 @@ export interface Crowd {
   category: string | null;
   signup_required: boolean;
   source: "manual" | "ticketmaster" | "ai";
+  // The venue's id, not just its name: a chip earns its place at three gatherings in
+  // at least two distinct *places*, and counting places by name is the kind of
+  // nearly-right that bites when two rooms share one (M2.3).
+  venue_id: string;
   venue_name: string;
   city_name: string;
   city_timezone: string;
@@ -92,6 +96,10 @@ export interface Crowd2 {
     // (src/public/venuemap.ts).
     map_key: string | null;
     map_ready: string[];
+    // Every active spot at this venue, coordinates only. It is here so the map's zoom
+    // is a property of the venue rather than of this gathering's poll — see
+    // chooseZoom in venuemap.ts. Not the poll: that is `spots` below.
+    map_spots: { latitude: number | null; longitude: number | null }[];
     city_name: string;
     timezone: string;
   };
@@ -120,6 +128,28 @@ export async function crowds(env: Env, from: Date, to: Date): Promise<Crowd[]> {
 // not a URL — the admin builds the URL with getPublicUrl, and so must this.
 export function venueMapUrl(env: Env, path: string | null): string | null {
   return path ? `${projectUrl(env)}/storage/v1/object/public/venue-maps/${path.split("/").map(encodeURIComponent).join("/")}` : null;
+}
+
+// ---------------------------------------------------------------------------
+// "Which venues can a visitor reach?" — asked once, here
+//
+// **This is the second thing in one milestone to get "what is public" wrong by
+// hand-rolling it**, so it lives in the door module and nowhere else. Both times the
+// filter looked identical to the real definition and was not: `slug is not null and
+// withdrawn_at is null` reads like "published", and a gathering Alex unpublished keeps
+// its slug (M2.2, "once public, only Alex brings it back") — so Scotiabank Arena was
+// counted as needing a crowd page map for a page nobody can open.
+//
+// The rule, stated once: **a server-side job that needs to know what is public asks
+// the door, as a visitor, through the anon key, and lets RLS answer.** The service key
+// is then for the operational detail behind those rows — coordinates, render records,
+// scores — which is its own job (V12) and never a second opinion about visibility.
+// tests/unit/door.test.ts fails the build if the lookalike filter appears anywhere
+// outside this file.
+// ---------------------------------------------------------------------------
+
+export async function publicVenueIds(env: Env, from: Date, to: Date): Promise<string[]> {
+  return [...new Set((await crowds(env, from, to)).map((g) => g.venue_id))];
 }
 
 // W2, W3, W4 and the .ics: one gathering by slug, in one round trip.

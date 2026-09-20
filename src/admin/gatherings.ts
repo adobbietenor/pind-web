@@ -16,7 +16,7 @@ import {
   withdrawForm,
   withdrawnNote,
 } from "./imports";
-import { CATEGORIES, entryLine } from "@pind/shared";
+import { CATEGORIES, entryLine, TABS, tabForSource, tabLabel } from "@pind/shared";
 import { places, venueOptions, type Places } from "./places";
 import { markCell, promoteInline, promotionPanel, publishingPanel } from "./publishing";
 import { formatLocal, fromLocalInput, localDate, toLocalInput } from "./time";
@@ -372,17 +372,28 @@ function readEntry(form: FormData): Entry | string {
   return { entry, door_price_cents: Math.round(amount * 100), entry_note: note };
 }
 
-// The five a reader will filter by (M2.3). Null is a real answer — "nobody has said"
-// — and the publisher falls back to deriving a coarse kind from the source, so a
-// guess and a statement stay distinguishable.
+// The chip a reader filters by (M2.3). Null is a real answer — "nobody has said" —
+// and the row stays on every unfiltered list; the publisher's own coarse bucket comes
+// from the listing's classification, so a guess and a statement stay distinguishable.
 const CATEGORY_VALUES: string[] = CATEGORIES.map((c) => c.value);
 
 function categoryField(g: any): string {
-  const options = [`<option value="">— not said; unclassified, and still on every unfiltered list —</option>`]
-    .concat(CATEGORIES.map((c) => `<option value="${c.value}"${g?.category === c.value ? " selected" : ""}>${e(c.label)}</option>`))
-    .join("");
-  return `<label>Category <span class="muted">(the chip a reader filters by. "Take part" and "Markets &amp; street" have no source until M4.4, so hand entry is the only way they appear)</span><br>
-<select name="category">${options}</select></label>`;
+  // Grouped by the tab each chip belongs to, and the tab this gathering is actually
+  // in is named above them, because the two are decided by different things: the tab
+  // is the source, and the chip is this field. Choosing a Community chip for a
+  // Ticketmaster gathering is allowed — an open mic is music wherever it came from —
+  // but it should be a decision taken with both facts on screen.
+  const groups = TABS.map((t) => {
+    const options = CATEGORIES.filter((c) => c.tab === t.value)
+      .map((c) => `<option value="${c.value}"${g?.category === c.value ? " selected" : ""}>${e(c.label)}</option>`)
+      .join("");
+    return `<optgroup label="${e(t.label)} chips">${options}</optgroup>`;
+  }).join("");
+  const mine = g?.source ? tabLabel(tabForSource(g.source)) : null;
+  return `<label>Category <span class="muted">(the chip a reader filters by, within a tab${
+    mine ? `. This gathering is in the <strong>${e(mine)}</strong> tab, because that is its source` : ""
+  })</span><br>
+<select name="category"><option value="">— not said; unclassified, and still on every unfiltered list —</option>${groups}</select></label>`;
 }
 
 function fieldsHtml(p: Places, g: any, lockVenue: boolean): string {

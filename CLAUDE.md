@@ -179,6 +179,32 @@ from Web Analytics' automatic setup, when the HTML the Worker sends references n
 script at all. Loading the page in a real browser and listing its requests is the only
 way to see that; reading the template is not.
 
+**A missing Worker route does not 404 — it silently serves the wrong app** (Alex,
+M2.3). `/community` came back as the Expo web export's own `index.html` with a **200**,
+because anything not in `run_worker_first` is answered by the assets binding and its
+single-page fallback. So a route that was never wired up looked like a working page of
+the wrong application rather than like an error, and Cloudflare then cached that
+response for the URL. **Any new public route goes into `run_worker_first` in
+`wrangler.jsonc` in the same commit as the route itself, and the check is loading it in
+a browser — never trusting the router.** The same applies to a route you delete: the
+path keeps answering 200 with the app.
+
+## A visitor is never the thing that does the work
+
+**No page may depend on a stranger's first view to produce what the next view needs.**
+M2.1 fetched each venue's map picture in `waitUntil` when a crowd page found none: the
+page fell back and the picture was made for whoever came second. That is a safety net,
+and by M2.3 it was the only thing that ever rendered anything — so **29 of the 37
+venues behind a published gathering had no map**, and every one of those pages showed a
+drawing, or nothing, to the first person who opened it. Which is exactly the person
+arriving from a fresh Reddit post.
+
+The pattern to keep: a job renders it ahead of time (the nightly run, right after
+publishing), the fallback stays as a net, and **the admin counts what is still
+missing**. "Never fetched" leaves no failure record at all, so it is the state nothing
+notices unless something counts it — unset is a different state from broken, one layer
+down.
+
 ## Measure what the phone does, not what the server sent
 
 A fast server response is not a fast page. M2.1 hit the same one-layer-down gap three

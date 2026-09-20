@@ -45,6 +45,52 @@ h2{font-size:.8rem;letter-spacing:.09em;text-transform:uppercase;color:var(--mut
 p{margin:0 0 14px}
 .lede{color:var(--muted);margin:0 0 4px}
 
+/* W1's two tabs. Events and Community are one product and one list shape; the tabs
+   are a way into a long list, not a mode switch, so they read as a segmented control
+   rather than as navigation to somewhere else. */
+.tabs{display:flex;gap:4px;margin:18px 0 0;padding:4px;background:var(--surface);border:1px solid var(--border);border-radius:12px}
+.tabs .tab{
+  flex:1;text-align:center;padding:9px 10px;border-radius:9px;text-decoration:none;
+  color:var(--muted);font-size:.95rem;font-weight:560;letter-spacing:-.01em;
+}
+.tabs .tab:hover{color:#fff}
+.tabs .tab.on{background:var(--accent);color:#fff}
+
+/* The chips. A filter that narrows, never a sort that reorders — so they wrap onto as
+   many lines as they need and nothing here scrolls sideways or needs a script. */
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0 0}
+.chips .chip{
+  display:inline-block;padding:6px 12px;border-radius:999px;text-decoration:none;
+  border:1px solid var(--border);background:var(--surface);color:#d7d2df;
+  font-size:.88rem;line-height:1.3;
+}
+.chips .chip:hover{border-color:#6b6378;color:#fff}
+.chips .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:560}
+
+/* Which week, when it is not this one. */
+.weekline{margin:14px 0 0;color:var(--muted);font-size:.9rem}
+
+/* The day heading: the day, the date under it where it helps, and how many are on.
+   Sticky, because a fifty-row list scrolls past its own headings otherwise — CSS
+   alone, no script. */
+h2.day{
+  display:flex;align-items:baseline;gap:8px;position:sticky;top:0;z-index:2;
+  margin:26px 0 10px;padding:8px 0 7px;background:var(--bg);
+  font-size:1rem;letter-spacing:-.01em;text-transform:none;color:var(--text);font-weight:640;
+  border-bottom:1px solid var(--border);
+}
+h2.day .daydate{font-size:.82rem;font-weight:400;color:var(--muted);letter-spacing:0}
+h2.day .daycount{margin-left:auto;font-size:.8rem;font-weight:500;color:var(--muted)}
+
+/* One week forward, one back. */
+.pager{display:flex;gap:10px;margin:28px 0 0}
+.pager .page{
+  flex:1;padding:13px 14px;border:1px solid var(--border);border-radius:12px;
+  background:var(--surface);text-decoration:none;color:#d7d2df;font-size:.92rem;
+}
+.pager .page:hover{border-color:#6b6378;color:#fff}
+.pager .next{text-align:right}
+
 /* Cards */
 .card{
   display:block;background:var(--surface);border:1px solid var(--border);border-radius:14px;
@@ -72,6 +118,17 @@ a.card:hover{border-color:#453f52;background:#1c1922}
 .signup{margin:0 0 10px;font-size:.94rem;text-align:center;color:#d7d2df}
 .signup a{color:#fff}
 
+/* The question the counts answer. A heading, not a lede: it is the thing the reader
+   came to the page for, and the counts under it are the answer. */
+h2.asks{
+  margin:24px 0 10px;font-size:1.12rem;text-transform:none;letter-spacing:-.01em;
+  color:var(--text);font-weight:640;
+}
+
+/* What happens at five: a fact underneath, never the message. The threshold is our
+   mechanic and not the reader's reason (Alex, after the M2.3 walk). */
+.rule{margin:8px 0 0;font-size:.84rem;color:#736d7e}
+
 /* Counts on the crowd page */
 .tallies{display:flex;gap:10px;margin:18px 0 6px}
 .tally-box{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 14px}
@@ -84,6 +141,9 @@ figure{margin:20px 0 0}
 figure svg{display:block;width:100%;height:auto;background:var(--surface);border:1px solid var(--border);border-radius:14px}
 figcaption{font-size:.82rem;color:var(--muted);margin-top:8px}
 .credit{font-size:.76rem;color:#736d7e}
+/* "Open in Maps": the phone's own map app, which is the interactive map this page
+   cannot afford to be. Beside the caption, not competing with the button. */
+.openmap{white-space:nowrap}
 .credit a{color:#736d7e}
 
 /* The real map: one image, everything meaningful in HTML on top of it. The aspect
@@ -96,19 +156,24 @@ figcaption{font-size:.82rem;color:var(--muted);margin-top:8px}
 .north{position:absolute;right:10px;top:8px;font-size:.7rem;color:var(--muted);background:rgba(11,10,13,.72);border-radius:6px;padding:3px 7px;letter-spacing:.06em}
 .north::before{content:"▲";display:block;font-size:.62rem;line-height:1;margin-bottom:1px}
 
-/* A spot. The whole thing is the tap target, and it opens the phone's own maps app. */
-.pin{position:absolute;transform:translate(-50%,-50%);display:flex;align-items:center;gap:6px;text-decoration:none;color:#fff;max-width:60%}
-.pin .dotm{flex:0 0 auto;width:13px;height:13px;border-radius:50%;background:var(--accent);box-shadow:0 0 0 3px rgba(11,10,13,.85)}
-.pin .lbl{display:block;background:rgba(11,10,13,.82);border:1px solid rgba(255,255,255,.14);border-radius:9px;padding:5px 9px;line-height:1.25}
-.pin .lbl b{display:block;font-size:.8rem;font-weight:640;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pin .lbl i{display:block;font-style:normal;font-size:.7rem;color:var(--muted)}
-.pin .lbl u{display:block;font-size:.7rem;color:#c9a6ee;text-decoration:none;margin-top:2px}
-.pin:hover .lbl{background:rgba(88,40,131,.92);border-color:var(--accent)}
-.pin:hover .lbl u{color:#fff}
-/* Labels near the right edge flip to the other side of their dot. */
-.pin.flip{flex-direction:row-reverse}
+/* A spot on the map: a numbered dot, and nothing else. The name, the walk, the meet
+   time and the directions link are in its card below, which is what a crew choosing
+   between three spots actually needs — and a dot cannot overlap its neighbour the way
+   three name labels do on a phone. The tap target is 34px, above the 24px minimum,
+   although the dot draws smaller. */
+.pin{
+  position:absolute;transform:translate(-50%,-50%);width:34px;height:34px;
+  display:flex;align-items:center;justify-content:center;text-decoration:none;
+}
+.pin .num{
+  width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;
+  display:flex;align-items:center;justify-content:center;
+  font-size:.78rem;font-weight:700;line-height:1;
+  box-shadow:0 0 0 2px rgba(11,10,13,.9),0 1px 4px rgba(0,0,0,.5);
+}
+.pin:hover .num,.pin:focus-visible .num{background:#fff;color:var(--accent)}
 
-a.dirs{margin-left:6px;font-size:.82rem;white-space:nowrap}
+a.dirs{display:inline-block;margin-top:8px;font-size:.88rem}
 
 /* House rules */
 .rules{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:6px 18px 6px 34px;margin:22px 0 0}
@@ -128,9 +193,25 @@ a.dirs{margin-left:6px;font-size:.82rem;white-space:nowrap}
 .cta:hover{background:var(--accent-lift);color:#fff}
 .note{font-size:.86rem;color:var(--muted);text-align:center;margin:0}
 
+/* A spot is a card, not a maps link (decisions Part 5). What it is like, and whether
+   six can get a table, arrive with the manual pass; the shape is here waiting for
+   them, and an empty field prints nothing rather than something guessed. */
 .spots{list-style:none;padding:0;margin:14px 0 0}
-.spots li{padding:10px 0;border-top:1px solid var(--border);font-size:.95rem}
-.spots .meta{color:var(--muted);font-size:.86rem}
+.spots .spot{
+  background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:14px 16px;margin:0 0 10px;font-size:.95rem;scroll-margin-top:64px;
+}
+/* Arriving from the map: the card says so. :target is the no-JavaScript path; .lit is
+   the same thing reached without pushing a history entry (see W2's script). */
+.spots .spot:target,.spots .spot.lit{border-color:var(--accent);background:#1c1922}
+.spots .spot-top{display:flex;align-items:center;gap:9px}
+.spots .spot-top .num{
+  flex:0 0 auto;width:22px;height:22px;border-radius:50%;background:var(--accent);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:.74rem;font-weight:700;
+}
+.spots .spot-top b{font-size:1.02rem;font-weight:620;letter-spacing:-.01em}
+.spots .spot-what{margin:8px 0 0;color:#d7d2df;font-size:.92rem}
+.spots .meta{color:var(--muted);font-size:.86rem;margin-top:7px}
 
 .quiet{color:var(--muted)}
 .empty{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;color:var(--muted)}

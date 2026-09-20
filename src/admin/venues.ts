@@ -4,7 +4,8 @@
 // Map images go in the PUBLIC venue-maps bucket (decisions Part 5): a public building
 // and its public spots, never a person (H1). Only this admin writes there.
 import { spotSuggestionsOn } from "../env";
-import { MAX_ATTEMPTS, frameMetres, place, renderVenueMap } from "../public/venuemap";
+import { venuesWithoutMaps } from "../public/mapserve";
+import { MAX_ATTEMPTS, chooseZoom, frameMetres, place, renderVenueMap } from "../public/venuemap";
 import { distanceKm } from "../import/ticketmaster";
 import type { AdminContext, AdminHandler } from "./context";
 import { adminPage, back, e, here, link, must, notFound, postButton, str } from "./ui";
@@ -81,12 +82,22 @@ export const venueList: AdminHandler = async (request, ctx) => {
   });
   const stuck = failing.filter((v: any) => (byVenue.get(v.id) ?? []).some((r) => r.attempts >= MAX_ATTEMPTS));
 
+  // **A venue a stranger can reach today whose picture is not there.** This is the
+  // state nothing counted: "never fetched" leaves no render record at all, so it was
+  // neither "ready" nor "failing" and read as fine. Measured on the walk — 29 of the
+  // 37 venues behind a published gathering were in it, because M2.3's zoom retired
+  // every earlier render. Unset is a different state from broken (CLAUDE.md).
+  const noMap = await venuesWithoutMaps(ctx.env);
+
   const rows = venues
     .map((v: any) => {
       const approved = (v.meeting_spots ?? []).filter((s: any) => s.active).length;
       const pending = (v.spot_suggestions ?? []).filter((s: any) => s.status === "pending").length;
       const rs = byVenue.get(v.id) ?? [];
-      const ok = rs.some((r) => r.status === "ok");
+      // Ready at the key its coordinates and spots ask for **now** — not "has ever
+      // rendered anything". A venue whose key has moved on used to read "ready" here
+      // while its crowd page served a 404 for the image it was asking for.
+      const ok = !noMap.some((n) => n.id === v.id);
       const gaveUp = rs.some((r) => r.attempts >= MAX_ATTEMPTS);
       const map = v.map_image_path
         ? "uploaded"
@@ -110,7 +121,13 @@ export const venueList: AdminHandler = async (request, ctx) => {
   const banner = failing.length
     ? `<p class="bad">${failing.length} venue${failing.length === 1 ? "" : "s"} cannot fetch a crowd page map${stuck.length ? `, and ${stuck.length} of them stopped retrying after ${MAX_ATTEMPTS} attempts` : ""}. Their crowd pages fall back quietly, so they only show up here: ${failing.map((v: any) => `<a href="/admin/venues/${e(v.id)}">${e(v.name)}</a>`).join(", ")}</p>`
     : "";
-  const body = `${noToken}${banner}${strandedSpotsPanel(strays)}<table><tr><th>Venue</th><th>City</th><th>Approved spots</th><th>AI suggestions</th><th>Map</th></tr>
+  const pending = noMap.length
+    ? `<p class="bad">${noMap.length} venue${noMap.length === 1 ? "" : "s"} behind a published gathering in the next four weeks ${noMap.length === 1 ? "has" : "have"} no map at the key their coordinates and spots ask for now, so ${noMap.length === 1 ? "its crowd page" : "their crowd pages"} show the drawing, or nothing where there are no spots to draw. The nightly run fetches them; it does not wait for a visitor to open the page. ${noMap
+        .slice(0, 12)
+        .map((n) => `<a href="/admin/venues/${e(n.id)}">${e(n.name)}</a>`)
+        .join(", ")}${noMap.length > 12 ? `, and ${noMap.length - 12} more` : ""}</p>`
+    : `<p class="good">Every venue behind an upcoming gathering has its map.</p>`;
+  const body = `${noToken}${banner}${pending}${strandedSpotsPanel(strays)}<table><tr><th>Venue</th><th>City</th><th>Approved spots</th><th>AI suggestions</th><th>Map</th></tr>
 ${rows || `<tr><td colspan="5">No venues yet.</td></tr>`}</table>
 <h2>Add a venue</h2>
 <form method="post" action="/admin/venues"><input type="hidden" name="back" value="/admin/venues">
@@ -138,13 +155,13 @@ export const createVenue: AdminHandler = async (request, ctx) => {
 // What the crowd page's map is doing for this venue, and why it is not doing it.
 // A venue whose picture fails every time would otherwise be invisible — it would just
 // show the fallback forever, with nobody the wiser.
-function mapPanel(v: any, renders: any[], noToken: boolean): string {
+function mapPanel(v: any, renders: any[], noToken: boolean, zoom: number): string {
   if (v.latitude === null) {
     return `<p class="bad">No coordinates, so no map can be fetched. The crowd page falls back to the schematic, or to the spot list. Add coordinates above.</p>`;
   }
   const current = renders.find((r) => r.status === "ok");
   const failed = renders.filter((r) => r.status !== "ok");
-  const frame = frameMetres(v.latitude);
+  const frame = frameMetres(v.latitude, zoom);
 
   const lines: string[] = [];
   if (noToken) {
@@ -153,7 +170,7 @@ function mapPanel(v: any, renders: any[], noToken: boolean): string {
     );
   }
   lines.push(
-    `<p class="muted">The frame is about ${frame} m across, centred on the venue. A spot outside it is listed on the crowd page with its walking minutes and a directions link, and the page says it is not on the map.</p>`,
+    `<p class="muted">Drawn at zoom ${zoom}, so the frame is about ${frame} m across, centred on the venue. The zoom comes from this venue's own spots: the picture goes as far in as it can while still holding every spot that fits at zoom 16, so spots a two-minute walk apart do not land on top of each other. A spot outside the widest frame is listed on the crowd page with its walking minutes and a directions link, and the page says it is not on the map.</p>`,
   );
   if (current) {
     lines.push(
@@ -189,10 +206,14 @@ export const venueDetail: AdminHandler = async (request, ctx) => {
 
   // A spot outside the crowd page's map frame is the M5.2 distance signal, seen here
   // rather than only by a stranger on the public page.
+  // The zoom this venue's picture is drawn at, from its own active spots — the same
+  // answer the crowd page and the render job get, from the same input.
+  const zoom = chooseZoom(v, spots.filter((s: any) => s.active));
   const offMap = (sp: any): boolean =>
     v.latitude !== null && sp.latitude !== null && !place(
       { latitude: v.latitude, longitude: v.longitude },
       { latitude: sp.latitude, longitude: sp.longitude },
+      zoom,
     ).onMap;
   const backTo = here(request);
   const approved = spots.filter((s: any) => s.active).length;
@@ -266,7 +287,7 @@ lng <input name="longitude" size="11" placeholder="-79.3776">
 
 <h2>Crowd page map</h2>
 <p class="muted">The venue and its meeting spots, never people (H1). The picture is fetched once from Mapbox for these coordinates and served from pind.social, never from Supabase. Markers, names and walking minutes are drawn over it by the page, so approving a spot later needs no new picture.</p>
-${mapPanel(v, renders, !ctx.env.MAPBOX_TOKEN?.trim())}
+${mapPanel(v, renders, !ctx.env.MAPBOX_TOKEN?.trim(), zoom)}
 ${v.latitude !== null ? postButton(`/admin/venues/${id}/map/fetch`, renders.some((r: any) => r.status === "ok") ? "Fetch the map again" : "Fetch the map now", backTo, { cls: "plain" }) : ""}
 <h3>Uploaded override</h3>
 <p class="muted">Optional. An uploaded image replaces the fetched one. PNG, JPEG or WebP, up to 2 MB.</p>
@@ -319,7 +340,14 @@ export const fetchVenueMap: AdminHandler = async (request, ctx) => {
   const { data: key } = await ctx.db.rpc("venue_map_key", { p_lat: venue.latitude, p_lng: venue.longitude });
   await ctx.db.from("venue_map_renders").delete().eq("venue_id", id);
 
-  const outcome = await renderVenueMap(ctx.env.MAPBOX_TOKEN, ctx.db as never, { ...venue, map_key: (key as string | null) ?? null }, 0);
+  const active = await must(ctx.db.from("meeting_spots").select("latitude, longitude").eq("venue_id", id).eq("active", true));
+  const outcome = await renderVenueMap(
+    ctx.env.MAPBOX_TOKEN,
+    ctx.db as never,
+    { ...venue, map_key: (key as string | null) ?? null },
+    0,
+    chooseZoom(venue, active),
+  );
   return back(form, outcome.ok ? { ok: `Map fetched (${Math.round((outcome.bytes ?? 0) / 1024)} KB)` } : { err: outcome.error ?? "Fetching the map failed" });
 };
 

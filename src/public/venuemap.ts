@@ -21,13 +21,20 @@
 // The Mapbox key is a Worker secret and is never in the page: the Worker fetches the
 // image server-side, exactly like the Anthropic and Ticketmaster keys.
 
-// Bump this when the picture itself should change — zoom, size, style. It is part of
-// the URL, so every page starts asking for a new file and the old ones are simply
-// never requested again. Nothing to purge.
-const VERSION = "v1";
+// Bump this when the picture itself should change — size, style, or how the zoom is
+// chosen. It is part of the URL, so every page starts asking for a new file and the
+// old ones are simply never requested again. Nothing to purge.
+//
+// v2 (M2.3): the zoom is no longer one number for every venue. See chooseZoom.
+const VERSION = "v2";
 
 const STYLE = "mapbox/dark-v11"; // near-black, to sit inside the page rather than glare out of it
-const ZOOM = 16;
+// The widest picture we ever draw, and what "on the map" means: a spot outside this
+// frame is listed and said to be further out, at every zoom.
+const BASE_ZOOM = 16;
+// As far in as a venue's map may go. Each step halves the ground covered and doubles
+// the distance between two spots on screen.
+const MAX_ZOOM = 18;
 const WIDTH = 768;
 const HEIGHT = 480;
 // Measured on the real style, 2026-09-20: @1x is 22.9 KB and @2x is 57.4 KB as WebP.
@@ -55,10 +62,12 @@ export interface MapVenueRow {
   map_ready: string[];
 }
 
-// The full key: the venue's coordinates (from the database) plus this renderer's
-// version. Correcting coordinates or changing the picture both change it.
-export function mapKey(venue: { map_key: string | null }): string | null {
-  return venue.map_key ? `${venue.map_key}-${VERSION}` : null;
+// The full key: the venue's coordinates (from the database), this renderer's version,
+// and the zoom the venue's own spots ask for. Correcting coordinates, changing the
+// picture, or approving a spot that moves the zoom all mint a new key — and therefore
+// a new immutable URL, with nothing stale left able to be served.
+export function mapKey(venue: { map_key: string | null }, zoom: number): string | null {
+  return venue.map_key ? `${venue.map_key}-${VERSION}z${zoom}` : null;
 }
 
 export const objectPath = (venueId: string, key: string) => `${venueId}/map-${key}.webp`;
@@ -66,8 +75,8 @@ export const objectPath = (venueId: string, key: string) => `${venueId}/map-${ke
 // What W2 puts in the img src. Our origin, content-addressed, cacheable forever.
 export const mapUrl = (venueId: string, key: string) => `/map/${venueId}-${key}.webp`;
 
-export function isReady(venue: MapVenueRow): boolean {
-  const key = mapKey(venue);
+export function isReady(venue: MapVenueRow, zoom: number): boolean {
+  const key = mapKey(venue, zoom);
   return key !== null && venue.map_ready.includes(key);
 }
 
@@ -99,39 +108,99 @@ export interface Placed {
   onMap: boolean;
 }
 
+// A margin, so a marker is only called "on the map" when it has room to be drawn.
+const MARGIN = 26;
+
+// The room a marker wants before the picture is zoomed in *further*, which is a
+// different question from whether it is on the map at all. Measured on the deployed
+// page: Snakes & Lattes' three spots are so close that "still inside the frame" chose
+// zoom 18 and put two dots at 6% and 96% across — inside the picture, and visibly
+// jammed against its edges, with the right-hand one clipped at phone width. So the
+// wide frame keeps MARGIN, which decides what is drawn, and zooming in has to clear
+// this instead.
+const COMFORT = 64;
+
+function inset(
+  centre: { latitude: number; longitude: number },
+  point: { latitude: number; longitude: number },
+  zoom: number,
+  margin: number,
+): boolean {
+  const c = project(centre.latitude, centre.longitude, zoom);
+  const p = project(point.latitude, point.longitude, zoom);
+  const x = WIDTH / 2 + (p.x - c.x);
+  const y = HEIGHT / 2 + (p.y - c.y);
+  return x >= margin && x <= WIDTH - margin && y >= margin && y <= HEIGHT - margin;
+}
+
 export function place(
   centre: { latitude: number; longitude: number },
   point: { latitude: number; longitude: number },
+  zoom: number,
 ): Placed {
-  const c = project(centre.latitude, centre.longitude, ZOOM);
-  const p = project(point.latitude, point.longitude, ZOOM);
+  const c = project(centre.latitude, centre.longitude, zoom);
+  const p = project(point.latitude, point.longitude, zoom);
   const x = WIDTH / 2 + (p.x - c.x);
   const y = HEIGHT / 2 + (p.y - c.y);
-  // A margin, so a marker is only called "on the map" when its label has room too.
-  const margin = 26;
   return {
     left: (x / WIDTH) * 100,
     top: (y / HEIGHT) * 100,
-    onMap: x >= margin && x <= WIDTH - margin && y >= margin && y <= HEIGHT - margin,
+    onMap: inset(centre, point, zoom, MARGIN),
   };
 }
 
+// ---------------------------------------------------------------------------
+// How far in the picture goes
+//
+// The problem, measured on the real venues rather than imagined: of the six with more
+// than one meeting spot, **three have spots that land within one label's width of each
+// other** at a fixed zoom of 16. Snakes & Lattes College has three inside a box 23% of
+// the picture wide and 9% tall; Left Field's two are 5% apart. Those spots are a
+// two-minute walk from each other, so the picture, not the label, is what is wrong:
+// at zoom 16 one frame covers about 1.3 km of a city where every spot is inside 500 m.
+//
+// So the zoom is chosen per venue, and the rule has to be monotone or it would
+// oscillate: zoom 16 decides **which spots are on the map at all** — that is the
+// widest frame, and a spot outside it is listed as further out, as before — and then
+// the picture zooms in as far as it can while still holding exactly those spots.
+// Zooming in never adds a spot, so the set never changes underneath the choice.
+//
+// It is a property of the VENUE, from all of its active spots, never of one
+// gathering's poll: two gatherings at one venue must not want two different pictures,
+// or "one Mapbox image per venue, ever" quietly becomes one per gathering, which is
+// the cost rule this whole file exists to keep.
+export function chooseZoom(
+  centre: { latitude: number | null; longitude: number | null },
+  spots: { latitude: number | null; longitude: number | null }[],
+): number {
+  if (centre.latitude === null || centre.longitude === null) return BASE_ZOOM;
+  const c = { latitude: centre.latitude, longitude: centre.longitude };
+  const near = spots
+    .filter((s): s is { latitude: number; longitude: number } => s.latitude !== null && s.longitude !== null)
+    .filter((s) => place(c, s, BASE_ZOOM).onMap);
+  if (near.length === 0) return BASE_ZOOM;
+
+  let zoom = BASE_ZOOM;
+  while (zoom < MAX_ZOOM && near.every((s) => inset(c, s, zoom + 1, COMFORT))) zoom += 1;
+  return zoom;
+}
+
 // The frame's width in metres, for the admin to explain itself with.
-export function frameMetres(lat: number): number {
-  return Math.round(WIDTH * ((156543.03392 * Math.cos((lat * Math.PI) / 180)) / 2 ** ZOOM));
+export function frameMetres(lat: number, zoom: number): number {
+  return Math.round(WIDTH * ((156543.03392 * Math.cos((lat * Math.PI) / 180)) / 2 ** zoom));
 }
 
 // ---------------------------------------------------------------------------
 // Fetching it, once
 // ---------------------------------------------------------------------------
 
-function mapboxUrl(token: string, lat: number, lng: number): string {
+function mapboxUrl(token: string, lat: number, lng: number, zoom: number): string {
   // The format matters: a vector style with no extension comes back as PNG, which
   // measured 131.7 KB against WebP's 57.4 KB for the identical picture.
   const size = `${WIDTH}x${HEIGHT}${RETINA ? "@2x" : ""}.webp`;
   return (
     `https://api.mapbox.com/styles/v1/${STYLE}/static/` +
-    `${lng.toFixed(6)},${lat.toFixed(6)},${ZOOM},0,0/${size}` +
+    `${lng.toFixed(6)},${lat.toFixed(6)},${zoom},0,0/${size}` +
     `?access_token=${encodeURIComponent(token)}${ATTRIBUTION}`
   );
 }
@@ -154,8 +223,12 @@ export async function renderVenueMap(
   service: { storage: any; rpc: (fn: string, args: Record<string, unknown>) => Promise<{ error: unknown }> },
   venue: { id: string; latitude: number | null; longitude: number | null; map_key: string | null },
   attemptsSoFar: number,
+  // The zoom the venue's own spots ask for (chooseZoom). Passed in rather than
+  // worked out here, so the picture and the markers drawn over it can never be at
+  // different zooms: the caller has one answer and uses it for both.
+  zoom: number,
 ): Promise<RenderOutcome> {
-  const key = mapKey(venue);
+  const key = mapKey(venue, zoom);
   if (!key || venue.latitude === null || venue.longitude === null) {
     return { ok: false, error: "the venue has no coordinates" };
   }
@@ -168,7 +241,7 @@ export async function renderVenueMap(
 
   let outcome: RenderOutcome;
   try {
-    const response = await fetch(mapboxUrl(token, venue.latitude, venue.longitude));
+    const response = await fetch(mapboxUrl(token, venue.latitude, venue.longitude, zoom));
     if (!response.ok) {
       // Mapbox puts the reason in the body; keep it short and never log the token.
       const detail = (await response.text()).slice(0, 200);

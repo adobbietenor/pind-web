@@ -40,7 +40,12 @@
   // (ScheduledController) into the database on every run — so if this line ever
   // changes, or if the above is ever wrong, the watchdog follows it instead of
   // raising a phantom alarm.
-  "triggers": { "crons": ["0 8 * * *"] },
+  // M2.3b adds the second: the community liveness check at 13:00 UTC (9am EDT), which
+  // reads a few series' own pages and records whether they still say the gathering
+  // happens. Its own schedule, its own run row and its own lock — src/index.ts picks
+  // the job by the expression that fired, and src/community/run.ts holds the matching
+  // constant.
+  "triggers": { "crons": ["0 8 * * *", "0 13 * * *"] },
 
   // M2.2: Workers Logs, on and unsampled. Without it there is no invocation history
   // at all, which is why nobody could tell whether the cron fired on the two nights
@@ -71,12 +76,20 @@
   // M2.1 adds the public layer. "/g/*" is listed although /g/<slug>/pin is an APP
   // route: the Worker takes the whole prefix and hands back what it does not own
   // through the ASSETS binding, which keeps one place deciding what is public.
+  //
+  // M2.3 adds "/community", W1's second tab. **A Worker route that is not listed here
+  // never runs**: the assets binding answers first and the app's single-page fallback
+  // returns its own index.html with a 200, so the new page looked like a working page
+  // of the wrong app rather than like a 404. Found by fetching the deployed URL, not
+  // by reading the code — which is the M2.1 rule about checking from a browser, one
+  // layer down again.
   "assets": {
     "binding": "ASSETS",
     "directory": "./app/dist",
     "not_found_handling": "single-page-application",
     "run_worker_first": [
       "/",
+      "/community",
       "/health",
       "/admin",
       "/admin/*",

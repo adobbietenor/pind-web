@@ -34,7 +34,11 @@ export async function publicRoutes(request: Request, env: Env, ctx?: ExecutionCo
   const uploaded = /^\/venue-map\/([0-9a-f-]{36})-([a-z0-9]{1,12})$/.exec(pathname);
   if (uploaded) return venueMapUpload(request, env, ctx, uploaded[1]!, uploaded[2]!);
 
-  if (pathname === "/") return w1(request, env);
+  // The two tabs are two paths, not a query parameter: "pind.social/community" is a
+  // link worth pasting into a run-club thread on its own, and "/" stays the shortest
+  // possible thing to paste anywhere else (Claude's call, M2.3 — Alex left it to me).
+  if (pathname === "/") return w1(request, env, "events");
+  if (pathname === "/community") return w1(request, env, "community");
   if (pathname === "/about") return about();
   if (pathname === "/robots.txt") return robots();
   if (pathname === "/favicon.svg") return favicon();

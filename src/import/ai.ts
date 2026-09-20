@@ -10,6 +10,31 @@ export const MODEL = "claude-sonnet-5";
 
 // ---------------------------------------------------------------------------
 // Scoring (decisions Part 5, "AI vetting")
+//
+// **Comedy is named as its own case** (Alex, after the M2.3 walk). It was not, and the
+// model was applying the seated-theatre cap to stand-up by analogy: 48 comedy drafts in
+// the queue scoring a median of 35 against a floor of 60, **three of them ever
+// publishable**, so the Events tab could show a Comedy chip only by showing nothing.
+// A whole category was being refused by a rule that was never written about it.
+//
+// Measured both ways before it shipped, because the score is the one thing deciding
+// what strangers see — and each set was scored twice with the *current* prompt first,
+// to find the noise floor before claiming a shift:
+//
+//   comedy (48)          stored 35 median, 3 at or over 60
+//                        same prompt again: 40 median, 4 over — so ±5-15 a row is noise
+//                        with this wording: 65 median, 32 over
+//   theatre, classical,
+//   opera (8 controls)   unchanged at 25-35: still capped
+//   the literature
+//   festival Alex named  32 → 35, with the model's own reason: "In-conversation
+//                        literary event, capped despite comedian guest"
+//
+// Which is why the second clause exists: lifting the ceiling for comedy must not lift
+// it for everything a ticketing site happens to file under Comedy, and "in
+// conversation" is where that leaks. The prompt and the re-score of the existing queue
+// shipped in one commit (scripts/rescore.ts), because new drafts scored generously
+// beside old ones that are not is worse than either.
 // ---------------------------------------------------------------------------
 
 export const SCORING_SYSTEM = `You vet real public events in Toronto for Pin'd, a service where people who are going to the same event meet up beforehand in small crews at a public spot near the venue, then go in together. Pin'd works best where many people go alone or in pairs, the audience is mostly aged 19 to 35, the crowd is big, and there is time and a place to meet before the start.
@@ -17,13 +42,14 @@ export const SCORING_SYSTEM = `You vet real public events in Toronto for Pin'd, 
 Score each event from 0 to 100 by adding five parts:
 1. Crowd size, 0-30: stadium or arena 30; 2,000-5,000 capacity 20; 500-2,000 12; under 500 5.
 2. Audience aged 19-35, 0-25: judge from the artist's, team's or show's actual fan base.
-3. People going alone or in small groups, 0-20: games, general-admission concerts and club nights are high; seated theatre and date-night shows are low.
+3. People going alone or in small groups, 0-20: games, general-admission concerts and club nights are high; seated theatre and date-night shows are low. Stand-up comedy belongs with the high group, not the low one: people come in ones and twos and drink nearby first.
 4. Time and place to meet before, 0-15: an evening start, doors well before the show and bars nearby are high; daytime or walk-in-and-sit is low.
 5. Shared identity, 0-10: sports fandom and devoted fan bases give strangers something to talk about.
 
 Hard caps, applied after adding:
 - Kids' and family shows, and any event whose audience is mostly under 19: at most 10. Pin'd is 19+ only.
-- Seated theatre, classical, opera and ballet: at most 35.
+- Stand-up comedy is not seated theatre and is not capped. Score it on the five parts: a comedy audience is mostly 19-35, arrives in ones and twos, and has a drink nearby beforehand, whether the room is a club or a theatre.
+- Seated theatre, classical, opera and ballet: at most 35. Panel talks, readings, literary events, lectures and anything billed as "in conversation" are capped at 35 too — they are not comedy, whatever a ticketing site files them under.
 - Anything that is not an event people attend (a parking pass, an add-on, a voucher, a tour slot, a season-ticket listing): 0, with the reason "Not an event."
 
 The distance from downtown is shown for context only; do not adjust for it.

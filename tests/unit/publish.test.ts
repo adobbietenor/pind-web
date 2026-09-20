@@ -15,6 +15,8 @@ import {
   type PublishSettings,
   type WeekState,
 } from "../../src/publish/plan.ts";
+import { capBucket } from "../../src/publish/run.ts";
+import { CATEGORIES } from "../../packages/shared/src/constants.ts";
 
 const TZ = "America/Toronto";
 
@@ -576,5 +578,49 @@ describe("rooms too small for a crew to form in", () => {
   it("still lets Alex publish a small room by hand — the mark outranks this too", () => {
     const tiny = draft({ capacity: 3, mark: "publish" });
     assert.deepEqual(plan([tiny]).picks, [tiny.id]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// M2.3 — which bucket the category cap counts a gathering in
+// ---------------------------------------------------------------------------
+
+describe("the cap's vocabulary", () => {
+  it("reads the listing's own classification, not the chip a reader sees", () => {
+    // The chips and the cap are different taxonomies doing different jobs. M2.3 gave
+    // every Ticketmaster gathering a chip, and `live_music` covers both a rock show
+    // and a club night — a distinction the cap exists to keep.
+    assert.equal(capBucket("live_music", "Music / Dance/Electronic"), "clubs");
+    assert.equal(capBucket("live_music", "Music / Rock"), "concerts");
+    assert.equal(capBucket("sport", "Sports / Hockey"), "sports");
+    assert.equal(capBucket("comedy", "Arts & Theatre / Comedy"), "arts");
+  });
+
+  it("measured: the old precedence stopped the publisher the night the chips landed", () => {
+    // Weeks ending at 4 / 48 / 30 with nothing published, against 4 / 50 / 40 with
+    // twelve published, on the real queue. Both readings look right in the code; one
+    // of them silently switches the cap onto a distinction it can no longer make.
+    // This case is the regression that measurement bought.
+    const music = ["Music / Rock", "Music / Pop", "Music / Dance/Electronic", "Music / Hip-Hop/Rap"];
+    const buckets = new Set(music.map((c) => capBucket("live_music", c)));
+    assert.ok(buckets.size > 1, "every kind of music fell into one bucket");
+  });
+
+  it("falls back to the stored chip for a gathering entered by hand", () => {
+    // Community rows have no classification: nobody sold a ticket for them.
+    assert.equal(capBucket("running", null), "running");
+    assert.equal(capBucket("markets", null), "markets");
+    assert.equal(capBucket(null, null), "other");
+  });
+
+  it("names every chip value, so none becomes a bucket of its own by accident", () => {
+    // The table that listed `taking_part` after it had split into four had a hole in
+    // it: an unlisted value fell through and quietly became its own cap bucket with
+    // its own allowance. Every value in packages/shared is named here.
+    for (const c of CATEGORIES) {
+      const bucket = capBucket(c.value, null);
+      assert.equal(typeof bucket, "string");
+      assert.notEqual(bucket, "", `${c.value} has no cap bucket`);
+    }
   });
 });
