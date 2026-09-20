@@ -29,9 +29,30 @@
     { "pattern": "www.pind.social/*", "zone_name": "pind.social" }
   ],
 
-  // M1.3: the nightly Ticketmaster import. Cron runs in UTC; 08:00 UTC is 4am in
-  // Toronto in summer (EDT) and 3am in winter (EST), so no daylight-saving logic.
+  // M1.3: the nightly Ticketmaster import. **Cloudflare cron triggers are always
+  // interpreted in UTC** — there is no timezone setting and the dashboard shows them
+  // in UTC too — so 08:00 here is 08:00 UTC, which is 4am in Toronto in summer (EDT)
+  // and 3am in winter (EST). No daylight-saving logic on our side.
+  //
+  // M2.2 does not rely on that being true. The watchdog that notices a missed night
+  // derives its threshold from the schedule rather than from a fixed hour, and the
+  // Worker reports the cron expression and the real scheduled time it was fired with
+  // (ScheduledController) into the database on every run — so if this line ever
+  // changes, or if the above is ever wrong, the watchdog follows it instead of
+  // raising a phantom alarm.
   "triggers": { "crons": ["0 8 * * *"] },
+
+  // M2.2: Workers Logs, on and unsampled. Without it there is no invocation history
+  // at all, which is why nobody could tell whether the cron fired on the two nights
+  // the import silently did not run. It belongs here and not in the dashboard for the
+  // same reason the routes do: config I cannot reproduce from this repo is a broken
+  // repo. A nightly cron and a handful of visitors are nowhere near the sampling
+  // threshold, so head_sampling_rate stays at 1 — a sampled log is worse than none
+  // when the question is "did this one invocation happen".
+  //
+  // Logs answer that question only for someone who goes and looks; the pg_cron
+  // watchdog is what reaches out. Both, deliberately.
+  "observability": { "enabled": true, "head_sampling_rate": 1 },
 
   // Not secrets. The hard daily AI spend cap, US dollars per Toronto calendar day;
   // AI spot suggestions stay off until M1.3b ("on" to enable).

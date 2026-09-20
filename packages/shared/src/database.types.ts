@@ -1171,6 +1171,39 @@ export type Database = {
         }
         Relationships: []
       }
+      ops_import_schedule: {
+        Row: {
+          cron: string
+          grace_minutes: number
+          id: boolean
+          reported_at: string | null
+          reported_cron: string | null
+          reported_scheduled_time: string | null
+          utc_hour: number
+          utc_minute: number
+        }
+        Insert: {
+          cron?: string
+          grace_minutes?: number
+          id?: boolean
+          reported_at?: string | null
+          reported_cron?: string | null
+          reported_scheduled_time?: string | null
+          utc_hour?: number
+          utc_minute?: number
+        }
+        Update: {
+          cron?: string
+          grace_minutes?: number
+          id?: boolean
+          reported_at?: string | null
+          reported_cron?: string | null
+          reported_scheduled_time?: string | null
+          utc_hour?: number
+          utc_minute?: number
+        }
+        Relationships: []
+      }
       outbound_messages: {
         Row: {
           channel: Database["public"]["Enums"]["contact_kind"]
@@ -2060,6 +2093,7 @@ export type Database = {
         Args: { p_plan: Json; p_run: number }
         Returns: Json
       }
+      admin_import_due: { Args: never; Returns: Json }
       admin_import_health: { Args: never; Returns: Json }
       admin_keep_hidden: {
         Args: { p_actor: string; p_note?: string; p_person: string }
@@ -2116,6 +2150,10 @@ export type Database = {
       }
       admin_reject_spot: {
         Args: { p_actor: string; p_suggestion: string }
+        Returns: undefined
+      }
+      admin_report_import_schedule: {
+        Args: { p_cron: string; p_scheduled_time: string }
         Returns: undefined
       }
       admin_resolve_flag: {

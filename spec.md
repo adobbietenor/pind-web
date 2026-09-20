@@ -869,11 +869,35 @@ the last run was Friday evening. The diagnosis matters more than the credential.
   list` cannot show is the *value*: a secret set to an empty string lists exactly like
   a real one and fails at the first `.trim()`. That is why "set but EMPTY" is its own
   state on the Configuration panel.
-- **Two clocks now, deliberately.** Cloudflare's cron runs the import at 08:00 UTC; a
-  **pg_cron job in Postgres** checks at 09:00 UTC that a run started, and writes a
-  failed `import_runs` row when none did. A Worker cannot report its own cron being
-  dead, so the watchdog cannot live in the Worker. It caught this immediately on
-  installation: 43 hours since the last success.
+- **Two clocks now, deliberately.** Cloudflare's cron runs the import; a **pg_cron job
+  in Postgres** checks **every hour** whether the run that was due has succeeded, and
+  writes a failed `import_runs` row once its grace has passed without one. A Worker
+  cannot report its own cron being dead, so the watchdog cannot live in the Worker. It
+  caught this immediately on installation: 43 hours since the last success.
+- **The watchdog's threshold is relative to the schedule, never a fixed hour** (Alex,
+  M2.2, who spotted the trap before it sprang). The first version ran at 09:00 UTC and
+  called a night missed after 26 hours, which quietly assumed the import fires at
+  08:00 UTC. Had the cron really been 08:00 local — 12:00 UTC — the watchdog would
+  have cried wolf every day, three hours before the import could run; a daylight-saving
+  shift or an edited cron line does the same thing less visibly. **An alerting rule
+  that fires when nothing is wrong is worse than no rule**, because it teaches the
+  reader to ignore it and then the real missed night looks like all the others. So:
+  the cron expression is stored in `ops_import_schedule`, the watchdog computes the
+  most recent due time from it plus a 120-minute grace, and it runs hourly so it has
+  no schedule of its own to drift out of step with. Harness P64 covers it.
+- **Cloudflare cron triggers are always UTC**, so `"0 8 * * *"` is 08:00 UTC and the
+  dashboard's "Runs At 08:00 AM" is UTC too. Nothing depends on that being true: the
+  Worker reports `ScheduledController.cron` and `.scheduledTime` into the database on
+  every scheduled run, so the next firing settles it with evidence from the scheduler
+  itself rather than from documentation, and the threshold follows whatever it says.
+- **Workers Logs are on, unsampled, in `wrangler.jsonc`** (Alex, M2.2). Observability
+  was disabled on `pind-web-staging`, which is why no invocation history existed for
+  the two missed nights and the dashboard could say nothing about them. Enabled in the
+  repo rather than the dashboard, for the reason the routes are: config that cannot be
+  reproduced from this repo is a broken repo. `head_sampling_rate` stays at 1 — a
+  sampled log is worse than none when the question is "did this one invocation
+  happen". Logs and the watchdog both stay: logs answer that question for someone who
+  goes and looks, and the watchdog is the half that reaches out.
 - **The next cron firing is self-diagnosing.** A row at 08:00 UTC means the trigger
   fires and the row says what failed; no row plus a watchdog row at 09:00 means the
   trigger is not firing at all. Until then the two cannot be told apart from data.

@@ -631,6 +631,8 @@ describe("After the gathering — V1 (list closes 24h after effective end)", () 
 // ---------------------------------------------------------------------------
 
 const admin = (fn: string, args: Record<string, unknown>) => w.service.rpc(fn, { ...args, p_actor: ACTOR });
+// The operational functions take no actor: they are the machine talking to itself.
+const admin2 = (fn: string, args: Record<string, unknown>) => w.service.rpc(fn, args);
 
 async function readable(client: SupabaseClient, gathering: string): Promise<boolean> {
   return (await rows(client.from("gatherings").select("id").eq("id", gathering))).length === 1;
@@ -1405,5 +1407,57 @@ describe("Auto-publishing — M2.2 (spec §8)", () => {
     // it was never posted.
     await ok(admin("admin_delete_promotion", { p_promotion: promotion }));
     assert.equal((await rows(w.service.from("gathering_promotions").select("id").eq("gathering_id", g))).length, 0);
+  });
+});
+
+describe("The import watchdog follows the schedule — M2.2", () => {
+  // Alex, M2.2: the threshold must be relative to the import's own schedule, not to a
+  // fixed hour, so that a changed cron line — or a wrong assumption about which
+  // timezone Cloudflare cron triggers use — cannot produce a phantom alarm every day
+  // before the import has had a chance to run. An alerting rule that fires when
+  // nothing is wrong is worse than no rule.
+  it("P64 the due time moves with the cron, nothing is called missed inside its grace, and the schedule is restored afterwards", async () => {
+    const before = await ok(
+      w.service.from("ops_import_schedule").select("cron, utc_hour, utc_minute, grace_minutes").eq("id", true).single(),
+    );
+
+    try {
+      // The exact case that would have cried wolf: a schedule three hours later than
+      // the watchdog's old fixed hour.
+      await ok(admin2("admin_report_import_schedule", { p_cron: "0 12 * * *", p_scheduled_time: new Date().toISOString() }));
+      const noon = await ok(w.service.rpc("admin_import_due"));
+      assert.equal(noon.due_at.slice(11, 16), "12:00", "the due time did not follow the cron");
+      assert.equal(noon.cron, "0 12 * * *");
+
+      // Back to what wrangler.jsonc says, and the due time follows again.
+      await ok(admin2("admin_report_import_schedule", { p_cron: "0 8 * * *", p_scheduled_time: new Date().toISOString() }));
+      const eight = await ok(w.service.rpc("admin_import_due"));
+      assert.equal(eight.due_at.slice(11, 16), "08:00");
+
+      // Late is not missed. With a full day of grace nothing is overdue, whatever the
+      // last run did, so the watchdog stays quiet.
+      await ok(w.service.from("ops_import_schedule").update({ grace_minutes: 1440 }).eq("id", true));
+      const inGrace = await ok(w.service.rpc("admin_import_due"));
+      assert.equal(inGrace.past_grace, false, "a run still inside its grace was treated as overdue");
+      assert.equal((await ok(w.service.rpc("admin_import_health"))).stale, false, "stale while still inside the grace");
+      assert.equal((await ok(w.service.rpc("admin_watchdog_import"))).missed, false, "the watchdog cried wolf inside the grace");
+
+      // A cron shape it cannot parse leaves the stored schedule alone rather than
+      // guessing at one nobody can check.
+      await ok(admin2("admin_report_import_schedule", { p_cron: "*/5 * * * *", p_scheduled_time: new Date().toISOString() }));
+      assert.equal((await ok(w.service.rpc("admin_import_due"))).due_at.slice(11, 16), "08:00", "an unparsable cron moved the due time");
+    } finally {
+      await ok(
+        w.service
+          .from("ops_import_schedule")
+          .update({ cron: before.cron, utc_hour: before.utc_hour, utc_minute: before.utc_minute, grace_minutes: before.grace_minutes })
+          .eq("id", true),
+      );
+    }
+
+    const after = await ok(
+      w.service.from("ops_import_schedule").select("cron, utc_hour, utc_minute, grace_minutes").eq("id", true).single(),
+    );
+    assert.deepEqual(after, before, "the harness left the import schedule changed");
   });
 });

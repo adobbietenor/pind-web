@@ -47,6 +47,14 @@ export interface ImportHealth {
   last_run_error: string | null;
   last_success_at: string | null;
   hours_since_success: number | null;
+  // Measured against the import's own schedule, not a fixed hour: due_at is the most
+  // recent time it was meant to run, and it is only stale once the grace has also
+  // passed without a success (Alex, M2.2).
+  due_at: string | null;
+  overdue_at: string | null;
+  cron: string | null;
+  grace_minutes: number | null;
+  reported_scheduled_time: string | null;
   stale: boolean;
 }
 
@@ -107,9 +115,19 @@ ${summary}
 ${health.last_run_error ? `<br><span class="bad">${e(health.last_run_error)}</span>` : ""}</p>
 <p>Last <em>successful</em> run: ${health.last_success_at ? `<strong>${e(formatLocal(health.last_success_at, TORONTO))}</strong> (${health.hours_since_success} hours ago)` : `<span class="bad">never</span>`}
 · ${health.stale ? `<span class="bad">stale — the list is not refreshing</span>` : `<span class="good">healthy</span>`}</p>
-<p class="muted">Two clocks watch this, on purpose. Cloudflare's cron runs the import at 08:00 UTC; a pg_cron job in Postgres
-checks at 09:00 UTC that it happened, and writes a failed run if it did not. The second one is there because a Worker
-cannot report its own cron being dead.</p>
+<h3>The schedule, as the database knows it</h3>
+<table>
+<tr><td>Cron (from <code>wrangler.jsonc</code>)</td><td><code>${e(health.cron ?? "?")}</code></td></tr>
+<tr><td>Last due</td><td>${health.due_at ? `${e(formatLocal(health.due_at, TORONTO))} <span class="muted">(${e(health.due_at.slice(11, 16))} UTC)</span>` : "—"}</td></tr>
+<tr><td>Counted as missed after</td><td>${health.overdue_at ? `${e(formatLocal(health.overdue_at, TORONTO))} <span class="muted">(${health.grace_minutes} minutes' grace)</span>` : "—"}</td></tr>
+<tr><td>Last fired by Cloudflare</td><td>${health.reported_scheduled_time ? `${e(formatLocal(health.reported_scheduled_time, TORONTO))} <span class="muted">(${e(health.reported_scheduled_time.slice(11, 16))} UTC — reported by the run itself)</span>` : `<span class="muted">not yet reported — the next scheduled run records it</span>`}</td></tr>
+</table>
+<p class="muted">Two clocks watch this, on purpose. Cloudflare's cron runs the import; a pg_cron job in Postgres checks
+<em>every hour</em> whether the run that was due has succeeded, and writes a failed run when its grace has passed without one.
+The watchdog has no schedule of its own to drift out of step with the import's — it measures against the cron above, and the
+Worker overwrites that line with the real expression and fire time on every scheduled run. So a changed cron, a daylight-saving
+shift, or a wrong assumption about which timezone cron triggers use moves the threshold instead of raising a false alarm.
+The second clock is there because a Worker cannot report its own cron being dead.</p>
 ${alerts}
 <h2>Settings and secrets</h2>
 <p class="muted">Presence only — no value is read or shown here, and none is ever logged.
