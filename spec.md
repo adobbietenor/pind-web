@@ -817,6 +817,24 @@ real crowd"). What M1.3 learned, measured on 2026-09-18 with Sonnet 5, effort me
   - **Cost blind spot:** a call aborted or killed mid-stream is billed but its usage
     never arrives, so it is missing from `import_runs` and the daily cap undercounts.
     M1.3b should count an estimate for every aborted call.
+  - **The approval bar was too loose, and it took a map to see it** (M2.1, 2026-09-19).
+    Sneaky Dee's has three approved spots. Once M2.1 calculated walking minutes from
+    coordinates, one of them — Poetry Jazz Cafe — came out at **30 minutes' walk**: it is
+    about 2 km away, at 1078 Queen St W, and it had been approved and was sitting in a
+    live spot poll. The prompt asks for places "within about five minutes' walk", which
+    is guidance a model can talk itself past, and nothing downstream checked. Alex
+    approved it because the admin showed a name and a reason, not a distance. So M5.2
+    should:
+    - give the suggestion run a **hard walking-distance ceiling**, enforced in code
+      against the venue's coordinates, not asked for in the prompt — a suggestion past
+      it is dropped before it reaches the queue;
+    - make the AI return each spot's coordinates, so the ceiling can be applied and the
+      spot lands on the generated map without a second step;
+    - show the walking minutes next to every pending suggestion in the admin, so the
+      number is in front of Alex at the moment he approves;
+    - **sweep the spots already approved** and re-check them against the ceiling, since
+      the ones approved before M2.1 were never measured. Poetry Jazz Cafe is the known
+      one; there may be others.
   - M1.3b should: prove the fixes on a full run, consider running suggestions outside
     the nightly import (their own cron or a queue), and measure empty-answer rates.
   - Local testing note: on Windows, stopping a background `wrangler dev` did not kill

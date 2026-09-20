@@ -488,6 +488,7 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 - Policy and terms are live and linked from every crowd surface footer and the opt-in sheet.
 - A test report reaches the team channel within a minute.
 - The scripts exist in the admin and the three of you have read them.
+- **The support address is a real, monitored inbox.** `safety@pind.social` and `crowds@pind.social` are on the public pages from M2.1; Resend sends mail but does not receive it, so both are forwarded to a real inbox (Cloudflare Email Routing) and a test to each arrives. `safety@` is an App Review 1.2 requirement and a promise to users, not decoration (Alex, M2.1).
 
 4–8 h
 

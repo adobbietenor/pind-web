@@ -12,7 +12,15 @@ const routes: Record<string, Handler> = {
 };
 
 export async function route(request: Request, env: Env): Promise<Response> {
-  const { pathname } = new URL(request.url);
+  const url = new URL(request.url);
+  const { pathname } = url;
+
+  // One host for the product (M2.1). www is routed to the Worker so it can be sent
+  // to the apex rather than failing; the shared link is always the apex.
+  if (url.hostname.startsWith("www.")) {
+    url.hostname = url.hostname.slice(4);
+    return Response.redirect(url.toString(), 301);
+  }
   // Admin (M1.2): behind Cloudflare Access, and every request re-checks the Access
   // token in the Worker. See src/admin/routes.ts.
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return admin(request, env);

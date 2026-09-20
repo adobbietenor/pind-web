@@ -1,6 +1,8 @@
 {
   // Staging only. Deploy under this name and no other.
-  // No routes and no custom domains: this worker lives on workers.dev only.
+  // Routed to pind.social from M2.1 (and workers.dev until Access moves). Until
+  // pind-prod exists (M4.3), pind.social serves pind-staging, with seed rows kept off
+  // every public read in the database (docs/visibility.md V18).
   // PindScene.com is a separate worker and is never touched from this repo.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pind-web-staging",
@@ -8,6 +10,22 @@
   "compatibility_date": "2026-09-18",
   "workers_dev": true,
   "preview_urls": false,
+
+  // M2.1: pind.social. Routes live here rather than in the dashboard, for the same
+  // reason migrations do — config I cannot reproduce from this repo is a broken repo.
+  // Alex adds the proxied DNS record for the zone; until it exists these routes
+  // deploy but nothing resolves, which is harmless.
+  //
+  // PindScene.com is never touched from this repo (decisions Part 5, "Routes:
+  // pind.social only"); Alex sets its redirect in the dashboard.
+  //
+  // workers_dev stays true until Access is re-created for pind.social/admin*. It goes
+  // false in the same change that swaps ACCESS_AUD, so the workers.dev admin is gone
+  // rather than merely unused (M2.1 acceptance).
+  "routes": [
+    { "pattern": "pind.social/*", "zone_name": "pind.social" },
+    { "pattern": "www.pind.social/*", "zone_name": "pind.social" }
+  ],
 
   // M1.3: the nightly Ticketmaster import. Cron runs in UTC; 08:00 UTC is 4am in
   // Toronto in summer (EDT) and 3am in winter (EST), so no daylight-saving logic.

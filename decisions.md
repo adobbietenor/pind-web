@@ -591,3 +591,36 @@ change). Where the plan has more detail, the plan is the reference.
   `currentColor` and lays the mark beside the wordmark at a fraction of its height,
   writing `src/public/brand.ts`. Two numbers — cap height and gap — are the whole
   layout. It is provisional and Tatiana's to change. `brand/` is untouched.
+- **Map view — considered, deferred** (Alex, Phase 2 M2.1). The original PindScene build
+  had a map/list toggle: purple pins across Toronto, tap a pin to expand a venue card,
+  sign-up wall to see who's going. It did not survive the pivot to attaching to existing
+  gatherings, and A5–A7's "No map, no feed, no algorithm" was written for the new product
+  rather than as a decision against it. Recording it properly now.
+
+  The list stays the only discovery surface for the beta, for three reasons:
+  1. It would look empty. Five to twenty published gatherings a week across a city reads
+     as a dead app on a map, where "3 pinned · crews open at 5" reads as progress in a
+     list (Q10).
+  2. It invites location. A map leads to "near me", which leads to a location permission
+     — the one thing the product promises never to ask for (H4). The promise is easier to
+     keep when the surface doesn't exist.
+  3. It changes nothing at the destination. Tapping a pin to see who's going and what
+     crews are forming is A8–A10 exactly. A map changes how people arrive, and people
+     arrive from shared links.
+
+  The one map in the product stays the venue schematic on a crowd page: that building and
+  its meeting spots, never people (H1).
+
+  When to revisit: the geodata exists from M2.1, so this is a UI decision, not a schema
+  one. Revisit when the adaptive publisher's weekly target is high enough that a city map
+  looks alive rather than empty — roughly the `publish_max` end of spec §8 — and only if
+  the list is demonstrably failing as a discovery surface. Any map view must still work
+  with no location permission: the city is the frame, and the user's position is never on
+  it.
+- **crowds@ and safety@ are real, monitored inboxes** (Alex, M2.1). The public pages
+  carry `crowds@pind.social` (suggest a gathering) and `safety@pind.social` (report).
+  **Resend sends mail, it does not receive it**, so both would bounce silently as they
+  stand. Alex sets up Cloudflare Email Routing (free) to forward them to his inbox
+  before those addresses go on a page anyone is pointed at. `safety@` on a public page
+  is an App Review 1.2 requirement and a promise to users, so it has to work — the M4.1
+  acceptance list carries "the support address is a real, monitored inbox".
