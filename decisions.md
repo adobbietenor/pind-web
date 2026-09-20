@@ -1282,3 +1282,29 @@ change). Where the plan has more detail, the plan is the reference.
   any gathering in that area could meet there. Today `meeting_spots.venue_id` is
   `not null references venues`, so a spot is owned by exactly one venue and the same
   cafe beside two venues is two rows with two sets of tallies.
+- **How a crew convenes is a property of the gathering, decided now** (Alex, after
+  walking the community pages; built in M3.3). Three values on `gatherings`:
+  - **`at_the_gathering`** — no spot poll. The crew card reads "find each other at the
+    start". The crew still forms, the reveal still happens, the confirmation afterwards
+    still happens; only the pre-meet disappears.
+  - **`a_spot_first`** — today's poll, for arenas and anywhere 18,000 people make
+    finding each other the problem.
+  - **`after`** — the spot poll runs against the **effective end** rather than the
+    start. This is what Frontrunners already does with coffee afterwards, and it is the
+    one that is an honest shape for small gatherings rather than a subtraction from the
+    arena's.
+
+  **Defaults: `at_the_gathering` for Community, `a_spot_first` for Events**, both
+  overridable — which follows the source split and needs no per-gathering judgement.
+  **Why not "make the poll optional":** that leaves the arena assumption in place and
+  asks Alex to switch it off forty times (his words, and the argument that settled it).
+  **Why decide it now rather than when A10 is drawn:** the machinery is identical
+  either way — crew, members, thread, confirmation — so allowing for it costs two to
+  four hours inside M3.3, where unpicking screens drawn around a poll that is not
+  always there costs considerably more. **Deciding late is the expensive version.**
+- **Fortnightly and monthly, in the generator** (Alex, before the wider research
+  pass). Monthly reads the pattern off the first date — which weekday, and which one
+  of it — and **a date in the last seven days of its month is "last", not "fourth"**,
+  because that is what "last Sunday of the month" means and a fourth-Sunday reading is
+  a week early in any five-Sunday month. Verified: 27 Sep → 25 Oct → 29 Nov → 27 Dec →
+  31 Jan → 28 Feb. Still a generator, still no recurrence in the schema.

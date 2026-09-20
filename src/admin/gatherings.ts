@@ -428,9 +428,17 @@ ${fieldsHtml(p, null, false)}
 <p class="muted">There is no recurrence in the database and this does not add one: a crew meets on a night, not on a series, so the
 dated rows have to exist either way. This only saves the typing — one form, one draft per week, each an ordinary gathering from
 the moment it exists. A Saturday run club is thirteen rows a quarter otherwise.</p>
-<label><input type="checkbox" name="repeats"> Repeats weekly</label>
+<label>How often<br><select name="cadence">
+<option value="">— does not repeat —</option>
+<option value="weekly">every week</option>
+<option value="fortnightly">every second week</option>
+<option value="monthly">every month, on the same weekday</option>
+</select></label>
 <label>…until <span class="muted">(the last date to create, in the venue's timezone)</span><br>
 <input type="date" name="repeat_until"></label>
+<p class="muted">Monthly reads the pattern off the first date — which weekday, and which one of it. A date in the last seven days of
+its month is taken as "last", not "fourth", which is what "last Sunday of the month" means and what a fourth-Sunday reading gets
+wrong in any five-Sunday month.</p>
 <p class="muted">The time is kept in the venue's own timezone, so an 8am run club stays at 8am across the daylight-saving change.</p>
 </fieldset>
 <button>Create draft</button></form>`;
@@ -444,17 +452,20 @@ export const createGathering: AdminHandler = async (request, ctx) => {
   if (venueId && !p.byId.has(venueId)) return back(form, { err: "Unknown venue" });
   const fields = readFields(form, p.tz(venueId));
   if (typeof fields === "string") return back(form, { err: fields });
-  if (form.get("repeats") === "on") {
+  const cadence = str(form, "cadence");
+  if (cadence) {
+    if (!["weekly", "fortnightly", "monthly"].includes(cadence)) return back(form, { err: "Choose how often it repeats" });
     const until = str(form, "repeat_until");
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(until)) return back(form, { err: "Repeats weekly needs a date to repeat until" });
-    const { data, error } = await ctx.db.rpc("admin_create_weekly_series", {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(until)) return back(form, { err: "A repeating gathering needs a date to repeat until" });
+    const { data, error } = await ctx.db.rpc("admin_create_series", {
       p_template: { ...fields, venue_id: venueId },
       p_until: until,
+      p_cadence: cadence,
       p_actor: ctx.email,
     });
     if (error) return back(form, { err: error.message });
     const made = (data as { created: number }).created;
-    return back(form, { ok: `${made} drafts created, one a week until ${until}. Publish them from the queue.` });
+    return back(form, { ok: `${made} drafts created, ${cadence}, until ${until}. Publish them from the queue.` });
   }
 
   const { data, error } = await ctx.db
