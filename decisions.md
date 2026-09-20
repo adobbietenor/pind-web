@@ -1121,3 +1121,53 @@ change). Where the plan has more detail, the plan is the reference.
     the amount blank is refused with what the page would have said, and a "the price is
     not known" tick lets it through — so an unpriced door is a decision rather than an
     oversight (Alex).
+- **"Crews open at 5" describes the rule, not the thing people want** (Alex, after
+  M2.2 — filed for M3.3, and for the M2.1 copy pass since the line is on the public
+  page). `THRESHOLD_EXPLANATION` currently reads "Crews open when 5 people opt in.",
+  which asks a reader to wait on a mechanism. It should describe what they came for —
+  "See who's going, form a crew" or near it — and tapping it should lead somewhere
+  rather than count down. **The pinned crowd page should lead with the people, with
+  forming a crew as the natural next step from seeing them**, not a feature that
+  unlocks at a number.
+  - **The two thresholds are already separate, and the spec already says so.** Alex
+    asked whether seeing people and starting a crew need the same gate. They do not
+    have it today: `private.can_see_at` never mentions five — it asks only that both
+    people opted in, the list is open, and neither has blocked the other — and A9 says
+    in as many words that "the reciprocal list already works at n=2". **Only crews
+    opening and the gender-mix chip are gated at 5** (V3, Q3). So the change Alex was
+    contemplating costs nothing in the data layer; it is purely a screen decision, and
+    the database is already on the side he wanted.
+  - **Which narrows the real problem.** The inert "3 of 5 · 2 to go" is the *crew*
+    section's copy, and it is being given top billing on a page that already has faces
+    to show. What A9 needs is not an earlier threshold but the right order: people
+    first, the crew state as a quiet line underneath.
+  - Still to answer when A9/A10 are built: **what the locked state offers beyond a
+    number.** "3 of 5 · 2 to go" is honest and inert, which is the worst pair.
+- **Messaging while crews are forming, and the phrase "Start a crew"** (Alex, after
+  M2.2 — filed for M3.3). There is a cold-start gap: five people have opted in, nobody
+  has started a crew, and there is no way to say "shall we?". Starting one asks somebody
+  to go first with no conversation, and **that hesitation is exactly what the product
+  exists to remove**.
+  - **The thing to avoid is unsolicited messages, not messaging.** Those are separable,
+    and solo crew already has the shape: mutual accept, and before it one preset line
+    from a short list, no free text (Part 5, "Solo crew").
+  - **Recommendation: the nudge, and build it once.** A preset line — plan-shaped, not
+    person-shaped: "Shall we start a crew?", "I'll be at [spot] at 7, join me?" — which
+    opens a free-text thread on a one-tap accept. The recipient lets the conversation
+    in, which is the property Alex asked for, and accepting costs one tap. **The same
+    mechanism is already specified for solo (M3.4)**, so building it in M3.3 and having
+    solo reuse it is a saving rather than a cost; building solo's version first and
+    retrofitting crews is the expensive order.
+  - **Rejected: one message then wait.** Lowest friction, but it permits an unsolicited
+    *free-text* message, which is the cold DM itself. Rate-limiting the second message
+    does nothing about the content of the first.
+  - **Rejected as a solution: free text once both are in a crew.** That is the crew
+    thread (A14) and already planned — it arrives after the moment that needs help.
+  - **Do the cheap half first.** "Start a crew" sounds like organising something when
+    it should read as raising your hand — nearer "I'll be at [spot] at 7:30, join me".
+    That reframing is hours, not days, and may shrink the need for the nudge enough to
+    change what gets built. Ship the words first, watch the M3.6 dogfood, then decide.
+
+  Both notes are one point, in Alex's words: **the product's hinge is whether people
+  convene without a host, and every screen before that moment should pull toward it
+  rather than report on it.**

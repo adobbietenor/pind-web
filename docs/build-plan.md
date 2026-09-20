@@ -424,6 +424,12 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 
 #### M3.3 · Crews, the thread, the night, the morning after (A10–A17, A20)
 
+**Two reframings carried in from M2.2** (decisions.md, "Crews open at 5" and "Messaging while crews are forming"). Both are the same point: the hinge is whether people convene without a host, so every screen before that moment should pull toward it rather than report on it.
+- **Lead with the people, not the rule.** The reciprocal list already works at n=2 — `can_see_at` never mentions five, and only crews and the mix chip are gated at 5 — so A9 has faces to show long before the threshold. The locked crew state belongs as a quiet line underneath, not as the page's headline, and "Crews open when 5 people opt in." needs replacing with what a reader came for.
+- **Build the nudge here, once.** A preset, plan-shaped line that opens a free-text thread on a one-tap accept, so the recipient lets the conversation in. M3.4's solo mode specifies the same mechanism, so building it in M3.3 and reusing it there is the cheap order. Do the "Start a crew" → "I'll be at [spot], join me" reframing first: it is hours, and may shrink what the nudge has to carry.
+
+
+
 **Goal.** The convene step — the hinge the whole product turns on — working end to end without anyone from Pin'd in the room. The biggest milestone; split the session in two if it runs long (crews and thread; then night and after).
 
 - Crew object and states: forming → spot set → live → done, plus dissolved; pg_cron transitions keyed off the effective end; one crew per person per gathering; seats counting bodies (a member's +1 takes a seat).
