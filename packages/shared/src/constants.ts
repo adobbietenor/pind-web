@@ -13,16 +13,33 @@ export const TAGS_PER_PROFILE = 3;
 // The order is the order they appear. Null is unclassified and still visible, because
 // unfiltered is the default: only a chip can hide a row.
 export const CATEGORIES = [
-  { value: "live_music", label: "Live music" },
-  { value: "sport", label: "Sport" },
-  { value: "comedy", label: "Comedy" },
-  // Working label. "Doing" was the right concept and the wrong word next to "Live
-  // music" and "Sport"; this line is the whole cost of changing it.
-  { value: "taking_part", label: "Take part" },
-  { value: "markets", label: "Markets & street" },
+  { value: "live_music", label: "Live music", tab: "events" },
+  { value: "sport", label: "Sport", tab: "events" },
+  { value: "comedy", label: "Comedy", tab: "events" },
+  { value: "games", label: "Games", tab: "community" },
+  { value: "cycling", label: "Cycling", tab: "community" },
+  { value: "running", label: "Running", tab: "community" },
+  { value: "outdoors", label: "Outdoors", tab: "community" },
+  { value: "markets", label: "Markets & street", tab: "community" },
 ] as const;
 
 export type CategoryValue = (typeof CATEGORIES)[number]["value"];
+export type CategoryTab = (typeof CATEGORIES)[number]["tab"];
+
+// When a chip earns its place. Two tests, because one was wrong: a venue count alone
+// would have hidden **running**, which is four clubs and fifty-nine dated rows — the
+// busiest chip after games — simply because they meet at only two places. Constant
+// fixtures in two places are exactly what somebody filtering for a run club wants.
+//
+// So: at least three distinct gatherings to choose between, in at least two places.
+// "Reading & talking" fails on both — two book clubs at one library, where filtering
+// showed east Scarborough or nothing, which is worse than no chip for everyone else
+// (Alex, after the wider community pass).
+//
+// Below the bar the gatherings still appear: unfiltered is the default, and only a
+// chip can hide a row.
+export const CHIP_MIN_GATHERINGS = 3;
+export const CHIP_MIN_VENUES = 2;
 
 export const categoryLabel = (value: string | null | undefined): string =>
   CATEGORIES.find((c) => c.value === value)?.label ?? "";

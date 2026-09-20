@@ -1362,3 +1362,28 @@ change). Where the plan has more detail, the plan is the reference.
   per-occurrence venue override**, because the override would then be used for things
   that ought to be one series. It is also another argument against ever making
   recurrence a first-class concept.
+- **The Community chips, and when a chip earns its place** (Alex, after the wider
+  community pass). `taking_part` was one chip holding everything — 28 of 31 — which
+  is a chip row that does nothing. It splits into **games, cycling, running,
+  outdoors**, alongside **markets & street**. Events is unchanged: live music, sport,
+  comedy.
+  - **Running and cycling stay apart** although they look alike, because the numbers
+    say they behave oppositely: running is **4 gatherings, 59 rows, 2 venues** — clubs
+    meeting constantly in two places — and cycling is **5 gatherings, 13 rows, 8
+    venues**, a different place every time. One chip would hide both facts. Somebody
+    filtering "running" wants a fixture near them; somebody filtering "cycling" is
+    choosing a Saturday out.
+  - **A chip needs three gatherings and two venues**, and the second test exists
+    because the first one alone was wrong. My original rule was three *venues*, which
+    Alex accepted — and it would have **hidden running**, the busiest chip after games,
+    for meeting at only two places. Constant fixtures in two places are exactly what a
+    run-club filter is for. The pair of tests asks the real question: **are there three
+    things to choose between, in more than one place?**
+  - **Making** (2 gatherings) and **reading & talking** (2 gatherings, 1 venue) get no
+    chip yet. Filtering to reading showed Port Union Library or nothing. Both are
+    library programmes and the libraries are where M4.4 starts, so both may earn one.
+  - Below the bar nothing disappears: unfiltered is the default, and only a chip can
+    hide a row.
+  - **A seed row carries no chip.** The re-tagging caught `[TEST] Pride Trivia Night`
+    on a name match; seed rows are invisible to every visitor anyway (V18), but a
+    category on one is a fact about nothing.

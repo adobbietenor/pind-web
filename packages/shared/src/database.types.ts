@@ -64,6 +64,7 @@ export type Database = {
           import_weeks: number | null
           max_category_share: number
           max_per_venue_per_week: number
+          min_capacity: number
           min_per_category: number
           name: string
           publish_lead_days_max: number
@@ -95,6 +96,7 @@ export type Database = {
           import_weeks?: number | null
           max_category_share?: number
           max_per_venue_per_week?: number
+          min_capacity?: number
           min_per_category?: number
           name: string
           publish_lead_days_max?: number
@@ -126,6 +128,7 @@ export type Database = {
           import_weeks?: number | null
           max_category_share?: number
           max_per_venue_per_week?: number
+          min_capacity?: number
           min_per_category?: number
           name?: string
           publish_lead_days_max?: number
@@ -866,6 +869,7 @@ export type Database = {
       }
       gatherings: {
         Row: {
+          capacity: number | null
           category: Database["public"]["Enums"]["gathering_category"] | null
           created_at: string
           dismissed_at: string | null
@@ -881,6 +885,8 @@ export type Database = {
           name: string
           publish_mark: Database["public"]["Enums"]["publish_mark"] | null
           published_at: string | null
+          signup_required: boolean
+          signup_url: string | null
           slug: string | null
           source: Database["public"]["Enums"]["gathering_source"]
           starts_at: string
@@ -891,6 +897,7 @@ export type Database = {
           withdrawn_at: string | null
         }
         Insert: {
+          capacity?: number | null
           category?: Database["public"]["Enums"]["gathering_category"] | null
           created_at?: string
           dismissed_at?: string | null
@@ -906,6 +913,8 @@ export type Database = {
           name: string
           publish_mark?: Database["public"]["Enums"]["publish_mark"] | null
           published_at?: string | null
+          signup_required?: boolean
+          signup_url?: string | null
           slug?: string | null
           source?: Database["public"]["Enums"]["gathering_source"]
           starts_at: string
@@ -916,6 +925,7 @@ export type Database = {
           withdrawn_at?: string | null
         }
         Update: {
+          capacity?: number | null
           category?: Database["public"]["Enums"]["gathering_category"] | null
           created_at?: string
           dismissed_at?: string | null
@@ -931,6 +941,8 @@ export type Database = {
           name?: string
           publish_mark?: Database["public"]["Enums"]["publish_mark"] | null
           published_at?: string | null
+          signup_required?: boolean
+          signup_url?: string | null
           slug?: string | null
           source?: Database["public"]["Enums"]["gathering_source"]
           starts_at?: string
@@ -2087,8 +2099,13 @@ export type Database = {
         Args: { p_actor: string; p_venue: string }
         Returns: undefined
       }
-      admin_create_weekly_series: {
-        Args: { p_actor: string; p_template: Json; p_until: string }
+      admin_create_series: {
+        Args: {
+          p_actor: string
+          p_cadence: Database["public"]["Enums"]["series_cadence"]
+          p_template: Json
+          p_until: string
+        }
         Returns: Json
       }
       admin_delete_pin: {
@@ -2273,6 +2290,7 @@ export type Database = {
           name: string
           open_to_meeting: number
           pinned: number
+          signup_required: boolean
           slug: string
           source: Database["public"]["Enums"]["gathering_source"]
           starts_at: string
@@ -2298,7 +2316,10 @@ export type Database = {
         | "live_music"
         | "sport"
         | "comedy"
-        | "taking_part"
+        | "games"
+        | "cycling"
+        | "running"
+        | "outdoors"
         | "markets"
       gathering_flag_kind:
         | "date_changed"
@@ -2318,6 +2339,7 @@ export type Database = {
       report_reason: "uncomfortable" | "not_who_they_said" | "under_19" | "spam"
       report_status: "open" | "auto_hidden" | "actioned" | "dismissed"
       report_target: "person" | "crew" | "message"
+      series_cadence: "weekly" | "fortnightly" | "monthly"
       suggestion_status: "pending" | "approved" | "rejected"
       survey_met: "none" | "1_2" | "3_5" | "6_plus"
       survey_would_have_gone: "yes" | "no" | "wasnt_going"
@@ -2457,7 +2479,10 @@ export const Constants = {
         "live_music",
         "sport",
         "comedy",
-        "taking_part",
+        "games",
+        "cycling",
+        "running",
+        "outdoors",
         "markets",
       ],
       gathering_flag_kind: [
@@ -2479,6 +2504,7 @@ export const Constants = {
       report_reason: ["uncomfortable", "not_who_they_said", "under_19", "spam"],
       report_status: ["open", "auto_hidden", "actioned", "dismissed"],
       report_target: ["person", "crew", "message"],
+      series_cadence: ["weekly", "fortnightly", "monthly"],
       suggestion_status: ["pending", "approved", "rejected"],
       survey_met: ["none", "1_2", "3_5", "6_plus"],
       survey_would_have_gone: ["yes", "no", "wasnt_going"],
