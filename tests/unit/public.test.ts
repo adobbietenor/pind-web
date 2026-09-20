@@ -180,8 +180,18 @@ describe("what it costs to walk in", () => {
     assert.equal(entryLine({ entry: "free", door_price_cents: null, entry_note: null }), "Free");
   });
 
-  it("says nothing for a ticketed gathering — the button already carries it", () => {
-    assert.equal(entryLine({ entry: "ticketed", door_price_cents: null, entry_note: null }), "");
+  // The button no longer carries it: every crowd page reads "Pin in — I'm going".
+  // So a ticketed gathering says "Ticketed" rather than nothing, because a blank
+  // where "Free" sits on the next card reads as free to anyone scanning.
+  it("says Ticketed rather than nothing, now that the button says the same thing everywhere", () => {
+    assert.equal(entryLine({ entry: "ticketed", door_price_cents: null, entry_note: null }), "Ticketed");
+    assert.equal(entryLine({ entry: "ticketed", door_price_cents: null, entry_note: "sold out at the door" }), "sold out at the door");
+  });
+
+  it("gives every entry state a line, so no state is recognised only by its silence", () => {
+    for (const entry of ["free", "door", "ticketed"] as const) {
+      assert.notEqual(entryLine({ entry, door_price_cents: null, entry_note: null }), "", `${entry} said nothing`);
+    }
   });
 
   // The note is about the cost whatever the cost is. Frontrunners is a free drop-in
@@ -191,10 +201,7 @@ describe("what it costs to walk in", () => {
       entryLine({ entry: "free", door_price_cents: null, entry_note: "optional $30/yr membership" }),
       "Free — optional $30/yr membership",
     );
-    assert.equal(
-      entryLine({ entry: "ticketed", door_price_cents: null, entry_note: "sold out at the door" }),
-      "sold out at the door",
-    );
+    assert.equal(entryLine({ entry: "ticketed", door_price_cents: null, entry_note: "tickets by table" }), "tickets by table");
   });
 
   it("shows the amount at the door", () => {

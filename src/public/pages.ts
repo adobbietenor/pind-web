@@ -3,7 +3,7 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { categoryLabel, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, PIN_IN_FREE, THRESHOLD } from "@pind/shared";
+import { categoryLabel, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, THRESHOLD } from "@pind/shared";
 import type { Env } from "../env";
 import { localDate } from "../admin/time";
 import { markSvg } from "./brand";
@@ -120,7 +120,11 @@ function card(g: Crowd): string {
   // Never "free" unless it is free. A pay-at-the-door gathering wears its price, or
   // the words "pay at the door" when the price is not known — silence would read as
   // free to anyone scanning (Alex, after M2.2).
-  const free = g.entry === "ticketed" ? "" : `<span class="tag">${escape(entryLine(g))}</span>`;
+  // On the crowd page every gathering says what it costs, including "Ticketed". On
+  // this list it would be a tag on two hundred rows and tell a reader nothing, so a
+  // plain ticketed row wears none — unless it carries a note worth reading.
+  const free =
+    g.entry === "ticketed" && !g.entry_note ? "" : `<span class="tag">${escape(entryLine(g))}</span>`;
   return `<a class="card" href="/g/${escape(g.slug)}">
 <div class="when">${escape(clock(g.starts_at, g.city_timezone))}</div>
 <div class="name">${escape(g.name)}${mark}${free}</div>
@@ -165,7 +169,7 @@ export async function w2(request: Request, env: Env, slug: string, ctx?: Executi
   }
   const url = `${origin}/g/${g.slug}`;
   const when = longWhen(g.starts_at, tz);
-  const button = g.entry === "ticketed" ? PIN_IN : PIN_IN_FREE;
+  const button = PIN_IN;
   // Beside the button, never inside it.
   const cost = entryLine(g);
   const map = mapFigure(door);

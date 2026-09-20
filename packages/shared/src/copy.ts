@@ -5,13 +5,16 @@ export const TAGLINE = "Know where you're headed, find what you're looking for."
 
 export const ONE_LINER = "See who's going, meet them there.";
 
-export const PIN_IN = "Pin in — I've got a ticket";
-// Free and pay-at-the-door share this one (Alex, Phase 1 M1.2; the door case added
-// after M2.2). There is deliberately no third button: the button is a commitment and
-// the price is a fact, a button whose words change with the price cannot be scanned
-// down a list, and money inside the button makes it read like a purchase when nothing
-// here is for sale. The cost goes on its own line beside it — entryLine below.
-export const PIN_IN_FREE = "Pin in — I'm going";
+// One button on every crowd page, whatever it costs to get in (Alex, after the M2.2
+// walk; supersedes the two-button rule from M1.2 and the "I've got a ticket" copy
+// M2.1 shipped).
+//
+// **A pin is a statement about you — I am going to this.** It is not a claim about
+// how you got in and should not change with how you paid. Varying it made the button
+// harder to recognise down a list and put a transaction where a decision belongs.
+// The price sits beneath it and the registration line above it: those are facts, and
+// the button is the commitment.
+export const PIN_IN = "Pin in — I'm going";
 
 // What it costs to walk in, said in one line. The rule that matters: **never say free
 // unless it is free**, and an unknown price is "pay at the door" rather than silence —
@@ -27,7 +30,10 @@ export function entryLine(g: {
   // with an optional $30/yr membership, and dropping that made the page say less than
   // the truth. Found entering the community list.
   if (g.entry === "free") return note ? `Free — ${note}` : "Free";
-  if (g.entry === "ticketed") return note ?? "";
+  // "Ticketed" rather than silence. Every other state says what it costs, and a blank
+  // where "Free" sits on the next card reads as free to anyone scanning — the same
+  // trap as an unknown door price saying nothing (Alex asked; this is the call).
+  if (g.entry === "ticketed") return note ?? "Ticketed";
   if (g.door_price_cents === null || g.door_price_cents === undefined) {
     return note ? `Pay at the door — ${note}` : "Pay at the door";
   }

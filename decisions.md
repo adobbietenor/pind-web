@@ -1387,3 +1387,23 @@ change). Where the plan has more detail, the plan is the reference.
   - **A seed row carries no chip.** The re-tagging caught `[TEST] Pride Trivia Night`
     on a name match; seed rows are invisible to every visitor anyway (V18), but a
     category on one is a fact about nothing.
+- **One button on every crowd page: "Pin in — I'm going"** (Alex, after the M2.2
+  walk). **Supersedes** "Pin-in button for free events" (M1.2), which gave ticketed
+  gatherings "Pin in — I've got a ticket", and the copy M2.1 shipped with it. The old
+  entries stay above rather than being edited away: the reasoning held for a product
+  where every gathering was ticketed, and what changed is the world, not the argument.
+  **Why one button:** a pin is a statement about *you* — I am going to this. It is not
+  a claim about how you got in and should not change with how you paid. Varying it
+  made the button harder to recognise down a list and put a transaction where a
+  decision belongs. It is the same argument that kept the price *out* of the button:
+  the price and the registration line are facts, and the button is the commitment.
+  **The registration line sits above it, the cost line beneath it.**
+- **A ticketed gathering says "Ticketed", not nothing** (Claude's call, Alex asked).
+  With the button no longer saying it, a ticketed page would have had no cost line at
+  all — and **a blank where "Free" sits on the next card reads as free to anyone
+  scanning**, which is the trap already refused for an unknown door price. Every entry
+  state now has a line, so none is recognised only by its silence; there is a unit
+  test saying exactly that.
+  **On W1 it is suppressed**, because a "Ticketed" tag on two hundred rows tells a
+  reader nothing — unless the gathering carries a note worth reading, like "tickets
+  are sold per table".

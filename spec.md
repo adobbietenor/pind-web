@@ -977,6 +977,14 @@ fortnightly and monthly, one form to N dated drafts.
   than a kilometre from its venue — the check that caught a geocode four kilometres out
   that passed every is-this-Toronto test.
 
+#### Superseded copy — the pin-in button
+"Pin in — I've got a ticket" is **retired** (Alex, after the M2.2 walk). Every crowd
+page reads **"Pin in — I'm going"**, whatever it costs to get in, with the cost on its
+own line beneath and any registration line above. A pin is a statement about the
+person, not about how they got in. `packages/shared` now has one `PIN_IN`; the second
+constant is gone. decisions.md Part 5 carries the reasoning and marks the M1.2 rule
+superseded rather than deleting it.
+
 #### Notes carried into the next milestones
 - **M3.1 — the photo check** (recorded by Alex in M1.2; decisions Part 5, "Automated
   photo moderation"). On upload, a Claude vision check auto-approves clear real-person
