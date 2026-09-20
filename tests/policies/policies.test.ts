@@ -1418,7 +1418,11 @@ describe("The import watchdog follows the schedule — M2.2", () => {
   // nothing is wrong is worse than no rule.
   it("P64 the due time moves with the cron, nothing is called missed inside its grace, and the schedule is restored afterwards", async () => {
     const before = await ok(
-      w.service.from("ops_import_schedule").select("cron, utc_hour, utc_minute, grace_minutes").eq("id", true).single(),
+      w.service
+        .from("ops_import_schedule")
+        .select("cron, utc_hour, utc_minute, grace_minutes, reported_cron, reported_scheduled_time, reported_at")
+        .eq("id", true)
+        .single(),
     );
 
     try {
@@ -1447,16 +1451,18 @@ describe("The import watchdog follows the schedule — M2.2", () => {
       await ok(admin2("admin_report_import_schedule", { p_cron: "*/5 * * * *", p_scheduled_time: new Date().toISOString() }));
       assert.equal((await ok(w.service.rpc("admin_import_due"))).due_at.slice(11, 16), "08:00", "an unparsable cron moved the due time");
     } finally {
-      await ok(
-        w.service
-          .from("ops_import_schedule")
-          .update({ cron: before.cron, utc_hour: before.utc_hour, utc_minute: before.utc_minute, grace_minutes: before.grace_minutes })
-          .eq("id", true),
-      );
+      // Including reported_cron and reported_scheduled_time: the Configuration page
+      // shows those as "last fired by Cloudflare", so a harness run that left its own
+      // values there would have the admin quietly reporting a fiction.
+      await ok(w.service.from("ops_import_schedule").update(before).eq("id", true));
     }
 
     const after = await ok(
-      w.service.from("ops_import_schedule").select("cron, utc_hour, utc_minute, grace_minutes").eq("id", true).single(),
+      w.service
+        .from("ops_import_schedule")
+        .select("cron, utc_hour, utc_minute, grace_minutes, reported_cron, reported_scheduled_time, reported_at")
+        .eq("id", true)
+        .single(),
     );
     assert.deepEqual(after, before, "the harness left the import schedule changed");
   });

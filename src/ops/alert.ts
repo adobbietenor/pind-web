@@ -11,13 +11,13 @@
 // muted channel is the silent failure again with extra steps.
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Env } from "../env";
-import { alertsConfigured } from "./secrets";
+import { alertsConfigured, domainOf } from "./secrets";
 
 const DEFAULT_FROM = "Pin'd alerts <alerts@pind.social>";
 // The cron has no request to take an origin from, and the admin is always here.
 const SITE = "https://pind.social";
 
-export type AlertKind = "import_failed" | "import_missing";
+export type AlertKind = "import_failed" | "import_missing" | "test";
 
 export interface AlertResult {
   sent: boolean;
@@ -46,7 +46,9 @@ export async function sendAlert(
   if (!alertsConfigured(env)) {
     return { sent: false, why: "RESEND_API_KEY or ALERT_EMAIL is not set: the alert was recorded but not sent" };
   }
-  if (await alreadySentToday(db, kind)) {
+  // A test is exempt from the once-a-day rule and does not consume it: its whole
+  // job is to be sendable on demand, and it must not silence a real alert later.
+  if (kind !== "test" && (await alreadySentToday(db, kind))) {
     return { sent: false, why: "an alert of this kind already went today" };
   }
 
@@ -77,6 +79,63 @@ export async function sendAlert(
   if (logError) console.error("could not record the alert:", logError.message);
 
   return error === null ? { sent: true, why: `sent to ${to}` } : { sent: false, why: error };
+}
+
+// Is the sending domain actually verified? A set API key proves nothing about
+// deliverability: Resend accepts the key and refuses the send, which is the same
+// class of silent failure as the credential that started all this (Alex, M2.2).
+//
+// Checked live rather than remembered, because the state changes on Resend's side
+// with nothing to tell us.
+export type DomainState = "verified" | "pending" | "not_started" | "failed" | "unknown" | "no_key" | "unreachable";
+
+export interface DomainCheck {
+  domain: string;
+  state: DomainState;
+  detail: string;
+}
+
+export async function checkSendingDomain(env: Env): Promise<DomainCheck> {
+  const domain = domainOf(env.ALERT_FROM?.trim() || DEFAULT_FROM);
+  const key = env.RESEND_API_KEY?.trim();
+  if (!key) return { domain, state: "no_key", detail: "RESEND_API_KEY is not set, so nothing can be sent." };
+
+  try {
+    const res = await fetch("https://api.resend.com/domains", {
+      headers: { authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      return { domain, state: "unreachable", detail: `Resend answered ${res.status} when asked about domains.` };
+    }
+    const body = (await res.json()) as { data?: { name?: string; status?: string }[] };
+    const match = (body.data ?? []).find((d) => d.name?.toLowerCase() === domain);
+    if (!match) {
+      return { domain, state: "unknown", detail: `Resend has no domain called ${domain}. Mail from it will be refused.` };
+    }
+    const status = (match.status ?? "").toLowerCase();
+    if (status === "verified") return { domain, state: "verified", detail: "Verified: mail from this domain is deliverable." };
+    if (status.includes("pending")) return { domain, state: "pending", detail: "Verification is in progress. Until it finishes, sends are refused." };
+    if (status.includes("not_started")) return { domain, state: "not_started", detail: "Verification has never been started, so every send is refused." };
+    return { domain, state: "failed", detail: `Resend reports the domain as "${match.status}". Sends are refused.` };
+  } catch (err) {
+    return { domain, state: "unreachable", detail: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+export function testAlert(): { subject: string; body: string } {
+  return {
+    subject: "Pin'd: test alert",
+    body: [
+      "This is a test, sent from the admin's Configuration page.",
+      "",
+      "If you are reading it, the whole chain works: the Resend key, the sending domain,",
+      "and the address alerts go to. A real alert about a failed nightly import would",
+      "arrive the same way.",
+      "",
+      `The admin: ${SITE}/admin/config`,
+    ].join("\n"),
+  };
 }
 
 // The nightly import failed, or did not produce what it should have.

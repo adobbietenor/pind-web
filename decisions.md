@@ -643,6 +643,14 @@ change). Where the plan has more detail, the plan is the reference.
      default, never an automatic re-ordering, never a "for you". The difference that
      matters is who asked for it: a reader who chooses to sort by popularity has decided
      what they want, and nothing has decided it for them.
+  4. **A category filter across the top of the list** (Alex, M2.2 — filed, not built):
+     sports, concerts, bars, clubs, community. A filter, not a sort: it narrows what is
+     shown without reordering what is left, so it cannot become a ranking by the back
+     door. Unfiltered stays the default. Two things to settle when it is picked up —
+     where the categories come from, since Ticketmaster's own classifications are close
+     but not these five and the Community & free run (M4.4) has its own shape; and what
+     an empty category looks like, because "Clubs (0)" on a Tuesday is worse than no
+     chip at all when a handful of gatherings a week are published.
 - **A spot is a card, not a maps link** (Alex, M2.2 — filed, not built). Tapping a
   meeting spot opens Google Maps today, and that is the whole interaction. It should
   open a **card**: what the place is like, food and drink, rough capacity, how loud it

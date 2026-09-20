@@ -4,7 +4,7 @@
 // Run with `npm run test:unit`.
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { alertsConfigured, checkSecrets, missingRequired } from "../../src/ops/secrets.ts";
+import { alertsConfigured, checkSecrets, domainOf, missingRequired } from "../../src/ops/secrets.ts";
 
 const FULL = {
   SUPABASE_URL: "https://x.supabase.co",
@@ -77,5 +77,15 @@ describe("whether an alert can actually go anywhere", () => {
     assert.equal(alertsConfigured({ ALERT_EMAIL: "alex@example.com" }), false);
     assert.equal(alertsConfigured({ RESEND_API_KEY: "  ", ALERT_EMAIL: "alex@example.com" }), false);
     assert.equal(alertsConfigured({}), false);
+  });
+});
+
+describe("the sending domain", () => {
+  it("reads the domain out of whatever shape ALERT_FROM is written in", () => {
+    assert.equal(domainOf("Pin'd alerts <alerts@pind.social>"), "pind.social");
+    assert.equal(domainOf("alerts@pind.social"), "pind.social");
+    assert.equal(domainOf("ALERTS@Pind.Social"), "pind.social");
+    assert.equal(domainOf(undefined), "");
+    assert.equal(domainOf("nonsense"), "");
   });
 });

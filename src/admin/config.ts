@@ -12,11 +12,12 @@
 // string lists in `wrangler secret list` exactly like a real one and then fails at
 // the first `.trim()`.
 import { spotSuggestionsOn, type Env } from "../env";
+import { checkSendingDomain, sendAlert, testAlert, type DomainCheck } from "../ops/alert";
 import { alertsConfigured, checkSecrets, type SecretCheck, type SecretName } from "../ops/secrets";
 
 import type { AdminContext, AdminHandler } from "./context";
 import { formatLocal } from "./time";
-import { adminPage, e, must } from "./ui";
+import { adminPage, back, e, here, must, postButton } from "./ui";
 
 // Compile-time: every name on this page is a real setting on Env. secrets.ts takes a
 // plain record so the unit tests can load it under bare node, and this is what stops
@@ -80,6 +81,51 @@ ${health.last_run_error ? `<br>Last error: ${e(health.last_run_error)}` : ""}
 ${alertsOn ? "" : `<br><strong>Nothing emailed you about this.</strong> Set RESEND_API_KEY and ALERT_EMAIL and it will.`}</p>`;
 }
 
+// A set key proves nothing about deliverability. Resend accepts the key and refuses
+// the send while the sending domain is unverified, which is the same silent failure
+// as the credential that started all this (Alex, M2.2). So the state is checked live,
+// and there is a button to prove the whole chain end to end rather than discovering
+// it when a real alert does not arrive.
+const DOMAIN_LABEL: Record<DomainCheck["state"], { cls: string; text: string }> = {
+  verified: { cls: "good", text: "verified" },
+  pending: { cls: "bad", text: "verifying — sends are refused until it finishes" },
+  not_started: { cls: "bad", text: "verification never started — every send is refused" },
+  failed: { cls: "bad", text: "verification failed — sends are refused" },
+  unknown: { cls: "bad", text: "not a domain on this Resend account — sends are refused" },
+  no_key: { cls: "bad", text: "no API key, so nothing can be sent" },
+  unreachable: { cls: "bad", text: "could not ask Resend" },
+};
+
+async function alertsSection(ctx: AdminContext, alertsOn: boolean, backTo: string): Promise<string> {
+  const test = postButton("/admin/config/test-alert", "Send a test alert", backTo, { cls: "plain" });
+  if (!alertsOn) {
+    return `<p class="bad"><strong>Alerts are off.</strong> A failed nightly run is recorded and shown here, and reaches nobody.
+Set <code>RESEND_API_KEY</code> (a Worker secret) and <code>ALERT_EMAIL</code> to turn them on.</p>`;
+  }
+  const domain = await checkSendingDomain(ctx.env);
+  const label = DOMAIN_LABEL[domain.state];
+  const deliverable = domain.state === "verified";
+  return `<p>Alerts go to <strong>${e(ctx.env.ALERT_EMAIL ?? "")}</strong>, at most one of a kind a day.</p>
+<p>Sending domain <code>${e(domain.domain)}</code>: <span class="${label.cls}">${e(label.text)}</span>
+<br><span class="muted">${e(domain.detail)}</span></p>
+${deliverable ? "" : `<p class="bad"><strong>A set key is not a working channel.</strong> Until the domain verifies, every alert is refused by Resend —
+the failure is recorded in the alert log, but no mail arrives.</p>`}
+<p>${test} <span class="muted">Proves the whole chain: the key, the domain and the address. A test ignores the
+once-a-day rule and does not use it up, so it can never silence a real alert.</span></p>`;
+}
+
+export const sendTestAlert: AdminHandler = async (request, ctx) => {
+  const form = await request.formData();
+  const { subject, body } = testAlert();
+  const outcome = await sendAlert(ctx.env, ctx.db, "test", subject, body);
+  return back(
+    form,
+    outcome.sent
+      ? { ok: `Test alert ${outcome.why}. If it does not arrive, the problem is past Resend — check spam, then the address.` }
+      : { err: `Not sent: ${outcome.why}` },
+  );
+};
+
 const STATE_LABEL: Record<SecretCheck["state"], string> = {
   set: `<span class="good">set</span>`,
   empty: `<span class="bad">set but EMPTY</span>`,
@@ -103,10 +149,7 @@ export const configPage: AdminHandler = async (request, ctx) => {
 Until ${broken.length === 1 ? "it is" : "they are"} set, the parts named below do not work — silently, unless something here says so.</p>`
     : `<p class="flash ok">Every required setting is present.</p>`;
 
-  const alerts = alertsOn
-    ? `<p class="good">Alerts are on: a failed nightly run emails ${e(ctx.env.ALERT_EMAIL ?? "")}, at most once a day.</p>`
-    : `<p class="bad"><strong>Alerts are off.</strong> A failed nightly run is recorded and shown here, and reaches nobody.
-Set <code>RESEND_API_KEY</code> (a Worker secret) and <code>ALERT_EMAIL</code> to turn them on.</p>`;
+  const alerts = await alertsSection(ctx, alertsOn, here(request));
 
   const body = `
 ${summary}

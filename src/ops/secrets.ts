@@ -68,3 +68,10 @@ export function missingRequired(env: Settings): SecretCheck[] {
 export function alertsConfigured(env: Settings): boolean {
   return stateOf(env, "RESEND_API_KEY") === "set" && stateOf(env, "ALERT_EMAIL") === "set";
 }
+
+// "Pin'd alerts <alerts@pind.social>" -> "pind.social". Lives here, with the other
+// settings helpers, so the unit tests can reach it without loading Env.
+export function domainOf(from: string | undefined): string {
+  const address = /<([^>]+)>/.exec(from ?? "")?.[1] ?? from ?? "";
+  return address.split("@")[1]?.trim().toLowerCase() ?? "";
+}

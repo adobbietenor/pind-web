@@ -16,6 +16,7 @@ const ROUTES: [string, AdminHandler][] = [
   ["GET /admin", g.draftQueue],
   ["GET /admin/published", g.publishedList],
   ["GET /admin/config", cfg.configPage],
+  ["POST /admin/config/test-alert", cfg.sendTestAlert],
   // M2.2 — auto-publishing: the panel, the loop's settings, Alex's marks, promotions
   ["GET /admin/publishing", pub.publishingPage],
   ["POST /admin/publishing/settings", pub.savePublishSettings],

@@ -1295,6 +1295,12 @@ until M4.4, so raising it now would hold slots nothing can fill, and the fill al
 refuses to hold an empty slot for exactly that reason. It stays at 1 until there is a
 queue to measure; then it is a setting on the cities row, not a rebuild.
 
+**The lead minimum is 0** (Alex, M2.2, on the first real fill): `publish_lead_days_min`
+starts at **0**, not 4. Someone landing on the site tonight has to see what is on
+tonight — people are last-minute, and a five-day hole at the front of the list reads as
+an abandoned site. Nothing else changes: `admin_publish_gathering` still refuses a
+gathering that has already started, so "today" means the rest of today.
+
 **Open: what the target counts — a week, or a shelf** (Alex, M2.2; decide after real
 weeks, not by reasoning). The target is currently *five gatherings starting per
 calendar week*, and the first read-only run surfaced the consequence: by mid-week
@@ -1311,6 +1317,20 @@ out. Two shapes:
 
 The rule stays as built. Watch a few real weeks first: how often the current week
 actually empties, and whether anyone lands on the thin end of one.
+
+**First evidence, 20 September 2026 — the hole is inside the week, not at its front.**
+Dropping the lead minimum to 0 did not fill Monday to Thursday, and the publishing log
+says exactly why: the week of 21 Sep was already at its target of 5, and all five fall
+on Friday, Saturday and Sunday. Twenty-nine eligible drafts were skipped as "week
+full", **five of them on the empty days, including Charli xcx (88) and a Leafs game
+(88) — scoring higher than things that published in other weeks.** Part of that is
+sequencing: the week was filled while the 4-day minimum still hid the near days, and a
+week filled from scratch under a 0-day minimum would have ranked Charli xcx first. But
+the shape of the problem survives that: a per-week target says nothing about *which*
+days inside the week get filled, so a strong weekend can legitimately consume a whole
+week's quota. A rolling shelf, a higher weekly target, or a floor on the next 72 hours
+would each address it differently. Decision still deferred; the evidence is no longer
+hypothetical.
 
 **Pinning has no time gate, and never had one** (confirmed in M2.2, harness P37b).
 `publish_lead_days_min` decides only when a draft may be *auto-published*; it is read

@@ -10,7 +10,7 @@
 // mints its slugs the same way, and a gathering that never goes through that
 // function has no slug and reaches no public page (M2.1, decisions Part 5).
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { adjustedScore, distanceAdjustment, venueDistanceKm, type CityGeo } from "../import/ticketmaster";
+import { adjustedScore, distanceAdjustment, venueDistanceKm, type CityGeo } from "../import/ticketmaster.ts";
 import {
   addWeeks,
   adjustTarget,
@@ -22,7 +22,7 @@ import {
   type PublishSettings,
   type TargetDecision,
   type WeekState,
-} from "./plan";
+} from "./plan.ts";
 
 // The city-local week containing today, plus the two after it. publish_lead_days_max
 // is 21 for exactly this reason: the far end of the third week is at most 20 days
