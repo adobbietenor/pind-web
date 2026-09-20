@@ -205,7 +205,102 @@ export function planPublishing(input: PlanInput): PublishPlan {
   const summaries: WeekSummary[] = [];
   const picks: string[] = [];
 
-  for (const week of input.weeks) {
+  const note = (
+    c: Candidate,
+    weekStart: string,
+    target: number,
+    publishedBefore: number,
+    d: Partial<Decision> & { outcome: Decision["outcome"]; reasonCode: ReasonCode; reason: string },
+  ) =>
+    decisions.push({
+      weekStart,
+      target,
+      publishedBefore,
+      gatheringId: c.id,
+      gatheringName: c.name,
+      startsAt: c.startsAt,
+      venueId: c.venueId,
+      venueName: c.venueName,
+      slot: null,
+      slotKind: null,
+      rank: null,
+      candidates: null,
+      aiScore: c.aiScore,
+      adjustment: c.adjustment,
+      finalScore: c.finalScore,
+      distanceKm: c.distanceKm,
+      mark: c.mark,
+      category: c.category,
+      ...d,
+    });
+
+  // ---------------------------------------------------------------------------
+  // Alex's marks come first, and outrank every automatic rule.
+  //
+  // "Publish first" used to mean "skips the score floor", which made it a weaker
+  // version of a power he already had: the Publish button ignores every rule, so a
+  // mark that did not was only confusing. Three drafts marked on the M2.2 walk were
+  // refused by the venue cap and the category cap and stayed drafts, while the
+  // confirmation had promised they would publish.
+  //
+  // So a marked draft is published as if he had clicked Publish: no floor, no lead
+  // window, no target, no venue cap, no category cap, no community slot, and no
+  // regard for which week it lands in. What stops it is what stops the button —
+  // no venue, already started (the database refuses), or having been public before,
+  // which is his own rule that an unpublish is final and is not silently reversible
+  // by a mark left over from earlier. That last case is logged saying so.
+  //
+  // Marked picks still COUNT towards the caps, so the automatic picks that follow
+  // see them. The override is for the draft he named, not for everything after it.
+  // ---------------------------------------------------------------------------
+  const weeks = input.weeks.map((w) => ({ ...w, perVenue: { ...w.perVenue }, perCategory: { ...w.perCategory } }));
+  const byWeek = new Map(weeks.map((w) => [w.weekStart, w]));
+  const takenByMark = new Set<string>();
+  const markedInWeek = new Map<string, number>();
+
+  for (const c of input.candidates) {
+    if (c.mark !== "publish") continue;
+    const weekStart = weekStartOf(c.startsAt, timeZone);
+    const target = s.targetWeekly;
+    const w = byWeek.get(weekStart);
+    const before = w?.publishedLive ?? 0;
+
+    if (c.hasSlug) {
+      note(c, weekStart, target, before, {
+        outcome: "skipped",
+        reasonCode: "previously_published",
+        reason: `not published — you marked it "publish", but it has been on the public web before, and an unpublish stays final. Publish it by hand if you mean it.`,
+      });
+      continue;
+    }
+    if (!c.venueId) {
+      note(c, weekStart, target, before, {
+        outcome: "skipped",
+        reasonCode: "no_venue",
+        reason: `not published — you marked it "publish", but it has no venue yet, which is the one thing publishing needs.`,
+      });
+      continue;
+    }
+
+    takenByMark.add(c.id);
+    picks.push(c.id);
+    const n = (markedInWeek.get(weekStart) ?? 0) + 1;
+    markedInWeek.set(weekStart, n);
+    if (w) {
+      w.publishedLive += 1;
+      w.perVenue[c.venueId] = (w.perVenue[c.venueId] ?? 0) + 1;
+      w.perCategory[c.category] = (w.perCategory[c.category] ?? 0) + 1;
+    }
+    note(c, weekStart, target, before, {
+      outcome: "published",
+      reasonCode: "published",
+      slot: before + n,
+      slotKind: "marked",
+      reason: `published because you marked it "publish" — that outranks the score floor, the lead window, the target and both caps, exactly as your own Publish button does. ${scoreText(c)}.`,
+    });
+  }
+
+  for (const week of weeks) {
     const target = s.targetWeekly;
     const publishedBefore = week.publishedLive;
     const perVenue: Record<string, number> = { ...week.perVenue };
@@ -218,6 +313,7 @@ export function planPublishing(input: PlanInput): PublishPlan {
     const pool = input.candidates
       .filter((c) => {
         const at = Date.parse(c.startsAt);
+        if (takenByMark.has(c.id)) return false; // already published above
         return at >= from && at <= to && weekStartOf(c.startsAt, timeZone) === week.weekStart;
       })
       .sort(rankCandidates);

@@ -111,12 +111,12 @@ export function markCell(g: { id: string; publish_mark: string | null }, backTo:
   const set = (value: string, label: string, cls: string) =>
     postButton(`/admin/gatherings/${g.id}/mark`, label, backTo, { fields: { mark: value }, cls });
   if (mark === "publish") {
-    return `<strong class="good">publish first</strong><br>${set("", "Clear", "plain")}`;
+    return `<strong class="good">publishes next run</strong><br>${set("", "Clear", "plain")}`;
   }
   if (mark === "never") {
     return `<strong class="bad">never</strong><br>${set("", "Clear", "plain")}`;
   }
-  return `${set("publish", "Publish first", "plain")}${set("never", "Never", "plain")}`;
+  return `${set("publish", "Publish next run", "plain")}${set("never", "Never", "plain")}`;
 }
 
 export const setPublishMark: AdminHandler = async (request, ctx) => {
@@ -129,9 +129,9 @@ export const setPublishMark: AdminHandler = async (request, ctx) => {
   });
   const done =
     mark === "publish"
-      ? "Marked: the next run publishes it first, whatever it scores"
+      ? "Marked: the next run publishes it, ahead of everything and regardless of the floor, the caps and the target"
       : mark === "never"
-        ? "Marked never: no run will publish it. You still can."
+        ? "Marked never: no run will publish it. You still can, by hand."
         : "Mark cleared";
   return back(form, error ? { err: error.message } : { ok: done });
 };

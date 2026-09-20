@@ -149,6 +149,12 @@ export const draftQueue: AdminHandler = async (request, ctx) => {
       const merge = candidates.length
         ? `<form class="inline" method="post" action="/admin/gatherings/${e(g.id)}/merge">` +
           `<input type="hidden" name="back" value="${e(backTo)}"><select name="into">` +
+          // No default. With nothing selected the browser picks the first option, so
+          // every row on a day offered the same unrelated gathering as its merge
+          // target — a destructive action defaulting to something wrong (Alex, M2.2
+          // walk). A duplicate the queue has spotted is still pre-selected, because
+          // that is a suggestion the row has evidence for.
+          `<option value="">— merge into… —</option>` +
           candidates
             .map((o: any) => `<option value="${e(o.id)}"${dups.some((d: any) => d.id === o.id) ? " selected" : ""}>${e(o.name)} (${e(o.status)})</option>`)
             .join("") +
@@ -228,7 +234,8 @@ ${flags}
 ${crewsNoSpots}
 <p>Published in the last 7 days: <strong>${recent.count ?? 0}</strong>. The nightly run fills each week to the target; publish by hand whenever you want one sooner.</p>
 <p class="muted">Publishing needs a venue, not meeting spots: spots are needed when crews open (5 opted in). Score = AI score minus the distance adjustment.
-"Publish first" jumps the queue and ignores the score floor; "Never" keeps a draft out for good. A draft that has been published before is left to you.</p>
+"Publish next run" is an instruction, not a preference: it outranks the score floor, the lead window, the weekly target and both caps, exactly as this page's Publish button does.
+"Never" keeps a draft out for good. A draft that has been published before is left to you either way.</p>
 <p>${toggles}${hidden ? ` · <span class="muted">${hidden} folded</span>` : ""}</p>
 ${sections || `<p>No upcoming drafts in this range.</p>`}
 ${needSpots}

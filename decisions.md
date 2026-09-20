@@ -1027,3 +1027,28 @@ change). Where the plan has more detail, the plan is the reference.
   entirely. This is why the manual community pass (decisions Part 5) matters more than
   its position in the plan suggests: it is not decoration on the list, it is what makes
   every other rule in the publisher affordable.
+- **A mark outranks every automatic rule** (Alex, M2.2 walk). "Publish first" used to
+  mean only "skips the score floor", so three drafts Alex marked were refused by the
+  venue cap and the category cap and stayed drafts while the confirmation promised they
+  would publish. It now means what the button means.
+  **The argument that settled it:** the Publish button already ignores every rule, so a
+  mark that did not was a *weaker* version of a power Alex already had — which grants
+  nothing and only confuses. A mark is "click Publish for me on the next run", and it
+  therefore outranks the score floor, the lead window, the weekly target, the per-venue
+  cap, the category cap and the community slot.
+  What still stops it is what stops the button: no venue, already started (the database
+  refuses), or **having been public before** — his own rule that an unpublish is final,
+  which a mark left over from earlier must not silently reverse. That case is logged
+  saying exactly that, rather than going quiet.
+  Marked picks **count towards the caps**, so the automatic picks after them see them:
+  the override is for the draft he named, not for everything that follows.
+  `Never` was checked at the same time and is safe — it is the first test in the walk,
+  before any cap, so a banned draft never enters the ranking at all. It fails closed.
+- **No destructive control is ever pre-selected** (Alex, M2.2 walk). The draft queue's
+  "Merge into" dropdown had no empty first option, so the browser selected the first
+  gathering of that day on *every* row — an unrelated event offered as the merge target
+  everywhere. Merge is genuinely two-step (it shows a confirmation page naming both
+  gatherings before anything happens), but a wrong default on a destructive action is
+  its own bug. There is now a "— merge into… —" placeholder, and a duplicate the queue
+  has actually spotted is still pre-selected, because that is a suggestion with evidence
+  behind it.

@@ -197,8 +197,11 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
       .select("id, name, starts_at, venue_id, slug, publish_mark, source, gathering_triage(score), gathering_sources(snapshot)")
       .eq("status", "draft")
       .eq("is_seed", false)
-      .gte("starts_at", from)
-      .lte("starts_at", to)
+      .gt("starts_at", now.toISOString())
+      // Inside the lead window, OR marked "publish" — a mark outranks the window
+      // like every other automatic rule, and a draft that is never fetched cannot be
+      // refused visibly either (Alex, M2.2 walk).
+      .or(`and(starts_at.gte.${from},starts_at.lte.${to}),publish_mark.eq.publish`)
       .order("starts_at")
       .limit(1000),
   );

@@ -204,15 +204,43 @@ describe("Alex's marks", () => {
     assert.deepEqual(p.picks, [marked.id, best.id]);
     const d = reasonFor(p, marked.id);
     assert.equal(d.slotKind, "marked");
-    assert.match(d.reason, /you marked it "publish", so it went first/);
+    assert.match(d.reason, /published because you marked it "publish"/);
   });
 
-  it("keeps a marked draft inside the target and the venue cap", () => {
-    const marked = Array.from({ length: 3 }, () => draft({ mark: "publish", finalScore: 10 }));
-    const p = plan(marked, { targetWeekly: 5 });
-    // Same venue, cap of two: the third is held back even though it is marked.
-    assert.equal(p.picks.length, 2);
-    assert.equal(reasonFor(p, marked[2]!.id).reasonCode, "venue_cap");
+  // Found on the M2.2 walk: three drafts marked "publish" were refused by the venue
+  // cap and the category cap and stayed drafts, while the confirmation promised they
+  // would publish. A mark is an instruction, and the Publish button already ignores
+  // every rule — so a mark that did not was a weaker version of a power Alex had.
+  it("outranks the venue cap, the category cap and the target", () => {
+    const sameVenue = Array.from({ length: 3 }, () => draft({ mark: "publish", finalScore: 10, venueId: "one", category: "concerts" }));
+    const p = plan(sameVenue, { targetWeekly: 1 });
+    assert.equal(p.picks.length, 3, "a cap or the target refused a draft Alex marked");
+    for (const c of sameVenue) assert.equal(reasonFor(p, c.id).outcome, "published");
+    assert.match(reasonFor(p, sameVenue[0]!.id).reason, /outranks the score floor, the lead window, the target and both caps/);
+  });
+
+  it("outranks the lead window too, so a mark is never silently out of range", () => {
+    const far = draft({ mark: "publish", startsAt: "2026-12-20T23:00:00.000Z" });
+    const near = draft({ mark: "publish", startsAt: "2026-10-13T01:00:00.000Z" });
+    const p = plan([far, near]);
+    assert.deepEqual(p.picks.sort(), [far.id, near.id].sort());
+  });
+
+  it("still counts towards the caps, so the automatic picks after it see it", () => {
+    const marked = draft({ mark: "publish", category: "concerts", venueId: "one", finalScore: 10 });
+    const rest = Array.from({ length: 4 }, (_, i) => draft({ category: "concerts", venueId: "one", finalScore: 90 - i }));
+    const p = plan([marked, ...rest], { targetWeekly: 50 });
+    assert.ok(p.picks.includes(marked.id));
+    // The venue cap of 2 sees the marked one: only one more from that venue.
+    assert.equal(p.picks.length, 2, `the marked pick was not counted against the venue cap (${p.picks.length})`);
+  });
+
+  it("does not revive something Alex unpublished, and says why rather than going quiet", () => {
+    const wasPublic = draft({ mark: "publish", hasSlug: true });
+    const p = plan([wasPublic]);
+    assert.deepEqual(p.picks, []);
+    assert.equal(reasonFor(p, wasPublic.id).reasonCode, "previously_published");
+    assert.match(reasonFor(p, wasPublic.id).reason, /an unpublish stays final. Publish it by hand if you mean it/);
   });
 
   it("never publishes a draft marked never, and says that is why", () => {
