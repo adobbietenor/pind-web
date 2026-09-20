@@ -1308,3 +1308,39 @@ change). Where the plan has more detail, the plan is the reference.
   because that is what "last Sunday of the month" means and a fourth-Sunday reading is
   a week early in any five-Sunday month. Verified: 27 Sep → 25 Oct → 29 Nov → 27 Dec →
   31 Jan → 28 Feb. Still a generator, still no recurrence in the schema.
+- **Registering elsewhere is a line on the page; capacity is a publishing rule**
+  (Alex, before the wider community pass). Two problems that arrived together and are
+  opposites.
+  - **Registration: still pinnable, with the line above the button.** "Pin in" means
+    *I am going* — a statement about the person, not a claim about availability — so
+    somebody who has registered with the ride club is telling the truth. What would
+    have been dishonest is letting them find out afterwards. `signup_url` and
+    `signup_required`; the notice sits above the call to action because it is a
+    precondition, not a footnote.
+  - **Capacity: a room too small is a page the product cannot serve.** Not a caveat.
+    Crews open at five opted in and §7 expects opt-in at **about half of pinners**, so
+    five opted in needs roughly **ten pinners — and a room that cannot hold ten cannot
+    produce ten at any conversion rate whatsoever.** That is arithmetic, not a
+    forecast. A birding walk with three places would promise a crew that can never
+    form.
+  - **Why ten and not five** (Alex's question, and he was right to ask): at five, every
+    single attendee would have to pin *and* opt in, which will never happen —
+    technically possible and practically dead. **Ten is where reasoning stops and
+    evidence has to start**: below it is arithmetically impossible, above it is a guess
+    about how many attendees ever become pinners, which nothing yet knows. It is
+    `cities.min_capacity` rather than a constant for exactly that reason, so it moves
+    with evidence instead of argument.
+  - **Places remaining is deliberately not modelled.** "3 spaces left" is true for an
+    hour and then it is a lie on a page we control — the same mistake as storing
+    somebody else's opening hours. Capacity is a fact about the room; remaining is a
+    fact about right now, and we cannot keep it.
+  - A mark still outranks it, like every other automatic rule, and Alex can publish a
+    small room by hand.
+- **A series whose venue changes is a series only in name** (Alex, on the ride club's
+  rotating start points). Toronto Bike Network starts somewhere different every week —
+  Woodbine Beach, then Victoria Park, then Finch, then High Park. Those are **different
+  gatherings that share a name**: different venue, different neighbourhood, different
+  people within reach. They are entered separately, and the generator gets **no
+  per-occurrence venue override**, because the override would then be used for things
+  that ought to be one series. It is also another argument against ever making
+  recurrence a first-class concept.

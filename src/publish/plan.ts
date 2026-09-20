@@ -30,6 +30,7 @@ export interface PublishSettings {
   maxPerVenuePerWeek: number;
   maxCategoryShare: number;
   minPerCategory: number;
+  minCapacity: number;
   communitySlotsWeekly: number;
   scoreFloor: number;
   growReach: number;
@@ -71,6 +72,9 @@ export interface Candidate {
   // slug is the database's own record that this gathering has been public before.
   hasSlug: boolean;
   source: string;
+  // How many the room holds, where it is known. Null is unknown, which holds nothing
+  // back — the same reading as an unknown door price.
+  capacity: number | null;
   // The coarse kind of gathering the cap reasons about — sports, concerts, clubs and
   // so on. Provisional in M2.2, derived from the source's own classification; M2.3
   // promotes it to a column and settles the public naming.
@@ -90,6 +94,7 @@ export type ReasonCode =
   | "marked_never"
   | "previously_published"
   | "no_venue"
+  | "too_small"
   | "unscored"
   | "below_floor"
   | "venue_cap"
@@ -356,6 +361,16 @@ export function planPublishing(input: PlanInput): PublishPlan {
           outcome: "skipped",
           reasonCode: "previously_published",
           reason: `skipped, previously published — it has been on the public web before, so only you can publish it again`,
+        });
+      } else if (c.capacity !== null && c.capacity < s.minCapacity) {
+        // Crews open at five opted in, and §7 expects opt-in at about half of
+        // pinners — so five opted in needs roughly ten pinners, and a room that
+        // cannot hold ten cannot produce ten at any conversion rate. Publishing it
+        // would promise a crew that can never form (Alex, before the wider pass).
+        record(c, {
+          outcome: "skipped",
+          reasonCode: "too_small",
+          reason: `not published — it holds ${c.capacity}, and a crew needs five people opted in out of about ten pinners, so a room under ${s.minCapacity} cannot get there. Publish it by hand if you want it anyway.`,
         });
       } else if (!c.venueId) {
         record(c, { outcome: "skipped", reasonCode: "no_venue", reason: `not published — no venue yet` });

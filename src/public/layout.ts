@@ -67,6 +67,11 @@ a.card:hover{border-color:#453f52;background:#1c1922}
    action, close enough that nobody can take one without the other. */
 .cost{margin:8px 0 0;font-size:.92rem;color:var(--muted);text-align:center}
 
+/* Registering elsewhere: above the call to action, because it is a precondition
+   rather than a footnote. */
+.signup{margin:0 0 10px;font-size:.94rem;text-align:center;color:#d7d2df}
+.signup a{color:#fff}
+
 /* Counts on the crowd page */
 .tallies{display:flex;gap:10px;margin:18px 0 6px}
 .tally-box{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 14px}

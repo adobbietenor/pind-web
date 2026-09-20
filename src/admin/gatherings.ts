@@ -307,6 +307,9 @@ interface GatheringFields {
   door_price_cents: number | null;
   entry_note: string | null;
   category: string | null;
+  signup_url: string | null;
+  signup_required: boolean;
+  capacity: number | null;
   featured: boolean;
   venue_name_raw: string | null;
 }
@@ -322,6 +325,10 @@ function readFields(form: FormData, tz: string): GatheringFields | string {
   if (ends && Date.parse(ends) <= Date.parse(starts)) return "End time must be after the start";
   const eventUrl = str(form, "event_url");
   if (eventUrl && !/^https?:\/\/\S+$/i.test(eventUrl)) return "Event link must start with http:// or https://";
+  const signup = str(form, "signup_url");
+  if (signup && !/^https?:\/\/\S+$/i.test(signup)) return "The registration link must start with http:// or https://";
+  const cap = str(form, "capacity");
+  if (cap && !(Number(cap) > 0)) return "Capacity is how many the room holds — a whole number, or blank if nobody knows";
   const entry = readEntry(form);
   if (typeof entry === "string") return entry;
   return {
@@ -331,6 +338,9 @@ function readFields(form: FormData, tz: string): GatheringFields | string {
     event_url: eventUrl || null,
     ...entry,
     category: CATEGORY_VALUES.includes(str(form, "category")) ? str(form, "category") : null,
+    signup_url: str(form, "signup_url") || null,
+    signup_required: form.get("signup_required") === "on" || str(form, "signup_url") !== "",
+    capacity: str(form, "capacity") ? Number(str(form, "capacity")) : null,
     featured: form.get("featured") === "on",
     venue_name_raw: str(form, "venue_name_raw") || null,
   };
@@ -410,6 +420,15 @@ ${(
 <input name="entry_note" maxlength="60" size="40" value="${e(g?.entry_note)}"></label>
 </fieldset>
 ${categoryField(g)}
+<fieldset><legend>Getting in</legend>
+<label>Register first, at<br><input name="signup_url" size="60" placeholder="https://…" value="${e(g?.signup_url)}"></label>
+<label><input type="checkbox" name="signup_required"${g?.signup_required ? " checked" : ""}> Registration is required
+<span class="muted">— the page says so above the button. Pinning in stays open either way: it means "I'm going", not "there is room".</span></label>
+<label>Capacity <span class="muted">(how many the room holds, if it is known and fixed — never places remaining)</span><br>
+<input name="capacity" size="6" inputmode="numeric" value="${e(g?.capacity)}"></label>
+<p class="muted">A known capacity under the floor is not auto-published: crews open at 5 opted in, which needs about 10 pinners,
+so a smaller room cannot get there at any rate. You can still publish one by hand.</p>
+</fieldset>
 <label><input type="checkbox" name="featured"${g?.featured ? " checked" : ""}> Featured</label>`;
 }
 

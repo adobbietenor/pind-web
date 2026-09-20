@@ -29,6 +29,7 @@ const SETTINGS: PublishSettings = {
   maxPerVenuePerWeek: 2,
   maxCategoryShare: 0.4,
   minPerCategory: 3,
+  minCapacity: 10,
   communitySlotsWeekly: 1,
   scoreFloor: 70,
   growReach: 0.6,
@@ -64,6 +65,7 @@ function draft(over: Partial<Candidate> = {}): Candidate {
     mark: null,
     hasSlug: false,
     source: "ticketmaster",
+    capacity: null,
     // Most cases are about the target, the floor or the venue cap; giving each draft
     // its own category keeps the share rule out of their way. The cases that mean to
     // exercise it set it deliberately.
@@ -543,5 +545,36 @@ describe("the weekly adjust", () => {
       /pins are deleted 30 days after a gathering/,
     );
     assert.doesNotThrow(() => adjustTarget({ ...SETTINGS, adjustWindowDays: PIN_RETENTION_DAYS - 1 }, rows));
+  });
+});
+
+describe("rooms too small for a crew to form in", () => {
+  // Crews open at five opted in, and §7 expects opt-in at about half of pinners — so
+  // five opted in needs roughly ten pinners, and a room that cannot hold ten cannot
+  // produce ten at any conversion rate. Publishing it would promise a crew that can
+  // never form (Alex, before the wider community pass).
+  it("does not auto-publish a gathering whose known capacity is under the floor", () => {
+    const tiny = draft({ capacity: 3 });
+    const p = plan([tiny]);
+    assert.deepEqual(p.picks, []);
+    assert.equal(reasonFor(p, tiny.id).reasonCode, "too_small");
+    assert.match(reasonFor(p, tiny.id).reason, /it holds 3, and a crew needs five people opted in/);
+  });
+
+  it("publishes one exactly at the floor, and holds the one below it", () => {
+    const at = draft({ capacity: 10, venueId: "a" });
+    const under = draft({ capacity: 9, venueId: "b" });
+    const p = plan([at, under]);
+    assert.deepEqual(p.picks, [at.id]);
+  });
+
+  it("treats an unknown capacity as no reason to hold anything back", () => {
+    const unknown = draft({ capacity: null });
+    assert.deepEqual(plan([unknown]).picks, [unknown.id]);
+  });
+
+  it("still lets Alex publish a small room by hand — the mark outranks this too", () => {
+    const tiny = draft({ capacity: 3, mark: "publish" });
+    assert.deepEqual(plan([tiny]).picks, [tiny.id]);
   });
 });

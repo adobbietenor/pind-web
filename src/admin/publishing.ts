@@ -339,6 +339,7 @@ const FIELDS: [NumericSetting, string, string][] = [
   ["max_per_venue_per_week", "Per venue, per week", "A homestand does not fill the week"],
   ["max_category_share", "Category share", "No one kind of gathering takes more than this share of a week (0.40 = 40%). What makes a lower score floor safe"],
   ["min_per_category", "Category allowance", "Every kind may take this many before the share applies at all"],
+  ["min_capacity", "Smallest room", "A known capacity under this is never auto-published — a crew needs 5 opted in out of about 10 pinners"],
   ["community_slots_weekly", "Community slots", "Held for a community gathering, and only when one is waiting (from M4.4)"],
   ["score_floor", "Score floor", "Final score below which nothing is auto-published; a draft you mark “publish” ignores it"],
   ["grow_reach", "Grow: reach rate", "Both this and the median must hold to grow"],

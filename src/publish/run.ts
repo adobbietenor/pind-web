@@ -103,6 +103,7 @@ const SETTING_COLUMNS = [
   "max_per_venue_per_week",
   "max_category_share",
   "min_per_category",
+  "min_capacity",
   "community_slots_weekly",
   "score_floor",
   "grow_reach",
@@ -135,6 +136,7 @@ export function toSettings(row: Record<string, any>): PublishSettings {
     maxPerVenuePerWeek: Number(row.max_per_venue_per_week),
     maxCategoryShare: Number(row.max_category_share),
     minPerCategory: Number(row.min_per_category),
+    minCapacity: Number(row.min_capacity),
     communitySlotsWeekly: Number(row.community_slots_weekly),
     scoreFloor: Number(row.score_floor),
     growReach: Number(row.grow_reach),
@@ -214,7 +216,7 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
   const drafts = await must<any[]>(
     db
       .from("gatherings")
-      .select("id, name, starts_at, venue_id, slug, publish_mark, source, category, gathering_triage(score), gathering_sources(snapshot)")
+      .select("id, name, starts_at, venue_id, slug, publish_mark, source, category, capacity, gathering_triage(score), gathering_sources(snapshot)")
       .eq("status", "draft")
       .eq("is_seed", false)
       .gt("starts_at", now.toISOString())
@@ -246,6 +248,7 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
         mark: g.publish_mark ?? null,
         hasSlug: g.slug !== null,
         source: g.source,
+        capacity: g.capacity ?? null,
         // What somebody said beats what the source implies. Null means nobody has
         // said, and only then is a coarse kind derived (M2.3 decides whether the
         // importer starts filling it in).

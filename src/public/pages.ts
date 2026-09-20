@@ -179,6 +179,7 @@ ${door.venue.address ? `<p class="lede" style="margin-bottom:0">${escape(door.ve
 ${tallies(door.counts)}
 ${map.html}
 
+${signupNotice(g)}
 <a class="cta" id="cta" href="/g/${escape(g.slug)}/pin">${escape(button)}</a>
 ${cost ? `<p class="cost">${escape(cost)}</p>` : ""}
 <p class="note">Pin in and say you&#39;d like to meet, and you&#39;ll see everyone else who did.</p>
@@ -244,6 +245,18 @@ function tallies(c: Counts): string {
 // the phone's own maps app. None of it is baked into the picture, so approving a spot
 // later changes the page without re-rendering anything.
 type MapKind = "real" | "schematic" | "none";
+
+// Above the button, never inside it. Pinning in means "I am going" — a statement
+// about the person, not a claim about a place being available — so somebody who has
+// registered with the organiser is telling the truth. What would have been dishonest
+// is letting them find out afterwards (Alex, before the wider community pass).
+function signupNotice(g: Crowd2["gathering"]): string {
+  if (!g.signup_required && !g.signup_url) return "";
+  const where = g.signup_url
+    ? `<a href="${escape(g.signup_url)}" rel="noreferrer noopener" target="_blank">Register with the organiser first</a>`
+    : `Register with the organiser first`;
+  return `<p class="signup">${where} — then pin in here so you can see who else is going.</p>`;
+}
 
 function mapFigure(door: Crowd2): { html: string; kind: MapKind } {
   const v = door.venue;
