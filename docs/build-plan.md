@@ -388,6 +388,13 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 
 #### M3.1 · Identity and profile (A1–A3 store path; A21–A23 skeleton; the AI photo check)
 
+**Read `docs/m3.1-handover.md` first.** Phase 2 made decisions that bind this milestone —
+the reciprocal list already works at two people, V17 is stricter than the schema is
+today, the house rules were rewritten, the threshold never leads on any screen, the tag
+seed is one-way, and the photo check's AI spend has to land where the daily cap can see
+it. The handover is the short version so the session does not rediscover or contradict
+any of it.
+
 **Goal.** A person exists, can be reached, has a checked face, and can delete themselves — on both platforms — before any of that is exposed to anyone.
 
 - Sign in: Apple and Google native in the app, Google and the email code on the web; anonymous sign-in for the link path; anonymous → permanent linking (updateUser with email, linkIdentity for OAuth) with the pin surviving.
