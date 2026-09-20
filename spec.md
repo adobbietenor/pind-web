@@ -944,6 +944,39 @@ against a cap of 2 turned out to be Alex's own hand-publishing: the publisher to
 Jays games at 15:41 and he published two Zach Bryan nights at 15:57, sixteen minutes
 later. It was answerable only because every publish records who did it and when.
 
+#### The manual community pass — done, and what it taught
+Merged as `1c52161`. Seven gatherings across six venues, entered by hand and published
+for a fortnight; coordinates and real maps for all six. Not the permanent mechanism —
+it is how we learn what good looks like, and the rubric M4.4 automates against comes
+out of it (`docs/build-plan.md` §8 M4.4).
+
+**Built along the way:** three entry states replacing `is_free` (free / pay at the
+door / ticketed, with a price and a note); the category a reader filters by, in five
+chips; a recurrence generator that adds no recurrence to the schema — weekly,
+fortnightly and monthly, one form to N dated drafts.
+
+**What the pass found, which is the point of doing it by hand:**
+- **`is_free` had two values for a world with three.** Pub Chess is $10 cash at the
+  door: neither free nor ticketed, and "I'm going" hid a cost while "I've got a ticket"
+  described something that does not exist.
+- **The feed cannot tell a DJ night from a gig** — the same rooms host both — so there
+  is no "going out" chip, recorded with the venue numbers so nobody retries it.
+- **The chips and the publisher's category cap are different taxonomies.** Merging
+  them, which looked natural, would have taken the three upcoming weeks from 23/16/15
+  published to 6/6/6.
+- **A spot that exists but is shut at the meeting time is worse than no spot**, because
+  the "no spots" flag counts spots rather than open ones and stays silent.
+- **The convening is an arena solution applied to everything.** The reveal is identical
+  at an arena and at a run club; the convening is not. Settled as a property of the
+  gathering, built in M3.3 (decisions Part 5).
+- **A `create or replace` on a function somebody has already replaced is a silent
+  revert.** Rewriting `public_gathering` from a superseded definition took the real map
+  off *every* crowd page and the gender mix off every count, and nothing caught it: the
+  function returns jsonb, so a missing key is not a type error. Harness case **P65**
+  now names every key its readers need, and a standing admin panel flags any spot more
+  than a kilometre from its venue — the check that caught a geocode four kilometres out
+  that passed every is-this-Toronto test.
+
 #### Notes carried into the next milestones
 - **M3.1 — the photo check** (recorded by Alex in M1.2; decisions Part 5, "Automated
   photo moderation"). On upload, a Claude vision check auto-approves clear real-person
