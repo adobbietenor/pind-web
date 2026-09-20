@@ -6,8 +6,32 @@ export const TAGLINE = "Know where you're headed, find what you're looking for."
 export const ONE_LINER = "See who's going, meet them there.";
 
 export const PIN_IN = "Pin in — I've got a ticket";
-// For gatherings with is_free = true (Alex, Phase 1 M1.2).
+// Free and pay-at-the-door share this one (Alex, Phase 1 M1.2; the door case added
+// after M2.2). There is deliberately no third button: the button is a commitment and
+// the price is a fact, a button whose words change with the price cannot be scanned
+// down a list, and money inside the button makes it read like a purchase when nothing
+// here is for sale. The cost goes on its own line beside it — entryLine below.
 export const PIN_IN_FREE = "Pin in — I'm going";
+
+// What it costs to walk in, said in one line. The rule that matters: **never say free
+// unless it is free**, and an unknown price is "pay at the door" rather than silence —
+// unknown is a different state from no cost, and the failure to avoid is somebody
+// arriving at a door with no cash (Alex, after M2.2).
+export function entryLine(g: {
+  entry: "free" | "door" | "ticketed";
+  door_price_cents?: number | null;
+  entry_note?: string | null;
+}): string {
+  if (g.entry === "free") return "Free";
+  if (g.entry === "ticketed") return "";
+  const note = g.entry_note?.trim();
+  if (g.door_price_cents === null || g.door_price_cents === undefined) {
+    return note ? `Pay at the door — ${note}` : "Pay at the door";
+  }
+  const cents = g.door_price_cents % 100;
+  const amount = `$${Math.floor(g.door_price_cents / 100)}${cents ? `.${String(cents).padStart(2, "0")}` : ""}`;
+  return note ? `${amount} at the door — ${note}` : `${amount} at the door`;
+}
 
 export const THRESHOLD_EXPLANATION = "Crews open when 5 people opt in.";
 

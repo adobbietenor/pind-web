@@ -1366,6 +1366,7 @@ describe("Auto-publishing — M2.2 (spec §8)", () => {
           .single(),
       )
     ).id;
+    const targetBefore = (await serviceRow("cities", "slug", "toronto", "publish_target_weekly")).publish_target_weekly;
     await ok(admin("admin_set_publish_mark", { p_gathering: g, p_mark: "never" }));
     assert.equal((await serviceRow("gatherings", "id", g, "publish_mark")).publish_mark, "never");
     await ok(admin("admin_set_publish_mark", { p_gathering: g, p_mark: "" }));
@@ -1400,7 +1401,10 @@ describe("Auto-publishing — M2.2 (spec §8)", () => {
 
     // Nothing a visitor tried changed anything.
     assert.equal((await serviceRow("gatherings", "id", g, "publish_mark")).publish_mark, null);
-    assert.equal((await serviceRow("cities", "slug", "toronto", "publish_target_weekly")).publish_target_weekly, 5);
+    // Asserts the visitor changed nothing, rather than naming a number: the target is
+    // a setting Alex moves, and a test that hard-codes it fails the day he does (it
+    // did, when 5 became 50).
+    assert.equal((await serviceRow("cities", "slug", "toronto", "publish_target_weekly")).publish_target_weekly, targetBefore);
     assert.equal((await rows(w.service.from("gathering_promotions").select("id").eq("gathering_id", g))).length, 1);
 
     // Removing the last record makes it organic again, which is the honest state if

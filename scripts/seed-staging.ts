@@ -269,7 +269,7 @@ async function seed(db: SupabaseClient): Promise<void> {
           venue_id: d.venue ? venues[d.venue] : null,
           venue_name_raw: d.raw ?? (d.venue ? null : "unknown"),
           source: d.source,
-          is_free: d.free ?? false,
+          entry: d.free ? "free" : "ticketed",
           event_url: d.source === "manual" ? null : `https://example.com/${SEED}/event-${n}`,
           is_seed: true,
         })

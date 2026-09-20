@@ -868,11 +868,13 @@ export type Database = {
         Row: {
           created_at: string
           dismissed_at: string | null
+          door_price_cents: number | null
           ends_at: string | null
+          entry: Database["public"]["Enums"]["entry_kind"]
+          entry_note: string | null
           event_url: string | null
           featured: boolean
           id: string
-          is_free: boolean
           is_seed: boolean
           merged_into_id: string | null
           name: string
@@ -890,11 +892,13 @@ export type Database = {
         Insert: {
           created_at?: string
           dismissed_at?: string | null
+          door_price_cents?: number | null
           ends_at?: string | null
+          entry?: Database["public"]["Enums"]["entry_kind"]
+          entry_note?: string | null
           event_url?: string | null
           featured?: boolean
           id?: string
-          is_free?: boolean
           is_seed?: boolean
           merged_into_id?: string | null
           name: string
@@ -912,11 +916,13 @@ export type Database = {
         Update: {
           created_at?: string
           dismissed_at?: string | null
+          door_price_cents?: number | null
           ends_at?: string | null
+          entry?: Database["public"]["Enums"]["entry_kind"]
+          entry_note?: string | null
           event_url?: string | null
           featured?: boolean
           id?: string
-          is_free?: boolean
           is_seed?: boolean
           merged_into_id?: string | null
           name?: string
@@ -2252,8 +2258,10 @@ export type Database = {
           city_name: string
           city_timezone: string
           crews_open: boolean
+          door_price_cents: number
           ends_at: string
-          is_free: boolean
+          entry: Database["public"]["Enums"]["entry_kind"]
+          entry_note: string
           name: string
           open_to_meeting: number
           pinned: number
@@ -2277,6 +2285,7 @@ export type Database = {
       confirmation_kind: "we_met" | "keep_in_touch"
       contact_kind: "email" | "sms"
       crew_state: "forming" | "spot_set" | "live" | "done" | "dissolved"
+      entry_kind: "free" | "door" | "ticketed"
       gathering_flag_kind:
         | "date_changed"
         | "rescheduled"
@@ -2429,6 +2438,7 @@ export const Constants = {
       confirmation_kind: ["we_met", "keep_in_touch"],
       contact_kind: ["email", "sms"],
       crew_state: ["forming", "spot_set", "live", "done", "dissolved"],
+      entry_kind: ["free", "door", "ticketed"],
       gathering_flag_kind: [
         "date_changed",
         "rescheduled",

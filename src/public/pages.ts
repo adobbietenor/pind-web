@@ -3,7 +3,7 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { CREWS_MEET, HOUSE_RULES, ONE_LINER, PIN_IN, PIN_IN_FREE, THRESHOLD } from "@pind/shared";
+import { CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, PIN_IN_FREE, THRESHOLD } from "@pind/shared";
 import type { Env } from "../env";
 import { localDate } from "../admin/time";
 import { markSvg } from "./brand";
@@ -113,7 +113,10 @@ function card(g: Crowd): string {
   // Community and free gatherings are marked; a Ticketmaster listing is the default
   // and says nothing extra.
   const mark = g.source === "manual" || g.source === "ai" ? `<span class="tag">community</span>` : "";
-  const free = g.is_free ? `<span class="tag">free</span>` : "";
+  // Never "free" unless it is free. A pay-at-the-door gathering wears its price, or
+  // the words "pay at the door" when the price is not known — silence would read as
+  // free to anyone scanning (Alex, after M2.2).
+  const free = g.entry === "ticketed" ? "" : `<span class="tag">${escape(entryLine(g))}</span>`;
   return `<a class="card" href="/g/${escape(g.slug)}">
 <div class="when">${escape(clock(g.starts_at, g.city_timezone))}</div>
 <div class="name">${escape(g.name)}${mark}${free}</div>
@@ -158,7 +161,9 @@ export async function w2(request: Request, env: Env, slug: string, ctx?: Executi
   }
   const url = `${origin}/g/${g.slug}`;
   const when = longWhen(g.starts_at, tz);
-  const button = g.is_free ? PIN_IN_FREE : PIN_IN;
+  const button = g.entry === "ticketed" ? PIN_IN : PIN_IN_FREE;
+  // Beside the button, never inside it.
+  const cost = entryLine(g);
   const map = mapFigure(door);
 
   return page(
@@ -171,6 +176,7 @@ ${tallies(door.counts)}
 ${map.html}
 
 <a class="cta" id="cta" href="/g/${escape(g.slug)}/pin">${escape(button)}</a>
+${cost ? `<p class="cost">${escape(cost)}</p>` : ""}
 <p class="note">Pin in and say you&#39;d like to meet, and you&#39;ll see everyone else who did.</p>
 
 <h2>House rules</h2>

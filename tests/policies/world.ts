@@ -471,7 +471,7 @@ async function populate(env: HarnessEnv, service: SupabaseClient): Promise<World
   );
   w.D = {
     ticketmaster: await gathering(w, "D-tm", 11, false, { source: "ticketmaster" }),
-    ai: await gathering(w, "D-ai", 11, false, { source: "ai", is_free: true }),
+    ai: await gathering(w, "D-ai", 11, false, { source: "ai", entry: "free" }),
     manual: await gathering(w, "D-manual", 11, false, { source: "manual" }),
   };
   w.X = await gathering(w, "X", 11, false, { source: "ai", dismissed_at: new Date().toISOString() });

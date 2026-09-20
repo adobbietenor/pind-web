@@ -7,6 +7,7 @@
 
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { entryLine } from "../../packages/shared/src/copy.ts";
 import { venueMap, walkMinutes, type MapSpot } from "../../src/public/map.ts";
 import { ogImage } from "../../src/public/og.ts";
 import { frameMetres, isReady, mapKey, mapUrl, place, uploadUrl } from "../../src/public/venuemap.ts";
@@ -167,5 +168,40 @@ describe("the map's URLs", () => {
     assert.equal(isReady(v), false);
     assert.equal(isReady({ ...v, map_ready: [mapKey(v)!] }), true);
     assert.equal(isReady({ ...v, map_ready: ["someoldkey-v1"] }), false, "a stale key counted as ready");
+  });
+});
+
+describe("what it costs to walk in", () => {
+  // Alex, after M2.2. is_free had two values and the world has three: Pub Chess is $10
+  // cash at the door, which is neither free nor ticketed. The failure that matters is
+  // somebody arriving at a door with no cash, so the rule is: never say free unless it
+  // is free, and an unknown price says "pay at the door" rather than nothing.
+  it("says Free only when it is free", () => {
+    assert.equal(entryLine({ entry: "free", door_price_cents: null, entry_note: null }), "Free");
+  });
+
+  it("says nothing for a ticketed gathering — the button already carries it", () => {
+    assert.equal(entryLine({ entry: "ticketed", door_price_cents: null, entry_note: null }), "");
+  });
+
+  it("shows the amount at the door", () => {
+    assert.equal(entryLine({ entry: "door", door_price_cents: 1000, entry_note: null }), "$10 at the door");
+    assert.equal(entryLine({ entry: "door", door_price_cents: 2000, entry_note: null }), "$20 at the door");
+    assert.equal(entryLine({ entry: "door", door_price_cents: 1250, entry_note: null }), "$12.50 at the door");
+    assert.equal(entryLine({ entry: "door", door_price_cents: 0, entry_note: null }), "$0 at the door");
+  });
+
+  it("keeps the note, because cash-only is a different promise from a price", () => {
+    assert.equal(
+      entryLine({ entry: "door", door_price_cents: 1000, entry_note: "cash only" }),
+      "$10 at the door — cash only",
+    );
+  });
+
+  it("says pay at the door when the price is unknown, and never free", () => {
+    const unknown = entryLine({ entry: "door", door_price_cents: null, entry_note: null });
+    assert.equal(unknown, "Pay at the door");
+    assert.doesNotMatch(unknown, /free/i);
+    assert.equal(entryLine({ entry: "door", door_price_cents: null, entry_note: "cash only" }), "Pay at the door — cash only");
   });
 });

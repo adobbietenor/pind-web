@@ -1097,3 +1097,27 @@ change). Where the plan has more detail, the plan is the reference.
   like one venue's programme (a week question), and stopping one venue's same-night
   shows *splitting a crowd* (a day question). Only the first is live today. If crowd
   splitting shows up in practice, add a per-day cap then, with the evidence.
+- **Three entry states, not two** (Alex, after M2.2). `is_free` had two values for a
+  world with three: Pub Chess is $10 cash at the door, Snakes & Lattes is $20
+  admission, and neither is free or ticketed. Both buttons were wrong — "I've got a
+  ticket" described something that does not exist, and "I'm going" hid a cost.
+  `gatherings.entry` is now `free` / `door` / `ticketed`, with `door_price_cents` and a
+  60-character `entry_note`. **`is_free` is dropped, not derived**: two sources of truth
+  for one fact is what the stale `FOLD_THRESHOLD` was, and it cost a week of hidden
+  drafts.
+  - **No third button.** Free and pay-at-the-door share "Pin in — I'm going", and the
+    price goes on its own line beneath. Alex asked for a third copy string and was
+    talked out of it: the button is a commitment and the price is a fact; a button
+    whose words change with the price cannot be scanned down a list; and money inside
+    the button makes it read like a purchase when nothing here is for sale.
+  - **Never say free unless it is free**, and an unknown price reads "pay at the door"
+    with no amount rather than nothing — silence looks like free to anyone scanning.
+    Unknown is a different state from no cost, the same distinction as unset versus
+    broken on a credential.
+  - **`entry_note` earns its place** because "$10 at the door" and "$10 cash at the
+    door" are different promises, and arriving with only a card is the failure that
+    matters.
+  - **The admin refuses an empty price once.** Choosing "pay at the door" and leaving
+    the amount blank is refused with what the page would have said, and a "the price is
+    not known" tick lets it through — so an unpriced door is a decision rather than an
+    oversight (Alex).

@@ -30,7 +30,9 @@ export interface Crowd {
   name: string;
   starts_at: string;
   ends_at: string | null;
-  is_free: boolean;
+  entry: "free" | "door" | "ticketed";
+  door_price_cents: number | null;
+  entry_note: string | null;
   source: "manual" | "ticketmaster" | "ai";
   venue_name: string;
   city_name: string;
@@ -67,7 +69,9 @@ export interface Crowd2 {
     starts_at: string;
     ends_at: string | null;
     effective_end: string;
-    is_free: boolean;
+    entry: "free" | "door" | "ticketed";
+  door_price_cents: number | null;
+  entry_note: string | null;
     source: "manual" | "ticketmaster" | "ai";
     event_url: string | null;
   };
