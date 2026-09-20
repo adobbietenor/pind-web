@@ -604,6 +604,7 @@ working. Hours are Alex's, agent-assisted.
 | M2.0 | Repo + Expo scaffold | **Done** — merged as `7fc973a` | 6–8 |
 | M2.1 | Public web layer on pind.social (W1–W4, the real map, the domain) | **Done** — merged as `6fea4a3` | 8–12 |
 | M2.2 | Auto-publishing v1 — fixed target (§8) | **Ready to check on device** — branch `phase2/m2.2-auto-publishing` | 4–6 |
+| M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | Not started | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | Not started | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel, universal links (A5–A9, A19, A26, A27) | Not started | 12–18 |
@@ -1240,12 +1241,12 @@ to be legible in the admin and correct with sparse data.
 
 | Setting | Start | Meaning |
 |---|---|---|
-| `publish_target_weekly` | 5 | How many gatherings should be published per calendar week of start dates |
-| `publish_min` / `publish_max` | 3 / 20 | Floor and ceiling for the target |
+| `publish_target_weekly` | **50** | How many gatherings should be published per calendar week of start dates. Raised from 5 in M2.2: build assuming it is popular (decisions Part 5) |
+| `publish_min` / `publish_max` | 3 / **75** | Floor and ceiling for the target. The ceiling rose with the target; the floor only binds once adaptive is on (M4.5) |
 | `publish_lead_days_min` / `_max` | 4 / 21 | Publish a draft only if it starts within this window; nearer first |
 | `max_per_venue_per_week` | 2 | A Jays homestand does not fill the week |
 | `community_slots_weekly` | 1 | Reserved for a "Community & free" gathering above its own threshold (from M4.4). **One in five was chosen before any evidence — revisit at M4.4** |
-| `score_floor` | 70 | Final score (AI score minus distance adjustment) below which a draft is never auto-published |
+| `score_floor` | 70 | Final score (AI score minus distance adjustment) below which a draft is never auto-published. **At a target of 50 this, not the target, is what limits the list** — and lowering it needs a per-category cap in the same change (decisions Part 5) |
 | `grow_reach` · `grow_median_pins` | 0.60 · 8 | Both must hold to grow |
 | `shrink_reach` | 0.30 | Below this, shrink |
 | `step_up` · `step_down` | +2 · −1 | The most the target can move in one week |

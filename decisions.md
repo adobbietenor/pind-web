@@ -929,3 +929,49 @@ change). Where the plan has more detail, the plan is the reference.
   It is the general form of CLAUDE.md's rule after M2.1's `MAPBOX_TOKEN`: unset is a
   different state from broken, and it belongs in front of whoever can fix it. Checking
   one secret because one broke would have left the rest exactly as invisible.
+
+- **The target is 50 a week, and that is the working assumption** (Alex, M2.2).
+  Not a temporary setting to be tuned down: **build assuming it is popular, not
+  assuming ten users.**
+  **In Alex's words:** "Five events doesn't represent what this app is. Someone landing
+  on it needs to see a broad variety across the city — sports, concerts, clubs,
+  community — so they understand it's about going out in Toronto and exploring, not
+  about arena sports. A thin list teaches people the wrong thing about the product, and
+  that costs more than pin concentration buys. We'll adjust with real data; we're not
+  launching thin."
+  This reverses the emphasis of "Publishing selectively is deliberate: pins must
+  concentrate so crowds reach 5" (above). Concentration is still why the floor and the
+  caps exist; it is no longer why the *number* is small. `publish_max` rose to 75 so
+  the ceiling does not block the target, and `publish_min` stays at 3 — it only binds
+  once the adaptive loop is on in M4.5, and it is the floor that keeps the list from
+  disappearing after a bad fortnight, not a statement of intent.
+- **At 50, the score floor is the limiter, not the target** (measured, M2.2). The real
+  Toronto queue holds **88 eligible drafts across 8 weeks at a floor of 70 — about 11 a
+  week**, so a target of 50 publishes everything that clears the bar and stays short.
+  Lowering the floor is the lever that actually widens the list:
+
+  | floor | eligible over 8 weeks | per week | mix |
+  |---|---|---|---|
+  | 70 | 88 | ~11 | clubs 31, concerts 29, sports 28 |
+  | 60 | 223 | ~28 | concerts 130, clubs 59, sports 30 |
+  | 50 | 424 | ~53 | concerts 287, clubs 77, sports 48 |
+
+  **The floor and a per-category cap are one decision, not two.** At 70 the mix is
+  already even and a category cap would bind on nothing. At 50 concerts are **68% of
+  the queue**, and a list meant to say "going out in Toronto" becomes a concert
+  listing. So: keep the floor at 70 until the category cap exists; ship them together.
+- **The per-venue cap stays at 2** (checked at the new target, M2.2). At a floor of 70
+  it binds almost nowhere — in the busiest week only Scotiabank Arena had more than two
+  eligible drafts — so it costs the list nothing today and is exactly what stops a Jays
+  homestand or an arena run dominating once the floor drops. Keeping it cheap and in
+  place is better than adding it back under pressure.
+- **No 72-hour floor** (Alex, M2.2; checked). At a target of 50 with a lead minimum of
+  0 the near-term gap closes by itself: over the next fortnight only three days are
+  empty, and they are mid-week days when Toronto genuinely has little above the bar.
+  A special rule for the first 72 hours would be machinery earning nothing.
+- **Bars and community have no source yet, and two chips would be empty** (found in
+  M2.2). Ticketmaster classifies everything as Music, Sports or Arts & Theatre. There is
+  no "bars" and no "community" in the feed at all, so two of the five categories Alex
+  wants across the top of the list have nothing behind them until **M4.4**. This is the
+  sharpest argument yet for M4.4 being close: the breadth the 50-a-week target is meant
+  to show is, today, three categories wearing five labels.

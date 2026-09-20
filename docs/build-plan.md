@@ -355,6 +355,23 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 
 **Settled during M2.2** (decisions.md, "Decided in Phase 2 M2.2"): the re-publish guard is `slug is null`, so unpublishing is as final as withdrawing and only Alex undoes either; refusals are logged and shown, not only choices; "seeded" is a `gathering_promotions` row ticked at the moment of posting, never inferred from `publish_mark`, with the forgotten-tick bias running against us; and the weekly adjust reads live pins with the 14-vs-30-day dependency asserted in code and in a check constraint, keeping its raw inputs for M4.5 to check the repoint against.
 
+4–6 h
+
+#### M2.3 · The list at fifty a week (W1)
+
+**Why its own milestone.** M2.2 raised the target from 5 to 50, and a list of fifty is a different screen from a list of five. Two things make it usable, and both are W1 work with a schema question behind them rather than anything in the publisher — so they do not belong on M2.2's acceptance list, and W1 is a first-impression page that gets real design attention rather than a bolt-on (CLAUDE.md).
+
+- **Today / tomorrow split.** At this volume there is reliably something under both, which is the whole point of the lead minimum being 0.
+- **Category filter chips** — sports, concerts, bars, clubs, community — **multi-select**, so sports *and* concerts, or community *and* bars. **A filter that narrows, never a sort that reorders**, so it cannot become a ranking by the back door (Alex, M2.2). Unfiltered is the default. Server-rendered as links with query parameters: no client-side JavaScript, no framework, nothing that costs the one-second budget inside a Reddit tab.
+- **The schema question, first.** A gathering has no category column today; the classification sits in `gathering_sources.snapshot`. It has to be a real column, exposed through `public_gatherings` — the public web reads through one door (M2.1, H11) — and mapped to the five names deliberately, because Ticketmaster's segments are Music, Sports and Arts & Theatre and none of them is "bars" or "community".
+- **Two chips have no source until M4.4.** Nothing in the Ticketmaster feed is a bar or a community gathering, so "bars" and "community" are empty until the Community & free run exists. Decide what an empty category does — hidden, or shown greyed — before building the chips, and treat this as an argument for M4.4 being close.
+
+**Acceptance**
+
+- The landing page opens on today and tomorrow with something under both, and still loads in under a second on a phone.
+- Tapping two chips shows the union of those two categories and nothing else; the order of what remains is unchanged from unfiltered.
+- No chip is shown for a category nothing can fill.
+
 ### Phase 3 — The product, in Expo (68–96 h)
 
 12–16 h
