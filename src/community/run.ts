@@ -21,12 +21,16 @@ import type { Env } from "../env";
 // way: a module that only a deploy can execute is a module nobody checks.
 import { serviceClient } from "../supabase.ts";
 import {
+  BLURB_SCHEMA,
+  BLURB_SYSTEM,
+  blurbUserMessage,
   CHECK_SCHEMA,
   CHECK_SYSTEM,
   checkUserMessage,
   excerpt,
   pageText,
   readAnswer,
+  readBlurb,
   type Outcome,
   type SeriesRow,
 } from "./series.ts";
@@ -91,6 +95,92 @@ async function whenItRuns(db: SupabaseClient, seriesId: string): Promise<string>
   return rows.length === 0 ? "no upcoming dates in our records" : formatLocal(rows[0]!.starts_at, TZ);
 }
 
+// One line about a series, written from its own page, and applied to every occurrence
+// that has none. Returns what it cost, so an aborted call is still counted against the
+// day — a call that is billed and whose usage never arrives is M1.3b's cost blind spot.
+async function describeSeries(
+  db: SupabaseClient,
+  claude: Anthropic,
+  s: SeriesRow,
+  html: string,
+  onAbort: () => void,
+): Promise<{ described: number; cost: number; error?: string }> {
+  // Which occurrences still need one. If none do, there is nothing to pay for.
+  const { data: rows, error } = await db
+    .from("gatherings")
+    .select("id, entry, door_price_cents, venues(name), starts_at")
+    .eq("series_id", s.id)
+    .is("blurb", null)
+    .gte("starts_at", new Date().toISOString())
+    .order("starts_at")
+    .limit(400);
+  if (error) return { described: 0, cost: 0, error: error.message };
+  const needy = (rows ?? []) as any[];
+  if (needy.length === 0) return { described: 0, cost: 0 };
+
+  const first = needy[0]!;
+  const entry =
+    first.entry === "free"
+      ? "free"
+      : first.entry === "door"
+        ? `pay at the door${first.door_price_cents ? ` ($${(first.door_price_cents / 100).toFixed(0)})` : ""}`
+        : "ticketed";
+
+  let cost = 0;
+  try {
+    const res = await claude.messages
+      .stream(
+        {
+          model: MODEL,
+          max_tokens: 700,
+          system: BLURB_SYSTEM,
+          output_config: {
+            effort: "low",
+            format: { type: "json_schema", schema: BLURB_SCHEMA as unknown as Record<string, unknown> },
+          },
+          messages: [
+            {
+              role: "user",
+              content: blurbUserMessage(
+                { label: s.label, venue: first.venues?.name ?? "unknown", when: formatLocal(first.starts_at, TZ), entry },
+                excerpt(pageText(html), s.label, 14_000),
+              ),
+            },
+          ],
+        },
+        { signal: AbortSignal.timeout(CALL_MS) },
+      )
+      .finalMessage();
+    cost += costUsd(res.usage);
+    const body = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
+    let parsed: unknown = null;
+    try {
+      parsed = JSON.parse(body);
+    } catch {
+      parsed = null;
+    }
+    const blurb = res.stop_reason === "end_turn" ? readBlurb(parsed) : null;
+    if (!blurb) return { described: 0, cost };
+
+    let described = 0;
+    for (const g of needy) {
+      const { data: wrote, error: writeError } = await db.rpc("admin_set_blurb", {
+        p_gathering: g.id,
+        p_blurb: blurb.what,
+        p_why: blurb.why,
+        p_source: "page",
+        p_actor: CHECKER,
+      });
+      if (writeError) return { described, cost, error: writeError.message };
+      if (wrote) described += 1;
+    }
+    return { described, cost };
+  } catch (err) {
+    onAbort();
+    return { described: 0, cost, error: err instanceof Error ? err.message.slice(0, 120) : "the description call failed" };
+  }
+}
+
 export async function runSeriesChecks(env: Env, opts: { trigger: "cron" | "manual"; actor: string }): Promise<CheckRunResult> {
   const db = serviceClient(env);
   const started = await db.rpc("admin_start_check_run", { p_trigger: opts.trigger, p_actor: opts.actor, p_city: "toronto" });
@@ -100,7 +190,7 @@ export async function runSeriesChecks(env: Env, opts: { trigger: "cron" | "manua
       : { status: "failed", message: started.error.message };
   }
   const runId = started.data as number;
-  const counts: Record<string, unknown> = { read: 0, confirmed: 0, absent: 0, gone: 0, unreadable: 0 };
+  const counts: Record<string, unknown> = { read: 0, confirmed: 0, absent: 0, gone: 0, unreadable: 0, described: 0 };
   const errors: string[] = [];
   let status: CheckRunResult["status"] = "ok";
   let cost = 0;
@@ -213,6 +303,22 @@ export async function runSeriesChecks(env: Env, opts: { trigger: "cron" | "manua
       }
       counts.read = (counts.read as number) + 1;
       counts[outcome] = ((counts[outcome] as number) ?? 0) + 1;
+
+      // While the page is in hand and confirmed: a line for the reader, for the
+      // occurrences of this series that have none. **Once per series, ever** — a line
+      // is set once and never overwritten by a machine, so this stops happening as soon
+      // as it has happened, and a page that knew nothing writes nothing at all.
+      if (outcome === "confirmed" && page.ok) {
+        const wrote = await describeSeries(db, claude, s, page.html, () => {
+          cost += ESTIMATE_PER_PAGE;
+        });
+        cost += wrote.cost;
+        if (wrote.described) counts.described = (counts.described as number) + wrote.described;
+        if (wrote.error) {
+          errors.push(`Could not describe ${s.label}: ${wrote.error}`);
+          status = "partial";
+        }
+      }
     }
   } catch (err) {
     status = "failed";

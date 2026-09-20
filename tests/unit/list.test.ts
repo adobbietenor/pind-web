@@ -271,9 +271,8 @@ describe("the links every control is made of", () => {
   });
 });
 
-// M2.3, after the walk: what a card says about its crowd. Alex's objection was that
-// "0 pinned" alone reads as dead rather than as early, and the fix must not swing into
-// putting one slogan on two hundred rows.
+// M2.3, after the walk: what a card says about its crowd. Alex's call on the second
+// clause: every row with anybody on it invites a tap, and the count stays a count.
 describe("what a card says about its crowd", () => {
   const card = (pinned: number, open: number, crews = false) => ({ pinned, open_to_meeting: open, crews_open: crews });
 
@@ -283,23 +282,19 @@ describe("what a card says about its crowd", () => {
     assert.equal(crowdLine(card(0, 0)), "0 pinned · be the first");
   });
 
-  it("says the count alone when there is nobody to meet yet", () => {
-    assert.equal(crowdLine(card(3, 0)), "3 pinned");
-    assert.equal(crowdLine(card(1, 0)), "1 pinned");
+  it("invites a tap on every row that has anybody", () => {
+    assert.equal(crowdLine(card(1, 0)), "1 pinned · see who’s going".replace("’", "'"));
+    assert.equal(crowdLine(card(3, 1)), "3 pinned · see who's going");
+    assert.equal(crowdLine(card(9, 4)), "9 pinned · see who's going");
   });
 
-  it("names the people worth turning up for when there are some", () => {
-    assert.equal(crowdLine(card(3, 1)), "3 pinned · 1 open to meeting");
-    assert.equal(crowdLine(card(9, 4)), "9 pinned · 4 open to meeting");
+  it("keeps crews forming, because it is a state and the best thing a card can say", () => {
+    assert.equal(crowdLine(card(12, 5, true)), "12 pinned · crews forming · see who's going");
   });
 
-  it("leads with crews forming once they are, because that is the stronger fact", () => {
-    assert.equal(crowdLine(card(12, 5, true)), "12 pinned · crews forming");
-  });
-
-  it("never repeats one phrase on every row", () => {
-    const lines = [card(0, 0), card(2, 0), card(4, 2), card(12, 6, true)].map(crowdLine);
-    assert.equal(new Set(lines).size, lines.length, "two states said the same thing");
-    for (const l of lines) assert.doesNotMatch(l, /see who|crews open at/);
+  it("says nothing about the threshold on a row that has not reached it", () => {
+    for (const line of [crowdLine(card(0, 0)), crowdLine(card(3, 0)), crowdLine(card(12, 6, true))]) {
+      assert.doesNotMatch(line, /crews open at|5 people|opt in/);
+    }
   });
 });

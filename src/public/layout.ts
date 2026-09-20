@@ -101,6 +101,7 @@ a.card:hover{border-color:#453f52;background:#1c1922}
 .card .when{font-size:.82rem;color:var(--muted);letter-spacing:.02em}
 .card .name{font-size:1.06rem;font-weight:620;line-height:1.3;margin:3px 0 2px;letter-spacing:-.01em}
 .card .where{font-size:.9rem;color:var(--muted)}
+.card .what{font-size:.9rem;color:#b9b3c4;margin-top:5px;line-height:1.4}
 .card .tally{font-size:.88rem;margin-top:9px;color:#d7d2df}
 .dot{color:#5b5566;padding:0 6px}
 .tag{
@@ -118,6 +119,14 @@ a.card:hover{border-color:#453f52;background:#1c1922}
    rather than a footnote. */
 .signup{margin:0 0 10px;font-size:.94rem;text-align:center;color:#d7d2df}
 .signup a{color:#fff}
+
+/* What this actually is, for somebody who does not recognise the name — and the way out
+   to whoever is putting it on. Above the counts, because "is it basketball?" comes
+   before "who else is going?". */
+.what-it-is{margin:16px 0 0}
+.what-it-is .what{margin:0;font-size:1rem;color:var(--text)}
+.what-it-is .why{margin:5px 0 0;font-size:.93rem;color:var(--muted)}
+.what-it-is .learn{margin:7px 0 0;font-size:.9rem}
 
 /* The question the counts answer. A heading, not a lede: it is the thing the reader
    came to the page for, and the counts under it are the answer. */

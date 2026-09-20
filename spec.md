@@ -212,7 +212,12 @@ walk in, and one line about the crowd. Small counts shown, never hidden, includi
 closing M2.3). The crowd line has three states — "0 pinned · be the first", "3 pinned ·
 1 open to meeting", "12 pinned · crews forming" — so the second clause is always a fact
 about that gathering rather than one phrase repeated down the page.
-The header carries the mark top left and the wordmark top right (Alex, closing M2.3). Footer: suggest a gathering (a mailto link,
+The header carries the mark top left and the wordmark top right (Alex, closing M2.3).
+Each row also carries **one short line saying what it is**, where a source knew
+something, and nothing at all where none did, because a restatement of the title is
+worth less than a blank. W2 carries that line, a second on what makes this one worth
+turning up to, and a link out: **Tickets** for a ticket page, **Learn more** for an
+organiser's. Footer: suggest a gathering (a mailto link,
 nothing stored) · about · 19+.
 
 **A list of fifty is a different screen from a list of five** (built in M2.3):

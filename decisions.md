@@ -1941,3 +1941,62 @@ occurrences to 31 December**, three and a half months out.
   home with one accessible name rather than two adjacent links to the same place. The
   composed lockup stays in the OG image, where it has a whole card to sit in the middle
   of — and it is still provisional and Tatiana's to change.
+
+- **A line for the reader, and the grounding it depends on** (Alex, closing M2.3:
+  "'Toronto Tempo vs New York Liberty' tells a reader nothing — is it basketball, is it
+  a season opener, does any of it matter?"). Two passes, one shape, and the measurement
+  came before the prose in both, as with the comedy rubric.
+  - **The scoring line was never a candidate.** "Leafs home game: huge 19-35 crowd, lots
+    of solo fans, bars all round the arena" is a note to an operator judging crowd
+    quality, and no rewriting makes it a description. Alex said so before it could be
+    tried.
+  - **It is a grounding problem, not a prompt problem** (Alex, on the numbers). Asked for
+    a reader-facing line from the facts we hold — name, venue, date, what it is filed
+    under, what it costs — ten real rows came back **3 recognised of 10, with the "why"
+    null for 9**, and the unrecognised ones restated their own titles ("a community
+    knitting group at a public library"). The same community rows **with the organiser's
+    page in the call** came back **4 of 4 with a real "why"**. So: **descriptions are
+    only worth having where we are already fetching a source.**
+  - **Community rides on the liveness read**, which already fetches each series' page
+    weekly. A second, separate call rather than two jobs in one prompt — it costs the
+    page's tokens twice, about 1.5 cents, and happens **once per series, ever**, because
+    a line is set once. Keeping the safety-critical question ("has this stopped?") in a
+    prompt that asks nothing else is worth two cents. **26 of 28 series described, 185 of
+    188 occurrences, $0.69 for the pass.**
+  - **Events was measured before it shipped**, because the community numbers do not
+    transfer — an organiser's page is written by somebody who cares and a Ticketmaster
+    row is a title and a venue. On 40 real published rows: **32 recognised (80%), at
+    $0.0012 a row**, and the eight it declined were local DJ and support acts, which is
+    exactly the right set to decline. That cleared Alex's bar ("if Events comes back
+    mostly known: false, it is not worth the nightly cost").
+  - **No line unless the source knew something** — the rule Alex cared about most. A
+    `known: false` writes nothing, and a blank beats filler. On the published Events
+    rows that is 39 of 47 described and 8 left blank; on W1 today, 25 of 26 cards carry
+    a line and 18 of 18 do on Community.
+  - **The stale guard, and what it caught.** The first real community pass produced
+    "Registration required, 1 hour long, **17 spots remaining**". Places remaining is
+    deliberately not modelled anywhere in this product — true for an hour, then a lie on
+    a page we control — and a model reading an organiser's page picks it up every time.
+    Both prompts forbid it and `src/blurb.ts` refuses it anyway, because **a rule that
+    exists only in a prompt has no floor under it**. Then the guard's own first version
+    was too wide and refused "Registration required (max 15 spots)", which is capacity —
+    a fixed fact, and exactly what the prompts allow. Both halves are in the tests.
+  - **A prompt change revisits what it has already written.** Fixing those rules meant
+    clearing the 30 occurrences the old wording had produced and letting the new one
+    write again — the rule the comedy re-score established, applied at a tenth of the
+    scale.
+  - **Why the row Alex named had no line, which was not a decline.** Asked alone, the
+    model describes the Tempo game perfectly; a batch of 20 had declined it. But the
+    eight other declines stayed declined at a batch of four, so **batch size was not the
+    cause**. The cause was that the pass started its window at `now` while **W1 shows
+    everything from the start of the local day** — so tonight's rows, the ones a reader
+    is looking at, were never offered to it. The window now reaches a day back. It is
+    the same shape as the map bug: the job and the page disagreed about which rows
+    matter.
+  - **"Learn more" on W2 only**, labelled honestly — "Tickets" for a ticket page,
+    "Learn more" for an organiser's — because one of them is going to ask for money. A
+    card is already a link, and an anchor inside an anchor is invalid HTML.
+  - **Same lifecycle as the category** (Alex): set once, never overwritten by a machine,
+    an admin edit final. Clearing a line by hand leaves no source behind, so a later run
+    may write one again — an emptied line still marked "admin" would be a blank nothing
+    could ever fill and nobody would remember why.

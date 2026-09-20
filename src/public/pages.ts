@@ -295,6 +295,7 @@ function card(g: Crowd): string {
 <div class="when">${escape(clock(g.starts_at, g.city_timezone))}</div>
 <div class="name">${escape(g.name)}${mark}${free}</div>
 <div class="where">${escape(g.venue_name)}</div>
+${g.blurb ? `<div class="what">${escape(g.blurb)}</div>` : ""}
 <div class="tally">${crowdLine(g)
     .split(" · ")
     .map((part) => escape(part))
@@ -355,6 +356,7 @@ export async function w2(request: Request, env: Env, slug: string, ctx?: Executi
 <p class="lede">${escape(when)}${DOT}${escape(door.venue.name)}</p>
 ${door.venue.address ? `<p class="lede" style="margin-bottom:0">${escape(door.venue.address)}</p>` : ""}
 
+${blurbBlock(g)}
 ${tallies(door.counts)}
 ${map.html}
 
@@ -372,7 +374,6 @@ ${spotList(door, tz, map.kind, zoom)}
 <h2>Pass it on</h2>
 <p class="quiet" style="font-size:.9rem">
 <a href="${escape(url)}">${escape(url)}</a>${DOT}<a href="/g/${escape(g.slug)}.ics">add to calendar</a>
-${g.event_url ? `${DOT}<a href="${escape(g.event_url)}" rel="nofollow noopener">tickets</a>` : ""}
 </p>`,
     {
       title: `${g.name} · Pin'd`,
@@ -418,6 +419,28 @@ ${g.event_url ? `${DOT}<a href="${escape(g.event_url)}" rel="nofollow noopener">
 // description already says "See who's going, meet them there.", so the heading would
 // have restated the tagline — and on a page about one gathering, the question is the
 // sentence already in the reader's head.
+// The line for the reader, and the way out to whoever is putting it on.
+//
+// **"Tickets" for a ticket page, "Learn more" for an organiser's** (Alex): the label
+// says which it is rather than pretending they are the same thing, because one of them
+// is going to ask for money. W2 only — a card is already a link, and an anchor inside
+// an anchor is invalid HTML.
+function blurbBlock(g: Crowd2["gathering"]): string {
+  const out = g.event_url
+    ? { href: g.event_url, label: g.entry === "ticketed" ? "Tickets" : "Learn more" }
+    : g.signup_url
+      ? { href: g.signup_url, label: "Learn more" }
+      : null;
+  if (!g.blurb && !out) return "";
+  return (
+    `<div class="what-it-is">` +
+    (g.blurb ? `<p class="what">${escape(g.blurb)}</p>` : "") +
+    (g.blurb_why ? `<p class="why">${escape(g.blurb_why)}</p>` : "") +
+    (out ? `<p class="learn"><a href="${escape(out.href)}" rel="nofollow noopener" target="_blank">${out.label} →</a></p>` : "") +
+    `</div>`
+  );
+}
+
 function tallies(c: Counts): string {
   const mix = mixLine(c);
   const crews = crewLine(c);

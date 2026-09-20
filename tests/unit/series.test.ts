@@ -21,6 +21,7 @@ import {
   stateOf,
   type SeriesRow,
 } from "../../src/community/series.ts";
+import { goesStale, readBlurb } from "../../src/blurb.ts";
 
 const series = (over: Partial<SeriesRow> = {}): SeriesRow => ({
   id: "s1",
@@ -182,5 +183,59 @@ describe("running out of dates", () => {
     // A cap without a top-up is a decay mechanism, so no dates at all is the loudest
     // version of the same thing rather than a quiet one.
     assert.equal(runningOut(null, "2026-09-20"), true);
+  });
+});
+
+describe("a line for the reader", () => {
+  const ok = { known: true, what_it_is: "Casual pub chess night with an unrated tournament", why_this_one: "New players welcome, no registration needed" };
+
+  it("takes a line the page knew", () => {
+    assert.deepEqual(readBlurb(ok), {
+      what: "Casual pub chess night with an unrated tournament",
+      why: "New players welcome, no registration needed",
+    });
+  });
+
+  it("writes nothing at all when the source knew nothing", () => {
+    // A restatement of the title on two hundred rows is the same noise as a slogan,
+    // and a blank is better than filler (Alex).
+    assert.equal(readBlurb({ ...ok, known: false }), null);
+    assert.equal(readBlurb({ known: true, what_it_is: "An event", why_this_one: null }), null, "too short to say anything");
+    assert.equal(readBlurb(null), null);
+  });
+
+  it("**refuses a line that goes stale**, which is what the first real pass got wrong", () => {
+    // "Registration required, 1 hour long, 17 spots remaining" — true for an hour, then
+    // a lie on a page we control. Places remaining is not modelled anywhere, on purpose.
+    assert.equal(readBlurb({ ...ok, why_this_one: "Registration required, 1 hour long, 17 spots remaining" })?.why, null);
+    assert.equal(readBlurb({ ...ok, why_this_one: "Only 3 spaces left" })?.why, null);
+    assert.equal(readBlurb({ ...ok, why_this_one: "Selling fast" })?.why, null);
+    assert.equal(readBlurb({ ...ok, what_it_is: "Book club with 17 spots remaining", why_this_one: null }), null);
+    // **Capacity is not the same thing, and stays.** The first version of this guard
+    // refused "Registration required (max 15 spots); all skill levels welcome" — a
+    // fixed fact about the walk, and exactly what the prompt allows. A guard that
+    // fires on a good line is the failure this project keeps naming.
+    assert.match(
+      readBlurb({ ...ok, why_this_one: "Drop-in, but the room is capped at 20 so arriving early is advised" })!.why!,
+      /capped at 20/,
+    );
+    assert.match(
+      readBlurb({ ...ok, why_this_one: "Registration required (max 15 spots); all skill levels welcome" })!.why!,
+      /max 15 spots/,
+    );
+    assert.equal(readBlurb({ ...ok, why_this_one: "Hurry, only 3 spots left" })?.why, null);
+  });
+
+  it("drops the model narrating what the page does not say", () => {
+    for (const why of ["Free and casual, no format details given", "Runs weekly, times not specified"]) {
+      assert.equal(readBlurb({ ...ok, why_this_one: why })?.why, null, why);
+    }
+  });
+
+  it("is a floor under the prompt, not a copy of it", () => {
+    // The prompt says all of this too. A rule that exists only in a prompt has nothing
+    // under it, and this is the thing that would reach a public page.
+    assert.equal(goesStale("17 spots remaining"), true);
+    assert.equal(goesStale("Beginner-friendly, groups split by pace"), false);
   });
 });

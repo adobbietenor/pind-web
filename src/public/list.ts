@@ -265,31 +265,29 @@ export interface CrowdCounts {
   crews_open: boolean;
 }
 
-// **What a card says about its crowd, in all three states** (Alex, closing M2.3: taking
-// the threshold out was right, and leaving "0 pinned" alone overshot — it reads as dead
-// rather than as early).
+// **What a card says about its crowd** (Alex, closing M2.3, and his call on the second
+// clause rather than mine).
 //
 //   nobody yet        "0 pinned · be the first"
-//   some, none open   "3 pinned"
-//   some, open        "3 pinned · 1 open to meeting"
-//   crews forming     "12 pinned · crews forming"
+//   somebody          "3 pinned · see who's going"
+//   crews forming     "12 pinned · crews forming · see who's going"
 //
-// Two things it deliberately does not do:
-//   - **it never hides the zero.** "Be the first" alone would have read better and said
-//     less; the digit stays because small counts are shown, never hidden, including
-//     zero (H6, spec §2 W1), and "be the first" is the invitation next to it rather
-//     than instead of it. It is also the phrase A5–A7 already use for this state.
-//   - **it does not put "see who's going" on every row.** That was the option, and it
-//     has the same failure as the line it replaced: two hundred rows repeating one
-//     phrase is a slogan being said at a reader rather than anything about that
-//     gathering, and the page already says it once, at the top. What a reader actually
-//     wants to know is whether there is anybody to meet — so the second clause is the
-//     open-to-meeting count where there is one, which is a fact and is different on
-//     every row.
+// I had made the second clause vary — the open-to-meeting count where there was one —
+// on the grounds that one phrase repeated down two hundred rows is a slogan said at a
+// reader rather than a fact about that gathering. **Alex took the argument and chose
+// the invitation anyway**, in his words: "I'd rather every card invite a tap than have
+// the second clause vary to stay interesting. Keep the counts as counts; the invitation
+// is the invitation." Which is the right instinct about what a card is *for*: the count
+// is information, and the tap is the point.
+//
+// Two things held from the version before it: the zero is never hidden — "be the first"
+// sits beside the digit rather than instead of it (H6) — and "crews forming" keeps its
+// place, because it is a state rather than a number, and the rarest and best thing a
+// card can say. The open-to-meeting count moves to W2, where it has room.
 export function crowdLine(g: CrowdCounts): string {
+  if (g.pinned === 0) return `${plural(g.pinned, "pinned", "pinned")} · be the first`;
   const parts = [plural(g.pinned, "pinned", "pinned")];
-  if (g.pinned === 0) parts.push("be the first");
-  else if (g.crews_open) parts.push("crews forming");
-  else if (g.open_to_meeting > 0) parts.push(plural(g.open_to_meeting, "open to meeting", "open to meeting"));
+  if (g.crews_open) parts.push("crews forming");
+  parts.push("see who's going");
   return parts.join(" · ");
 }

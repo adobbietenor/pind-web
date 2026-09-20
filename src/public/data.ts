@@ -35,6 +35,9 @@ export interface Crowd {
   entry_note: string | null;
   category: string | null;
   signup_required: boolean;
+  // One short line saying what this is, where a source knew something. Null is the
+  // common case and shows nothing: a blank beats a restatement of the title.
+  blurb: string | null;
   source: "manual" | "ticketmaster" | "ai";
   // The venue's id, not just its name: a chip earns its place at three gatherings in
   // at least two distinct *places*, and counting places by name is the kind of
@@ -81,6 +84,10 @@ export interface Crowd2 {
     category: string | null;
     signup_url: string | null;
     signup_required: boolean;
+    blurb: string | null;
+    // What makes this one worth turning up to, where the source said anything. The
+    // crowd page has room for both lines; a card has room for one.
+    blurb_why: string | null;
     source: "manual" | "ticketmaster" | "ai";
     event_url: string | null;
   };

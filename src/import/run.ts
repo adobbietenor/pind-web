@@ -9,6 +9,7 @@
 //   5. purge Ticketmaster data 30 days after each gathering's end
 //   6. score new drafts with Claude, within the $3 daily cap
 //   7. nightly only: suggest 3 meeting spots for up to 10 venues that need them
+//   7b. a line for the reader on rows a reader could reach soon
 //   8. fill each of the next three weeks to the publishing target (M2.2)
 //   9. fetch the crowd page map of every venue a stranger can now reach (M2.3)
 //  10. write the run summary Alex sees in the admin
@@ -23,6 +24,7 @@ import { PUBLISHER, runPublishing } from "../publish/run";
 import { serviceClient } from "../supabase";
 import { canSpend, ESTIMATE, MODEL, type ScoreInput } from "./ai";
 import { claudeClient, scoreBatch, SPOTS_CALL_MS, suggestSpots } from "./claude";
+import { describeEvents } from "./describe.ts";
 import { fetchWindow } from "./tmclient";
 import {
   adjustedScore,
@@ -52,6 +54,9 @@ const SPOT_VENUES_PER_NIGHT = 10;
 const SPOT_PARALLEL = 3; // about 45 s and $0.20 per venue (measured)
 const SPOT_RETRY_DAYS = 30; // a venue whose suggestions were all rejected waits for "Suggest again"
 const RETENTION_DAYS = 30;
+// Rows given a line per run. At the measured $0.0012 a row this is about seven cents a
+// night at the ceiling, and in practice only new drafts need one.
+const DESCRIBE_PER_RUN = 60;
 const DEFAULT_CAP_USD = 3;
 
 export interface City extends CityGeo {
@@ -246,6 +251,28 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
         Object.assign(counts, spots.counts);
         if (spots.failures) status = "partial";
       }
+
+      // 7b. A line for the reader (M2.3c). Inside the AI branch because it needs the
+      // key, and after scoring because a score decides whether a gathering publishes at
+      // all while a line only decides how it reads. Measured at 80% recognised and
+      // $0.0012 a row before it shipped; what it does not recognise it leaves blank,
+      // because a restatement of the title is worth nothing to a reader.
+      const described = await describeEvents(db, claude, {
+        leadDaysMax: 21,
+        limit: DESCRIBE_PER_RUN,
+        canSpend: allowed,
+      });
+      aiCost += described.cost;
+      await saveCost();
+      Object.assign(counts, {
+        described: described.described,
+        describe_declined: described.declined,
+        describe_considered: described.considered,
+      });
+      if (described.errors.length) {
+        errors.push(...described.errors.slice(0, 3));
+        status = "partial";
+      }
     }
 
     // 8. Publishing (M2.2). Deliberately outside the AI branch: a missing Anthropic
@@ -305,6 +332,7 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
         `${a.dismissed ?? 0} dismissed, ${a.flagged ?? 0} flagged; ${counts.scored ?? 0} scored` +
         (counts.unscored_left ? `, ${counts.unscored_left} still unscored` : "") +
         (counts.categorised ? `; ${counts.categorised} given a chip` : "") +
+        (counts.described ? `; ${counts.described} described` : "") +
         (() => {
           const m = counts.maps as { rendered: number; missing: number } | undefined;
           return m ? `; ${m.rendered} maps fetched${m.missing ? `, ${m.missing} still missing` : ""}` : "";
