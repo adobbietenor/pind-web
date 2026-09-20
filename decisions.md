@@ -745,3 +745,30 @@ change). Where the plan has more detail, the plan is the reference.
   The schematic generator (`src/public/map.ts`) stays in the repo until the replacement
   is proven on Alex's phone — and it has earned a permanent job as the middle step of
   the fallback: real map, then schematic, then the spot list alone.
+- **The house rules, rewritten** (Alex, after the M2.1 on-device walk). The old three
+  read as a safety notice on a product whose whole pitch is making friends. The new
+  three, verbatim on every crowd surface:
+  1. Make friends how you used to — in person.
+  2. You see each other, or neither of you does.
+  3. Come as you are. No pressure, no commitment.
+
+  Underneath, styled as a fact rather than a fourth rule:
+  **"Crews meet at a spot near the venue before doors."**
+
+  **The safety property is unchanged — only how it is said.** Line 1 still says this
+  happens face to face, not in a chat. Line 2 is H3, reciprocal reveal, stated as
+  fairness rather than as a lock. Line 3 is the leave-any-time promise, stated as
+  welcome rather than as an exit. The line underneath is H5 and H10: somewhere public,
+  before the event, with the company not present.
+
+  **That line is not decoration.** It is what App Review is pointed at under Guideline
+  1.2, so it stays on **every** crowd surface, not only the crowd page.
+
+  **Block and report leave the front-page rules and stay two taps away everywhere in
+  the product** (H9). Nothing about the mechanism changes; it stops being the third
+  thing a stranger reads about a night out. M3.5's acceptance already requires the two
+  taps, and that requirement now carries this reason with it.
+
+  Alex's decision, made after walking it on a phone — not a placeholder, and not
+  Tatiana's to revisit. The **register** of everything that is not a house rule is
+  still hers, in the copy pass spec §5 says is owed.

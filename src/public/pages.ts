@@ -3,7 +3,7 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { HOUSE_RULES, ONE_LINER, PIN_IN, PIN_IN_FREE, THRESHOLD } from "@pind/shared";
+import { CREWS_MEET, HOUSE_RULES, ONE_LINER, PIN_IN, PIN_IN_FREE, THRESHOLD } from "@pind/shared";
 import type { Env } from "../env";
 import { localDate } from "../admin/time";
 import { markSvg } from "./brand";
@@ -175,6 +175,7 @@ ${map.html}
 
 <h2>House rules</h2>
 <ol class="rules">${HOUSE_RULES.map((r) => `<li>${escape(r)}</li>`).join("")}</ol>
+<p class="crews-meet">${escape(CREWS_MEET)}</p>
 
 ${spotList(door, tz, map.kind)}
 
@@ -436,6 +437,7 @@ export function about(): Response {
 
 <h2>House rules</h2>
 <ol class="rules">${HOUSE_RULES.map((r) => `<li>${escape(r)}</li>`).join("")}</ol>
+<p class="crews-meet">${escape(CREWS_MEET)}</p>
 
 <h2 id="safety">Safety</h2>
 <p>Nobody sees your name or your photo until you have both pinned in and said you&#39;d like to meet at the same gathering. Until then there is nothing to browse — which is the point.</p>

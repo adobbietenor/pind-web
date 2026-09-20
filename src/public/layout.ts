@@ -104,6 +104,9 @@ a.dirs{margin-left:6px;font-size:.82rem;white-space:nowrap}
 .rules{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:6px 18px 6px 34px;margin:22px 0 0}
 .rules li{margin:12px 0;font-size:.95rem}
 .rules li::marker{color:var(--accent);font-weight:700}
+/* The one line under them. A fact about how it works, not a fourth rule — so it sits
+   outside the card, quieter, and is not numbered. */
+.crews-meet{font-size:.88rem;color:var(--muted);margin:10px 2px 0}
 
 /* The one button */
 .cta{

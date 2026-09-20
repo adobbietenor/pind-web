@@ -215,10 +215,16 @@ Public, no account, shareable. Contains:
   automatically"); an uploaded image is an optional override
 - Counts: pinned, open to meeting, gender mix (Women · Men, plus Other when above zero;
   only at 5+ opted in — Q3)
-- **House rules**, verbatim:
-  1. Meet in public — named spots only, before the event.
-  2. You see people only after they can see you.
-  3. Leave any time. Block & report are one tap away.
+- **House rules**, verbatim (Alex, after the M2.1 on-device walk):
+  1. Make friends how you used to — in person.
+  2. You see each other, or neither of you does.
+  3. Come as you are. No pressure, no commitment.
+
+  then, underneath, styled as a fact rather than a fourth rule:
+  **"Crews meet at a spot near the venue before doors."** That line is **not
+  decoration** — it is what App Review is pointed at under Guideline 1.2, and what
+  says meetings happen somewhere public, before the event (H5, H10). It stays on
+  every crowd surface.
 - Primary action: **"Pin in — I've got a ticket"**; for free gatherings, **"Pin in —
   I'm going"** (§5). It opens the product's quick pin (A26) at `/g/<slug>/pin`. If a
   signed-in session exists in this browser, a small script swaps the button to
@@ -517,7 +523,11 @@ the web build must be the complete product.
 - Primary action: **"Pin in — I've got a ticket"**. For gatherings with `is_free = true`:
   **"Pin in — I'm going"** (Alex, Phase 1 M1.2).
 - Threshold explanation: "Crews open when 5 people opt in."
-- The three house rules, verbatim, on every crowd surface (see W2).
+- The three house rules, verbatim, on every crowd surface (see W2), and under them
+  "Crews meet at a spot near the venue before doors." Rewritten by Alex after the M2.1
+  walk: **the safety property each line describes is unchanged, only how it is said.**
+  Block and report leave the front-page rules and stay **two taps away everywhere in
+  the product** (H9), which M3.5's acceptance already requires.
 - Never use the phrase "not a dating app" in user-facing copy except the single
   onboarding line at A1. Use crew language everywhere else.
 
