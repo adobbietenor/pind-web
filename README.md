@@ -56,8 +56,14 @@ prompts for the value, so it never lands in shell history or a file:
 ```
 npx wrangler secret put SUPABASE_URL
 npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
+npx wrangler secret put SUPABASE_PUBLISHABLE_KEY
 npx wrangler secret put SESSION_SECRET
 ```
+
+`SUPABASE_PUBLISHABLE_KEY` is the anon key. It is public by design — the app bundle
+carries it too — but it is set here like the rest so no key is ever in a committed
+file. **Every public page (W1-W4) reads with this key**, never the service key, so
+RLS is what decides what a visitor sees.
 
 `npx wrangler secret list` shows the names that are set, never the values.
 
@@ -84,6 +90,49 @@ Check `/health` there. Never change `name` in `wrangler.jsonc`, and never add
 
 If you change `wrangler.jsonc`, rerun `npx wrangler types` and commit the
 regenerated `worker-configuration.d.ts`.
+
+## Public web layer (Phase 2 M2.1)
+
+The pages a Reddit link lands on. Plain HTML from template strings and plain CSS —
+no framework, no build step — because they have to open inside Reddit's in-app
+browser in under a second.
+
+| Route | What |
+|---|---|
+| `/` | W1, this week's crowds, grouped by day and ordered by date |
+| `/g/<slug>` | W2, the crowd page before you pin: facts, the generated map, counts, the house rules, one button |
+| `/g/<slug>/spot` | W3, the share card: gathering, spot, time |
+| `/g/<slug>.ics` | add to calendar |
+| `/og/<slug>.svg` | W4, the link preview image — no counts, ever |
+| `/.well-known/apple-app-site-association` | universal links, both bundle IDs |
+| `/about`, `/robots.txt`, `/favicon.svg` | the footer's page, and the two small files |
+
+Everything else falls through to the Expo web export, so `/g/<slug>/pin`, `/crew/<id>`
+and `/me` are app routes on the same host.
+
+All of it reads two database functions, `public_gatherings` and `public_gathering`,
+with the publishable key. "On the public web" — published, not withdrawn, not seeded,
+carrying a slug — is defined there and nowhere else.
+
+### The logo
+
+```
+npm run brand      # brand/*.svg -> src/public/brand.ts
+```
+
+Strips the C2PA metadata blob (7.7 KB of `logo.svg`'s 14.5 KB), swaps the hard-coded
+fill for `currentColor`, and composes the mark-and-wordmark lockup the header and the
+OG image use. `brand/` is never modified. **The lockup is provisional and Tatiana's to
+change**: no such lockup has ever been designed, so `CAP_HEIGHT` and `GAP` at the top
+of `scripts/build-brand.ts` are the whole layout.
+
+### The generated map
+
+`src/public/map.ts` draws the venue and its meeting spots from their coordinates — a
+schematic SVG with walking minutes, a north arrow and a scale bar. No tiles, no API
+key, nothing to fetch. A spot's coordinates and an optional walk-minutes override are
+entered on the venue screen in the admin; a spot without coordinates is still listed by
+name. An uploaded image on the venue overrides the drawing.
 
 ## Admin (Phase 1 M1.2)
 
@@ -121,11 +170,16 @@ npm run seed:staging -- --remove   # remove the seed only
 Refuses to run unless `.dev.vars` points at pind-staging. Seeds 3 venues (one with AI
 spot suggestions pending), 15 drafts from all three sources (a duplicate pair, free
 events, an unmatched venue) and one published gathering with 20 fake pins, pending
-photos and one report. Everything is tagged `[TEST]` / `pindseed`.
+photos and one report. Everything is tagged `[TEST]` / `pindseed`, and every row
+carries `is_seed`, which is what actually keeps it off the public pages — **seed rows
+are invisible to every visitor, signed in or not** (`docs/visibility.md` V18). They are
+still fully visible in the admin, which reads with the service key. So the public pages
+on staging show only gatherings you have really published.
 
 ### Unit tests
 
-`npm run test:unit` — the Access token check, CSV output and admin time conversion.
+`npm run test:unit` — the Access token check, CSV output, admin time conversion, and
+the public layer's pure parts (the generated venue map, walking minutes, the OG card).
 No network, no database.
 
 ## App (Phase 2 M2.0)

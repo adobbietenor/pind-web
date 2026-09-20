@@ -420,6 +420,7 @@ export const editGathering: AdminHandler = async (request, ctx) => {
 
   const body = `
 <p>Status: <strong>${e(g.status)}</strong> · origin: ${e(g.source)} · venue spots ${spotsBadge(p, g.venue_id)} ${actions}</p>
+${slugPanel(g, backTo)}
 ${withdrawn ? withdrawal : ""}
 ${flags}
 ${triage ? `<p>Score ${scoreCell(p, g.venue_id, triage.score ?? null, triage.reason ?? null)}</p>` : ""}
@@ -439,6 +440,19 @@ ${withdrawn ? "" : withdrawal}
 ${pinsSection}`;
   return adminPage(request, ctx.email, g.name, body);
 };
+
+// The public URL. Minted when the gathering is published and never recomputed —
+// the importer renames nothing on a published gathering, it raises a flag. Changing
+// it by hand leaves the old one answering a 301 forever, so a link posted weeks ago
+// keeps working.
+function slugPanel(g: any, backTo: string): string {
+  if (!g.slug) return "";
+  return `<form class="inline" method="post" action="/admin/gatherings/${e(g.id)}/slug">
+<input type="hidden" name="back" value="${e(backTo)}">
+Public URL <code>/g/</code><input name="slug" required minlength="3" maxlength="80" size="36" value="${e(g.slug)}">
+<button class="plain">Change URL</button>
+<span class="muted">The old one keeps working as a redirect. A URL is never reused by another gathering.</span></form>`;
+}
 
 async function pinsHtml(request: Request, ctx: Parameters<AdminHandler>[1], id: string, backTo: string): Promise<string> {
   const [c, pins] = await Promise.all([
@@ -476,6 +490,18 @@ ${rows || `<tr><td colspan="9">No pins yet.</td></tr>`}</table>`;
 }
 
 // POST /admin/gatherings/:id
+
+// POST /admin/gatherings/:id/slug
+export const changeSlug: AdminHandler = async (request, ctx) => {
+  const form = await request.formData();
+  const { error } = await ctx.db.rpc("admin_set_slug", {
+    p_gathering: ctx.params.id,
+    p_slug: str(form, "slug"),
+    p_actor: ctx.email,
+  });
+  return back(form, error ? { err: error.message } : { ok: "Public URL changed. The old one redirects to it." });
+};
+
 export const saveGathering: AdminHandler = async (request, ctx) => {
   const { db } = ctx;
   const id = ctx.params.id!;

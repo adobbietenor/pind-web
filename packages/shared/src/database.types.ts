@@ -602,6 +602,32 @@ export type Database = {
           },
         ]
       }
+      gathering_slug_history: {
+        Row: {
+          gathering_id: string
+          retired_at: string
+          slug: string
+        }
+        Insert: {
+          gathering_id: string
+          retired_at?: string
+          slug: string
+        }
+        Update: {
+          gathering_id?: string
+          retired_at?: string
+          slug?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gathering_slug_history_gathering_id_fkey"
+            columns: ["gathering_id"]
+            isOneToOne: false
+            referencedRelation: "gatherings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gathering_sources: {
         Row: {
           external_id: string | null
@@ -755,9 +781,11 @@ export type Database = {
           featured: boolean
           id: string
           is_free: boolean
+          is_seed: boolean
           merged_into_id: string | null
           name: string
           published_at: string | null
+          slug: string | null
           source: Database["public"]["Enums"]["gathering_source"]
           starts_at: string
           status: string | null
@@ -774,9 +802,11 @@ export type Database = {
           featured?: boolean
           id?: string
           is_free?: boolean
+          is_seed?: boolean
           merged_into_id?: string | null
           name: string
           published_at?: string | null
+          slug?: string | null
           source?: Database["public"]["Enums"]["gathering_source"]
           starts_at: string
           status?: string | null
@@ -793,9 +823,11 @@ export type Database = {
           featured?: boolean
           id?: string
           is_free?: boolean
+          is_seed?: boolean
           merged_into_id?: string | null
           name?: string
           published_at?: string | null
+          slug?: string | null
           source?: Database["public"]["Enums"]["gathering_source"]
           starts_at?: string
           status?: string | null
@@ -925,27 +957,36 @@ export type Database = {
           created_at: string
           description: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
           name: string
           sort_order: number
           venue_id: string
+          walk_minutes: number | null
         }
         Insert: {
           active?: boolean
           created_at?: string
           description?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
           sort_order?: number
           venue_id: string
+          walk_minutes?: number | null
         }
         Update: {
           active?: boolean
           created_at?: string
           description?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
           sort_order?: number
           venue_id?: string
+          walk_minutes?: number | null
         }
         Relationships: [
           {
@@ -1074,6 +1115,7 @@ export type Database = {
           hidden_at: string | null
           id: string
           instagram_handle: string | null
+          is_seed: boolean
           last_initial: string | null
           neighbourhood: string | null
           photo_path: string | null
@@ -1087,6 +1129,7 @@ export type Database = {
           hidden_at?: string | null
           id?: string
           instagram_handle?: string | null
+          is_seed?: boolean
           last_initial?: string | null
           neighbourhood?: string | null
           photo_path?: string | null
@@ -1100,6 +1143,7 @@ export type Database = {
           hidden_at?: string | null
           id?: string
           instagram_handle?: string | null
+          is_seed?: boolean
           last_initial?: string | null
           neighbourhood?: string | null
           photo_path?: string | null
@@ -1570,6 +1614,7 @@ export type Database = {
           city: string
           created_at: string
           id: string
+          is_seed: boolean
           latitude: number | null
           longitude: number | null
           map_image_path: string | null
@@ -1580,6 +1625,7 @@ export type Database = {
           city?: string
           created_at?: string
           id?: string
+          is_seed?: boolean
           latitude?: number | null
           longitude?: number | null
           map_image_path?: string | null
@@ -1590,6 +1636,7 @@ export type Database = {
           city?: string
           created_at?: string
           id?: string
+          is_seed?: boolean
           latitude?: number | null
           longitude?: number | null
           map_image_path?: string | null
@@ -1656,6 +1703,7 @@ export type Database = {
         Args: { p_actor: string; p_from: string; p_into: string }
         Returns: undefined
       }
+      admin_mint_slug: { Args: { p_gathering: string }; Returns: string }
       admin_publish_gathering: {
         Args: { p_actor: string; p_gathering: string }
         Returns: undefined
@@ -1684,6 +1732,10 @@ export type Database = {
           p_status: Database["public"]["Enums"]["photo_status"]
         }
         Returns: undefined
+      }
+      admin_set_slug: {
+        Args: { p_actor: string; p_gathering: string; p_slug: string }
+        Returns: string
       }
       admin_start_import_run: {
         Args: {
@@ -1733,6 +1785,24 @@ export type Database = {
           other: number
           pinned: number
           women: number
+        }[]
+      }
+      public_gathering: { Args: { p_slug: string }; Returns: Json }
+      public_gatherings: {
+        Args: { p_from: string; p_to: string }
+        Returns: {
+          city_name: string
+          city_timezone: string
+          crews_open: boolean
+          ends_at: string
+          is_free: boolean
+          name: string
+          open_to_meeting: number
+          pinned: number
+          slug: string
+          source: Database["public"]["Enums"]["gathering_source"]
+          starts_at: string
+          venue_name: string
         }[]
       }
       spot_poll: {

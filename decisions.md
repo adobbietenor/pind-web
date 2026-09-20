@@ -541,3 +541,53 @@ change). Where the plan has more detail, the plan is the reference.
   in M4.1. Until it exists, M2.1's public pages ship **unlinked and noindex**:
   `noindex` on every page and a `robots.txt` that disallows everything, and nothing
   links or posts them publicly.
+
+### Decided in Phase 2 M2.1
+
+- **The seed rule hides seed rows from everyone, signed in included** (Alex, M2.1).
+  `is_seed` on `venues`, `gatherings` and `people`; a seed row is invisible to `anon`
+  and to `authenticated` alike, and only the service key sees it. Anonymous sign-in is
+  one tap at A26, so "signed in" was never a gate. The consequence is accepted: the
+  M3.6 dogfood runs on real imported gatherings Alex has published, with real accounts.
+  The full rule, and what it does to counts, is `docs/visibility.md` V18 (§12f);
+  harness cases P55–P58.
+- **The public web reads through one door** (Alex, M2.1). W1, W2, W3, the OG image and
+  the `.ics` read `public.public_gatherings` and `public.public_gathering` and nothing
+  else, so "on the public web" — published, not withdrawn, not seeded, and carrying a
+  slug — is one definition in the database rather than a filter repeated in Worker code
+  (H11).
+- **Slugs, and a 301 that never dies** (Alex, M2.1). `/g/<slug>` is minted when Alex
+  publishes and nothing ever recomputes it; the importer renames nothing on a published
+  gathering, it raises a flag. Alex can change a slug by hand in the admin, and the old
+  one answers a **301 forever**, so a Reddit post from six weeks ago still lands. A slug
+  is spent the moment it is used and is never handed to another gathering; a published
+  slug can never be removed. A rename does not send notification 3 — the page shows the
+  new name either way and the link still works.
+- **The policy harness stays on pind-staging, with a named exception** (Alex, M2.1).
+  Flagging harness rows as seed would have the harness testing a world its own rule had
+  emptied, and every way of keeping the coverage needs a harness-only session marker,
+  which is a backdoor in the visibility layer. The slug gate removes the harness from
+  every public page; what is left — two or three slugged rows and direct REST reads
+  with the publishable key, for the minute a run lasts, on a domain nothing points at —
+  is written up as a deliberate exception in `docs/visibility.md` §12f, expiring at
+  M4.3 when pind.social serves pind-prod and the overlap stops existing. Closing it
+  sooner means a second Supabase project for the harness; not taken.
+- **A seeded venue's uploaded map image stays fetchable** (Alex, M2.1). `venue-maps` is
+  a public bucket by decision, and RLS hides rows, not objects. The URL needs a UUID
+  nobody can obtain and nothing links to it. Accepted rather than moving every venue map
+  behind a signed URL.
+- **Meeting spots carry coordinates, and walking minutes are calculated** (Alex, M2.1).
+  `meeting_spots.latitude`/`longitude` are optional: a spot with them is plotted on the
+  generated map, a spot without is still listed by name. Walking minutes come from the
+  distance, with a detour allowance, and `walk_minutes` overrides the calculation where
+  it is wrong. Both are entered in the admin. These and venue coordinates are the only
+  coordinates the product holds (H4).
+- **System fonts on the public pages** (Claude, M2.1; spec §2 allows one web font "only
+  if it doesn't hurt load time"). A web font costs a round trip before the first paint
+  on a page that has one second inside a Reddit tab, so W1–W4 use the system stack.
+  Poppins stays in the app.
+- **The lockup is composed, not exported** (Alex, 19 Sept 2026, carried out in M2.1).
+  `scripts/build-brand.ts` strips the C2PA metadata, swaps the hard-coded fill for
+  `currentColor` and lays the mark beside the wordmark at a fraction of its height,
+  writing `src/public/brand.ts`. Two numbers — cap height and gap — are the whole
+  layout. It is provisional and Tatiana's to change. `brand/` is untouched.

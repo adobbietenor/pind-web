@@ -1,4 +1,4 @@
-# Visibility rules — Phase 1 M1.1, extended in M1.2 and M1.3
+# Visibility rules — Phase 1 M1.1, extended in M1.2, M1.3 and M2.1
 
 The plain-English rules that the privileges, RLS policies, storage policies and
 database functions in `supabase/migrations/` implement. Agreed with Alex on
@@ -6,10 +6,12 @@ database functions in `supabase/migrations/` implement. Agreed with Alex on
 adversarial review — a fresh Claude Code session with no prior context, using
 `docs/m1.1-review-brief.md` — checks the SQL and the harness (`tests/policies`)
 against this file for leaks, and Alex gives this file their own read. Every rule has
-an ID (V1–V13), and §16 maps each rule to the SQL that enforces it and the harness
-cases (P01–P54) that prove it. M1.2 (admin) added V12, the draft/dismissed states in
+an ID (V1–V18), and §16 maps each rule to the SQL that enforces it and the harness
+cases (P01–P61) that prove it. M1.2 (admin) added V12, the draft/dismissed states in
 V11, and cases P38–P47. M1.3 (Ticketmaster import) added V13 (withdrawn, §12c), the
-importer's rights (§12d), three admin-only tables, and cases P48–P54.
+importer's rights (§12d), three admin-only tables, and cases P48–P54. M2.1 (the public
+web layer) added **V18 — seed rows never reach the public** (§12f), the one door the
+public pages read through, the public slug, and cases P55–P61.
 
 Binding sources: `decisions.md` H3 (reciprocal reveal), H6 (honest counts), H7
 (women-only), H9 (block/report), H11 (visibility in the database), Q1, Q3, Q9, and
@@ -331,6 +333,142 @@ required, and never a substitute for the face photo.
 V14 (solo), V15 (review-only gatherings) and V16 (anonymous people) are added with
 their milestones (M3.4, M5.1, M3.1–M3.2) and reviewed in M4.2.
 
+## 12f · Seed rows never reach the public — V18 (Alex, M2.1)
+
+Until `pind-prod` exists (M4.3), **pind.social serves pind-staging**, which holds the
+seeded venues, gatherings and people the admin was built against (decisions.md Part 5,
+"pind.social before production"). Before M2.1 those rows were recognisable only by the
+text `[TEST] ` at the front of a name — a label, not a rule. Now they carry a marker in
+the database, and one rule sits on it.
+
+**The rule: a seed row is invisible to every visitor — signed out and signed in alike.
+Only the service key sees it.**
+
+Hiding seed rows from `authenticated` as well as `anon` is deliberate (Alex, M2.1):
+anonymous sign-in is one tap at A26, so "signed in" was never a gate. The consequence
+is accepted — the M3.6 dogfood runs on real imported gatherings Alex has published,
+with real accounts, which is the better rehearsal anyway.
+
+**The marker.** `is_seed` on `venues`, `gatherings` and `people`, false by default, so
+everything the importer, the admin and real people create is real. No visitor can write
+it: every visitor-writable table grants its columns one by one and this is in none of
+the lists (P58). A gathering at a seed venue is a seed gathering whether or not whoever
+inserted it remembered — a trigger sets it, and flagging a venue later flags everything
+already at it (P57). It is set on the row rather than looked up through the venue
+because a policy that had to look the venue up would run that lookup under the
+*caller's* RLS, where the seed venue is already hidden, and the test would invert.
+
+**Nobody but the admin can:**
+
+- see a seed gathering on the week's list, or open its crowd page, share card, OG image
+  or `.ics` — every public URL answers as though it does not exist;
+- read its row, its spot options or its counts;
+- see a seed venue or that venue's meeting spots;
+- see a seed **person** anywhere a person appears — the open list, a photo, a +1 — even
+  when that person is pinned to a *real* gathering;
+- have a seeded pin move "pinned", "open to meeting" or the gender mix, on any
+  gathering. A fabricated pin is not someone going, so it is not a number (H6).
+
+And it cuts both ways: a seed person sees nobody, exactly as a hidden person does.
+
+**What still works.** The admin is untouched. It reads with the service key, so the
+draft queue, the venue screens, the photo queue, the reports queue and the seeded
+published gathering are all exactly as they were — which is what the seed was for.
+
+**How.** `private.is_published` and `private.list_open` gain the condition, and every
+M1.1 rule already runs through one of those two, so pins, votes, surveys, photos, +1s,
+reports, group links and the women-only offer follow without their own policies
+changing — the same shape V13 used. `private.is_open_at` carries the person half, one
+line below `hidden_at`. The gathering row, the venue, the meeting spots, the retired
+slugs and `public.gathering_counts` have their own conditions.
+
+**This is permanent, not an M2.1 workaround.** When pind-prod exists the rule stays.
+The only non-real rows ever allowed on production are the review-only ones for App
+Review, which get their own rule (V15) in M5.1.
+
+### What the public web may read
+
+W1, W2, W3, the OG image and the `.ics` read through **two functions and nothing
+else** — `public.public_gatherings` and `public.public_gathering` — so "what is on the
+public web" is one definition in one place rather than a filter repeated in Worker code
+(H11):
+
+> **On the public web** = published, not withdrawn, not seeded, **and carrying a slug**.
+
+A slug is minted by `admin_publish_gathering` and by nothing else. Neither function
+returns anything about a person; counts come from `gathering_counts`, which returns
+aggregates only (V2).
+
+`public.public_gathering` is the one security-definer function that can see a
+**withdrawn** row, because `/g/<slug>` has to answer the short neutral "no longer on
+Pin'd" rather than a 404 (spec §2 W2). For a withdrawn gathering it returns the single
+word `withdrawn` — no name, no venue, no date, no counts (P61). A visitor learns only
+that this URL is no longer on Pin'd, which is strictly less than the page told them the
+day before.
+
+### Two accepted exceptions, both deliberate
+
+**1 · The policy harness's own rows are real rows, and a few of them are briefly
+public.** (Alex, M2.1, after asking whether it could be closed.)
+
+The harness builds a world of published gatherings and people on pind-staging and
+sweeps it at the end of each run. Those rows are **not** flagged `is_seed`, because
+about twenty-five cases read the world as a signed-out visitor — every counts
+assertion, the draft-invisibility cases, the photo-URL-guessing case — and flagging
+them would have the harness testing a world its own rule had already emptied.
+
+Building the world unpublished and publishing only inside the transaction that tests
+publishing does not work: the harness speaks to Postgres over PostgREST, where one
+HTTP request is one transaction, so no transaction can span "publish it, read it as
+anon, unpublish it". Every other way of keeping the coverage comes down to a
+harness-only session marker — a JWT claim or a request header checked inside a
+policy — which is a **backdoor in the visibility layer**, and worse than the gap it
+would close.
+
+What is left, after the slug gate above:
+
+- The harness inserts its gatherings straight through the service key, so they get **no
+  slug**, so they appear on **no public list and have no public URL** (P59). W1, W2, W3,
+  the OG image and the `.ics` cannot reach them at all.
+- The two or three drafts that P42, P43 and P49 publish through `admin_publish_gathering`
+  **do** get a slug, and are reachable on the public pages for the seconds between that
+  call and the sweep.
+- Anyone holding the publishable key could call the Supabase REST API directly during a
+  run and read a `pindhx` gathering **row** — not a page.
+
+Both residues last as long as a harness run, one or two minutes, on a domain nothing
+points at, while every page is `noindex` and unlinked (decisions Part 5, "Public pages
+before the privacy policy"). **The exception expires at M4.3**: from then pind.social
+serves pind-prod, and the harness only ever runs against staging, so the overlap stops
+existing. Closing it sooner means a second Supabase project for the harness, which is
+Alex's call and a change to make between milestones.
+
+**2 · A seeded venue's uploaded map image stays fetchable.** `venue-maps` is a public
+bucket by decision (V12): a map is a building and its public spots, never a person. RLS
+hides rows, not objects in a public bucket, so a seed venue's uploaded map can still be
+fetched by anyone who has its URL — which needs the venue's UUID, and the venue itself
+is invisible, and nothing links to it. Accepted (Alex, M2.1); the alternative is a
+private bucket and a signed URL for every map on every crowd page, which is work with
+no reader.
+
+### The public slug, and every slug it has ever had
+
+`gatherings.slug` is the public URL segment, minted at publish. Nothing ever recomputes
+it: the importer renames nothing on a published gathering, it raises a flag (§12d).
+Alex can change it by hand in the admin (`admin_set_slug`), and then:
+
+- the old slug moves to `gathering_slug_history` and `/g/<old>` answers a **301**
+  forever, so a Reddit post from six weeks ago still lands (P60);
+- a slug is spent the moment it is used, live or retired, and is **never** handed to
+  another gathering (P60);
+- a published slug can never be removed — a URL that starts answering 404 is worse than
+  one that looks out of date.
+
+Retired slugs are readable by `anon` for the gatherings whose rows are readable, which
+is what lets the redirect work; nothing else about them is public.
+
+---
+
 ## 13 · Spot poll
 
 - **One vote per person per gathering, changeable** (Alex, M1.1). Enforced by the
@@ -359,15 +497,15 @@ their milestones (M3.4, M5.1, M3.1–M3.2) and reviewed in M4.2.
 
 | Access | Tables |
 |---|---|
-| Public read (published only where it applies) | `venues`, `meeting_spots`, `gatherings`, `gathering_spots`, `neighbourhoods`, `cities`; storage `venue-maps` (public URLs, no visitor writes) |
+| Public read (published only where it applies, and never a seed row — V18) | `venues`, `meeting_spots`, `gatherings`, `gathering_spots`, `gathering_slug_history`, `neighbourhoods`, `cities`; storage `venue-maps` (public URLs, no visitor writes) |
 | Rules above | `people`, `people_private`, `pins`, `pin_friends`, `contact_points`, `spot_votes`, `gathering_group_links`, `blocks`, `reports`, `survey_responses`, storage `photos` |
 | Service key only, permanently | `magic_links`, `outbound_messages`, `gathering_sources`, `gathering_triage`, `spot_suggestions`, `venue_aliases`, `venue_external_ids`, `moderation_log`, `import_runs`, `gathering_flags`, `gathering_withdrawals`; functions `admin_*` |
 | Locked until the app phases (no privileges, no policies) | `tags`, `person_tags`, `crews`, `crew_members`, `crew_proposals`, `crew_proposal_votes`, `crew_join_requests`, `crew_messages`, `confirmations`, `connections` |
 
 ## 16 · Rule → SQL → proof
 
-Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1) and
-`20260918154…_m1_2_` (M1.2) and `20260918192…_m1_3_` (M1.3).
+Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1),
+`20260918154…_m1_2_` (M1.2), `20260918192…_m1_3_` (M1.3) and `20260920003…_m2_1_` (M2.1).
 
 | Rule | Enforced by | Harness cases |
 |---|---|---|
@@ -388,6 +526,9 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | V12 import data (M1.3) | `revoke all` on `import_runs`, `gathering_flags`, `gathering_withdrawals`; M1.3 `admin_*` executable by `service_role` only | P48 |
 | V13 withdrawn | `private.is_published`, `private.list_open`, `private.i_am_pinned_at`; policies `gatherings_read_published`, `gathering_spots_read_published`; `public.gathering_counts`; `admin_withdraw_gathering`, `admin_unwithdraw_gathering` | P49–P51 |
 | Importer rights | `admin_import_apply`, `admin_resolve_flag`, `admin_start_import_run`, `admin_purge_ticketmaster_data`, `admin_merge_venues`, `admin_confirm_venue` | P52–P54 |
+| V18 seed rows | `venues.is_seed`, `gatherings.is_seed`, `people.is_seed`; triggers `gatherings_seed_follows_venue`, `venues_seed_spreads`; `private.is_published`, `private.list_open`, `private.is_open_at`, `private.is_seed_venue`; policies `gatherings_read_published`, `gathering_spots_read_published`, `venues_read`, `meeting_spots_read`; `public.gathering_counts` | P55–P58 |
+| The public web's one door | `public.public_gatherings`, `public.public_gathering` | P55, P59, P61 |
+| The public slug and its 301 | `gatherings.slug`, `gathering_slug_history`, trigger `gatherings_slug_history`; `admin_mint_slug`, `admin_set_slug`, `admin_publish_gathering` | P59, P60 |
 | Own rows only | policies `*_own`, `*_self`; column grants | P07, P08, P10, P30, P32 |
 | Locked tables | `revoke all` with nothing granted back | P03, P04 |
 | Spot poll | `spot_votes` primary key; policies `spot_votes_*`; `public.spot_poll` | P21, P29–P31 |

@@ -17,6 +17,7 @@ const ROUTES: [string, AdminHandler][] = [
   ["GET /admin/gatherings/:id", g.editGathering],
   ["POST /admin/gatherings/:id", g.saveGathering],
   ["POST /admin/gatherings/:id/publish", g.publishGathering],
+  ["POST /admin/gatherings/:id/slug", g.changeSlug],
   ["POST /admin/gatherings/:id/unpublish", g.unpublishGathering],
   ["POST /admin/gatherings/:id/dismiss", g.dismissGathering],
   ["POST /admin/gatherings/:id/restore", g.restoreGathering],

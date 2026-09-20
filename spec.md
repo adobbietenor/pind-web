@@ -541,7 +541,7 @@ working. Hours are Alex's, agent-assisted.
 | M1.3 | Nightly Ticketmaster import and AI vetting (+ spots optional to publish) | **Done** | — |
 | **Phase 2** | **The public layer and publishing, on the Worker** | | 18–26 |
 | M2.0 | Repo + Expo scaffold | **Done** — merged as `7fc973a` | 6–8 |
-| M2.1 | Public web layer on pind.social (W1–W4, generated maps, the domain) | Not started | 8–12 |
+| M2.1 | Public web layer on pind.social (W1–W4, generated maps, the domain) | **In progress** — branch `phase2/m2.1-public-web` | 8–12 |
 | M2.2 | Auto-publishing v1 — fixed target (§8) | Not started | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | Not started | 12–16 |

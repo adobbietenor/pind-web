@@ -21,11 +21,27 @@
   // from the same host. The Worker's own routes run first; every other path is
   // the app, with single-page-app fallback to index.html (spec §4). Deploy with
   // `npm run deploy`, which builds the web export first: never one without the
-  // other. M2.1 adds its public routes (/, /g/*, /og/*, /.well-known/*) here.
+  // other.
+  //
+  // M2.1 adds the public layer. "/g/*" is listed although /g/<slug>/pin is an APP
+  // route: the Worker takes the whole prefix and hands back what it does not own
+  // through the ASSETS binding, which keeps one place deciding what is public.
   "assets": {
+    "binding": "ASSETS",
     "directory": "./app/dist",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/health", "/admin", "/admin/*"]
+    "run_worker_first": [
+      "/",
+      "/health",
+      "/admin",
+      "/admin/*",
+      "/about",
+      "/robots.txt",
+      "/favicon.svg",
+      "/g/*",
+      "/og/*",
+      "/.well-known/*"
+    ]
   }
 
   // Secrets (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SESSION_SECRET, ACCESS_*,

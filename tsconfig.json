@@ -6,6 +6,9 @@
     "lib": ["es2022", "es2021.string"],
     "module": "esnext",
     "moduleResolution": "bundler",
+    // The public renderers import each other with an explicit .ts, so the unit
+    // tests can load them in Node without a bundler.
+    "allowImportingTsExtensions": true,
     "types": [],
     "strict": true,
     "noEmit": true,

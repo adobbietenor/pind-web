@@ -5,7 +5,10 @@ import type { Env } from "./env";
 // the setting, never its value.
 export class ConfigError extends Error {}
 
-function required(env: Env, name: keyof Env): string {
+// The settings that are plain strings — everything in Env except the bindings.
+type Setting = { [K in keyof Env]-?: Env[K] extends string | undefined ? K : never }[keyof Env];
+
+function required(env: Env, name: Setting): string {
   const value = env[name]?.trim();
   if (!value) throw new ConfigError(`${name} is missing`);
   return value;
@@ -13,7 +16,7 @@ function required(env: Env, name: keyof Env): string {
 
 // supabase-js appends /rest/v1 itself, so a URL with a path (e.g. the dashboard's
 // ".../rest/v1/") doubles it, and a count query then silently comes back empty.
-function projectUrl(env: Env): string {
+export function projectUrl(env: Env): string {
   const value = required(env, "SUPABASE_URL");
   let url: URL;
   try {

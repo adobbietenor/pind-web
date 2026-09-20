@@ -75,6 +75,10 @@ export const venueDetail: AdminHandler = async (request, ctx) => {
 <input name="description" size="40" placeholder="description" value="${e(s.description)}">
 order <input name="sort_order" type="number" style="width:4em" value="${e(s.sort_order)}">
 <label style="display:inline"><input type="checkbox" name="active"${s.active ? " checked" : ""}> approved</label>
+<br><span class="muted">map:</span>
+lat <input name="latitude" size="11" placeholder="43.6429" value="${e(s.latitude ?? "")}">
+lng <input name="longitude" size="11" placeholder="-79.3776" value="${e(s.longitude ?? "")}">
+walk <input name="walk_minutes" type="number" min="1" max="60" style="width:4em" placeholder="auto" value="${e(s.walk_minutes ?? "")}"> min
 <button class="plain">Save</button></form></td></tr>`,
     )
     .join("");
@@ -108,15 +112,20 @@ ${review}
 <form method="post" action="/admin/venues/${e(id)}"><input type="hidden" name="back" value="${e(backTo)}">
 <label>Name<br><input name="name" required maxlength="200" size="40" value="${e(v.name)}"></label>
 <label>Address<br><input name="address" maxlength="300" size="60" value="${e(v.address)}"></label>
+<label>Coordinates <span class="muted">— the centre of the generated map. Ticketmaster fills these in; a venue added by hand needs them, or its crowd pages get no map.</span><br>
+lat <input name="latitude" size="12" value="${e(v.latitude ?? "")}"> lng <input name="longitude" size="12" value="${e(v.longitude ?? "")}"></label>
 <p class="muted">City: ${e(v.city)}</p>
 <button class="plain">Save venue</button></form>
 
 <h2>Meeting spots — ${approved ? `<span class="good">${approved} approved</span>` : `<span class="muted">none approved yet (needed when crews open)</span>`}</h2>
 <p class="muted">Curated public places only (H5). Any number can be approved; each spot poll shows the first 3, by order. Spots are optional to publish and needed when crews open.</p>
+<p class="muted">Coordinates put a spot on the generated crowd-page map. Leave walk blank and the map works the minutes out from the distance; fill it in when that comes out wrong (across a rail corridor, a bridge that only crosses one way). A spot with no coordinates is still listed by name, just not plotted.</p>
 <table>${spotRows || `<tr><td class="muted">None yet.</td></tr>`}</table>
 <form method="post" action="/admin/venues/${e(id)}/spots"><input type="hidden" name="back" value="${e(backTo)}">
 <input name="name" required maxlength="80" size="24" placeholder="New spot name">
 <input name="description" size="40" placeholder="description">
+lat <input name="latitude" size="11" placeholder="43.6429">
+lng <input name="longitude" size="11" placeholder="-79.3776">
 <button class="plain">Add spot</button></form>
 
 <h2>AI-suggested spots awaiting approval (${suggestions.length})</h2>
@@ -143,14 +152,35 @@ ${mapUrl ? `<p><img src="${e(mapUrl)}" alt="map" style="max-width:360px;border:1
   return adminPage(request, ctx.email, v.name, body);
 };
 
+// A coordinate field: blank clears it, anything that is not a number in range is
+// refused rather than silently dropped. Latitude and longitude go together
+// (the database constraint says so too).
+function coords(form: FormData): { latitude: number | null; longitude: number | null } | string {
+  const read = (name: string, limit: number): number | null | string => {
+    const raw = str(form, name);
+    if (!raw) return null;
+    const n = Number(raw);
+    if (!Number.isFinite(n) || Math.abs(n) > limit) return `${name} must be a number between -${limit} and ${limit}`;
+    return n;
+  };
+  const latitude = read("latitude", 90);
+  if (typeof latitude === "string") return latitude;
+  const longitude = read("longitude", 180);
+  if (typeof longitude === "string") return longitude;
+  if ((latitude === null) !== (longitude === null)) return "Give both latitude and longitude, or neither";
+  return { latitude, longitude };
+}
+
 // POST /admin/venues/:id
 export const saveVenue: AdminHandler = async (request, ctx) => {
   const form = await request.formData();
   const name = str(form, "name");
   if (!name) return back(form, { err: "Name is required" });
+  const point = coords(form);
+  if (typeof point === "string") return back(form, { err: point });
   const { error } = await ctx.db
     .from("venues")
-    .update({ name, address: str(form, "address") || null })
+    .update({ name, address: str(form, "address") || null, ...point })
     .eq("id", ctx.params.id);
   return back(form, error ? { err: error.message } : { ok: "Venue saved" });
 };
@@ -163,11 +193,14 @@ export const addSpot: AdminHandler = async (request, ctx) => {
   const last = await must(
     ctx.db.from("meeting_spots").select("sort_order").eq("venue_id", ctx.params.id).order("sort_order", { ascending: false }).limit(1),
   );
+  const point = coords(form);
+  if (typeof point === "string") return back(form, { err: point });
   const { error } = await ctx.db.from("meeting_spots").insert({
     venue_id: ctx.params.id,
     name,
     description: str(form, "description") || null,
     sort_order: (last[0]?.sort_order ?? -1) + 1,
+    ...point,
   });
   return back(form, error ? { err: error.message } : { ok: "Spot added" });
 };
@@ -179,9 +212,23 @@ export const saveSpot: AdminHandler = async (request, ctx) => {
   const order = Number(str(form, "sort_order") || "0");
   if (!name) return back(form, { err: "Spot name is required" });
   if (!Number.isInteger(order) || order < -1000 || order > 1000) return back(form, { err: "Order must be a whole number" });
+  const point = coords(form);
+  if (typeof point === "string") return back(form, { err: point });
+  const walkRaw = str(form, "walk_minutes");
+  const walk = walkRaw ? Number(walkRaw) : null;
+  if (walk !== null && (!Number.isInteger(walk) || walk < 1 || walk > 60)) {
+    return back(form, { err: "Walk must be a whole number of minutes, 1 to 60, or blank for automatic" });
+  }
   const { error } = await ctx.db
     .from("meeting_spots")
-    .update({ name, description: str(form, "description") || null, sort_order: order, active: form.get("active") === "on" })
+    .update({
+      name,
+      description: str(form, "description") || null,
+      sort_order: order,
+      active: form.get("active") === "on",
+      walk_minutes: walk,
+      ...point,
+    })
     .eq("id", ctx.params.id);
   return back(form, error ? { err: error.message } : { ok: "Spot saved" });
 };
