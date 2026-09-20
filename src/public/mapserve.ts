@@ -17,6 +17,23 @@ import { BUCKET, IMMUTABLE, MAX_ATTEMPTS, mapKey, objectPath, renderVenueMap, sh
 
 const notFound = () => new Response("Not found", { status: 404, headers: { "cache-control": "public, max-age=60" } });
 
+// A Worker's own responses are NOT put in Cloudflare's cache just because they carry
+// cache headers — that only happens for subrequests. Without this, every visitor's
+// request for a map became a fresh download from Supabase inside the Worker: measured
+// at 215-460 ms warm and 987 ms cold, which is the very cost the own-origin rule
+// exists to avoid, just hidden one layer down. Both map URLs are content-addressed
+// and immutable, so the cache can hold them indefinitely and a corrected coordinate
+// simply produces a different URL.
+async function cached(request: Request, ctx: ExecutionContext | undefined, build: () => Promise<Response>): Promise<Response> {
+  const cache = (caches as unknown as { default: Cache }).default;
+  const hit = await cache.match(request);
+  if (hit) return hit;
+
+  const response = await build();
+  if (response.ok && ctx) ctx.waitUntil(cache.put(request, response.clone()));
+  return response;
+}
+
 async function serveObject(env: Env, path: string, contentType: string): Promise<Response> {
   const { data, error } = await serviceClient(env).storage.from(BUCKET).download(path);
   if (error || !data) return notFound();
@@ -26,7 +43,17 @@ async function serveObject(env: Env, path: string, contentType: string): Promise
 }
 
 // GET /map/<venue-uuid>-<key>.webp
-export async function venueMapImage(env: Env, venueId: string, key: string): Promise<Response> {
+export async function venueMapImage(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext | undefined,
+  venueId: string,
+  key: string,
+): Promise<Response> {
+  return cached(request, ctx, () => buildVenueMapImage(env, venueId, key));
+}
+
+async function buildVenueMapImage(env: Env, venueId: string, key: string): Promise<Response> {
   const service = serviceClient(env);
   const { data: venue } = await service
     .from("venues")
@@ -49,7 +76,17 @@ export async function venueMapImage(env: Env, venueId: string, key: string): Pro
 }
 
 // GET /venue-map/<venue-uuid>-<hash> — the uploaded override, same treatment.
-export async function venueMapUpload(env: Env, venueId: string, hash: string): Promise<Response> {
+export async function venueMapUpload(
+  request: Request,
+  env: Env,
+  ctx: ExecutionContext | undefined,
+  venueId: string,
+  hash: string,
+): Promise<Response> {
+  return cached(request, ctx, () => buildVenueMapUpload(env, venueId, hash));
+}
+
+async function buildVenueMapUpload(env: Env, venueId: string, hash: string): Promise<Response> {
   const service = serviceClient(env);
   const { data: venue } = await service
     .from("venues")

@@ -30,6 +30,9 @@ const STYLE = "mapbox/dark-v11"; // near-black, to sit inside the page rather th
 const ZOOM = 16;
 const WIDTH = 768;
 const HEIGHT = 480;
+// Measured on the real style, 2026-09-20: @1x is 22.9 KB and @2x is 57.4 KB as WebP.
+// 57 KB is less than the schematic's fallback page weight was ever going to save, and
+// it is the difference between crisp and soft on every phone made in the last decade.
 const RETINA = true;
 
 // Mapbox is asked NOT to draw its own attribution or logo, which their terms allow
@@ -123,7 +126,9 @@ export function frameMetres(lat: number): number {
 // ---------------------------------------------------------------------------
 
 function mapboxUrl(token: string, lat: number, lng: number): string {
-  const size = `${WIDTH}x${HEIGHT}${RETINA ? "@2x" : ""}`;
+  // The format matters: a vector style with no extension comes back as PNG, which
+  // measured 131.7 KB against WebP's 57.4 KB for the identical picture.
+  const size = `${WIDTH}x${HEIGHT}${RETINA ? "@2x" : ""}.webp`;
   return (
     `https://api.mapbox.com/styles/v1/${STYLE}/static/` +
     `${lng.toFixed(6)},${lat.toFixed(6)},${ZOOM},0,0/${size}` +

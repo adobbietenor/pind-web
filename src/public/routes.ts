@@ -30,9 +30,9 @@ export async function publicRoutes(request: Request, env: Env, ctx?: ExecutionCo
   // Venue maps, served from our own origin and never from Supabase (CLAUDE.md,
   // "Keep the Worker lean"). Both URLs are content-addressed, so both are immutable.
   const generated = /^\/map\/([0-9a-f-]{36})-([a-z0-9-]{3,40})\.webp$/.exec(pathname);
-  if (generated) return venueMapImage(env, generated[1]!, generated[2]!);
+  if (generated) return venueMapImage(request, env, ctx, generated[1]!, generated[2]!);
   const uploaded = /^\/venue-map\/([0-9a-f-]{36})-([a-z0-9]{1,12})$/.exec(pathname);
-  if (uploaded) return venueMapUpload(env, uploaded[1]!, uploaded[2]!);
+  if (uploaded) return venueMapUpload(request, env, ctx, uploaded[1]!, uploaded[2]!);
 
   if (pathname === "/") return w1(request, env);
   if (pathname === "/about") return about();
