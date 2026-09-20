@@ -1171,3 +1171,20 @@ change). Where the plan has more detail, the plan is the reference.
   Both notes are one point, in Alex's words: **the product's hinge is whether people
   convene without a host, and every screen before that moment should pull toward it
   rather than report on it.**
+- **A spot must be open at the meeting time** (Alex, entering the community list —
+  filed for M5.2's automated approval check). A spot that exists but is shut when
+  people are meant to meet is **worse than no spot at all**, because the admin's
+  "crews are open and this venue has no approved spots" flag counts spots, not open
+  ones: it stays silent, and the poll cheerfully offers a locked door. Two examples
+  from the first seven community gatherings:
+  - **Hart House chess** runs 4–11pm on a Friday and the Arbor Room, its only spot,
+    shuts at 6. The 4pm start means the poll's default meet time of 3pm works, so the
+    common case is fine — but anyone arriving at 8 has nowhere, and nothing says so.
+  - **Barbara Hall Park** has O'Grady's, an evening pub, attached to a 9am Saturday
+    run, because the poll fills from the venue's spots in order and knows nothing
+    about hours.
+
+  M5.2's check already fetches an evidence page per spot; opening hours belong in the
+  same fetch, and the spot poll should then attach only spots open at the meet time —
+  and say "this venue has no spot open then" where none is, which is a flag that can
+  actually fire. Until then it is Alex's eye, per gathering, in the admin.
