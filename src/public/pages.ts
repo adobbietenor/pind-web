@@ -18,6 +18,7 @@ import {
   dayGroups,
   href,
   parseChips,
+  readerFloor,
   rowsInTab,
   TABS,
   tabHref,
@@ -136,7 +137,13 @@ export async function w1(request: Request, env: Env, tab: TabValue): Promise<Res
 
   // Local midnight to local midnight, in the city's own zone: a Friday night show at
   // 11pm belongs to Friday, and a week boundary in Toronto is not one in UTC.
-  const from = new Date(fromLocalInput(`${win.start}T00:00`, DEFAULT_TZ)!);
+  //
+  // When the reader has not asked for a particular week this is readerFloor — the same
+  // floor the description and map passes use, so no job can disagree with the page
+  // about which rows a reader can see (list.ts).
+  const from = win.asked
+    ? new Date(fromLocalInput(`${win.start}T00:00`, DEFAULT_TZ)!)
+    : readerFloor(now, DEFAULT_TZ);
   const to = new Date(fromLocalInput(`${addDays(win.start, WINDOW_DAYS * READ_WEEKS)}T00:00`, DEFAULT_TZ)!);
   const all = await crowds(env, from, to);
 

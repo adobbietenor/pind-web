@@ -19,7 +19,7 @@ import {
   tabForSource,
   type TabValue,
 } from "../../packages/shared/src/constants.ts";
-import { localDate } from "../admin/time.ts";
+import { fromLocalInput, localDate } from "../admin/time.ts";
 
 export { TABS, tabForSource, type TabValue };
 
@@ -53,6 +53,38 @@ export const addDays = (date: string, n: number): string => {
 };
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+// ---------------------------------------------------------------------------
+// The floor: the earliest instant a reader can still see on the site
+//
+// **Three times in one milestone, two pieces of code disagreed about which rows
+// matter**, and every time it was invisible until one specific thing was missing:
+//   - the venue-map pass and the admin's chip panel each wrote their own idea of "on
+//     the public web" and counted rows RLS hides (fixed by asking the door — see
+//     publicVenueIds in data.ts);
+//   - the description pass started its window at `now` while W1 opens on the start of
+//     today in the city, so **tonight's rows — the ones a reader is looking at — were
+//     the ones that never got a line**, including the game Alex named.
+//
+// The windows themselves legitimately differ: the page shows a week, the publisher
+// looks 21 days out, the map pass 28. What must not differ is the FLOOR. A job that
+// exists to serve what is on the page has to start where the page starts, and that is
+// one line of arithmetic that was being written three ways.
+//
+// So: one definition, used by W1's own window, by the description pass and by the map
+// pass. The horizon stays each job's own business, because that part is a real
+// difference rather than an accident.
+export function readerFloor(now: Date, tz: string): Date {
+  const today = localDate(now.toISOString(), tz);
+  return new Date(fromLocalInput(`${today}T00:00`, tz)!);
+}
+
+// And the instant a given number of days after it, in the same zone — so a window is
+// built from the same arithmetic at both ends.
+export function daysAfterFloor(now: Date, tz: string, days: number): Date {
+  const today = localDate(now.toISOString(), tz);
+  return new Date(fromLocalInput(`${addDays(today, days)}T00:00`, tz)!);
+}
 
 export interface ListWindow {
   // City-local calendar dates: the first day shown and the first day not shown.
@@ -285,9 +317,70 @@ export interface CrowdCounts {
 // place, because it is a state rather than a number, and the rarest and best thing a
 // card can say. The open-to-meeting count moves to W2, where it has room.
 export function crowdLine(g: CrowdCounts): string {
-  if (g.pinned === 0) return `${plural(g.pinned, "pinned", "pinned")} · be the first`;
-  const parts = [plural(g.pinned, "pinned", "pinned")];
-  if (g.crews_open) parts.push("crews forming");
-  parts.push("see who's going");
-  return parts.join(" · ");
+  // **Crew state belongs on the page you land on, not on the card** (Alex, closing
+  // M2.3). "Crews forming" was the last thing on a card that was about our machinery
+  // rather than about the reader: the count is the information, the tap is the point,
+  // and what the crews are doing is on the other side of it.
+  return g.pinned === 0
+    ? `${plural(g.pinned, "pinned", "pinned")} · be the first`
+    : `${plural(g.pinned, "pinned", "pinned")} · see who's going`;
+}
+
+// ---------------------------------------------------------------------------
+// Token overlap against the title — measured, and deliberately NOT wired up
+//
+// Alex asked for a deterministic check that hides a line on a card when it is too close
+// to the gathering's own name, on the correct principle that a prompt instruction has no
+// floor under it. This is that check, and **the measurement says not to use it.** Kept
+// here, with its numbers, so nobody builds it again from scratch.
+//
+// Over all 64 lines on the site, every single one at or above 40% overlap is a GOOD
+// line:
+//
+//   63%  Toronto Maple Leafs vs. New York Islanders → NHL hockey, Maple Leafs host…
+//   43%  Toronto Blue Jays vs. Reds                 → MLB baseball, Blue Jays host…
+//   40%  Toronto Argonauts vs. BC Lions             → CFL football, Argonauts hosting…
+//   67%  Thee Sacred Souls, LA LOM & The Womack…    → Soul group Thee Sacred Souls…
+//   40%  KYLE WATSON                                → DJ set from house producer…
+//
+// while the two that really are restatements sit at **29%**: "Totally 2000's Video Dance
+// Party" → "Dance party playing 2000s music videos and hits".
+//
+// **The metric is inversely useful on this data.** When a title already carries the
+// proper nouns, the line's remaining words are the league or the genre — "NHL hockey",
+// "MLB baseball", "soul group" — which is precisely the two words that answer "is it
+// basketball?". A padded restatement, by contrast, avoids the title's words *because*
+// it is padding. Any threshold that hides anything hides the best lines first.
+//
+// What would catch the real thing is a judgement about which new words are informative,
+// which is the same kind of rule as a prompt instruction with my taxonomy instead of the
+// model's — so the honest answer is that the restatement problem is small (2 of 64),
+// the prompt already forbids it, and the admin's own edit is the fix for a line that
+// slips through. Recorded in decisions.md.
+// ---------------------------------------------------------------------------
+
+const TITLE_STOP = new Set([
+  "the", "and", "for", "with", "from", "this", "that", "their", "her", "his", "its",
+  "are", "was", "were", "has", "have", "had", "will", "you", "your", "all", "any",
+  "out", "off", "one", "two", "into", "onto", "over", "under", "about", "night",
+  "live", "tour", "show", "presents", "featuring", "feat", "toronto",
+]);
+
+function meaningfulWords(s: string): string[] {
+  return s
+    .toLowerCase()
+    .replace(/['’]s/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !TITLE_STOP.has(w));
+}
+
+// The share of the line's own words that the title already had. 1 means the line says
+// nothing the name did not.
+export function titleOverlap(line: string, title: string): number {
+  const inTitle = new Set(meaningfulWords(title));
+  const words = meaningfulWords(line);
+  if (words.length === 0) return 1;
+  return words.filter((w) => inTitle.has(w)).length / words.length;
 }

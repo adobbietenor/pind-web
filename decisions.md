@@ -2000,3 +2000,69 @@ occurrences to 31 December**, three and a half months out.
     an admin edit final. Clearing a line by hand leaves no source behind, so a later run
     may write one again — an emptied line still marked "admin" would be a blank nothing
     could ever fill and nobody would remember why.
+
+- **A card says the count and the invitation, and nothing else** (Alex, closing M2.3).
+  "Crews forming" is gone from the list: **crew state belongs on the page you land on**,
+  not on the row that gets you there. Every row with anybody on it reads "3 pinned · see
+  who's going" and a row with nobody reads "0 pinned · be the first". It was the last
+  thing on a card that was about our machinery rather than about the reader.
+- **The restatement check was built, measured, and deliberately not wired up** (Alex
+  asked for it on the correct principle that a prompt instruction has no floor under
+  it). Token overlap against the gathering's own name, over all 64 lines on the site:
+
+  | overlap | title → line |
+  |---|---|
+  | 63% | Toronto Maple Leafs vs. New York Islanders → NHL hockey, Maple Leafs host the New York Islanders |
+  | 67% | Thee Sacred Souls, LA LOM & The Womack Sisters → Soul group Thee Sacred Souls headline with… |
+  | 43% | Toronto Blue Jays vs. Reds → MLB baseball, Blue Jays host the Cincinnati Reds |
+  | 40% | Toronto Argonauts vs. BC Lions → CFL football, Toronto Argonauts hosting the BC Lions |
+  | 29% | Totally 2000's Video Dance Party → Dance party playing 2000s music videos and hits |
+
+  **Every line at or above 40% is a good one, and the genuine restatements sit at 29%.**
+  The metric is inversely useful here: when a title already carries the proper nouns,
+  the line's remaining words *are* the league or the genre — "NHL hockey", "MLB
+  baseball", "soul group" — which is exactly the two words that answer "is it
+  basketball?". A padded restatement avoids the title's words precisely *because* it is
+  padding. Any threshold that hides anything hides the best lines first.
+  - What would catch the real thing is a judgement about which new words count as
+    informative, which is the same kind of rule as a prompt instruction with my
+    taxonomy in place of the model's. So: **the restatement problem is small (2 of 64),
+    the prompt already forbids it, and the admin's own edit is the fix for one that
+    slips through.**
+  - `titleOverlap` stays in `src/public/list.ts`, unused by the render path, with its
+    numbers pinned in `tests/unit/list.test.ts` — the same treatment as the "no going-out
+    chip" measurement, so nobody builds it again from scratch.
+- **One definition of the floor a reader can still see** (Alex: "is 'which rows does
+  this job consider' a definition worth having in one place, the way the public door is
+  now?"). Yes, and it was cheap, because the disagreement was always at the same edge.
+  - **Three times in one milestone two pieces of code disagreed about which rows
+    matter**, and every time it was invisible until one specific thing was missing: the
+    map pass and the admin's chip panel each wrote their own "on the public web" and
+    counted rows RLS hides; then the description pass started its window at `now` while
+    W1 opens on the start of today in the city, so **tonight's rows — the ones a reader
+    is looking at — were the ones that never got a line**, the game Alex named among
+    them.
+  - **The windows legitimately differ and the floor does not.** The page shows a week,
+    the publisher looks 21 days out, the map pass 28: those are real differences. What
+    must never differ is where they start, and that was one line of arithmetic written
+    three ways. `readerFloor(now, tz)` and `daysAfterFloor(now, tz, days)` in
+    `src/public/list.ts` are now the only expression of it, used by W1's default window,
+    the description pass and the map pass, with the horizon left to each job.
+  - **This is the same shape as the door, one layer along.** `publicVenueIds` answers
+    "which rows are public" by asking the database; `readerFloor` answers "which rows
+    are current" in one place. Between them they cover both halves of the question a job
+    has to get right before it does any work at all.
+- **"Hotspots" — filed, not built** (Alex, closing M2.3). A button leading to a page
+  showing both Events and Community ordered by most pins.
+  - **Why it does not contradict Q10.** The list stays date-ordered, and the reason is
+    unchanged: popularity as the *default* sort is a rich-get-richer loop that buries the
+    gatherings which most need to reach five. Hotspots is different because **the reader
+    chose it** — the same distinction as the popularity filter already filed (decisions,
+    "The three surfaces, and which is the default").
+  - **A button, not a third tab** (Alex's constraint, and the reasoning is the point): a
+    tab of equal weight beside Events and Community would make popularity the default
+    for whoever taps it first, which is exactly what Q10 refused. **It is a detour, not a
+    peer.**
+  - **Revisit when there are real pins.** Today every gathering has zero, so the page
+    would be an empty list ordered by nothing — and it would be the first page in the
+    product whose emptiness is a statement about the product rather than about the week.

@@ -25,6 +25,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { BLURB_FIELDS, readBlurb } from "../blurb.ts";
 import { costUsd, MODEL } from "./ai.ts";
 import { formatLocal } from "../admin/time.ts";
+import { readerFloor } from "../public/list.ts";
 
 export const DESCRIBE_SYSTEM = `You write one short line about a public event, for a reader deciding whether to go.
 
@@ -87,12 +88,11 @@ export async function describeEvents(
     .eq("is_seed", false)
     .is("blurb", null)
     .is("dismissed_at", null)
-    // **A day back, not "from now"**, because that is the window the page shows: W1 opens
+    // **The floor the page uses, not "now"** (src/public/list.ts, readerFloor). W1 opens
     // on the start of today in the city, so a gathering starting this evening is on the
-    // list all day. Starting at `now` skipped exactly the rows a reader is looking at
-    // — including the Toronto Tempo game Alex named, which the model describes
-    // perfectly well when it is asked.
-    .gte("starts_at", new Date(now.getTime() - 86_400_000).toISOString())
+    // list all day; starting at `now` skipped exactly the rows a reader is looking at,
+    // including the Toronto Tempo game Alex named. One definition, three jobs.
+    .gte("starts_at", readerFloor(now, TZ).toISOString())
     .lte("starts_at", new Date(now.getTime() + opts.leadDaysMax * 86_400_000).toISOString())
     // Published first: those are the pages a stranger can open today.
     .order("slug", { nullsFirst: false })

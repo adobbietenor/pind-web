@@ -209,9 +209,9 @@ The public browse surface. Grouped by day, **ordered by date, never by size** (Q
 Published gatherings: name, venue, time, the chip a reader filters by, what it costs to
 walk in, and one line about the crowd. Small counts shown, never hidden, including zero.
 **The threshold never leads**: a row short of five says nothing about five (Alex,
-closing M2.3). The crowd line has three states — "0 pinned · be the first", "3 pinned ·
-1 open to meeting", "12 pinned · crews forming" — so the second clause is always a fact
-about that gathering rather than one phrase repeated down the page.
+closing M2.3). The crowd line has two states — "0 pinned · be the first" and "3 pinned · see
+who's going". **Crew state is not on the card**: it belongs on the page you land on
+(Alex, closing M2.3).
 The header carries the mark top left and the wordmark top right (Alex, closing M2.3).
 Each row also carries **one short line saying what it is**, where a source knew
 something, and nothing at all where none did, because a restatement of the title is

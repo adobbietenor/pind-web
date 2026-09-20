@@ -23,6 +23,9 @@ import {
   WINDOW_DAYS,
   type ListRow,
   crowdLine,
+  titleOverlap,
+  readerFloor,
+  daysAfterFloor,
 } from "../../src/public/list.ts";
 
 const TZ = "America/Toronto";
@@ -288,13 +291,71 @@ describe("what a card says about its crowd", () => {
     assert.equal(crowdLine(card(9, 4)), "9 pinned · see who's going");
   });
 
-  it("keeps crews forming, because it is a state and the best thing a card can say", () => {
-    assert.equal(crowdLine(card(12, 5, true)), "12 pinned · crews forming · see who's going");
+  it("says nothing about crews, wherever they are up to", () => {
+    // **Crew state belongs on the page you land on** (Alex, closing M2.3). A card is
+    // the count and the tap; what the crews are doing is on the other side of it.
+    assert.equal(crowdLine(card(12, 5, true)), "12 pinned · see who's going");
+    assert.equal(crowdLine(card(12, 5, false)), "12 pinned · see who's going");
   });
 
-  it("says nothing about the threshold on a row that has not reached it", () => {
+  it("says nothing about the threshold, or about crews, on any row", () => {
     for (const line of [crowdLine(card(0, 0)), crowdLine(card(3, 0)), crowdLine(card(12, 6, true))]) {
-      assert.doesNotMatch(line, /crews open at|5 people|opt in/);
+      assert.doesNotMatch(line, /crews|5 people|opt in/);
     }
+  });
+});
+
+// M2.3, closing: the deterministic restatement check Alex asked for, with the numbers
+// that say not to use it. Pinned as a test so the finding cannot quietly rot — anyone
+// who wires this into the render path will see these two assertions first.
+describe("token overlap against the title", () => {
+  it("scores the BEST lines highest, which is why it is not wired up", () => {
+    // The whole value of this line is the two words "NHL hockey" — and because the
+    // title already holds the proper nouns, the metric calls it a restatement.
+    const leafs = titleOverlap("NHL hockey, Maple Leafs host the New York Islanders.", "Toronto Maple Leafs vs. New York Islanders");
+    assert.ok(leafs >= 0.55, `the Leafs line scored ${leafs.toFixed(2)}`);
+
+    const souls = titleOverlap("Soul group Thee Sacred Souls headline with LA LOM and The Womack Sisters.", "Thee Sacred Souls, LA LOM, & The Womack Sisters");
+    assert.ok(souls >= 0.55, `the soul line scored ${souls.toFixed(2)}`);
+  });
+
+  it("scores a genuine restatement LOWER than those, because padding avoids the title's words", () => {
+    const padded = titleOverlap("Dance party playing 2000s music videos and hits", "Totally 2000's Video Dance Party");
+    assert.ok(padded < 0.4, `the padded line scored ${padded.toFixed(2)}`);
+    // Which is the finding: no threshold separates them in the right direction.
+    assert.ok(padded < titleOverlap("NHL hockey, Maple Leafs host the New York Islanders.", "Toronto Maple Leafs vs. New York Islanders"));
+  });
+
+  it("still returns 1 for a line that is nothing but the title", () => {
+    assert.equal(titleOverlap("Pub Chess Liberty", "Pub Chess Liberty"), 1);
+  });
+});
+
+// M2.3, closing: one definition of the floor. Three times in one milestone two pieces
+// of code disagreed about which rows matter, and the disagreement was always at the
+// same edge — what counts as "still on today".
+describe("the floor a reader can still see", () => {
+  const TZ = "America/Toronto";
+
+  it("is the start of today in the city, not the moment the job ran", () => {
+    // 2am UTC on the 21st is 10pm on the 20th in Toronto: the floor is the 20th.
+    const floor = readerFloor(new Date("2026-09-21T02:00:00Z"), TZ);
+    assert.equal(floor.toISOString(), "2026-09-20T04:00:00.000Z");
+
+    // And an evening gathering that started an hour ago is still above the floor,
+    // which is the whole point: it is still on the page all evening.
+    assert.ok(new Date("2026-09-21T01:00:00Z") > floor);
+  });
+
+  it("moves with the city's clock rather than with UTC", () => {
+    // Toronto is UTC-4 in September and UTC-5 in November.
+    assert.equal(readerFloor(new Date("2026-09-20T18:00:00Z"), TZ).toISOString(), "2026-09-20T04:00:00.000Z");
+    assert.equal(readerFloor(new Date("2026-11-20T18:00:00Z"), TZ).toISOString(), "2026-11-20T05:00:00.000Z");
+  });
+
+  it("builds the far end of a window from the same arithmetic", () => {
+    const now = new Date("2026-09-20T18:00:00Z");
+    assert.equal(daysAfterFloor(now, TZ, 7).toISOString(), "2026-09-27T04:00:00.000Z");
+    assert.ok(daysAfterFloor(now, TZ, 28) > readerFloor(now, TZ));
   });
 });
