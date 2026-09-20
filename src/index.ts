@@ -8,9 +8,9 @@ import { ConfigError } from "./supabase";
 const CRON_BUDGET_MS = 13 * 60 * 1000;
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     try {
-      return await route(request, env);
+      return await route(request, env, ctx);
     } catch (err) {
       // A missing setting is shown plainly; anything else is logged and hidden,
       // so no internal detail reaches a public page.

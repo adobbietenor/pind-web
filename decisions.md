@@ -322,10 +322,12 @@ profile.
   - Each poll shows the **top 2 proven spots plus 1 newer or rising spot**, with "see
     all spots", so new suggestions can earn their way up.
   - At scale, crews spread across the pool's spots and staggered times.
-- **Maps generated automatically** (Alex, after Phase 1 M1.3). The venue map on public
-  pages is drawn from the venue's and its spots' coordinates — venue and spots only,
-  never people (H1), and never device location (H4). No manual upload needed; upload
-  stays only as an optional override.
+- **Maps generated automatically** (Alex, after Phase 1 M1.3) — **SUPERSEDED in Phase 2
+  M2.1, see "A real map, not a schematic"**. The venue map on public pages is drawn from
+  the venue's and its spots' coordinates — venue and spots only, never people (H1), and
+  never device location (H4). No manual upload needed; upload stays only as an optional
+  override. *Kept here rather than deleted: the reasoning held, and what replaced it
+  keeps the same two hard rules. What it got wrong was the picture.*
 - **Look** (Alex, after Phase 1 M1.3). Public pages use the dark, on-brand look:
   near-black background, purple `#582883`, white text, the logo — matching the app and
   pindscene.com. Mobile-first, and still loading in under a second inside a Reddit tab.
@@ -541,3 +543,232 @@ change). Where the plan has more detail, the plan is the reference.
   in M4.1. Until it exists, M2.1's public pages ship **unlinked and noindex**:
   `noindex` on every page and a `robots.txt` that disallows everything, and nothing
   links or posts them publicly.
+
+### Decided in Phase 2 M2.1
+
+- **The seed rule hides seed rows from everyone, signed in included** (Alex, M2.1).
+  `is_seed` on `venues`, `gatherings` and `people`; a seed row is invisible to `anon`
+  and to `authenticated` alike, and only the service key sees it. Anonymous sign-in is
+  one tap at A26, so "signed in" was never a gate. The consequence is accepted: the
+  M3.6 dogfood runs on real imported gatherings Alex has published, with real accounts.
+  The full rule, and what it does to counts, is `docs/visibility.md` V18 (§12f);
+  harness cases P55–P58.
+- **The public web reads through one door** (Alex, M2.1). W1, W2, W3, the OG image and
+  the `.ics` read `public.public_gatherings` and `public.public_gathering` and nothing
+  else, so "on the public web" — published, not withdrawn, not seeded, and carrying a
+  slug — is one definition in the database rather than a filter repeated in Worker code
+  (H11).
+- **Slugs, and a 301 that never dies** (Alex, M2.1). `/g/<slug>` is minted when Alex
+  publishes and nothing ever recomputes it; the importer renames nothing on a published
+  gathering, it raises a flag. Alex can change a slug by hand in the admin, and the old
+  one answers a **301 forever**, so a Reddit post from six weeks ago still lands. A slug
+  is spent the moment it is used and is never handed to another gathering; a published
+  slug can never be removed. A rename does not send notification 3 — the page shows the
+  new name either way and the link still works.
+- **The policy harness stays on pind-staging, with a named exception** (Alex, M2.1).
+  Flagging harness rows as seed would have the harness testing a world its own rule had
+  emptied, and every way of keeping the coverage needs a harness-only session marker,
+  which is a backdoor in the visibility layer. The slug gate removes the harness from
+  every public page; what is left — two or three slugged rows and direct REST reads
+  with the publishable key, for the minute a run lasts, on a domain nothing points at —
+  is written up as a deliberate exception in `docs/visibility.md` §12f, expiring at
+  M4.3 when pind.social serves pind-prod and the overlap stops existing. Closing it
+  sooner means a second Supabase project for the harness; not taken.
+- **A seeded venue's uploaded map image stays fetchable** (Alex, M2.1). `venue-maps` is
+  a public bucket by decision, and RLS hides rows, not objects. The URL needs a UUID
+  nobody can obtain and nothing links to it. Accepted rather than moving every venue map
+  behind a signed URL.
+- **Meeting spots carry coordinates, and walking minutes are calculated** (Alex, M2.1).
+  `meeting_spots.latitude`/`longitude` are optional: a spot with them is plotted on the
+  generated map, a spot without is still listed by name. Walking minutes come from the
+  distance, with a detour allowance, and `walk_minutes` overrides the calculation where
+  it is wrong. Both are entered in the admin. These and venue coordinates are the only
+  coordinates the product holds (H4).
+- **System fonts on the public pages** (Claude, M2.1; spec §2 allows one web font "only
+  if it doesn't hurt load time"). A web font costs a round trip before the first paint
+  on a page that has one second inside a Reddit tab, so W1–W4 use the system stack.
+  Poppins stays in the app.
+- **The lockup is composed, not exported** (Alex, 19 Sept 2026, carried out in M2.1).
+  `scripts/build-brand.ts` strips the C2PA metadata, swaps the hard-coded fill for
+  `currentColor` and lays the mark beside the wordmark at a fraction of its height,
+  writing `src/public/brand.ts`. Two numbers — cap height and gap — are the whole
+  layout. It is provisional and Tatiana's to change. `brand/` is untouched.
+- **Map view — considered, deferred** (Alex, Phase 2 M2.1). The original PindScene build
+  had a map/list toggle: purple pins across Toronto, tap a pin to expand a venue card,
+  sign-up wall to see who's going. It did not survive the pivot to attaching to existing
+  gatherings, and A5–A7's "No map, no feed, no algorithm" was written for the new product
+  rather than as a decision against it. Recording it properly now.
+
+  The list stays the only discovery surface for the beta, for three reasons:
+  1. It would look empty. Five to twenty published gatherings a week across a city reads
+     as a dead app on a map, where "3 pinned · crews open at 5" reads as progress in a
+     list (Q10).
+  2. It invites location. A map leads to "near me", which leads to a location permission
+     — the one thing the product promises never to ask for (H4). The promise is easier to
+     keep when the surface doesn't exist.
+  3. It changes nothing at the destination. Tapping a pin to see who's going and what
+     crews are forming is A8–A10 exactly. A map changes how people arrive, and people
+     arrive from shared links.
+
+  The one map in the product stays the venue schematic on a crowd page: that building and
+  its meeting spots, never people (H1).
+
+  When to revisit: the geodata exists from M2.1, so this is a UI decision, not a schema
+  one. Revisit when the adaptive publisher's weekly target is high enough that a city map
+  looks alive rather than empty — roughly the `publish_max` end of spec §8 — and only if
+  the list is demonstrably failing as a discovery surface. Any map view must still work
+  with no location permission: the city is the frame, and the user's position is never on
+  it.
+
+  **When it comes, half the decision is already made** (Alex, M2.1). The shape is: pan
+  around Toronto, one pin per published gathering, tap a pin to open that crowd page. It
+  belongs **in the app**, with the Explore tab idea, not on a Worker page. It is built on
+  **Protomaps on R2** — a vector extract of the city in our own bucket, read by MapLibre
+  over HTTP range requests — for the reason M2.1's measurements gave: R2 has no egress
+  fee and there is **no per-load billing**, so a good Reddit day costs nothing, where
+  Mapbox GL bills $5 per 1,000 map loads past the free 50,000. It also ships no API key,
+  because there is no key. The pins are gatherings, never people (H1), and the map still
+  never asks where the viewer is (H4).
+- **crowds@ and safety@ are real, monitored inboxes** (Alex, M2.1). The public pages
+  carry `crowds@pind.social` (suggest a gathering) and `safety@pind.social` (report).
+  **Resend sends mail, it does not receive it**, so both would bounce silently as they
+  stand. Alex sets up Cloudflare Email Routing (free) to forward them to his inbox
+  before those addresses go on a page anyone is pointed at. `safety@` on a public page
+  is an App Review 1.2 requirement and a promise to users, so it has to work — the M4.1
+  acceptance list carries "the support address is a real, monitored inbox".
+- **The OG image is rasterised in the Worker, by resvg alone** (Alex asked, verified
+  and built M2.1). The card is drawn as an SVG (`src/public/og.ts`, unit-tested) and
+  turned into a PNG before it is served, because SVG is not a link preview — iMessage,
+  Discord and Slack all want a bitmap.
+  - **Cloudflare Images cannot do it.** Its own docs: "Cloudflare does not resize SVG
+    files and will ignore any optimization parameters", and Images "does not have plans
+    to convert svg to raster" — it sanitises SVGs with `svg-hush` and serves them as
+    they are. Checked 2026-09-19. Not a pricing question; it does not exist.
+  - **One dependency, `@cf-wasm/resvg`, pinned.** Not satori: satori would mean
+    rebuilding the card in its flexbox layout, a second wasm module (yoga), and a font
+    fetched from Google's CDN at runtime. resvg takes the SVG we already have.
+  - **Measured on this Worker, deployed**, which was Alex's condition: Worker Startup
+    Time **8 ms → 10 ms**; bundle 288 KB gzipped → 1.37 MB; `/og/<slug>.png` about
+    410 ms of CPU, cached 24 h at the edge; W2 unchanged at 80–270 ms. The satori route
+    was measured too and cost 33 ms of startup, so it was dropped. Workers **block
+    dynamic WebAssembly compilation**, so a wasm module is always a static import and
+    always on every route's cold start — which is why the number mattered and why it
+    was measured rather than assumed.
+  - **Fonts are embedded, not fetched.** The two Poppins faces the app already bundles
+    live in `src/public/fonts/` and are imported as bytes (a wrangler `Data` rule). A
+    link preview must not depend on somebody else's CDN being up.
+  - **Rendering at publish and storing the PNG was considered and not taken.** It would
+    not have removed the wasm from the bundle — only a second Worker would — so it
+    bought roughly 400 ms on a route only crawlers hit, in exchange for stored objects,
+    a failure path at publish and a backfill. Revisit only if the OG route ever gets
+    hot, which it should not: previews are cached by whoever posts the link.
+- **A real map, not a schematic** (Alex, Phase 2 M2.1). **Supersedes "Maps generated
+  automatically"** above. M2.1 built the schematic that decision asked for — venue, spots,
+  walking minutes, north arrow, scale bar, drawn from coordinates with no tiles and no
+  key. On the page it **reads as a placeholder**, and it is the weakest thing on W2, which
+  is one of the three screens that carry the first impression. So the crowd page gets
+  real geography: streets, buildings, the actual shape of the block.
+
+  **Shape A, chosen after all three were measured** (Alex, M2.1): a **static** real map
+  image on W2, and an **interactive** map in the app at A8, where the load budget is a
+  one-time app download rather than a page in a Reddit tab. What the measurements said:
+  W2 is 6.7 KB over the wire today; one map view is 92 KB as a single WebP against 285 KB
+  of MapLibre before a single tile, or 46 KB of Leaflet plus ~198 KB of raster tiles
+  across eight round trips. A static image also bills **per image**, not per map load, so
+  a good Reddit day costs nothing.
+
+  **Provider: Mapbox** (Alex, M2.1) — Static Images API, 50,000 requests a month free and
+  the only free tier that permits commercial use at our volume. MapTiler's free tier is
+  non-commercial and brands the map; commercial starts at $30/month.
+
+  **Attribution: "© OpenStreetMap contributors" is visible on or under the map.** Required
+  by the ODbL, so not ours to decline (Alex, M2.1).
+
+  Four conditions, all of them binding, not implementation detail:
+  1. **The image is served from our own origin, never Supabase storage.** The same 157 KB
+     image measured 911 ms from Supabase and 133 ms from pind.social; the difference is
+     one extra connection. This is now a general rule in CLAUDE.md, "Keep the Worker
+     lean". **It also applies to the existing uploaded-map override**, which currently
+     points a visitor's browser straight at the storage bucket and must move behind our
+     origin in the same change.
+  2. **One image per venue, generated once and stored.** Not per gathering and not per
+     view, so the number of Mapbox requests tracks the number of venues — tens, ever —
+     and never the traffic.
+  3. **The markers, the spot names and the walking minutes are ours**, drawn in HTML and
+     CSS over the image, never baked into the picture. Crisp at any width, correct on a
+     retina screen, readable by a screen reader, and changeable without re-rendering
+     anything. The north arrow goes with them.
+  4. **Every spot marker is tappable, and opens that spot in the phone's own maps app**
+     (Alex, M2.1) — Apple Maps on iOS, Google Maps on Android, a sensible desktop
+     fallback — with **walking directions to the spot**, not a dropped pin. Nobody plans a
+     walk inside a 768-pixel page; they open their own maps app. It is a first-class part
+     of the marker, not a small link underneath. **This does not touch H4**: the location
+     permission is asked for by the maps app, by the person, after they leave our page,
+     and we never see the answer.
+
+  What does not change, and is not negotiable:
+  - the map shows the venue and its meeting spots and **nothing else** — no user pins,
+    no crowd density, nothing about who is where (H1);
+  - **no geolocation on our surface**: no locate control, no permission prompt, no
+    IP-based centring. The venue is always the centre (H4). A library that ships a locate
+    control by default has it **removed, not hidden**.
+
+  **Caching: immutable, and nothing ever needs invalidating** (Alex asked, M2.1). Both
+  map URLs are **content-addressed**, so they are served `max-age=31536000, immutable`:
+  - `/map/<venue>-<key>.webp`, where the key is `md5(latitude, longitude)` plus a
+    renderer version. **Correcting a venue's coordinates in the admin produces a
+    different key, so the page starts asking for a different URL and the old one is
+    simply never requested again.** There is no purge to run, no cache API to call, and
+    no window in which a stale picture is served. The Worker also refuses a key that is
+    not the one the venue's current coordinates produce, so an old URL 404s rather than
+    serving an out-of-date map to whoever still has it.
+  - `/venue-map/<venue>-<hash>`, the uploaded override, versioned by a hash of its
+    storage path for the same reason.
+  - Bumping the renderer version (zoom, size, style) changes every key at once.
+
+  **Failures are visible and retries are capped** (Alex, M2.1). Every attempt is
+  recorded in `venue_map_renders` with its error; the admin's venue list carries a
+  count and names the venues, and each venue page shows the reason. After three
+  failures the Worker stops asking — a venue that can never render must not loop
+  against a paid API with nobody watching — and a "Fetch the map again" button in the
+  admin is the deliberate retry that clears the record. A missing `MAPBOX_TOKEN` is
+  reported once, as the configuration problem it is, not as 74 venue failures.
+
+  **A spot outside the frame says so** (Alex, M2.1). It keeps its place in the list,
+  its walking minutes and its directions link, and the page reads "not shown on the map
+  — it is further away". Someone comparing the list to the picture never has to wonder
+  whether the marker is missing or the spot is. The admin flags it on the venue page as
+  the M5.2 distance signal. The frame stays at a fixed zoom centred on the venue:
+  zooming out to fit a bad spot would shrink the venue to nothing and hide the thing
+  the map is for.
+
+  The schematic generator (`src/public/map.ts`) stays in the repo until the replacement
+  is proven on Alex's phone — and it has earned a permanent job as the middle step of
+  the fallback: real map, then schematic, then the spot list alone.
+- **The house rules, rewritten** (Alex, after the M2.1 on-device walk). The old three
+  read as a safety notice on a product whose whole pitch is making friends. The new
+  three, verbatim on every crowd surface:
+  1. Make friends how you used to — in person.
+  2. You see each other, or neither of you does.
+  3. Come as you are. No pressure, no commitment.
+
+  Underneath, styled as a fact rather than a fourth rule:
+  **"Crews meet at a spot near the venue before doors."**
+
+  **The safety property is unchanged — only how it is said.** Line 1 still says this
+  happens face to face, not in a chat. Line 2 is H3, reciprocal reveal, stated as
+  fairness rather than as a lock. Line 3 is the leave-any-time promise, stated as
+  welcome rather than as an exit. The line underneath is H5 and H10: somewhere public,
+  before the event, with the company not present.
+
+  **That line is not decoration.** It is what App Review is pointed at under Guideline
+  1.2, so it stays on **every** crowd surface, not only the crowd page.
+
+  **Block and report leave the front-page rules and stay two taps away everywhere in
+  the product** (H9). Nothing about the mechanism changes; it stops being the third
+  thing a stranger reads about a night out. M3.5's acceptance already requires the two
+  taps, and that requirement now carries this reason with it.
+
+  Alex's decision, made after walking it on a phone — not a placeholder, and not
+  Tatiana's to revisit. The **register** of everything that is not a house rule is
+  still hers, in the copy pass spec §5 says is owed.

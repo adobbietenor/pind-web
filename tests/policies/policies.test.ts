@@ -1,8 +1,9 @@
 // Policy harness — Phase 1 M1.1. Run with `npm run test:policies`.
 //
 // Every case is an approved "X CAN / X CANNOT" pair from docs/visibility.md, numbered
-// P01–P54, with the rule it proves (V1–V13). P38–P47 arrive with M1.2 (admin); P48–P54
-// with M1.3 (import, flags, withdrawn). Each person queries with their own
+// P01–P61, with the rule it proves (V1–V18). P38–P47 arrive with M1.2 (admin); P48–P54
+// with M1.3 (import, flags, withdrawn); P55–P61 with M2.1 (seed rows, and the one door
+// the public web reads through). Each person queries with their own
 // session through the same REST and Storage APIs the Worker uses, so what passes
 // here is what RLS lets through. The service key only builds and sweeps the world.
 //
@@ -1015,5 +1016,257 @@ describe("Importer rights, enforced in the database (decisions Part 5, M1.3)", (
     assert.equal((await serviceRow("venue_external_ids", "external_id", `pindhx-${w.run}-venue`, "venue_id")).venue_id, w.venue2);
     const aliases = await rows(w.service.from("venue_aliases").select("alias").eq("venue_id", w.venue2));
     assert.ok(aliases.some((a: { alias: string }) => a.alias === `pindhx ${w.run} Venue`));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// V18 — seed rows never reach the public (Phase 2 M2.1; decisions.md Part 5,
+// "pind.social before production"). Until pind-prod exists, pind.social serves
+// pind-staging, which holds the seeded rows the admin was built against.
+//
+// The rows below carry is_seed, which is what the staging seed looks like to the
+// database. Everything else in this file is an ordinary row — which is why the
+// other 55 cases are untouched by the rule, and why the harness itself stays off
+// the public web through the slug instead (P59, docs/visibility.md §12f).
+// ---------------------------------------------------------------------------
+
+let seedVenue = "";
+let seedG = "";
+let seedGSlug = "";
+let seedPerson = "";
+let seedSession: SupabaseClient;
+let publicG = "";
+let publicSlug = "";
+
+function inDays(n: number): string {
+  return new Date(Date.now() + n * 86_400_000).toISOString();
+}
+
+// What a visitor would get from the public web layer for this slug.
+async function publicDoor(client: SupabaseClient, slug: string): Promise<any> {
+  return ok(client.rpc("public_gathering", { p_slug: slug }));
+}
+
+// The slugs the week's list would show, over a window wide enough for the world.
+async function publicList(client: SupabaseClient): Promise<string[]> {
+  const data = await rows(client.rpc("public_gatherings", { p_from: inDays(-90), p_to: inDays(90) }));
+  return data.map((r: { slug: string }) => r.slug);
+}
+
+describe("Seed rows never reach the public — V18 (Alex, M2.1)", () => {
+  before(async () => {
+    // A seeded venue, with a spot, and a published gathering at it. The gathering
+    // is inserted WITHOUT is_seed: the venue's flag must carry to it on its own.
+    seedVenue = (
+      await ok(
+        w.service
+          .from("venues")
+          .insert({ name: `pindhx ${w.run} Seed Venue`, address: "1 Seed St, Toronto", is_seed: true })
+          .select("id")
+          .single(),
+      )
+    ).id;
+    await ok(w.service.from("meeting_spots").insert({ venue_id: seedVenue, name: `pindhx ${w.run} Seed Spot` }));
+    seedG = (
+      await ok(
+        w.service
+          .from("gatherings")
+          .insert({
+            name: `pindhx ${w.run} Seed Crowd`,
+            starts_at: inDays(9),
+            venue_id: seedVenue,
+            published_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single(),
+      )
+    ).id;
+    // Give it a public URL, so the door is tested on the rule and not on a missing slug.
+    seedGSlug = await ok(w.service.rpc("admin_mint_slug", { p_gathering: seedG }));
+
+    // A seeded person with their own session, pinned and opted in at the REAL
+    // gathering G, bringing two friends.
+    seedSession = newClient(w.env, w.env.publishableKey);
+    const signIn = await seedSession.auth.signInAnonymously({ options: { data: { harness: "pindhx" } } });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    seedPerson = (
+      await ok(
+        w.service
+          .from("people")
+          .insert({
+            auth_user_id: signIn.data.user!.id,
+            first_name: "Seeda",
+            instagram_handle: handleFor(w.run, "seeda"),
+            neighbourhood: "king-west",
+            is_seed: true,
+          })
+          .select("id")
+          .single(),
+      )
+    ).id;
+    await ok(w.service.from("people_private").insert({ person_id: seedPerson, gender: "woman", birth_year: 1995 }));
+  });
+
+  it("P55 a seeded gathering and its venue are invisible to anon and to a signed-in person / the service key still sees everything", async () => {
+    assert.equal((await serviceRow("gatherings", "id", seedG, "is_seed")).is_seed, true, "the venue's flag did not carry");
+
+    for (const client of [w.anon, c(M("Ava"))]) {
+      assert.equal(await readable(client, seedG), false, "the seeded gathering was readable");
+      assert.equal((await rows(client.from("venues").select("id").eq("id", seedVenue))).length, 0, "seeded venue");
+      assert.equal((await rows(client.from("meeting_spots").select("id").eq("venue_id", seedVenue))).length, 0, "seeded spots");
+      assert.equal((await rows(client.from("gathering_spots").select("id").eq("gathering_id", seedG))).length, 0, "seeded options");
+      assert.equal((await rows(client.rpc("gathering_counts", { gathering_ids: [seedG] }))).length, 0, "seeded counts");
+      // The public web layer: not on the week's list, and its URL is gone.
+      assert.equal((await publicList(client)).includes(seedGSlug), false, "a seeded gathering was listed");
+      assert.equal((await publicDoor(client, seedGSlug)).status, "gone", "a seeded crowd page answered");
+    }
+
+    // The admin is untouched: it reads with the service key, which is the point of the seed.
+    assert.ok(await serviceRow("venues", "id", seedVenue, "id"), "the admin lost the seeded venue");
+    assert.equal((await rows(w.service.from("gatherings").select("id").eq("id", seedG))).length, 1);
+  });
+
+  it("P56 a seeded person is invisible at a REAL gathering, sees nobody there, and moves no count (H6)", async () => {
+    const before = await counts(w.anon, w.G);
+
+    await ok(
+      w.service.from("pins").insert({ gathering_id: w.G, person_id: seedPerson, open_to_meeting: true, party_total: 3 }),
+    );
+
+    const after = await counts(w.anon, w.G);
+    assert.deepEqual(after, before, "a fabricated pin moved a public number");
+
+    // Ava is opted in at G, so V1 would let her see any real person pinned there.
+    assert.equal(await seesPeople(c(M("Ava")), "Ava"), 1, "Ava cannot see herself: the world is wrong");
+    assert.equal(
+      (await rows(c(M("Ava")).from("people").select("id").eq("id", seedPerson))).length,
+      0,
+      "a signed-in person saw a seeded person",
+    );
+    assert.equal(
+      (await rows(c(M("Ava")).from("pins").select("id").eq("person_id", seedPerson))).length,
+      0,
+      "a signed-in person saw a seeded pin",
+    );
+    // anon has no privilege on `people` at all, seeded or not (P03).
+    await noAccess(w.anon, "people");
+
+    // And it cuts both ways: the seeded person sees nobody at G.
+    assert.equal(await seesPeople(seedSession, "Ava", "Dev", "Eve"), 0, "a seeded person saw real people");
+    assert.equal(
+      (await rows(seedSession.from("pins").select("id").eq("gathering_id", w.G))).length,
+      1,
+      "a seeded person should still read their own pin, and nobody else's",
+    );
+
+    assert.ok(await serviceRow("people", "id", seedPerson, "id"), "the admin lost the seeded person");
+  });
+
+  it("P57 flagging a venue after the fact takes its gatherings with it", async () => {
+    const venue = (await ok(w.service.from("venues").insert({ name: `pindhx ${w.run} Late Venue` }).select("id").single())).id;
+    const g = (
+      await ok(
+        w.service
+          .from("gatherings")
+          .insert({
+            name: `pindhx ${w.run} Late Crowd`,
+            starts_at: inDays(10),
+            venue_id: venue,
+            published_at: new Date().toISOString(),
+          })
+          .select("id")
+          .single(),
+      )
+    ).id;
+    assert.equal(await readable(w.anon, g), true, "an ordinary published gathering was not readable");
+
+    await ok(w.service.from("venues").update({ is_seed: true }).eq("id", venue));
+
+    assert.equal(await readable(w.anon, g), false, "the gathering stayed public after its venue was flagged");
+    assert.equal((await serviceRow("gatherings", "id", g, "is_seed")).is_seed, true, "the flag did not spread");
+  });
+
+  it("P58 no visitor can flag themselves, or unflag a seeded row", async () => {
+    await denied(c(M("Ava")).from("people").update({ is_seed: true }).eq("id", id("Ava")), "42501");
+    await denied(seedSession.from("people").update({ is_seed: false }).eq("id", seedPerson), "42501");
+    await denied(c(M("Ava")).from("gatherings").update({ is_seed: true }).eq("id", w.G), "42501");
+  });
+});
+
+describe("The public web layer reads through one door — M2.1 (W1–W4)", () => {
+  it("P59 publishing mints a public URL / a gathering without one is on no public list and has no public page", async () => {
+    // The world's published gatherings were inserted straight through the service
+    // key, the way the harness builds everything, so none of them has a slug. That
+    // is what keeps a harness run off the public web (docs/visibility.md §12f).
+    const slugless = await rows(w.service.from("gatherings").select("id, slug").in("id", [w.G, w.C4, w.C5, w.C6]));
+    for (const g of slugless) assert.equal(g.slug, null, "a directly-inserted gathering was given a slug");
+    const listed = await publicList(w.anon);
+    assert.equal(listed.includes(null as unknown as string), false, "a gathering with no slug reached the list");
+
+    // Publishing through the admin action is what mints one.
+    publicG = (
+      await ok(
+        w.service
+          .from("gatherings")
+          .insert({ name: `pindhx ${w.run} Leafs vs Bruins`, starts_at: inDays(11), venue_id: w.venue })
+          .select("id")
+          .single(),
+      )
+    ).id;
+    await ok(admin("admin_publish_gathering", { p_gathering: publicG }));
+    publicSlug = (await serviceRow("gatherings", "id", publicG, "slug")).slug;
+    assert.match(publicSlug, /^pindhx-[a-z0-9]+-leafs-vs-bruins-[a-z]{3}-\d{2}$/, `slug was ${publicSlug}`);
+
+    const door = await publicDoor(w.anon, publicSlug);
+    assert.equal(door.status, "ok");
+    assert.equal(door.gathering.name, `pindhx ${w.run} Leafs vs Bruins`);
+    assert.equal(door.counts.pinned, 0, "honest counts start at zero (H6)");
+    assert.ok((await publicList(w.anon)).includes(publicSlug), "the new gathering is not on the week's list");
+
+    // Nothing about a person is in reach of the public door (H1, H3).
+    const payload = JSON.stringify(door);
+    for (const leak of ["first_name", "instagram", "photo_path", "person_id", "auth_user_id"]) {
+      assert.equal(payload.includes(leak), false, `the public door returned ${leak}`);
+    }
+  });
+
+  it("P60 renaming a URL leaves a 301 behind, and a spent slug is never handed out again", async () => {
+    const renamed = `pindhx-${w.run}-leafs-bruins-rematch`;
+    await ok(admin("admin_set_slug", { p_gathering: publicG, p_slug: renamed }));
+
+    const old = await publicDoor(w.anon, publicSlug);
+    assert.equal(old.status, "redirect", "the old URL stopped redirecting");
+    assert.equal(old.slug, renamed);
+    assert.equal((await publicDoor(w.anon, renamed)).status, "ok");
+    assert.equal((await publicList(w.anon)).includes(publicSlug), false, "the retired slug is still listed");
+
+    // The spent slug cannot be given to another gathering, live or retired.
+    const other = (
+      await ok(
+        w.service
+          .from("gatherings")
+          .insert({ name: `pindhx ${w.run} Other Crowd`, starts_at: inDays(12), venue_id: w.venue })
+          .select("id")
+          .single(),
+      )
+    ).id;
+    await ok(admin("admin_publish_gathering", { p_gathering: other }));
+    assert.match((await admin("admin_set_slug", { p_gathering: other, p_slug: publicSlug })).error?.message ?? "", /already spent/);
+    assert.match((await admin("admin_set_slug", { p_gathering: other, p_slug: renamed })).error?.message ?? "", /already spent/);
+    // A published URL can never be taken away.
+    await denied(w.service.from("gatherings").update({ slug: null }).eq("id", publicG));
+  });
+
+  it("P61 a withdrawn gathering's page says only that it is gone / an unknown slug is gone / neither leaks a fact", async () => {
+    const renamed = `pindhx-${w.run}-leafs-bruins-rematch`;
+    await ok(admin("admin_withdraw_gathering", { p_gathering: publicG, p_reason: "takedown", p_note: "pindhx request" }));
+
+    const door = await publicDoor(w.anon, renamed);
+    assert.equal(door.status, "withdrawn");
+    assert.deepEqual(Object.keys(door), ["status"], "the withdrawn page returned more than the word");
+    assert.equal((await publicList(w.anon)).includes(renamed), false, "a withdrawn gathering is listed");
+
+    assert.equal((await publicDoor(w.anon, "no-such-crowd-anywhere")).status, "gone");
+    assert.equal((await publicDoor(w.anon, "Not A Slug!")).status, "gone");
   });
 });

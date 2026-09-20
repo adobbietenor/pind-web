@@ -84,16 +84,25 @@ async function remove(db: SupabaseClient): Promise<void> {
   }
 
   const people = new Set<string>();
+  // is_seed is the marker the database itself uses (V18); the handle and the "[TEST] "
+  // tag still catch anything seeded before the column existed.
+  for (const p of await must(db.from("people").select("id").eq("is_seed", true), "find seeded people")) people.add(p.id);
   for (const p of await must(db.from("people").select("id").like("instagram_handle", `${SEED}%`), "find people")) people.add(p.id);
   if (authIds.length) {
     for (const p of await must(db.from("people").select("id").in("auth_user_id", authIds), "linked people")) people.add(p.id);
   }
   const personIds = [...people];
 
-  const venueIds = (await must(db.from("venues").select("id").like("name", `${TAG}%`), "find venues")).map((v: any) => v.id);
-  const gatheringIds = new Set<string>(
-    (await must(db.from("gatherings").select("id").like("name", `${TAG}%`), "find gatherings")).map((g: any) => g.id),
-  );
+  const venueIds = [
+    ...new Set<string>([
+      ...(await must(db.from("venues").select("id").eq("is_seed", true), "find seeded venues")).map((v: any) => v.id),
+      ...(await must(db.from("venues").select("id").like("name", `${TAG}%`), "find venues")).map((v: any) => v.id),
+    ]),
+  ];
+  const gatheringIds = new Set<string>([
+    ...(await must(db.from("gatherings").select("id").eq("is_seed", true), "find seeded gatherings")).map((g: any) => g.id),
+    ...(await must(db.from("gatherings").select("id").like("name", `${TAG}%`), "find gatherings")).map((g: any) => g.id),
+  ]);
   if (venueIds.length) {
     for (const g of await must(db.from("gatherings").select("id").in("venue_id", venueIds), "gatherings at seed venues")) {
       gatheringIds.add(g.id);
@@ -202,7 +211,7 @@ const HOODS = ["liberty-village", "king-west", "leslieville", "the-annex", "ronc
 async function seed(db: SupabaseClient): Promise<void> {
   // Venues.
   const venue = async (key: string, name: string, address: string) =>
-    [key, (await must(db.from("venues").insert({ name: `${TAG}${name}`, address }).select("id").single(), name)).id] as const;
+    [key, (await must(db.from("venues").insert({ name: `${TAG}${name}`, address, is_seed: true }).select("id").single(), name)).id] as const;
   const venues = Object.fromEntries([
     await venue("arena", "Scotiabank Arena", "40 Bay St"),
     await venue("stage", "Budweiser Stage", "909 Lake Shore Blvd W"),
@@ -262,6 +271,7 @@ async function seed(db: SupabaseClient): Promise<void> {
           source: d.source,
           is_free: d.free ?? false,
           event_url: d.source === "manual" ? null : `https://example.com/${SEED}/event-${n}`,
+          is_seed: true,
         })
         .select("id")
         .single(),
@@ -291,6 +301,7 @@ async function seed(db: SupabaseClient): Promise<void> {
         venue_id: venues.arena,
         source: "ticketmaster",
         event_url: `https://example.com/${SEED}/leafs-habs`,
+        is_seed: true,
       })
       .select("id")
       .single(),
@@ -335,6 +346,7 @@ async function seed(db: SupabaseClient): Promise<void> {
           neighbourhood: HOODS[i % HOODS.length],
           photo_path: photoPath,
           photo_status: photo ?? "pending",
+          is_seed: true,
         })
         .select("id")
         .single(),

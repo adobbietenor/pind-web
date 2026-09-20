@@ -1,13 +1,33 @@
 {
   // Staging only. Deploy under this name and no other.
-  // No routes and no custom domains: this worker lives on workers.dev only.
+  // Routed to pind.social from M2.1 (and workers.dev until Access moves). Until
+  // pind-prod exists (M4.3), pind.social serves pind-staging, with seed rows kept off
+  // every public read in the database (docs/visibility.md V18).
   // PindScene.com is a separate worker and is never touched from this repo.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "pind-web-staging",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-18",
-  "workers_dev": true,
+  // False since M2.1: the admin lives at pind.social/admin behind its own Access
+  // application, and the workers.dev hostname is gone rather than merely unused.
+  "workers_dev": false,
   "preview_urls": false,
+
+  // M2.1: pind.social. Routes live here rather than in the dashboard, for the same
+  // reason migrations do — config I cannot reproduce from this repo is a broken repo.
+  // Alex adds the proxied DNS record for the zone; until it exists these routes
+  // deploy but nothing resolves, which is harmless.
+  //
+  // PindScene.com is never touched from this repo (decisions Part 5, "Routes:
+  // pind.social only"); Alex sets its redirect in the dashboard.
+  //
+  // Done in M2.1: Access was re-created for pind.social/admin*, ACCESS_AUD narrowed to
+  // that application alone, and workers_dev turned off, so the workers.dev admin is
+  // gone rather than merely unused (M2.1 acceptance).
+  "routes": [
+    { "pattern": "pind.social/*", "zone_name": "pind.social" },
+    { "pattern": "www.pind.social/*", "zone_name": "pind.social" }
+  ],
 
   // M1.3: the nightly Ticketmaster import. Cron runs in UTC; 08:00 UTC is 4am in
   // Toronto in summer (EDT) and 3am in winter (EST), so no daylight-saving logic.
@@ -17,15 +37,37 @@
   // AI spot suggestions stay off until M1.3b ("on" to enable).
   "vars": { "AI_DAILY_CAP_USD": "3", "AI_SPOT_SUGGESTIONS": "off" },
 
+  // M2.1: the two Poppins faces the OG image is rasterised with are imported as
+  // bytes, not base64 (src/public/ogpng.ts). Nothing else in the Worker loads a font.
+  "rules": [{ "type": "Data", "globs": ["**/*.ttf"] }],
+
   // M2.0: the Expo web export (app/dist, built by `npm run build:web`) is served
   // from the same host. The Worker's own routes run first; every other path is
   // the app, with single-page-app fallback to index.html (spec §4). Deploy with
   // `npm run deploy`, which builds the web export first: never one without the
-  // other. M2.1 adds its public routes (/, /g/*, /og/*, /.well-known/*) here.
+  // other.
+  //
+  // M2.1 adds the public layer. "/g/*" is listed although /g/<slug>/pin is an APP
+  // route: the Worker takes the whole prefix and hands back what it does not own
+  // through the ASSETS binding, which keeps one place deciding what is public.
   "assets": {
+    "binding": "ASSETS",
     "directory": "./app/dist",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/health", "/admin", "/admin/*"]
+    "run_worker_first": [
+      "/",
+      "/health",
+      "/admin",
+      "/admin/*",
+      "/about",
+      "/robots.txt",
+      "/favicon.svg",
+      "/g/*",
+      "/og/*",
+      "/map/*",
+      "/venue-map/*",
+      "/.well-known/*"
+    ]
   }
 
   // Secrets (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, SESSION_SECRET, ACCESS_*,

@@ -157,6 +157,38 @@ The dark, on-brand look is allowed (decisions.md Part 5, "Look"): near-black
 background, purple `#582883`, white text, the logo inline, system fonts — or one web
 font with a system fallback, only if it doesn't hurt load time.
 
+**Everything a public page loads comes from our own origin.** No image, font, script,
+style or data from a third-party host — not Supabase storage, not a CDN, not a font
+service, not a tile server. If an asset is needed, the Worker fetches it server-side
+and serves it from pind.social, or it is inlined.
+
+Why, measured in M2.1: the same 157 KB image took **911 ms** from Supabase storage and
+**133 ms** from pind.social. Identical bytes. The difference is one extra connection —
+a DNS lookup, a TCP handshake and a TLS handshake — before a single byte of the asset
+moves. On a phone on mobile data that setup costs more than most assets do, and it is
+paid per host, so two hosts is two of them. On a page with a one-second budget it is
+the whole budget.
+
+It also keeps every promise in one place: no third party gets the visitor's IP, the
+referring Reddit thread, or a cookie, on a page that needs no account.
+
+**Check this from a browser, not from the source.** A Cloudflare zone setting can
+inject a third-party script into a page the Worker rendered, without touching the
+repo: M2.1 found `static.cloudflareinsights.com/beacon.min.js` on every crowd page,
+from Web Analytics' automatic setup, when the HTML the Worker sends references no
+script at all. Loading the page in a real browser and listing its requests is the only
+way to see that; reading the template is not.
+
+## Measure what the phone does, not what the server sent
+
+A fast server response is not a fast page. M2.1 hit the same one-layer-down gap three
+times in one milestone: a 92 ms server response with a 911 ms image behind it, an
+immutable cache header on a Worker response that Cloudflare was not storing, and a
+third-party script that the HTML never mentioned. Each looked right from the terminal.
+Before claiming a page is fast, load it in a browser, list every request with its
+size, and run Lighthouse — and compare against a page with nothing on it, so the
+number has a floor to be read against.
+
 ## Secrets
 
 - Never commit a key. `.env`, `.dev.vars` and `node_modules` are gitignored.
@@ -169,6 +201,14 @@ font with a system fallback, only if it doesn't hurt load time.
   environment variables.
 - If you need a credential I have not provided, ask — do not stub a fake one and
   carry on.
+- **A missing credential must report itself once, as a configuration problem — not as
+  N identical runtime failures, and never silently.** M2.1's venue maps returned early
+  when `MAPBOX_TOKEN` was unset, before the code that records why a map failed, so the
+  one failure most likely to happen on day one was the one failure nothing logged. The
+  admin now says "MAPBOX_TOKEN is not set" once, where maps are managed, instead of
+  either saying nothing or listing seventy-four identical venue errors. Check this for
+  every secret a feature depends on: unset is a different state from broken, and it
+  belongs in front of whoever can fix it.
 
 ## Things that are mine, not yours
 

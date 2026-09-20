@@ -4,10 +4,18 @@
 // error page ("SUPABASE_URL is missing"), not a crash. For the admin, a missing
 // Access setting means every admin request is refused (403).
 export interface Env {
+  // The Expo web export, served from the same host (M2.0). The Worker's own routes
+  // run first; everything else is handed to this binding with SPA fallback.
+  ASSETS?: Fetcher;
   SUPABASE_URL?: string;
   // Bypasses RLS. Server-side only; never used to read people on behalf of a
   // visitor (decisions.md Part 5).
   SUPABASE_SERVICE_ROLE_KEY?: string;
+  // The publishable (anon) key. Public by design — it is in the app bundle too —
+  // but it is set with `wrangler secret put` like the rest, so no key is ever in a
+  // committed file. Every public page (W1-W4) reads with THIS key, so RLS decides
+  // what a visitor sees (M2.1).
+  SUPABASE_PUBLISHABLE_KEY?: string;
   // Signs the Test 0 session cookie. Declared now, used from T3 onwards.
   SESSION_SECRET?: string;
   // Cloudflare Access, checked by the Worker on every /admin request (M1.2).
@@ -21,6 +29,9 @@ export interface Env {
   TICKETMASTER_CONSUMER_KEY?: string;
   // Anthropic API key (M1.3: AI vetting and spot suggestions; T3: photo checks). Secret.
   ANTHROPIC_API_KEY?: string;
+  // Mapbox Static Images token (M2.1). Secret, and NEVER in the page: the Worker
+  // fetches each venue's map server-side, once, and serves it from our own origin.
+  MAPBOX_TOKEN?: string;
   // Hard daily AI spend cap in US dollars, per Toronto calendar day (M1.3). Not a
   // secret: set in wrangler.jsonc "vars".
   AI_DAILY_CAP_USD?: string;

@@ -215,10 +215,16 @@ Public, no account, shareable. Contains:
   automatically"); an uploaded image is an optional override
 - Counts: pinned, open to meeting, gender mix (Women · Men, plus Other when above zero;
   only at 5+ opted in — Q3)
-- **House rules**, verbatim:
-  1. Meet in public — named spots only, before the event.
-  2. You see people only after they can see you.
-  3. Leave any time. Block & report are one tap away.
+- **House rules**, verbatim (Alex, after the M2.1 on-device walk):
+  1. Make friends how you used to — in person.
+  2. You see each other, or neither of you does.
+  3. Come as you are. No pressure, no commitment.
+
+  then, underneath, styled as a fact rather than a fourth rule:
+  **"Crews meet at a spot near the venue before doors."** That line is **not
+  decoration** — it is what App Review is pointed at under Guideline 1.2, and what
+  says meetings happen somewhere public, before the event (H5, H10). It stays on
+  every crowd surface.
 - Primary action: **"Pin in — I've got a ticket"**; for free gatherings, **"Pin in —
   I'm going"** (§5). It opens the product's quick pin (A26) at `/g/<slug>/pin`. If a
   signed-in session exists in this browser, a small script swaps the button to
@@ -330,6 +336,30 @@ link out, pins, opt-ins, gender mix, crews badge. **No map, no feed, no algorith
   sibling crew (Q5). Women-only crews show a quiet label to others with nothing to tap.
 - **A17 done** — terminal state; member count and check-in count; thread closure
   explained; the only action points at A16.
+
+#### Crew vibe — presets, shown on the crew card (Alex, M2.1; built in M3.3)
+
+Someone choosing between two open crews has **nothing to choose on** today. A crew can
+say what kind of night it is.
+
+- **Presets, never free text.** Free text on a forming crew is an unmoderated surface
+  visible to strangers before anyone has met, and it is where the product acquires copy
+  nobody wants attributed to it.
+- Set by whoever starts the crew, **changeable by any member**, shown on the crew card
+  (A12) and in the crews list (A10).
+- **The test for any chip: would most crews tick it?** If yes, cut it — a vibe everyone
+  shares tells nobody anything. That is why there is no "love meeting new people":
+  everyone on the list already opted into meeting people.
+- **Nothing about substances, and nothing that reads as a dating signal.** Cap it around
+  nine, or it stops being a glance and becomes a form.
+
+Starting set, **Tatiana's to rewrite**, grouped so they help someone choose:
+
+| Timing | The night | The company |
+|---|---|---|
+| getting there early | quiet pint first | first time here |
+| just walking in together | out all night | happy to explain the rules |
+| staying after | food before | small and chatty |
 
 ### A14 — Crew thread
 Realtime group chat scoped to one crew. Opens with the auto-posted crew card and
@@ -493,9 +523,37 @@ the web build must be the complete product.
 - Primary action: **"Pin in — I've got a ticket"**. For gatherings with `is_free = true`:
   **"Pin in — I'm going"** (Alex, Phase 1 M1.2).
 - Threshold explanation: "Crews open when 5 people opt in."
-- The three house rules, verbatim, on every crowd surface (see W2).
+- The three house rules, verbatim, on every crowd surface (see W2), and under them
+  "Crews meet at a spot near the venue before doors." Rewritten by Alex after the M2.1
+  walk: **the safety property each line describes is unchanged, only how it is said.**
+  Block and report leave the front-page rules and stay **two taps away everywhere in
+  the product** (H9), which M3.5's acceptance already requires.
 - Never use the phrase "not a dating app" in user-facing copy except the single
   onboarding line at A1. Use crew language everywhere else.
+
+### The voice — a full pass is owed before the first real crowds
+
+(Alex, M2.1. With Tatiana.)
+
+Pin'd's position is that it creates **real human connection** — people meeting properly,
+in person, comfortably. Most screens today read like a **safety notice**, which is the
+wrong register for a product whose whole pitch is meeting people.
+
+- **The three house rules stay verbatim** on every crowd surface. They are safety copy,
+  they are what makes a stranger trust this, and they are what App Review is pointed at
+  under Guideline 1.2. They are never softened.
+- **Everything else is an invitation**: empty states, buttons, the crews section,
+  nudges, onboarding, confirmations. Warm, low-commitment, curious. Closer to *"find a
+  good spot, meet people who are going anyway"* than *"named spots only, before the
+  event."*
+- **Never write anything implying you can message someone first and decide later.**
+  There are no DMs, and solo has no free text before a mutual accept. Copy that suggests
+  otherwise describes a different app.
+
+M2.1 wrote its own non-house-rule copy in this register — W1's empty state, the line
+under W2's button, the map caption, the headings, the not-found pages and `/about`. The
+**full pass across every screen is owed before the first real crowds**, done once and
+properly with Tatiana rather than drifted into screen by screen.
 
 *Each piece marked **Draft** below was written by Claude when the plan was merged and
 is **not final copy**: only the label "Meet 1-on-1" and preset line 1 come from the
@@ -541,7 +599,7 @@ working. Hours are Alex's, agent-assisted.
 | M1.3 | Nightly Ticketmaster import and AI vetting (+ spots optional to publish) | **Done** | — |
 | **Phase 2** | **The public layer and publishing, on the Worker** | | 18–26 |
 | M2.0 | Repo + Expo scaffold | **Done** — merged as `7fc973a` | 6–8 |
-| M2.1 | Public web layer on pind.social (W1–W4, generated maps, the domain) | Not started | 8–12 |
+| M2.1 | Public web layer on pind.social (W1–W4, generated maps, the domain) | **In progress** — branch `phase2/m2.1-public-web` | 8–12 |
 | M2.2 | Auto-publishing v1 — fixed target (§8) | Not started | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | Not started | 12–16 |
@@ -771,6 +829,40 @@ the current pace, raise the hours or shrink the phase.
   Outstanding: the Resend account and the pind.social domain records, and Access for
   `pind.social/admin*` (AUD tag to Claude). Decisions Part 5, "Decided in Phase 2
   M2.0".
+- **M2.2 — the injected analytics beacon: unexplained, carried forward.** Every HTML
+  response from `pind-web-staging` — the crowd page, an asset-served app page, and
+  `/health`, which touches no assets — carries an injected
+  `static.cloudflareinsights.com/beacon.min.js`. It is **not in the repo**: the only
+  grep hit is CLAUDE.md, where it is written up; `app/dist/index.html` has none;
+  `wrangler.jsonc` has none. **It cannot be turned off from the repo** — wrangler's
+  config schema has no `web_analytics`, `rum`, `beacon` or `insights` key, and the
+  `observability` block that exists is Workers Logs, a different product with a
+  similar name. The injection happens at the edge *after* the Worker returns, so there
+  is no Worker-side strip either.
+  - **The tag:** `{"version":"2024.11.0","token":"6fbd9c007d0e4740bc718720ec35af43",
+    "r":1,"spa":2}`. **`"spa":2` is the single-page-app flag Cloudflare sets for a
+    Worker or Pages project serving static assets** — which this Worker started doing
+    in M2.0. That is the strongest clue to what created it.
+  - **It is invisible to a normal request.** Plain `curl` gets a clean page; `curl`
+    with `Sec-Fetch-Dest: document` and `Accept: text/html` reproduces it. Reading the
+    template will never find it; only a browser, or those headers, will.
+  - **Ruled out (Alex, 2026-09-20):** zone-level Web Analytics is off — the Analytics
+    tab shows "No data available" and an "Enable Globally" button, which is the
+    **zone-wide** switch and must **not** be pressed. The account's two Web Analytics
+    sites are `thepindscene.com` and `pindscene.com`, both created three months ago,
+    each scoped to its own hostname; neither lists `pind.social` and neither was
+    changed. So the token belongs to a site neither of us can see in the dashboard.
+  - **Where it is probably from:** Cloudflare creating a Web Analytics site implicitly
+    for an asset-serving Worker. Unconfirmed.
+  - **Cost, measured:** 10.6 KB from a second host, and **no time outside run-to-run
+    noise** — W2 with the beacon blocked scored the same 99. So this is a rule
+    problem, not a speed problem: it breaks CLAUDE.md's "everything a public page
+    loads comes from our own origin", and it is RUM collection on a page that needs no
+    account.
+  - **Not a merge blocker** (Alex, M2.1). M2.2 picks it up. Do not rediscover this from
+    scratch: start from the token and the `"spa":2` flag, and check whether it survives
+    a deploy that changes the assets configuration.
+
 - **M3.2 — tab icons** (Alex, M2.0). Add `expo-symbols` and choose the four icons
   when Crowds has content. The tabs are labels only until then.
 - **M4.3 — Apple** (Alex, M2.0). The production bundle ID reuses the Pin'd APNs key.
@@ -817,6 +909,24 @@ real crowd"). What M1.3 learned, measured on 2026-09-18 with Sonnet 5, effort me
   - **Cost blind spot:** a call aborted or killed mid-stream is billed but its usage
     never arrives, so it is missing from `import_runs` and the daily cap undercounts.
     M1.3b should count an estimate for every aborted call.
+  - **The approval bar was too loose, and it took a map to see it** (M2.1, 2026-09-19).
+    Sneaky Dee's has three approved spots. Once M2.1 calculated walking minutes from
+    coordinates, one of them — Poetry Jazz Cafe — came out at **30 minutes' walk**: it is
+    about 2 km away, at 1078 Queen St W, and it had been approved and was sitting in a
+    live spot poll. The prompt asks for places "within about five minutes' walk", which
+    is guidance a model can talk itself past, and nothing downstream checked. Alex
+    approved it because the admin showed a name and a reason, not a distance. So M5.2
+    should:
+    - give the suggestion run a **hard walking-distance ceiling**, enforced in code
+      against the venue's coordinates, not asked for in the prompt — a suggestion past
+      it is dropped before it reaches the queue;
+    - make the AI return each spot's coordinates, so the ceiling can be applied and the
+      spot lands on the generated map without a second step;
+    - show the walking minutes next to every pending suggestion in the admin, so the
+      number is in front of Alex at the moment he approves;
+    - **sweep the spots already approved** and re-check them against the ceiling, since
+      the ones approved before M2.1 were never measured. Poetry Jazz Cafe is the known
+      one; there may be others.
   - M1.3b should: prove the fixes on a full run, consider running suggestions outside
     the nightly import (their own cron or a queue), and measure empty-answer rates.
   - Local testing note: on Windows, stopping a background `wrangler dev` did not kill

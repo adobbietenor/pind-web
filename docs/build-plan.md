@@ -111,7 +111,7 @@ The Expo web export ships as the Worker's static assets on the *same host*. The 
 1.  **A post in r/leafs** carries `pind.social/g/leafs-bruins` and an honest count in its title. For the first weeks someone on the team writes that post (1–1.5 hours per seeded gathering, 2–3 a week — see §10); later, pinners share the page themselves.
 2.  **Reddit and Discord fetch the OG tags.** The Worker serves a dark, branded image: event, date, venue, "See who's going, meet them there." No counts in the image, because a preview is cached at post time and a stale number would be a dishonest one (H6). Counts live in the post title and on the page.
 3.  **Tap.** iOS checks the `apple-app-site-association` file on pind.social. App installed → the app opens straight onto that crowd page (A8). Not installed → Safari loads the Worker page in under a second: facts, the generated map (venue and spots, never people), counts, the three house rules, one button.
-4.  **"Pin in — I've got a ticket"** goes to `/g/leafs-bruins/pin`, which is the Expo web app. The first load costs about another second on LTE; that is fine — the person has already decided. First name, who's coming, "I'd like to meet up", 19+ → pinned. Under the hood a Supabase anonymous user was created and the pin is a real row under RLS. Thirty seconds, no account, no photo.
+4.  **"Pin in — I've got a ticket"** goes to `/g/leafs-bruins/pin`, which is the Expo web app. The first load costs about another second on LTE; that is fine — the person has already decided. **Measured in M2.1, and it is more than a second:** the holding route pulls **828 KB** (688 KB of JavaScript, 145 KB of fonts) and scores **37** on Lighthouse mobile — FCP 5.8 s, LCP 7.3 s, TBT 1,270 ms — against the crowd page's **99** at 78 KB. M3.2 owns making the step after the crowd page survive that, since it is the conversion step. First name, who's coming, "I'd like to meet up", 19+ → pinned. Under the hood a Supabase anonymous user was created and the pin is a real row under RLS. Thirty seconds, no account, no photo.
 5.  **If they ticked "meet up"**, one screen more: date of birth (under 19 stops here), gender, a face photo, and a way to reach you — email code, or Apple/Google. The anonymous user becomes a permanent one; the pin stays attached because the user id does not change.
 6.  **From here the web app is the product:** the reciprocal list at 2, crews at 5, solo at 2, the thread, "I'm here", the morning after. Push needs the app, so web people get the same five moments by email. "Get the app" is offered once, when crews open — the first moment push is worth having.
 7.  **Later, with the app installed**, every shared crowd link opens in the app. Reddit's in-app browser does not always honour universal links; that is one more reason the web build must be the complete product rather than a landing page.
@@ -327,7 +327,9 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 
 **Acceptance**
 
-- `pind.social` lists the week by day in the dark look and loads in well under a second on LTE (check with Safari's reload feel and one Lighthouse run on the Mac).
+- `pind.social` lists the week by day in the dark look and loads in well under a second on LTE (Safari's reload feel), and **one Lighthouse mobile run on a crowd page scores FCP ≤ 1.7 s with TBT 0 ms** (Alex, M2.1).
+
+  *Why that number and not "under 1.0 s".* Lighthouse's mobile preset simulates about 150 ms of round-trip time, so connection setup alone spends most of a second before a byte of HTML moves. Measured on the same Chrome, same run: `/about` — 20 KB, no image, no script — scores **FCP 1.5 s**, and `pind.social/` scores **1.5 s**. **1.5 s is the preset's floor, not our page.** The crowd page, with the map, scores **99/100, FCP 1.6 s, LCP 1.6 s, TBT 0 ms, 78 KB across four requests**. Under 1.0 s is not reachable by any page on that preset, so the original wording described a target nothing could meet; the real-world question is answered by the reload feel and by the 92 ms server response. The first run against this line returned 67, which was measured on `/g/<slug>/pin` — the Expo app route, 828 KB — not on a crowd page.
 - `pind.social/g/<slug>` shows facts, the map with venue and spots and no people, counts, the house rules word for word, the right button for a free gathering, and the footer.
 - Pasting the link into iMessage and a Discord test server shows a dark branded card with the event name and no numbers.
 - `/g/<slug>/spot` shows spot and time only.
@@ -388,6 +390,7 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 **Acceptance**
 
 - From a link in iMessage on a phone with no app: tap → Worker page → Pin in → pinned in under 30 seconds with no account and no photo; the Worker page's count is one higher on reload.
+- **The quick pin screen is measured, not assumed.** One Lighthouse mobile run on `/g/<slug>/pin`, compared with the crowd page's, and a byte budget agreed for it. M2.1 measured the empty holding route at 828 KB and a score of 37 against the crowd page's 78 KB and 99; whatever A26 costs on top of that, the number is looked at rather than inherited.
 - Ticking "meet up" asks for DOB, gender, photo and an email code; afterwards the pin is still there under the same user.
 - Two test people opted in each see the other's first name and, once approved, photo; a third who pinned without opting in sees nobody and is not seen.
 - The locked state reads "3 of 5 · 2 to go" with three test opt-ins.
@@ -406,6 +409,7 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 - **"Put me in a crew"** (decided here, see §10): one button that places the person in the open crew with the most room, respecting women-only — the closest thing to a host the product will ever have. 2–3 hours inside this milestone.
 - A14 thread on Supabase Realtime using `postgres_changes` only (it respects RLS; broadcast does not); auto-posted card and rules; long-press to report with the message body snapshotted onto the report; close at +24 h, read-only 30 days, delete.
 - A13 "I'm here": unlocks 3 hours before; requires a line of text; posts to the thread; never geofenced.
+- **Crew vibe** (Alex, M2.1; spec §3, under A11–A13): up to nine preset chips, never free text, set by whoever starts the crew and changeable by any member, shown on the crew card and in the crews list so someone choosing between two open crews has something to choose on. Tatiana rewrites the starting set. No substances, nothing that reads as a dating signal, and any chip most crews would tick gets cut.
 - A16 after the event: mutual-only "we met" and "keep in touch", invisible until mutual; the "showed up" badge; connections; A20 with the single verb "invite"; the one after-event question from §7.
 - Fallback if Realtime misbehaves on one platform: poll the thread every 10 seconds while it is open. The spot and time are on the card, so the meeting never depends on the chat.
 
@@ -415,6 +419,7 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 - A crew of one accepts two requests (any member can approve); the third request is declined and the requester sees nothing; the crew cannot set a spot until it has 3.
 - The poll shows up to 3 curated spots and three times; setting them makes the crew card the hero; the share button sends a card with no names.
 - At 8/8, a ninth request is offered a prefilled sibling crew at the same spot 15 minutes later.
+- Two open crews at the same gathering read differently at a glance because their vibe chips differ, and a member who did not start the crew can change them.
 - A women-only crew is invisible to a man test account (list and direct URL) and visible to a nonbinary account with women-only inclusion.
 - The thread opens with the card and rules, updates live between two phones, reports a long-pressed message, and contains no phone numbers.
 - Three hours before the fake start the crew turns live; "I'm here" refuses an empty line and posts the description; after the effective end the crew is done; a forming crew of two dissolves at six hours before with one notification.
@@ -488,6 +493,7 @@ Each milestone is one branch and one Claude Code session with its acceptance lis
 - Policy and terms are live and linked from every crowd surface footer and the opt-in sheet.
 - A test report reaches the team channel within a minute.
 - The scripts exist in the admin and the three of you have read them.
+- **The support address is a real, monitored inbox.** `safety@pind.social` and `crowds@pind.social` are on the public pages from M2.1; Resend sends mail but does not receive it, so both are forwarded to a real inbox (Cloudflare Email Routing) and a test to each arrives. `safety@` is an App Review 1.2 requirement and a promise to users, not decoration (Alex, M2.1).
 
 4–8 h
 

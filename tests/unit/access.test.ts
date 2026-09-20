@@ -7,7 +7,7 @@ import { accessConfig, unverifiedClaims, verifyAccessToken, type AccessConfig, t
 
 const TEAM = "https://pind-test.cloudflareaccess.com";
 const AUD = "a".repeat(64);
-const config: AccessConfig = { teamDomain: TEAM, aud: AUD, emails: ["alex@example.com"] };
+const config: AccessConfig = { teamDomain: TEAM, auds: [AUD], emails: ["alex@example.com"] };
 const NOW = Date.UTC(2026, 8, 18, 12, 0, 0);
 
 const b64url = (data: Uint8Array | string) =>
@@ -139,7 +139,7 @@ describe("Access settings — missing or malformed means every admin request is 
   it("A11 accepts a complete configuration", () => {
     assert.deepEqual(
       accessConfig({ ACCESS_TEAM_DOMAIN: `${TEAM}/`, ACCESS_AUD: AUD, ADMIN_EMAILS: " Alex@Example.com , b@x.com" }),
-      { teamDomain: TEAM, aud: AUD, emails: ["alex@example.com", "b@x.com"] },
+      { teamDomain: TEAM, auds: [AUD], emails: ["alex@example.com", "b@x.com"] },
     );
   });
 
@@ -149,5 +149,34 @@ describe("Access settings — missing or malformed means every admin request is 
     assert.equal(typeof accessConfig({ ACCESS_TEAM_DOMAIN: "https://evil.example.com", ACCESS_AUD: AUD, ADMIN_EMAILS: "a@b.c" }), "string");
     assert.equal(typeof accessConfig({ ACCESS_TEAM_DOMAIN: TEAM, ACCESS_AUD: "", ADMIN_EMAILS: "a@b.c" }), "string");
     assert.equal(typeof accessConfig({ ACCESS_TEAM_DOMAIN: TEAM, ACCESS_AUD: AUD, ADMIN_EMAILS: " , " }), "string");
+  });
+});
+
+// M2.1 — moving the admin from workers.dev to pind.social means two Access
+// applications exist at once, each with its own AUD. ACCESS_AUD takes a list so the
+// move has no window where the admin is unreachable, and narrows back to one after.
+describe("Two Access applications, while the admin moves hostname", () => {
+  const OLD = "7".repeat(64);
+  const NEW = "3".repeat(64);
+
+  it("A13 a list of AUD tags is read, and a token matching EITHER is accepted / one matching neither is refused", async () => {
+    const both = accessConfig({ ACCESS_TEAM_DOMAIN: TEAM, ACCESS_AUD: ` ${NEW} , ${OLD} `, ADMIN_EMAILS: "alex@example.com" });
+    assert.ok(typeof both !== "string", both as string);
+    assert.deepEqual(both.auds, [NEW, OLD]);
+
+    for (const aud of [OLD, NEW]) {
+      const result = await verifyAccessToken(await token(team, good({ aud: [aud] })), both, keys, NOW);
+      assert.equal(result.ok, true, `a token for ${aud === OLD ? "the old" : "the new"} application was refused`);
+    }
+    const stray = await verifyAccessToken(await token(team, good({ aud: ["9".repeat(64)] })), both, keys, NOW);
+    assert.equal(stray.ok, false, "a token for neither application was accepted");
+    if (!stray.ok) assert.equal(stray.reason, "wrong audience");
+  });
+
+  it("A14 a malformed entry anywhere in the list refuses every admin request", () => {
+    for (const value of ["", " , ", `${NEW},nope`, "nope"]) {
+      const c = accessConfig({ ACCESS_TEAM_DOMAIN: TEAM, ACCESS_AUD: value, ADMIN_EMAILS: "alex@example.com" });
+      assert.equal(typeof c, "string", `"${value}" was accepted`);
+    }
   });
 });

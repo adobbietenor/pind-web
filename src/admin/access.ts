@@ -9,7 +9,11 @@
 
 export interface AccessConfig {
   teamDomain: string; // https://<team>.cloudflareaccess.com — the expected issuer
-  aud: string;
+  // The AUD tags this Worker accepts. Normally one. It takes a comma-separated list
+  // so a move between hostnames has no gap: while both pind.social/admin* and the
+  // old workers.dev application exist, tokens from either verify. It narrows back to
+  // one the moment the old application is gone (M2.1).
+  auds: string[];
   emails: string[]; // lower case
 }
 
@@ -77,14 +81,19 @@ export function accessConfig(env: {
   if (!/^https:\/\/[a-z0-9-]+\.cloudflareaccess\.com$/.test(teamDomain)) {
     return "ACCESS_TEAM_DOMAIN is missing or not https://<team>.cloudflareaccess.com";
   }
-  const aud = env.ACCESS_AUD?.trim() ?? "";
-  if (!/^[A-Za-z0-9]{16,128}$/.test(aud)) return "ACCESS_AUD is missing or not an AUD tag";
+  const auds = (env.ACCESS_AUD ?? "")
+    .split(",")
+    .map((a) => a.trim())
+    .filter(Boolean);
+  if (!auds.length || !auds.every((a) => /^[A-Za-z0-9]{16,128}$/.test(a))) {
+    return "ACCESS_AUD is missing or not an AUD tag (one, or several separated by commas)";
+  }
   const emails = (env.ADMIN_EMAILS ?? "")
     .split(",")
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
   if (!emails.length) return "ADMIN_EMAILS is missing";
-  return { teamDomain, aud, emails };
+  return { teamDomain, auds, emails };
 }
 
 export async function verifyAccessToken(
@@ -143,7 +152,7 @@ export async function verifyAccessToken(
   if (!valid) return fail("bad signature");
 
   if (seen.iss !== config.teamDomain) return fail("wrong issuer");
-  if (!audiences(payload.aud).includes(config.aud)) return fail("wrong audience");
+  if (!audiences(payload.aud).some((a) => config.auds.includes(a))) return fail("wrong audience");
 
   const now = nowMs / 1000;
   if (typeof payload.exp !== "number" || payload.exp <= now - SKEW_SECONDS) return fail("expired");
