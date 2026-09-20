@@ -1330,6 +1330,14 @@ change). Where the plan has more detail, the plan is the reference.
     about how many attendees ever become pinners, which nothing yet knows. It is
     `cities.min_capacity` rather than a constant for exactly that reason, so it moves
     with evidence instead of argument.
+  - **What would justify moving it, so whoever revisits this knows** (Alex): real
+    opt-in data, not an opinion. Specifically — the §7 figure this is derived from is
+    *opt-in ≥ 50% of pinners*. If the first crowds show opt-in running well above half,
+    the floor can come down, because fewer pinners would be needed for five to opt in.
+    If they show attendance-to-pin conversion, the floor can rise on evidence instead
+    of on the guess that is currently being refused. **Until one of those numbers
+    exists, ten is not a preference to be argued with — it is the point where the
+    arithmetic runs out.**
   - **Places remaining is deliberately not modelled.** "3 spaces left" is true for an
     hour and then it is a lie on a page we control — the same mistake as storing
     somebody else's opening hours. Capacity is a fact about the room; remaining is a
