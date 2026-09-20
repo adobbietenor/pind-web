@@ -7,6 +7,9 @@
 //
 // It asks for nothing and stores nothing: no session, no anonymous user, no fields.
 // A26 creates the anonymous user, and A26 does not exist yet.
+//
+// It also promises no date. M3.2 is two milestones away, and a page a stranger reads
+// is not the place to guess at one.
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
 import { colors as palette, fonts, radius, spacing, THRESHOLD } from "@pind/shared";
@@ -20,8 +23,7 @@ export default function QuickPinHolding() {
     <Screen title="Almost open">
       <View style={styles.body}>
         <Text style={styles.lede}>
-          Pinning in isn&#39;t switched on just yet — we&#39;re a few days off. Nothing to sign up for in the
-          meantime.
+          Pinning in isn&#39;t open yet. Nothing to sign up for in the meantime, and nothing to miss.
         </Text>
         <Text style={styles.detail}>
           When it opens it takes about thirty seconds: your first name, who&#39;s coming with you, and whether
