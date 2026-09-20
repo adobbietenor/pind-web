@@ -1342,6 +1342,16 @@ change). Where the plan has more detail, the plan is the reference.
     hour and then it is a lie on a page we control — the same mistake as storing
     somebody else's opening hours. Capacity is a fact about the room; remaining is a
     fact about right now, and we cannot keep it.
+  - **The known edge, named so it is recognised rather than rediscovered** (Alex, on
+    entering the wider list). The Toronto Ornithological Club walk at James Gardens has
+    a capacity of **15**, which clears the floor of 10 — and had **three places left**
+    when the research ran. The rule works exactly as designed and still produces a page
+    for a walk that is probably full. That is the cost of choosing capacity over
+    remaining, accepted deliberately: the alternative is a number on our page that goes
+    stale in an hour. It is published as the evidence. **When it bites, this is the
+    argument, already had** — the fix is not to start modelling remaining, it is either
+    a link out to the organiser's own count or not publishing gatherings that register
+    externally at all.
   - A mark still outranks it, like every other automatic rule, and Alex can publish a
     small room by hand.
 - **A series whose venue changes is a series only in name** (Alex, on the ride club's
