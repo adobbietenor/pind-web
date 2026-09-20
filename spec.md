@@ -599,7 +599,7 @@ working. Hours are Alex's, agent-assisted.
 | M1.3 | Nightly Ticketmaster import and AI vetting (+ spots optional to publish) | **Done** | — |
 | **Phase 2** | **The public layer and publishing, on the Worker** | | 18–26 |
 | M2.0 | Repo + Expo scaffold | **Done** — merged as `7fc973a` | 6–8 |
-| M2.1 | Public web layer on pind.social (W1–W4, generated maps, the domain) | **In progress** — branch `phase2/m2.1-public-web` | 8–12 |
+| M2.1 | Public web layer on pind.social (W1–W4, the real map, the domain) | **Done** — merged as `6fea4a3` | 8–12 |
 | M2.2 | Auto-publishing v1 — fixed target (§8) | Not started | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | Not started | 12–16 |
@@ -777,6 +777,75 @@ the current pace, raise the hours or shrink the phase.
     `auth.users` was 20 before and after opening it, with the same
     `max(created_at)`. TestFlight was taken as the stronger proof and the dev-build
     check was skipped.
+
+- **Phase 2 M2.1 complete** (branch `phase2/m2.1-public-web`, merged to `main` as
+  `6fea4a3` on 20 Sept 2026). The public web layer on pind.social. Three migrations.
+  - **The rule first, as agreed.** **V18 — a seed row is invisible to every visitor,
+    signed out and signed in alike; only the service key sees it** (`docs/visibility.md`
+    §12f). `is_seed` on `venues`, `gatherings` and `people`, carried by
+    `private.is_published`, `private.list_open` and `private.is_open_at`, so every M1.1
+    rule follows without its own policy changing — the shape V13 used. A seeded pin
+    moves no public number, including "pinned" (H6). A venue's flag carries to its
+    gatherings; no visitor can write the flag. The admin is untouched, because it reads
+    with the service key.
+  - **One door.** W1, W2, W3, the OG image and the `.ics` read `public.public_gatherings`
+    and `public.public_gathering` and nothing else, so **"on the public web" — published,
+    not withdrawn, not seeded, carrying a slug — is one definition in the database**, not
+    a filter repeated in Worker code (H11).
+  - **Slugs.** Minted by `admin_publish_gathering`. Changing one in the admin leaves a
+    **301 forever**; a slug is spent the moment it is used and is never handed to another
+    gathering; a published slug can never be removed. That also keeps the policy harness
+    off every public page: it inserts its gatherings directly, so they get no slug.
+  - **The screens.** W1 by day, ordered by date, honest zeroes. W2 with the map, counts,
+    the house rules, one button and the session-swap script. W3. The `.ics`. The
+    universal-link file with both bundle IDs. `/about`, `robots.txt`, a favicon. A
+    withdrawn gathering answers 410 with a neutral line and nothing else — no name, no
+    venue, no counts.
+  - **The map is real.** One Mapbox picture per venue, `dark-v11`, WebP @2x, fetched
+    once with the token as a Worker secret and **served from our own origin**. The
+    markers, spot names, walking minutes, north arrow and a tap target that opens
+    **walking directions in the phone's own maps app** are our HTML over it, so
+    approving a spot later needs no new picture. A spot outside the frame keeps its
+    list entry and says so. Both map URLs are content-addressed and immutable, so
+    correcting a venue's coordinates mints a new URL and nothing stale can survive.
+    Failures are recorded per venue, counted in the admin, and capped at three attempts.
+  - **The OG image is a real PNG**, drawn as an SVG and rasterised in the Worker by
+    `@cf-wasm/resvg` with Poppins embedded. Cloudflare Images will not rasterise SVG —
+    checked, not assumed.
+  - **The house rules, rewritten by Alex** after the on-device walk, with
+    "Crews meet at a spot near the venue before doors." underneath. The safety property
+    is unchanged; only how it is said.
+  - **Measured, deployed, on the real domain.** W1 and W2 at 74–124 ms server response.
+    Lighthouse mobile: **W2 99/100, FCP 1.6 s, LCP 1.6 s, TBT 0 ms, 78 KB across four
+    requests**, against a 1.5 s floor that `/about` hits with no image and no script.
+    The map image is 59 KB and 40–70 ms warm.
+  - **Alex's part, done:** pind.social bought and its two proxied `AAAA 100::` records
+    added; Cloudflare Access re-created for `pind.social/admin*`; Email Routing live for
+    `crowds@` and `safety@`; the Mapbox token; the link-preview check in iMessage.
+  - **Walked on device, 20 Sept 2026** (Alex): "It's good." The house rules were
+    rewritten as a result. The workers.dev hostname now 404s, so the old admin is gone
+    rather than merely unused.
+  - **Three rules this milestone earned**, now in CLAUDE.md, each from a bug that looked
+    right from the terminal:
+    - **everything a public page loads comes from our own origin** — the same 157 KB
+      image took 911 ms from Supabase storage and 133 ms from pind.social;
+    - **a missing credential reports itself once as a configuration problem**, not as N
+      identical runtime failures and never silently;
+    - **measure what the phone does, not what the server sent** — a 92 ms response with
+      a 911 ms image behind it, an immutable header on a response Cloudflare was not
+      storing, and a third-party script the HTML never mentioned.
+  - **Checks:** `npm run typecheck`, `test:policies` **62/62** (P55–P61 new),
+    `test:unit` **73/73**, and the app typechecks.
+  - **Carried out of M2.1:**
+    - **the injected Cloudflare beacon** — unexplained, everything ruled out, in the
+      notes below for M2.2;
+    - **the lockup is provisional** and Tatiana's to change;
+    - **the full copy pass** in the new voice is owed before the first real crowds
+      (§5, "The voice");
+    - **the spot coordinates on Sneaky Dee's are approximate**, set by Claude for the
+      measurement and Alex's to confirm;
+    - **the M5.2 distance ceiling** — Poetry Jazz Cafe is a 30-minute walk and was
+      already approved and in a live spot poll.
 
 #### Notes carried into the next milestones
 - **M3.1 — the photo check** (recorded by Alex in M1.2; decisions Part 5, "Automated
