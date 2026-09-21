@@ -1,0 +1,170 @@
+// A1 — Sign in (store path). Apple / Google / a six-digit email code. **No password
+// field anywhere**, on any platform (spec A1, build-plan §8 M3.1).
+//
+// The three positioning lines are on this screen and this screen alone: "not a dating
+// app" is written once in the whole product, here, and nowhere else (spec §5).
+//
+// Which methods appear is a platform fact, not a preference — see lib/auth.ts.
+import { useRouter } from "expo-router";
+import { useState } from "react";
+import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import * as AppleAuthentication from "expo-apple-authentication";
+import { A1_POSITIONING, colors as palette, fonts, ONE_LINER, spacing } from "@pind/shared";
+import { Body, Button, Field, Heading, Notice } from "@/components/ui";
+import { methodsFor, sendEmailCode, signInError, signInWithApple, signInWithGoogle, verifyEmailCode } from "@/lib/auth";
+import { track } from "@/lib/analytics";
+
+export default function SignIn() {
+  const router = useRouter();
+  const methods = methodsFor();
+  // The email path is two steps on one screen: ask, then confirm. A separate route
+  // would put a back button between a person and a code they are holding in their
+  // head.
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  const attempt = async (what: string, run: () => Promise<void>, then?: () => void) => {
+    setBusy(what);
+    setError("");
+    try {
+      await run();
+      then?.();
+    } catch (err) {
+      // A cancelled Apple sheet is not an error and must not leave red text behind.
+      setError(signInError(err));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const done = () => {
+    track("sign_in", { method: sent ? "email" : "apple" });
+    router.replace("/you");
+  };
+
+  return (
+    <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
+      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <Text style={styles.wordmark}>Pin&#39;d</Text>
+        <Heading>{ONE_LINER}</Heading>
+        <View style={styles.positioning}>
+          {A1_POSITIONING.map((line) => (
+            <Text key={line} style={styles.positioningLine}>
+              {line}
+            </Text>
+          ))}
+        </View>
+
+        {error ? <Notice tone="stop">{error}</Notice> : null}
+
+        {methods.includes("apple") && Platform.OS === "ios" ? (
+          <View style={{ marginBottom: spacing.sm }}>
+            {/* Apple's own button, as their guidelines require. */}
+            <AppleAuthentication.AppleAuthenticationButton
+              buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+              buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
+              cornerRadius={12}
+              style={{ height: 52 }}
+              onPress={() => attempt("apple", signInWithApple, done)}
+            />
+          </View>
+        ) : null}
+
+        {methods.includes("google") ? (
+          <View style={{ marginBottom: spacing.sm }}>
+            <Button
+              kind="quiet"
+              label="Continue with Google"
+              busy={busy === "google"}
+              onPress={() =>
+                attempt("google", () =>
+                  signInWithGoogle(Platform.OS === "web" ? `${window.location.origin}/you` : undefined),
+                )
+              }
+            />
+          </View>
+        ) : null}
+
+        <View style={styles.rule}>
+          <Text style={styles.ruleLabel}>or</Text>
+        </View>
+
+        {!sent ? (
+          <>
+            <Field
+              label="Email me a code"
+              placeholder="you@example.com"
+              autoCapitalize="none"
+              autoComplete="email"
+              keyboardType="email-address"
+              inputMode="email"
+              value={email}
+              onChangeText={setEmail}
+            />
+            <Button
+              label="Send the code"
+              busy={busy === "send"}
+              disabled={!/^\S+@\S+\.\S+$/.test(email.trim())}
+              onPress={() => attempt("send", () => sendEmailCode(email), () => setSent(true))}
+            />
+          </>
+        ) : (
+          <>
+            <Field
+              label={`The code we sent to ${email.trim()}`}
+              placeholder="123456"
+              autoComplete="one-time-code"
+              keyboardType="number-pad"
+              inputMode="numeric"
+              maxLength={6}
+              value={code}
+              onChangeText={setCode}
+              hint="Six digits. It expires in an hour."
+            />
+            <Button
+              label="Continue"
+              busy={busy === "verify"}
+              disabled={code.trim().length < 6}
+              onPress={() => attempt("verify", () => verifyEmailCode(email, code), done)}
+            />
+            <View style={{ marginTop: spacing.sm }}>
+              <Button
+                kind="quiet"
+                label="Use a different email"
+                onPress={() => {
+                  setSent(false);
+                  setCode("");
+                  setError("");
+                }}
+              />
+            </View>
+          </>
+        )}
+
+        <View style={{ marginTop: spacing.lg }}>
+          <Body muted>No password, ever. We will not post anything or read your contacts.</Body>
+        </View>
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: palette.background },
+  body: { padding: spacing.lg, paddingTop: spacing.xl, gap: 0 },
+  wordmark: {
+    fontFamily: fonts.headlineBold,
+    fontSize: 22,
+    color: palette.text,
+    letterSpacing: -0.5,
+    marginBottom: spacing.xl,
+  },
+  positioning: { marginTop: spacing.md, marginBottom: spacing.xl, gap: 6 },
+  positioningLine: { fontSize: 15, color: palette.textMuted },
+  rule: { alignItems: "center", marginVertical: spacing.md },
+  ruleLabel: { fontSize: 13, color: palette.tabInactive },
+});

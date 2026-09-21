@@ -63,3 +63,38 @@ export const HOUSE_RULES = [
 // and it is what says meetings happen somewhere public, before the event, with staff
 // and crowds around (H5, H10).
 export const CREWS_MEET = "Crews meet at a spot near the venue before doors.";
+
+// ---------------------------------------------------------------------------
+// Onboarding, store path (A1–A2). Final lines are marked; the rest is in the new
+// voice (an invitation, not a safety notice) and goes into the full pass with
+// Tatiana before the first real crowds (spec §5, "The voice").
+// ---------------------------------------------------------------------------
+
+// **Final, and verbatim on A1 only** (spec §5): "not a dating app" appears in this
+// one place in the whole product and nowhere else. Everywhere else uses crew
+// language.
+export const A1_POSITIONING = ["19+", "No location permission, ever", "Not a dating app"] as const;
+
+// Why a face, asked once, where the photo is asked for (spec A2). It says what the
+// photo is FOR rather than what the rule is, which is the difference between this
+// product and a verification flow.
+export const PHOTO_WHY = "Your crew looks for a face at a patio table.";
+
+// The three states an uploaded photo can be in before it is visible, said to its
+// owner. **"We could not tell" and "we refused it" never converge** (Alex, M3.1):
+// one is waiting on a person, the other is a decision, and a rejected photo leaves
+// you visible without one.
+export const PHOTO_STATE = {
+  pending: "Checking your photo — this usually takes under a minute.",
+  needs_review: "We could not tell from this one, so someone is taking a look. You are on the list either way.",
+  rejected: "That photo is not one we can use. You are still on the list without one — add a different photo any time.",
+  approved: "Your photo is live.",
+} as const;
+
+// Gender, asked once, shown to nobody — not even to you (D1, spec A2). The line
+// exists because a protected attribute asked for without a reason reads as nosy.
+export const GENDER_WHY = "Asked once, for women-only crews. It never appears on your profile.";
+
+// The 19+ stop is hard and has no soft fail (H8). The line is plain rather than
+// apologetic: there is nothing to negotiate and nothing to try again.
+export const UNDER_19 = "Pin'd is 19+. You will not be able to continue.";
