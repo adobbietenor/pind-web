@@ -2023,7 +2023,7 @@ describe("A person sets themselves up — the app's own sequence (M3.1)", () => 
     await ok(client.from("people").update({ neighbourhood: "king-west" }).eq("id", person.id), "A3 saves a neighbourhood");
     await ok(
       client.from("person_tags").insert(
-        ["new-to-toronto", "not-drinking", "up-for-whatever"].map((tag) => ({ person_id: person.id, tag })),
+        ["new-in-town", "not-drinking", "up-for-whatever"].map((tag) => ({ person_id: person.id, tag })),
       ),
       "A3 saves three tags",
     );
@@ -2067,5 +2067,98 @@ describe("A person sets themselves up — the app's own sequence (M3.1)", () => 
     await ok(client.from("person_handles").delete().eq("person_id", person.id), "remove the handle");
     await w.service.from("people").delete().eq("id", person.id);
     await w.service.auth.admin.deleteUser(authId);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A rescore never overrules a person — P81 (M3.1).
+//
+// **This case exists because the guard silently did not work.** It was written
+// `like 'photo\_%'` with one backslash too many, which in a standard-conforming
+// string matches a literal backslash and therefore nothing at all — so every photo
+// looked undecided and the first real rescore overwrote four decisions Alex had made
+// by hand minutes earlier.
+//
+// It went unnoticed because **a guard that passes and a guard that never ran look
+// identical from outside**: both report "now approved". So the rule gets a case that
+// puts a human decision in front of a rescore and insists the status does not move.
+// A safety rule with no test proving it fires is a comment.
+// ---------------------------------------------------------------------------
+
+describe("Re-judging after a rubric change — P81 (M3.1)", () => {
+  it("P81 a rescore records its verdict always, moves a photo the check itself decided, and refuses to move one a person decided", async () => {
+    const eve = M("Eve");
+    const path = eve.photoPath!;
+
+    // 1. A photo whose last decision was the check's own: the rescore may move it.
+    await ok(w.service.from("people").update({ photo_status: "pending" }).eq("id", eve.personId), "back to pending");
+    await ok(
+      w.service.rpc("admin_record_photo_check", {
+        p_person: eve.personId,
+        p_photo_path: path,
+        p_outcome: "needs_review",
+        p_source: "webhook",
+        p_reason: "the old rubric held it",
+      }),
+      "the check decides",
+    );
+    const moved = await ok(
+      w.service.rpc("admin_rescore_photo", {
+        p_person: eve.personId,
+        p_photo_path: path,
+        p_outcome: "approved",
+        p_reason: "the new rubric approves it",
+        p_only_if_ai: true,
+      }),
+      "rescore after the check",
+    );
+    assert.match(String(moved), /now approved/, `a check's own verdict should be re-judgeable (${moved})`);
+    assert.equal((await serviceRow("people", "id", eve.personId, "photo_status")).photo_status, "approved");
+
+    // 2. Now a person decides. A later rescore must not undo it.
+    await ok(
+      w.service.rpc("admin_set_photo_status", {
+        p_person: eve.personId,
+        p_photo_path: path,
+        p_status: "rejected",
+        p_actor: ACTOR,
+      }),
+      "a human decides",
+    );
+    const held = await ok(
+      w.service.rpc("admin_rescore_photo", {
+        p_person: eve.personId,
+        p_photo_path: path,
+        p_outcome: "approved",
+        p_reason: "the rubric would approve it",
+        p_only_if_ai: true,
+      }),
+      "rescore after a human",
+    );
+    assert.match(String(held), /left alone/, `a rescore overruled a person (${held})`);
+    assert.equal(
+      (await serviceRow("people", "id", eve.personId, "photo_status")).photo_status,
+      "rejected",
+      "a rescore moved a photo a person had decided",
+    );
+
+    // 3. And it is still recorded, because the verdict is evidence even when it is
+    // not applied — otherwise a rubric change leaves no trace of what it would have
+    // done to the photos it was not allowed to touch.
+    const recorded = await rows(
+      w.service.from("photo_checks").select("outcome, source").eq("person_id", eve.personId).eq("source", "rescore"),
+    );
+    assert.equal(recorded.length, 2, "a refused rescore recorded nothing");
+
+    // Leave Eve as the rest of the run expects her.
+    await ok(
+      w.service.rpc("admin_set_photo_status", {
+        p_person: eve.personId,
+        p_photo_path: path,
+        p_status: "approved",
+        p_actor: ACTOR,
+      }),
+      "restore",
+    );
   });
 });

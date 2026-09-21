@@ -39,11 +39,26 @@ describe("Reading the verdict — an answer that is not a verdict decides nothin
 });
 
 describe("The rubric says the things it must", () => {
-  it("H04 the check may never decide age on its own (H8), and leans to needs_review", () => {
-    assert.match(PHOTO_SYSTEM, /under 19\. Never decide this yourself/);
-    assert.match(PHOTO_SYSTEM, /Lean to needs_review/);
-    // The two outcomes that hide a photo must be described as different things.
-    assert.match(PHOTO_SYSTEM, /wrong reject takes someone's photo away/);
+  it("H04 the check may never decide age on its own (H8), and age is the ONLY reason to hold a photo", () => {
+    assert.match(PHOTO_SYSTEM, /Never decide this yourself/);
+    // **The rubric was rewritten after it held a wedding photo** (Alex, M3.1). These
+    // assertions are the shape of that change: one reason to hold, three reasons to
+    // refuse, everything else approved. They fail if somebody widens it again.
+    assert.match(PHOTO_SYSTEM, /only one reason.*under 19/is);
+    assert.match(PHOTO_SYSTEM, /\*\*approve\*\* — everything else, without exception/);
+  });
+
+  it("H04b the three refusals are harm, and nothing about quality or identity", () => {
+    for (const harm of [/nudity or sexual content/, /hate symbols or racist imagery/, /gore or graphic violence/]) {
+      assert.match(PHOTO_SYSTEM, harm);
+    }
+    // The things that used to be held, named as approved so the model cannot drift
+    // back to holding them: a group photo is the one that started this.
+    for (const fine of [/a group photo/, /no face at all/, /a cartoon/, /swimwear/]) {
+      assert.match(PHOTO_SYSTEM, fine);
+    }
+    assert.match(PHOTO_SYSTEM, /these are not nudity/);
+    assert.match(PHOTO_SYSTEM, /Ambiguity about identity is not a reason to hold a photo/);
   });
 
   it("H05 the estimate is above what a call is expected to cost, never below", () => {

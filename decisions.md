@@ -2436,3 +2436,85 @@ city being a row on `cities`. Done the same day the city became a row, and while
 still nearly free: `person_tags` held three rows, **one of them `new-to-toronto`**, so
 it was a real move of real data rather than a rename of something nobody had picked.
 Three rows is a move; three thousand is a maintenance window.
+
+### The photo check holds almost nothing now (Alex, M3.1)
+
+**The first real photo through the check was held.** A professional wedding photo —
+Alex, clearly the subject, friends behind him — came back `needs_review`: *"Multiple
+faces in frame, though one is prominent, ambiguity about which person is the profile
+subject."* That is an ordinary photo, and **a check that holds ordinary photos turns
+Alex into the bottleneck for every new person.**
+
+**Measured when the rubric changed:** the check had reached **23 verdicts and every
+single one was `needs_review`**. It had never approved anything in its life. Two of
+the 23 were real photographs; the other 21 were test images so small the model
+reported receiving no image at all — which is worth separating, because it means the
+rate was part rubric and part degenerate input, and only the first part was the
+problem being fixed.
+
+**The rubric now:**
+
+| | |
+|---|---|
+| **rejected** | nudity or sexual content · hate symbols or racist imagery · gore or graphic violence. **Only those.** |
+| **needs a human** | only when the person might be under 19. H8 stands: the check never decides age, it only flags. |
+| **approved** | everything else, without exception — group photos, a subject with people behind, cartoons, avatars, no face at all, a landscape, a pet. If somebody wants a funny picture, that is their call. |
+
+**Swimwear and shirtless photos are approved**: they are not nudity, and treating them
+as such is part of what made the check hold ordinary photos. The labelled set moves
+that case from rejected to approved.
+
+**The copy changed with it, because the promise changed.** "A photo, so people know
+it's you" and "your crew looks for a face at a patio table" both overclaimed the
+moment a photo needed no face and nothing verified that it was you — copy that says a
+photo proves who you are while the check approves cartoons describes a different
+product. It is now "A photo" and **"A photo of you makes it easier to find each
+other"**: encouragement, not a requirement, and still followed by the line saying one
+is needed before meeting anybody.
+
+**Re-judged, per the rule the comedy rubric set** (a rubric change ships with the
+re-score of whatever it has already judged, run twice):
+
+- every photo that exists, twice, with the new wording;
+- **the wedding photo is approved**, and the reason names the thing that used to hold
+  it: *"Wedding photo of clearly adult groom with groomsmen; no nudity, hate imagery
+  or age concerns"*;
+- **the needs_review rate went from 100% — 23 of 23 verdicts — to 0 of 11**;
+- **runs 1 and 2 disagreed on 0 of 11.** That is the noise floor, and it is much
+  flatter than the comedy rubric's, which moved individual rows by 5 to 15 points. A
+  rubric with three narrow refusals and one narrow hold has far less to be uncertain
+  about than one scoring a crowd out of 100;
+- $0.055 for the whole exercise.
+
+**The n is small and the rate is not yet a rate.** One real photograph and ten seeded
+placeholders is not a measurement of how the check behaves on real photos; it is a
+measurement that the change does what it says on what exists. The labelled set is
+still owed, and it now exists mainly to catch the check **drifting back** to holding
+ordinary photos.
+
+### A guard that never ran looks exactly like a guard that passed (M3.1)
+
+`admin_rescore_photo` exists so a re-judge **never overrules a person**: it moves a
+photo's status only when the last decision on it came from `ai:photo-check`. The first
+real `--write` **overwrote four photos Alex had rejected by hand minutes earlier**, and
+attributed the change to the check.
+
+The cause was one character. The guard found the last decision with
+`like 'photo\\_%'` — a doubled backslash, which in a standard-conforming string is a
+**literal backslash** and matched nothing, so every photo looked undecided. They were
+seed rows, so no real person was affected, and that is luck rather than design.
+
+**Why it went unnoticed is the part worth keeping: a guard that correctly finds
+nothing to stop and a guard that never ran report the same thing.** Both say "now
+approved". There is no failure to see, no error, no count that moves — the safe path
+and the broken path are the same path.
+
+So the fix ships with **P81**, which puts a human decision in front of a rescore and
+insists the status does not move, and proves the other half too: a verdict the check
+itself made *is* re-judgeable, and a refused rescore is still **recorded**, because
+what a rubric change would have done to the photos it was not allowed to touch is
+evidence.
+
+**A safety rule with no test proving it fires is a comment.** That is the general form,
+and it belongs beside the instrument rule: one is about a check that measures the
+wrong thing, this is about a check that measures nothing.

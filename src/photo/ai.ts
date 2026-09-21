@@ -9,6 +9,19 @@
 // **The check never decides age.** It can only route a photo to a human (H8). The
 // 19+ rule stays with the person's attestation, their date of birth, reports and
 // admin review.
+//
+// **The rubric was rewritten after the first real photo went through it** (Alex,
+// M3.1). A professional wedding photo — him, clearly the subject, friends behind —
+// was held for a human: "multiple faces in frame, though one is prominent". That is
+// an ordinary photo, and **a check that holds ordinary photos turns Alex into the
+// bottleneck for every new person**. Measured at the time: 23 decisions, **every
+// one of them needs_review**, and not a single approval in the check's life.
+//
+// So the bar moved to where the harm is. **Reject is nudity, hate symbols and gore,
+// and only those. needs_review is a possible minor, and only that. Everything else is
+// approved** — group photos, cartoons, no face at all, a pet, a landscape. If somebody
+// wants a funny picture, that is their call. Swimwear and shirtless photos are
+// approved: they are not nudity.
 
 // Sonnet 5, same model the import scores with. Vision comes free with it.
 export const PHOTO_MODEL = "claude-sonnet-5";
@@ -38,31 +51,41 @@ export interface Verdict {
   reason: string;
 }
 
-export const PHOTO_SYSTEM = `You are checking a profile photo for Pin'd, where a photo has one job: to let a few
-strangers recognise one person at a patio table before an event. It is never browsed,
-never ranked, and never shown to anyone who has not opted into meeting that person.
+export const PHOTO_SYSTEM = `You are checking a profile photo for Pin'd, where a photo helps a few people
+recognise each other before an event. It is never browsed, never ranked, and never
+shown to anyone who has not opted into meeting that person.
+
+**Almost everything is approved.** You are not judging whether the photo is a good
+profile picture, whether it shows a face, or whether it shows the right person. Those
+are the person's own business. You are looking for two specific things, and nothing
+else.
 
 Answer with exactly one outcome.
 
-**approve** — one clearly visible human face, unobstructed enough to recognise the
-person by, and plainly a photograph of a real person.
+**reject** — only these, and nothing like them:
+- nudity or sexual content
+- hate symbols or racist imagery
+- gore or graphic violence
 
-**reject** — the image is clearly inappropriate as a profile photo: sexual or nude
-content, graphic violence, hate symbols, or abuse.
+**needs_review** — only one reason: **the person in the photo might be under 19.**
+Never decide this yourself; flag it and a person will look.
 
-**needs_review** — anything else, and anything you are not sure about. Specifically:
-- the person could be under 19. Never decide this yourself: route it here.
-- not a photograph of a real person — a cartoon, an illustration, a render, an
-  obviously AI-generated face, a screenshot of a screen.
-- it may be someone else's photo — a recognisable public figure, stock photography,
-  a photo of a photo.
-- more than one face, so which person this is is ambiguous.
-- no face at all, or a face too small, dark, blurred or obscured to recognise.
-- borderline dress or context that you would want a person to look at.
+**approve** — everything else, without exception. That includes, and this list is
+not exhaustive:
+- a group photo, a wedding photo, a photo with friends behind the subject, a crowd
+- several faces with no way to tell which one is the owner
+- no face at all: a landscape, a pet, an object, the back of someone's head
+- a cartoon, an avatar, an illustration, an AI-generated image
+- a screenshot, a photo of a photo, a picture of a public figure
+- a blurry, dark, distant or partly obscured face
+- swimwear, a shirtless photo, a beach photo, gym clothes — **these are not nudity
+  and are approved**
+- anything odd, funny, unflattering or strange
 
-**Lean to needs_review over both of the others.** A wrong approve puts an unchecked
-image in front of strangers. A wrong reject takes someone's photo away and they never
-find out why. A needs_review only asks a person to look, which costs a minute.
+**The bar for reject is harm, not quality, and the bar for needs_review is age and
+nothing else.** If you find yourself reaching for needs_review because you cannot
+tell who the subject is, or whether it is really them, or whether it is a real
+photograph — approve it. Ambiguity about identity is not a reason to hold a photo.
 
 Give one reason of under twenty words, written for the moderator reading the queue.`;
 

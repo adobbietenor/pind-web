@@ -29,18 +29,27 @@ What has not been tested is the rubric against **faces**, which is what this set
 
 ## What the set needs
 
+**The rubric changed on 21 Sept 2026** (Alex, after the first real photo through it was
+held). The bar is now harm, not quality — so most of what this set used to test as
+`needs_review` is `approved`, and the set exists mainly to catch the check **drifting
+back** to holding ordinary photos.
+
 | Expect | Photos |
 |---|---|
-| `approved` | several clear solo faces — varied lighting, skin tone, glasses, a hat, one at arm's length, one taken by someone else |
-| `needs_review` | a group of three or more · no face at all (back of the head, a landscape, a pet, an object) · a cartoon, an illustration, an obviously AI-generated face · a screenshot with phone UI in it · a recognisable public figure · a dark, blurry or heavily obscured face · a young-looking adult |
-| `rejected` | a shirtless or swimwear photo — the boundary that actually matters for a face-photo product |
+| `approved` | clear solo faces · **a group or wedding photo with a clear main subject** · a crowd · no face at all (a landscape, a pet, the back of a head) · a cartoon, an avatar, an AI-generated face · a screenshot · a recognisable public figure · a dark or blurry face · **a shirtless or swimwear photo** |
+| `needs_review` | a young-looking adult — the only reason a photo is ever held |
+| `rejected` | nothing in this set: the three refusals are nudity, hate symbols and gore, and none of them belong in a repository |
+
+**The swimwear case moved from `rejected` to `approved`** in the same change. It is not
+nudity, and treating it as such is what made the check hold ordinary photos.
 
 ## Two cases this set deliberately does not hold
 
 An actual sexual image, and a photo of a child. Neither is collected, stored or
-committed (Alex, M3.1). The inappropriate path is exercised by the boundary case
-above, because flat-out pornography is the easy call and the boundary is not. The
-minor path is exercised by proving a **young-looking adult routes to `needs_review`
-rather than to `approved`**, which is all the rule claims: the check may never decide
-age on its own (H8). A licensed evaluation set is the answer if the harder cases are
-ever needed.
+committed (Alex, M3.1). **The rejected path is therefore not tested by this set at
+all** — that is a deliberate gap, not an oversight, and it is the one thing here that
+a licensed evaluation set would be for.
+
+The minor path is exercised by proving a **young-looking adult routes to
+`needs_review` rather than to `approved`**, which is all the rule claims: the check
+may never decide age on its own (H8).

@@ -88,10 +88,16 @@ export const CREWS_MEET = "Crews meet at a spot near the venue before doors.";
 // language.
 export const A1_POSITIONING = ["19+", "No location permission, ever", "Not a dating app"] as const;
 
-// Why a face, asked once, where the photo is asked for (spec A2). It says what the
-// photo is FOR rather than what the rule is, which is the difference between this
-// product and a verification flow.
-export const PHOTO_WHY = "Your crew looks for a face at a patio table.";
+// Why a photo, asked once, where it is asked for (spec A2).
+//
+// **Rewritten when the rubric was** (Alex, M3.1). "Your crew looks for a face at a
+// patio table" was a promise the check no longer keeps: a photo needs no face at all
+// now, and nothing verifies that it is you. Copy that says a photo proves who you are
+// while the check approves cartoons is the product describing a different product.
+//
+// So it encourages a real photo without requiring one, and without claiming anything
+// the system enforces.
+export const PHOTO_WHY = "A photo of you makes it easier to find each other.";
 
 // The three states an uploaded photo can be in before it is visible, said to its
 // owner. **"We could not tell" and "we refused it" never converge** (Alex, M3.1):
@@ -120,7 +126,9 @@ export const UNDER_19 = "Pin'd is 19+. You will not be able to continue.";
 // The label was "A photo of your face" (Alex, M3.1: "something warmer that still
 // makes clear it needs to be them"). It is how a stranger knows who they are looking
 // for, so it is not decoration — and it is not a security requirement either.
-export const PHOTO_LABEL = "A photo, so people know it’s you";
+// It was "A photo, so people know it’s you", which overclaimed for the same reason
+// PHOTO_WHY did: nothing checks that it is you.
+export const PHOTO_LABEL = "A photo";
 
 // When it is actually needed. Said plainly, because "optional" on its own invites
 // somebody to skip it and then hit a wall nobody warned them about.
