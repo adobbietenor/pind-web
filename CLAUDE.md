@@ -205,6 +205,38 @@ missing**. "Never fetched" leaves no failure record at all, so it is the state n
 notices unless something counts it — unset is a different state from broken, one layer
 down.
 
+## An instrument that is wrong in a way that looks like a finding
+
+The worst failure is not a check that breaks. It is a check that **answers
+confidently and wrongly**, because nothing about it looks like a fault — it sends
+someone to fix a thing that is not broken, and it keeps sending them.
+
+M3.1: the admin panel built to answer "do the two halves of the webhook secret
+match?" fingerprinted the Worker's value **trimmed** and the database's value
+**untrimmed**. The secret was stored with a newline round it, so the same secret
+produced two different fingerprints, and the panel reported the difference between
+**its own two rulers** as a difference between the secrets. Alex set both halves to
+one value three times and was told three times that he had not. The instrument never
+failed. It just was not measuring the same thing on both sides.
+
+**So: when two values are compared, both sides are normalised identically, at the
+point of comparison — and the comparison is tested with a pair that differs only in
+whitespace.** That test is three lines and would have caught this in seconds. It
+applies to any equality that crosses a boundary: two fingerprints, two cache keys, two
+slugs, an email typed twice, a header against a secret.
+
+Two things that make this failure mode hard to see from inside, both worth knowing:
+
+- **It hides a real fault while impersonating it.** Underneath the false reading there
+  *was* a genuine bug — the trigger sent the untrimmed secret as an HTTP header, and a
+  header value cannot hold a newline, so it was mangled in transit. The Worker's "these
+  do not match" was honest about what arrived and silent about what was stored. A wrong
+  instrument pointing at roughly the right place is the hardest thing to disbelieve.
+- **Normalise at the point of comparison, not before storing.** The whitespace was left
+  in the stored secret on purpose, and the panel now says it is there. Silently
+  cleaning a value on the way in destroys the evidence that something upstream is
+  adding it.
+
 ## Measure what the phone does, not what the server sent
 
 A fast server response is not a fast page. M2.1 hit the same one-layer-down gap three

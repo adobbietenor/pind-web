@@ -19,56 +19,7 @@
 
 import type { AdminContext } from "./context";
 import { e } from "./ui";
-
-export interface WebhookHealth {
-  url: string | null;
-  secret_set: boolean;
-  secret_fingerprint: string | null;
-  secret_padded: boolean;
-  last_at: string | null;
-  last_status: number | null;
-  last_error: string | null;
-  last_body: string | null;
-  waiting: number;
-}
-
-// **Of the trimmed value, and the database fingerprints the trimmed value too.** Two
-// numbers measured differently are not a comparison — the first version of this panel
-// fingerprinted a trimmed secret here and an untrimmed one there, and then reported
-// the difference between its own two rulers as a difference between the secrets.
-export async function fingerprint(secret: string | undefined): Promise<string | null> {
-  const value = (secret ?? "").trim();
-  if (!value) return null;
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
-  return [...new Uint8Array(digest)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("")
-    .slice(0, 10);
-}
-
-export type Verdict =
-  | { state: "match"; text: string }
-  | { state: "differ"; text: string }
-  | { state: "missing"; text: string };
-
-export function compare(db: WebhookHealth, worker: string | null): Verdict {
-  if (!db.secret_set && !worker) {
-    return { state: "missing", text: "Neither half is set, so the webhook is refused and photos are checked only when the app asks." };
-  }
-  if (!db.secret_set) {
-    return { state: "missing", text: "The database half is missing. Create the Vault secret photo_check_secret." };
-  }
-  if (!worker) {
-    return { state: "missing", text: "The Worker half is missing. Set it with npx wrangler secret put PHOTO_WEBHOOK_SECRET." };
-  }
-  if (db.secret_fingerprint === worker) {
-    return { state: "match", text: "Both halves are the same value." };
-  }
-  return {
-    state: "differ",
-    text: "Both halves are set and they are DIFFERENT — which is why the webhook is answered 401. Set one to the other's value.",
-  };
-}
+import { compare, fingerprint, type WebhookHealth } from "./secretmatch.ts";
 
 export async function webhookSection(ctx: AdminContext): Promise<string> {
   const { data, error } = await ctx.db.rpc("admin_photo_webhook_health");

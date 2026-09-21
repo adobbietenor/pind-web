@@ -5,6 +5,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { ESTIMATE_PER_PHOTO, parseVerdict, PHOTO_SYSTEM } from "../../src/photo/ai.ts";
 import { mediaTypeOf } from "../../src/photo/check.ts";
+import { compare, fingerprint, type WebhookHealth } from "../../src/admin/secretmatch.ts";
 
 describe("Reading the verdict — an answer that is not a verdict decides nothing", () => {
   it("H01 each of the three outcomes maps to the database's own word", () => {
@@ -68,5 +69,56 @@ describe("Images the API can read — HEIC is a fault, not a silent pass", () =>
     assert.equal(mediaTypeOf("u/a.HEIC", undefined), null);
     assert.equal(mediaTypeOf("u/a.pdf", "application/pdf"), null);
     assert.equal(mediaTypeOf("u/noextension", undefined), null);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The test that would have caught the M3.1 webhook ruler bug in seconds
+// (CLAUDE.md, "An instrument that is wrong in a way that looks like a finding").
+// ---------------------------------------------------------------------------
+
+describe("Comparing two secrets — both sides measured the same way", () => {
+  const half = (overrides: Partial<WebhookHealth> = {}): WebhookHealth => ({
+    url: "https://pind.social/hooks/photo-check",
+    secret_set: true,
+    secret_fingerprint: null,
+    secret_padded: false,
+    last_at: null,
+    last_status: null,
+    last_error: null,
+    last_body: null,
+    waiting: 0,
+    ...overrides,
+  });
+
+  it("H08 a pair that differs ONLY in whitespace compares as the same", async () => {
+    // This is the whole rule. The panel fingerprinted one side trimmed and the other
+    // as stored, so a secret with a newline round it read as two different secrets
+    // and sent Alex to set a value that was already right — three times.
+    const clean = await fingerprint("9f2c4a7e1b");
+    const padded = await fingerprint("  9f2c4a7e1b\n");
+    assert.equal(padded, clean, "the two sides are not normalised the same way");
+    assert.equal(compare(half({ secret_fingerprint: clean }), padded).state, "match");
+  });
+
+  it("H09 a pair that really differs still reports differing", async () => {
+    // The fix must not turn the instrument into one that always says yes, which is
+    // the other way to be confidently wrong.
+    const a = await fingerprint("9f2c4a7e1b");
+    const b = await fingerprint("9f2c4a7e1c");
+    assert.notEqual(a, b);
+    assert.equal(compare(half({ secret_fingerprint: a }), b).state, "differ");
+  });
+
+  it("H10 an absent half is 'missing', never 'differ' — they want different actions", async () => {
+    assert.equal(compare(half({ secret_set: false }), "abc").state, "missing");
+    assert.equal(compare(half({ secret_fingerprint: "abc" }), null).state, "missing");
+    assert.equal(compare(half({ secret_set: false }), null).state, "missing");
+  });
+
+  it("H11 whitespace is reported, not silently cleaned away", async () => {
+    // Normalising at the point of comparison keeps the evidence that something
+    // upstream is adding it. Normalising on the way in would destroy it.
+    assert.equal(half({ secret_padded: true }).secret_padded, true);
   });
 });
