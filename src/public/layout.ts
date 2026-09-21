@@ -102,7 +102,10 @@ a.card:hover{border-color:#453f52;background:#1c1922}
 .card .name{font-size:1.06rem;font-weight:620;line-height:1.3;margin:3px 0 2px;letter-spacing:-.01em}
 .card .where{font-size:.9rem;color:var(--muted)}
 .card .what{font-size:.9rem;color:#b9b3c4;margin-top:5px;line-height:1.4}
-.card .tally{font-size:.88rem;margin-top:9px;color:#d7d2df}
+.card .tally{font-size:.88rem;margin-top:9px;color:#ECE9F1;font-weight:600}
+/* The separator is not part of the emphasis: bolding it thickens the row without
+   making anything easier to read. */
+.card .tally .dot{font-weight:400}
 .dot{color:#5b5566;padding:0 6px}
 .tag{
   display:inline-block;font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;
