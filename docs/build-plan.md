@@ -567,6 +567,7 @@ any of it.
 - External TestFlight through Beta App Review with the review notes from §5; a public link for volunteers.
 - **Sign in with Apple has to be re-pointed** (Alex, M3.1). The Services ID `social.pind.web` was created with **`social.pind.app.staging` as its primary App ID**, because `social.pind.app` did not exist yet. It has to be changed to the production App ID here, or Apple sign-in on the web is wrong for production. Enable Sign in with Apple on the production App ID first, then change the Services ID's primary, then mint a fresh client secret (`scripts/apple-client-secret.ts`) and update `APPLE_SECRET_EXPIRES`.
 - **Redirect URLs for production.** `pind://**` is already on the staging project's allow-list; the production Supabase project needs the whole list built again — it is per-project, not per-domain.
+- **A custom auth domain** (`auth.pind.social`, a paid Supabase add-on on a Pro project) so a new person is not asked to "continue to mxuajvlrkggrqpntekqt.supabase.co", which is the first thing they see and reads like a phishing page (Alex, M3.1). **It changes the callback URL**, so Google Cloud's authorised redirect URI, Apple's Services ID return URL and a freshly minted Apple client secret all move with it — which is why it belongs here, with the production project, rather than being retrofitted later.
 
 **Acceptance**
 

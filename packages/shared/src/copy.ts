@@ -98,3 +98,20 @@ export const GENDER_WHY = "Asked once, for women-only crews. It never appears on
 // The 19+ stop is hard and has no soft fail (H8). The line is plain rather than
 // apologetic: there is nothing to negotiate and nothing to try again.
 export const UNDER_19 = "Pin'd is 19+. You will not be able to continue.";
+
+// The photo, asked at A2 and **required only at A27**, when somebody opts in to
+// meeting people at a gathering (Q2, revised). It is never required to pin, and never
+// required to have a profile — so A2 asks and does not block, and these two lines are
+// what make that legible instead of ambiguous.
+//
+// The label was "A photo of your face" (Alex, M3.1: "something warmer that still
+// makes clear it needs to be them"). It is how a stranger knows who they are looking
+// for, so it is not decoration — and it is not a security requirement either.
+export const PHOTO_LABEL = "A photo, so people know it’s you";
+
+// When it is actually needed. Said plainly, because "optional" on its own invites
+// somebody to skip it and then hit a wall nobody warned them about.
+export const PHOTO_WHEN = "Add one now or later — you’ll need one before you can meet up with anyone.";
+
+// A1's own header, on the screen where the first name is asked.
+export const A2_HEADING = "A bit about you";

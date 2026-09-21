@@ -2324,3 +2324,59 @@ a one-off check bolted on here. Until then it is a known gap, not an unknown one
   not registered until M4.3. Changing it, and minting a fresh secret, is in M4.3's
   scope and acceptance — and the acceptance says it out loud, because testing the app
   would prove nothing: native sign-in works either way.
+
+### Sign-in email: which templates, and why a link is not a code (Alex, M3.1)
+
+**A link works on the device that opened it and fails the moment somebody reads the
+email on their laptop** (Alex, M3.1, after the walk). That is the whole argument for
+the six-digit code, and it is also why the problem hid: testing by tapping the link on
+the same phone exercises the one case where a link behaves like a code. Part 5
+("Identity") already said no magic links; this is what it costs when the template does
+not obey.
+
+**Every Supabase template that can deliver a Pin'd sign-in**, and which flow reaches it:
+
+| Template | When it is sent | Ours? |
+|---|---|---|
+| **Confirm signup** | the first time an address is seen (`signInWithOtp` with `shouldCreateUser`) | **yes** — A1, every new person |
+| **Magic Link** | an address that already exists signs in again | **yes** — A1, every returning person |
+| **Change Email Address** | `updateUser({ email })` | **yes** — A27, anonymous becoming permanent |
+| Invite user | only the admin invite API | no — never called |
+| Reset password | only a password flow | no — there is no password path anywhere |
+| Reauthentication | only `auth.reauthenticate()` | no — never called |
+
+All three of ours carry `{{ .Token }}` and the subject "Your Pin'd code" (Alex, 21 Sept
+2026). **The first one is the one that hid the bug**, because a brand-new address never
+touches the Magic Link template at all.
+
+**Two things A27 must get right, recorded here so M3.2 does not rediscover them:**
+
+- **The email-change code verifies with a different type.** `{{ .Token }}` is the right
+  variable, but the code it carries is verified with
+  `verifyOtp({ type: "email_change" })`, **not** `type: "email"`. The wrong type fails
+  with a message about an invalid token, which reads like the person mistyped it.
+- **"Secure email change" sends two codes when there is an old address to protect.**
+  For the link path there is none — an anonymous user has no email — so one code
+  arrives. Somebody later *changing* their email gets two, and a screen that asks for
+  one will look broken.
+
+### The email's own domain has a reputation, and it starts at nothing (M3.1)
+
+Delivered to Gmail, junked by Outlook on the first send. The DNS, read on 21 Sept 2026:
+
+- **SPF** — the root is `v=spf1 include:_spf.mx.cloudflare.net ~all`, which is
+  Cloudflare Email Routing and **does not authorise Resend**. That is fine *as long as*
+  Resend keeps using `send.pind.social` as the envelope sender, which has its own
+  `v=spf1 ip4:…` record. **If a send ever goes out with an envelope domain of
+  `pind.social` itself, SPF fails** — worth knowing, because it would look like a
+  reputation problem and would not be one.
+- **DKIM** — `resend._domainkey.pind.social` is present and signs as `pind.social`, so
+  it aligns with the `From:` header.
+- **DMARC** — `v=DMARC1; p=none;` and nothing else. Present, aligned, and **giving away
+  the two things that help most**: no `rua`, so no reports and therefore no evidence;
+  and `p=none`, which Microsoft reads as a domain with no policy.
+
+**What to change, in order:** add `rua` so failures become visible at all; run a week
+and read the reports; then move to `p=quarantine` once alignment is proven clean.
+Jumping straight to a policy without reports is how a domain silently stops delivering
+its own sign-in codes.

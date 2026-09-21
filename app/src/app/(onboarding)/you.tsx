@@ -15,10 +15,21 @@
 // no list, and a person whose photo was refused is on the list without one (V6). That
 // difference is why the states have their own sentences.
 import { useRouter } from "expo-router";
-import { useMemo, useState } from "react";
-import { Image, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors as palette, GENDER_WHY, PHOTO_WHY, radius, spacing, UNDER_19 } from "@pind/shared";
+import {
+  ageOn,
+  colors as palette,
+  GENDER_WHY,
+  isOldEnough,
+  PHOTO_LABEL,
+  PHOTO_WHEN,
+  PHOTO_WHY,
+  radius,
+  spacing,
+  UNDER_19,
+} from "@pind/shared";
 import { Body, Button, Choice, Field, Heading, Notice } from "@/components/ui";
 import { track } from "@/lib/analytics";
 import { PhotoError, askForCheck, pickPhoto, uploadPhoto, type Picked } from "@/lib/photo";
@@ -33,21 +44,15 @@ const GENDERS = [
   { value: "undisclosed", name: "Prefer not to say" },
 ] as const;
 
-// Whole years, on the day. Written out rather than taken from a date library,
-// because the only thing it has to get right is the birthday edge.
-export function ageOn(day: number, month: number, year: number, now = new Date()): number | null {
-  if (!day || !month || !year || month < 1 || month > 12 || day < 1 || day > 31) return null;
-  const birth = new Date(Date.UTC(year, month - 1, day));
-  if (birth.getUTCDate() !== day || birth.getUTCMonth() !== month - 1) return null; // 31 February
-  let age = now.getUTCFullYear() - year;
-  const hadBirthday =
-    now.getUTCMonth() > month - 1 || (now.getUTCMonth() === month - 1 && now.getUTCDate() >= day);
-  if (!hadBirthday) age -= 1;
-  return age;
-}
-
 export default function You() {
   const router = useRouter();
+  // **This screen is where an OAuth sign-in lands**, and the session arrives WITH the
+  // URL rather than before it. Until M3.1 the screen assumed a session was already
+  // there and, when it was not, told the person it had EXPIRED — which was both wrong
+  // and alarming: it had never existed. Waiting for it, and saying the true thing if
+  // it never comes, is the whole of this state.
+  const [auth, setAuth] = useState<"waiting" | "ready" | "none">("waiting");
+  const arrivedFromUrl = useRef(false);
   const [firstName, setFirstName] = useState("");
   const [day, setDay] = useState("");
   const [month, setMonth] = useState("");
@@ -58,9 +63,42 @@ export default function You() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    let live = true;
+    const db = supabase();
+    db.auth.getSession().then(({ data }) => {
+      if (live && data.session) setAuth("ready");
+    });
+    // detectSessionInUrl finishes asynchronously after a return from Google or Apple;
+    // this is what says it landed.
+    const { data: sub } = db.auth.onAuthStateChange((_event, session) => {
+      if (!live || !session) return;
+      arrivedFromUrl.current = true;
+      setAuth("ready");
+    });
+    // Bounded, so a redirect that brings nothing back ends in a sentence rather than
+    // a spinner nobody can get out of.
+    const giveUp = setTimeout(() => {
+      if (live) setAuth((was) => (was === "waiting" ? "none" : was));
+    }, 8000);
+    return () => {
+      live = false;
+      sub.subscription.unsubscribe();
+      clearTimeout(giveUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (auth === "ready" && arrivedFromUrl.current) track("sign_in", { method: "oauth_web" });
+  }, [auth]);
+
   const age = useMemo(() => ageOn(Number(day), Number(month), Number(year)), [day, month, year]);
-  const tooYoung = age !== null && age < 19;
-  const complete = firstName.trim().length > 0 && age !== null && age >= 19 && gender !== null;
+  const tooYoung = age !== null && !isOldEnough(age);
+  // **The photo is deliberately not in this list.** A photo is required to opt in to
+  // meeting people at a gathering (A27, Q2 revised) — never to pin, and never to have
+  // a profile. Blocking here would move a rule to the wrong screen and stop somebody
+  // finishing a profile they are entitled to.
+  const complete = firstName.trim().length > 0 && isOldEnough(age) && gender !== null;
 
   const choosePhoto = async () => {
     setError("");
@@ -79,7 +117,7 @@ export default function You() {
       const db = supabase();
       const { data: session } = await db.auth.getUser();
       const authUserId = session.user?.id;
-      if (!authUserId) throw new Error("Sign in again — this session has expired.");
+      if (!authUserId) throw new Error("We lost your sign-in. Go back and sign in again — nothing here was saved.");
 
       const photoPath = photo ? await uploadPhoto(authUserId, photo) : null;
 
@@ -128,6 +166,33 @@ export default function You() {
       setBusy(false);
     }
   };
+
+  if (auth === "waiting") {
+    return (
+      <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
+        <ScrollView contentContainerStyle={styles.body}>
+          <Heading>Finishing your sign-in</Heading>
+          <ActivityIndicator style={{ marginTop: spacing.lg }} color={palette.textMuted} />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
+
+  if (auth === "none") {
+    return (
+      <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
+        <ScrollView contentContainerStyle={styles.body}>
+          <Heading>That sign-in did not come back</Heading>
+          <View style={{ marginBottom: spacing.lg }}>
+            <Body muted>
+              Nothing was saved, and nothing went wrong on your side. Try again — the email code is the quickest way in.
+            </Body>
+          </View>
+          <Button label="Back to sign in" onPress={() => router.replace("/sign-in")} />
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
@@ -181,9 +246,12 @@ export default function You() {
           </View>
         ) : null}
 
-        <Text style={styles.label}>A photo of your face</Text>
+        <Text style={styles.label}>{PHOTO_LABEL}</Text>
         <View style={{ marginBottom: spacing.sm }}>
           <Body muted>{PHOTO_WHY}</Body>
+        </View>
+        <View style={{ marginBottom: spacing.sm }}>
+          <Body muted>{PHOTO_WHEN}</Body>
         </View>
         <View style={styles.photoRow}>
           {photo ? <Image source={{ uri: photo.uri }} style={styles.preview} /> : <View style={[styles.preview, styles.previewEmpty]} />}
