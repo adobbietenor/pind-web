@@ -78,8 +78,12 @@ export const TAGS = [
     tags: [
       { slug: "not-drinking", name: "not drinking" },
       { slug: "enjoys-a-drink", name: "enjoys a drink" },
-      { slug: "toronto-born-and-raised", name: "Toronto born and raised" },
-      { slug: "new-to-toronto", name: "new to Toronto" },
+      // **Generic slugs, city-specific words** (Alex, M3.1). The slug is the
+      // contract and is one-way; the name is copy. So Vancouver gets "new to
+      // Vancouver" in a commit rather than a data migration — which is the point
+      // of the city being a row on `cities` rather than a string in a page.
+      { slug: "born-and-raised", name: "Toronto born and raised" },
+      { slug: "new-in-town", name: "new to Toronto" },
       { slug: "usually-go-alone", name: "usually go alone" },
     ],
   },

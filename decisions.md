@@ -2380,3 +2380,59 @@ Delivered to Gmail, junked by Outlook on the first send. The DNS, read on 21 Sep
 and read the reports; then move to `p=quarantine` once alignment is proven clean.
 Jumping straight to a policy without reports is how a domain silently stops delivering
 its own sign-in codes.
+
+### The flag came out (Alex, M3.1)
+
+The city label on W1 is **"Toronto, Canada" as text**, top centre and quiet, and it
+carried a small Canadian flag for about an hour. **It is gone, and it is not coming
+back as a drawing.**
+
+- **A national flag is the one thing on the page that cannot be approximately right.**
+  It was drawn by hand, rendered, and looked at — which caught that it was recognisable
+  and did not catch that it was wrong, because "looks like the Canadian flag" and "is
+  the Canadian flag" are different tests and only the first one can be passed by
+  eye. Checking my own work against my own memory is not a check.
+- **We would rather have none than a wrong one**, and the label reads correctly without
+  it: the country's name is what carries the meaning.
+- **If a flag returns, it comes from an official source file** — a real SVG, committed
+  and served from our own origin — never a path typed out by hand. The own-origin rule
+  and the no-emoji reason both still hold (🇨🇦 renders as the letters "CA" on Windows);
+  what changed is where the artwork may come from.
+
+### The crowd-page button follows the pin, not the session (Alex, M3.1)
+
+Every crowd page's button said **"Open"** after Alex signed in during the M3.1 walk. A
+script from M2.1 relabelled it whenever `localStorage` held a Supabase session, on the
+assumption that a signed-in person has the app.
+
+**A session says somebody exists. It does not say they are coming to this.** The
+assumption was true enough in M2.1, when the only way to have a session was to have
+used the product, and it stopped being true the moment the web could sign in.
+
+- **not pinned → "Pin in — I'm going"; already pinned → "See who's going".** The
+  button follows what the person has done **at that gathering**.
+- **"Open" appears nowhere on the web.**
+- Checked rather than assumed: the assumption lived in exactly one place, W2's `#cta`.
+  W1's cards, the weekly pager and W3's share card are plain links and never looked at
+  a session.
+- **The second state arrives with A26** (M3.2), because until the web can pin, nobody
+  has done anything at any gathering. The swap is removed rather than left inert: on a
+  page with a byte budget, dead JavaScript is not free.
+- **How it will work, decided now so M3.2 does not have to rediscover it:** the pin
+  writes a **same-origin marker** and the script reads it. Asking the database from the
+  page would break the own-origin rule (M2.1 measured 911 ms against 133 ms, paid per
+  host), and a cookie the Worker could read at render time would make W2 vary by cookie
+  and lose its edge cache.
+
+### Tag slugs are generic, tag words are city-specific (Alex, M3.1)
+
+`new-to-toronto` and `toronto-born-and-raised` became **`new-in-town`** and
+**`born-and-raised`**, keeping the displayed words "new to Toronto" and "Toronto born
+and raised".
+
+**The slug is the contract and the name is copy** — so Vancouver gets the right words
+in an ordinary commit rather than a data migration, which is the whole point of the
+city being a row on `cities`. Done the same day the city became a row, and while it was
+still nearly free: `person_tags` held three rows, **one of them `new-to-toronto`**, so
+it was a real move of real data rather than a rename of something nobody had picked.
+Three rows is a move; three thousand is a maintenance window.

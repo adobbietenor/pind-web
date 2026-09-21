@@ -14,7 +14,6 @@
 
 import { colors } from "@pind/shared";
 import { markSvg, wordmarkSvg } from "./brand";
-import { flagSvg } from "./flags";
 import type { City } from "./data";
 import { escape } from "./escape.ts";
 
@@ -51,10 +50,10 @@ a:hover{color:#fff}
 .top svg{display:block}
 .city{
   position:absolute;left:50%;top:calc(50% + 7px);transform:translate(-50%,-50%);
-  display:flex;align-items:center;gap:6px;pointer-events:none;
+  pointer-events:none;
   font-size:.76rem;color:var(--muted);white-space:nowrap;letter-spacing:.01em;
 }
-.city svg{border-radius:1px}
+
 
 h1{font-size:1.75rem;line-height:1.2;letter-spacing:-.015em;margin:14px 0 6px;font-weight:650}
 h2{font-size:.8rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:30px 0 10px;font-weight:600}
@@ -290,7 +289,7 @@ export const DOT = `<span class="dot">·</span>`;
 // already about one place, and repeating the city above a venue's name says nothing.
 export function header(place?: City | null): string {
   const label = place
-    ? `<span class="city">${flagSvg(place.countryCode)}${escape(place.name)}, ${escape(place.country)}</span>`
+    ? `<span class="city">${escape(place.name)}, ${escape(place.country)}</span>`
     : "";
   return `<div class="top"><a href="/" aria-label="Pin&#39;d">${markSvg(24)}${wordmarkSvg(19, null)}</a>${label}</div>`;
 }

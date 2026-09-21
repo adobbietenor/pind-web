@@ -16,6 +16,19 @@ export const ONE_LINER = "See who's going, meet them there.";
 // the button is the commitment.
 export const PIN_IN = "Pin in — I'm going";
 
+// The other half of the same button (Alex, M3.1, after "Open" appeared on every crowd
+// page). **The button follows what you have done at THIS gathering, never what your
+// browser knows about you:**
+//
+//   not pinned      PIN_IN
+//   already pinned  SEE_WHO
+//
+// **"Open" never appears on the web.** It was there because a script relabelled the
+// button whenever localStorage held a Supabase session, on the assumption that a
+// signed-in person has the app. Signing in once on the web flipped every crowd page
+// at once — a session says somebody exists, not that they are coming to this.
+export const SEE_WHO = "See who’s going";
+
 // What it costs to walk in, said in one line. The rule that matters: **never say free
 // unless it is free**, and an unknown price is "pay at the door" rather than silence —
 // unknown is a different state from no cost, and the failure to avoid is somebody
