@@ -2150,3 +2150,66 @@ occurrences to 31 December**, three and a half months out.
   Held in reserve rather than shipped (Alex): purple on the count alone, with
   "· see who's going" staying near-white — the better next step if the tint is not
   enough on the phone.
+
+### "Add an event" — filed, not built (Alex, M3.1)
+
+A public form where someone submits a gathering. **Nothing is built yet**; this is the
+note so it is not designed from scratch later, and so the two rules below are not
+rediscovered as opinions.
+
+**It supersedes "Suggest a gathering is a mailto link. Nothing is stored." (Part 5).**
+
+**Two rules, both Alex's, both hard:**
+
+1. **Nothing publishes without Alex's approval.** A submission is a draft like any
+   other and takes the same journey: published, dismissed, or merged into a duplicate.
+2. **Nothing can be submitted less than 24 hours before it starts.** A gathering that
+   starts tonight cannot be added tonight.
+
+**The approval gate deliberately inverts "automate by default"** (Part 5, "Automate by
+default": *wherever possible, AI does the work and Alex removes what is wrong*). For
+this one path the order is reversed, and the reason is what a submission is rather than
+how much work it is: **it is the first place a stranger writes text that other people
+read.** Everything user-generated in Pin'd so far is confined — a first name, a photo
+behind an automated check, messages inside a crew that only its members can open. A
+submitted gathering is **public text on a public page**: it goes into W1's list, a
+crowd page, an OG preview cached at post time, and a Reddit thread. So it is the
+obvious vector for someone promoting something that is not a gathering, and the gate is
+a gate rather than a queue drained when there is time. **A queue that is usually empty
+looks exactly like a gate until the week it isn't.**
+
+**Two questions Alex has left open, to answer when it is built:**
+
+- **Can a submitter create a venue that does not already exist?** That is how invented
+  addresses reach a map. Ours is not a generic map: it is drawn from the venue's
+  coordinates, and its meeting spots are curated by hand (H5), so an invented venue
+  produces a picture of a place that is not there, with no spots and nothing to check
+  it against.
+- **Can they submit a recurring series, or only a single date?** The series machinery
+  exists (M2.3: cadence, the eight-week generator cap, the weekly liveness check), so
+  the answer is not "we cannot" — it is whether one submission should be allowed to
+  create many rows.
+
+**Four more things to have thought about before it is designed** (Claude, M3.1, filed
+with the rest so they are cheap now rather than expensive later):
+
+- **The 24-hour floor wants a ceiling too.** The import looks 8 weeks ahead and M2.3
+  found that "a horizon a year out is not evidence". A submission dated next August is
+  a different kind of problem from one dated tonight, and only one of them has a rule.
+- **Scoring is not moderation.** The AI rubric that scores drafts 0–100 answers "would
+  a crowd form here", which is not the same question as "is this a gathering at all, or
+  an advert, a scam, a rally, or somebody's contact details in a `name` field". The
+  second question needs its own check, and its uncertain answer is a human, exactly like
+  the photo check's.
+- **A submission needs a person attached, or there is nothing to rate-limit or block.**
+  The link path makes anonymous users, which is fine for a pin and is not fine for a
+  write that strangers read. Rate limiting is the practical defence and it needs an
+  identity to count against.
+- **Approval must happen before a slug is minted**, which the existing publish flow
+  already does — worth keeping deliberately, because a slug is what a link preview and
+  Cloudflare's cache key are built from, and both outlive the row.
+
+**Where it goes:** most naturally alongside **M4.4** (community sourcing), since a
+submitted gathering is community sourcing through a different door — but its gate is
+the opposite of M4.4's auto-publishing, and that difference is the point, not an
+inconsistency to iron out.
