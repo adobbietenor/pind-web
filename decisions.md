@@ -2096,3 +2096,57 @@ occurrences to 31 December**, three and a half months out.
 - **Export includes the reports you filed** (Alex, M3.1) — your reason and the date,
   never the moderation outcome, "which isn't mine". The export is read **as you**
   through RLS, never with the service key, so it cannot over-return.
+- **The tag list is fifteen, and short is the safe error** (Alex, M3.1). The M2.0 draft
+  of twenty was replaced: four of its tags meant nothing outside a ticketed arena, ten
+  of twenty were sports or music, and the community third of the product had one slug
+  between it. The replacement is four groups of ways-of-being — New here, Company, What
+  I'm like, Bring me into — so the same three tags say something at an arena, at a gig
+  and at a 9am run. Seeded by `20260921010024_m3_1_seed_tags`; the list and its
+  reasoning are `packages/shared/src/tags.ts`.
+  - **The length was set by an asymmetry in the schema, not by taste.**
+    `person_tags.tag references tags (slug) on delete restrict`, so **adding a tag
+    later is an insert and removing one anybody has picked is a data migration.** The
+    two directions are not symmetric, so the list is deliberately short. Rewording
+    stays free forever either way: the slug is the identifier, the name is copy.
+  - **The vibe chips own the night; the tags own the person** (Alex). Anything about
+    when you arrive, how long you stay or what you drink belongs to the crew (spec §3,
+    "Crew vibe"), not to a person's profile. The draft collided with those nine chips
+    in seven places, two of them word for word, and they render inches apart on A10.
+    "Always slightly late" survives the rule because early is a plan a crew can make
+    and late is a confession only a person can make.
+  - **A tag that names the gathering it is read at is dead.** Tags are read only inside
+    one gathering, so "sport" at a hockey game is true of nineteen thousand people.
+    Taste survives as a handle ("here for the support act"), never as a category —
+    which is also what keeps a person's tags from being mistaken for W1's filter chips.
+  - **Cut for saying nothing:** "here to meet people", because every person whose
+    profile can be read has `open_to_meeting = true` (V1 requires it of both parties),
+    so it was true of 100% of the people who could ever see it; and "easy company", as
+    unfalsifiable.
+  - **Cut for leaking past a gate: "better one-on-one"** (Alex: "the one I'd have got
+    wrong"). A tag has no visibility control, but solo does — A28 forces a choice
+    between "everyone who opted in" and "women only" with no default, and A29 allows
+    only preset lines until a mutual accept, specifically so nobody can make a standing
+    1-on-1 approach. A tag reading as a solo signal is a standing approach, on the
+    profile, visible to people who never opted into solo at all.
+  - **`not-drinking` is the load-bearing tag** — the only one that changes what a crew
+    does (where it meets) rather than describing someone. Worth knowing when the list
+    is next revisited.
+  - **"Up for whatever" is kept knowingly** (Alex): the marginal tag, but "the list is
+    now short enough to carry one loose tag, and it's the only thing left that someone
+    unsure of themselves can pick without claiming a trait."
+  - **Three from one group stays possible, and A3 makes it visible** rather than
+    costing a slug: the picker shows the four groups as four labelled rows, not one
+    pool, so a nervous first-timer spending all three tags on "I'm new" is a choice
+    rather than an accident.
+- **Two colour tokens, measured** (Alex, M3.1, on the W1 card's count-and-invitation
+  line). `colors.textTint` **#EFE8F6** — a near-white carrying a trace of the brand
+  hue, at the same lightness as the plain near-white it replaced (L* 92.9 against
+  92.8), on the brand's hue (309° against 313°), at about an eighth of its chroma.
+  15.13:1 on the card surface. `colors.accentText` **#A874DB** — the lightest purple
+  that is still purple and still passes AA as text on dark (5.33:1 on the card, 5.82:1
+  on the page), against `accent` #582883's 1.76:1, which fails outright as text.
+  **Neither is ever a link colour**: links on the public pages are lilac #c9a6ee, and a
+  different purple inside a card that is itself a link reads as a link within a link.
+  Held in reserve rather than shipped (Alex): purple on the count alone, with
+  "· see who's going" staying near-white — the better next step if the tint is not
+  enough on the phone.

@@ -23,7 +23,7 @@ const CSS = `
 :root{
   --bg:${colors.background};--surface:${colors.surface};--border:${colors.border};
   --text:${colors.text};--muted:${colors.textMuted};--accent:${colors.accent};
-  --accent-lift:#6d3aa0;
+  --accent-lift:#6d3aa0;--text-tint:${colors.textTint};
 }
 html{-webkit-text-size-adjust:100%}
 body{
@@ -102,7 +102,7 @@ a.card:hover{border-color:#453f52;background:#1c1922}
 .card .name{font-size:1.06rem;font-weight:620;line-height:1.3;margin:3px 0 2px;letter-spacing:-.01em}
 .card .where{font-size:.9rem;color:var(--muted)}
 .card .what{font-size:.9rem;color:#b9b3c4;margin-top:5px;line-height:1.4}
-.card .tally{font-size:.88rem;margin-top:9px;color:#ECE9F1;font-weight:600}
+.card .tally{font-size:.88rem;margin-top:9px;color:var(--text-tint);font-weight:600}
 /* The separator is not part of the emphasis: bolding it thickens the row without
    making anything easier to read. */
 .card .tally .dot{font-weight:400}
