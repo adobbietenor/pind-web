@@ -99,7 +99,16 @@ async function main() {
   for (let run = 0; run < runsWanted; run++) {
     const outcomes = new Map<string, string>();
     for (const label of set) {
-      const bytes = await readFile(join(DIR, label.file));
+      // A label naming a file that is not there is a skip with a sentence, not a
+      // crash: labels.json is hand-edited, and losing a whole run to one typo is the
+      // kind of friction that stops a measurement being taken at all.
+      let bytes: Buffer;
+      try {
+        bytes = await readFile(join(DIR, label.file));
+      } catch {
+        console.log(`  ${label.file}: not in tests/photos — skipped`);
+        continue;
+      }
       const mediaType = mediaTypeOf(label.file, undefined);
       if (!mediaType) {
         console.log(`  ${label.file}: not an image the API reads — skipped`);

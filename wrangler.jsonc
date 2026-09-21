@@ -45,7 +45,12 @@
   // happens. Its own schedule, its own run row and its own lock — src/index.ts picks
   // the job by the expression that fired, and src/community/run.ts holds the matching
   // constant.
-  "triggers": { "crons": ["0 8 * * *", "0 13 * * *"] },
+  // M3.1 adds 09:00 UTC: the photos nothing has looked at. The webhook is the
+  // mechanism and the app's call after an upload is the net; this is what tries
+  // again when both missed, because counting what is missing without a way to act
+  // on it is half the M2.3 pattern. Its own cron for the usual reason — it must not
+  // delay the import and must not be skipped because the import stalled.
+  "triggers": { "crons": ["0 8 * * *", "0 9 * * *", "0 13 * * *"] },
 
   // M2.2: Workers Logs, on and unsampled. Without it there is no invocation history
   // at all, which is why nobody could tell whether the cron fired on the two nights
@@ -98,6 +103,7 @@
       "/favicon.svg",
       "/g/*",
       "/photo-check",
+      "/account/*",
       "/hooks/*",
       "/og/*",
       "/map/*",

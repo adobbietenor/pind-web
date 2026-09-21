@@ -2,6 +2,7 @@ import { runSeriesChecks, CHECKER, LIVENESS_CRON } from "./community/run";
 import { spotSuggestionsOn, type Env } from "./env";
 import { escape, page } from "./html";
 import { IMPORTER, runImport } from "./import/run";
+import { PHOTO_SWEEP_CRON, sweepPhotos } from "./photo/sweep";
 import { route } from "./router";
 import { ConfigError, serviceClient } from "./supabase";
 
@@ -24,13 +25,20 @@ export default {
     }
   },
 
-  // Two schedules (wrangler.jsonc "triggers"), and the handler branches on which one
-  // fired: the nightly Ticketmaster import (M1.3) at 08:00 UTC, and the community
-  // liveness check (M2.3b) at 13:00. **Separate on purpose** — the import must not be
-  // delayed by somebody else's slow website, and a liveness run that stalls must not
-  // stop the city's list refreshing (Alex: "own cron, own budget line, never inside the
-  // import"). They also hold different locks, so neither can report the other as busy.
+  // Three schedules (wrangler.jsonc "triggers"), and the handler branches on which one
+  // fired: the nightly Ticketmaster import (M1.3) at 08:00 UTC, the photo sweep (M3.1)
+  // at 09:00, and the community liveness check (M2.3b) at 13:00. **Separate on
+  // purpose** — the import must not be delayed by somebody else's slow website, a
+  // liveness run that stalls must not stop the city's list refreshing, and a photo
+  // that both the webhook and the app missed must not wait on either of them (Alex:
+  // "own cron, own budget line, never inside the import"). They hold different locks,
+  // so none can report another as busy.
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
+    if (controller.cron === PHOTO_SWEEP_CRON) {
+      const outcome = await sweepPhotos(env);
+      console.log(outcome.message);
+      return;
+    }
     if (controller.cron === LIVENESS_CRON) {
       const outcome = await runSeriesChecks(env, { trigger: "cron", actor: CHECKER });
       console.log(outcome.message);

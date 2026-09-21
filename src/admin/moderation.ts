@@ -2,6 +2,7 @@
 // Decisions go through admin_* database functions, which write the moderation log.
 import type { AdminHandler } from "./context";
 import { adminPage, back, e, here, must, one, postButton, str } from "./ui";
+import { sweepPhotos } from "../photo/sweep";
 
 const PHOTOS = "photos";
 const REASONS: Record<string, string> = {
@@ -93,17 +94,38 @@ Set it with <code>npx wrangler secret put ANTHROPIC_API_KEY</code>.</p>`
     ? `<p class="bad"><strong>PHOTO_WEBHOOK_SECRET is not set</strong>, so the database webhook is refused and photos are checked only when the app asks — the net without the mechanism.</p>`
     : "";
 
+  // **Counting what is missing without a way to act on it is half the pattern.** The
+  // nightly sweep at 09:00 is the other half; this is the same pass, for the moment
+  // somebody is looking at the queue and does not want to wait until tomorrow.
+  const sweepNow =
+    count.never_checked + count.check_failing > 0
+      ? ` ${postButton("/admin/photos/sweep", `Check the ${count.never_checked + count.check_failing} nothing has decided`, here(request), { cls: "plain" })}`
+      : "";
+
   const body = `${keyMissing}${hookMissing}
 <p><strong>${count.waiting_for_human}</strong> waiting for a human ·
 <strong>${count.never_checked}</strong> never checked ·
 <strong>${count.check_failing}</strong> with a failing check</p>
 <p class="muted">Three different situations, deliberately counted apart. <em>Waiting for a human</em> is the automated check saying it could not tell — decide it below.
 <em>Never checked</em> means nothing has looked yet, which is a question about the webhook, not about the photo.
-<em>A failing check</em> is an operational fault and wants fixing rather than clearing.</p>
+<em>A failing check</em> is an operational fault and wants fixing rather than clearing.${sweepNow}</p>
+<p class="muted">A nightly pass at 09:00 UTC picks up anything the webhook and the app both missed. <strong>If it ever finds much, the webhook is what is broken</strong> — the Configuration panel says whether it is reaching the Worker. A retry that quietly papers over a broken mechanism is how M2.1's map fallback became the mechanism.</p>
 <p class="muted">People appear in lists straight away with their name; their photo shows only once approved.
 A rejected photo stays hidden and the person stays visible without one. Links on this page expire after 60 seconds: reload if images stop loading.</p>
 <table><tr><th>Photo</th><th>Person</th><th></th></tr>${rows || `<tr><td colspan="3">Nothing to review.</td></tr>`}</table>`;
   return adminPage(request, ctx.email, `Photo queue (${count.waiting_for_human})`, body);
+};
+
+// POST /admin/photos/sweep — the nightly pass, now, because the person looking at
+// the queue is the person who wants it run.
+export const sweepNow: AdminHandler = async (request, ctx) => {
+  const form = await request.formData();
+  try {
+    const outcome = await sweepPhotos(ctx.env, { db: ctx.db });
+    return back(form, { ok: outcome.message });
+  } catch (err) {
+    return back(form, { err: err instanceof Error ? err.message : "The sweep failed" });
+  }
 };
 
 // POST /admin/photos/:id — applies only if the photo is still the one shown.

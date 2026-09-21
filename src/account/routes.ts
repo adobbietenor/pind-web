@@ -75,8 +75,11 @@ export async function deleteAccount(request: Request, env: Env): Promise<Respons
   }
 
   // Last. A failure before this leaves a session whose person is gone, which the app
-  // recovers from by signing out; a failure here leaves an auth user with no person,
-  // which signs in to nothing and is swept by the retention job.
+  // recovers from by signing out. A failure HERE leaves an auth user with no person —
+  // it can sign in and sees nothing, and **nothing sweeps it up**, because no such
+  // job exists. Said plainly rather than waved at: an orphaned auth row is harmless
+  // and a comment claiming something cleans it would be the more expensive kind of
+  // wrong. If it ever matters, it is a retention job in M4.1 with the rest.
   const gone = await db.auth.admin.deleteUser(authUserId);
   if (gone.error) return json(500, { error: gone.error.message });
 

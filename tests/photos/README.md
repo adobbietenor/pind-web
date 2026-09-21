@@ -12,6 +12,21 @@ Run it from the repo root:
 `labels.json` is a list of `{ "file", "expect", "note" }`, where `expect` is
 `approved`, `rejected` or `needs_review`.
 
+## Known-good, before your photos arrive
+
+Exercised end to end on 21 Sept 2026 with two stand-ins (the app icon and the
+favicon, both labelled `needs_review` because neither is a face), `--write` on:
+
+- both runs agreed with the label, 2 of 2;
+- **runs 1 and 2 disagreed on 0 of 2** — the noise floor, measured rather than assumed;
+- **$0.0033 a photo**, and all four calls landed in `photo_checks` with
+  `source = 'eval'` and no person, so the spend is inside the daily cap;
+- the model's reasons were specific ("No face visible at all — just a solid purple
+  image"), not boilerplate.
+
+So the runner, the table, the noise-floor line and the spend recording are all proven.
+What has not been tested is the rubric against **faces**, which is what this set is for.
+
 ## What the set needs
 
 | Expect | Photos |
