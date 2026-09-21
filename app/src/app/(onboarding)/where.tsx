@@ -22,6 +22,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors as palette, fonts, NEIGHBOURHOODS, radius, spacing, TAGS, TAGS_PER_PROFILE } from "@pind/shared";
+import { Brand } from "@/components/Brand";
 import { Body, Button, Heading, Notice } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
@@ -70,6 +71,7 @@ export default function Where() {
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
       <ScrollView contentContainerStyle={styles.body}>
+        <Brand />
         <Heading>Where in the city?</Heading>
         <View style={{ marginBottom: spacing.lg }}>
           <Body muted>Pin&#39;d never asks where you are. Pick the part of town you would say you are from — it gives a crew something to start with.</Body>

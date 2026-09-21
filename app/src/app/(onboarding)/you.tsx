@@ -30,8 +30,10 @@ import {
   spacing,
   UNDER_19,
 } from "@pind/shared";
+import { Brand } from "@/components/Brand";
 import { Body, Button, Choice, Field, Heading, Notice } from "@/components/ui";
 import { track } from "@/lib/analytics";
+import { failed, type Described } from "@/lib/errors";
 import { PhotoError, askForCheck, pickPhoto, uploadPhoto, type Picked } from "@/lib/photo";
 import { supabase } from "@/lib/supabase";
 
@@ -61,7 +63,7 @@ export default function You() {
   const [womenOnly, setWomenOnly] = useState(false);
   const [photo, setPhoto] = useState<Picked | null>(null);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Described | null>(null);
 
   useEffect(() => {
     let live = true;
@@ -101,29 +103,40 @@ export default function You() {
   const complete = firstName.trim().length > 0 && isOldEnough(age) && gender !== null;
 
   const choosePhoto = async () => {
-    setError("");
+    setError(null);
     try {
       const picked = await pickPhoto();
       if (picked) setPhoto(picked);
     } catch (err) {
-      setError(err instanceof PhotoError ? err.message : "That photo could not be opened.");
+      // A PhotoError is already a sentence written for the person — HEIC, too big,
+      // permission refused — so it is passed through rather than re-described.
+      setError(err instanceof PhotoError ? { says: err.message } : failed("open that photo", err));
     }
   };
 
   const save = async () => {
     setBusy(true);
-    setError("");
+    setError(null);
+    // Each step says what it was doing, so a failure names the thing that failed
+    // rather than the screen. "That did not save" gave neither of us anything.
+    let doing = "finish signing you in";
     try {
       const db = supabase();
       const { data: session } = await db.auth.getUser();
       const authUserId = session.user?.id;
-      if (!authUserId) throw new Error("We lost your sign-in. Go back and sign in again — nothing here was saved.");
+      if (!authUserId) {
+        setError({ says: "We lost your sign-in. Go back and sign in again — nothing here was saved." });
+        setBusy(false);
+        return;
+      }
 
+      doing = "upload your photo";
       const photoPath = photo ? await uploadPhoto(authUserId, photo) : null;
 
       // The link path may already have made this row at a pin (A26), under the same
       // auth user. Insert or update, never upsert: `auth_user_id` is insert-only, so
       // an upsert would ask for a privilege the person does not have.
+      doing = "save your profile";
       const { data: mine } = await db.from("people").select("id").eq("auth_user_id", authUserId).maybeSingle();
       let personId = mine?.id ?? null;
       if (personId) {
@@ -142,18 +155,32 @@ export default function You() {
         personId = made.id;
       }
 
-      // Owner-only, and the year alone. `birth_year` cannot be updated later — the
-      // grant does not include it — so this is asked once and answered once.
-      const { error: privateError } = await db.from("people_private").upsert(
-        {
-          person_id: personId,
-          gender: gender!,
-          include_in_women_only: gender === "nonbinary" ? womenOnly : false,
-          birth_year: Number(year),
-          age_attested_at: new Date().toISOString(),
-        },
-        { onConflict: "person_id" },
-      );
+      // **Never an upsert here, and this cost a walk.** `people_private` is granted
+      // INSERT on all five columns and UPDATE on two — `gender` and
+      // `include_in_women_only` — because a birth year is asked once and must not be
+      // editable afterwards. An upsert is `INSERT ... ON CONFLICT DO UPDATE`, and
+      // Postgres checks UPDATE privileges on every column in the DO UPDATE clause
+      // **statically**, before it knows whether the row exists. So the first insert
+      // of a brand-new person was refused, 42501, for an update branch that would
+      // never run. The grant is right; the statement was wrong.
+      doing = "save your date of birth and gender";
+      const { data: priv } = await db.from("people_private").select("person_id").eq("person_id", personId).maybeSingle();
+      const privateError = priv
+        ? (
+            await db
+              .from("people_private")
+              .update({ gender: gender!, include_in_women_only: gender === "nonbinary" ? womenOnly : false })
+              .eq("person_id", personId)
+          ).error
+        : (
+            await db.from("people_private").insert({
+              person_id: personId,
+              gender: gender!,
+              include_in_women_only: gender === "nonbinary" ? womenOnly : false,
+              birth_year: Number(year),
+              age_attested_at: new Date().toISOString(),
+            })
+          ).error;
       if (privateError) throw privateError;
 
       // The net, after the webhook (which has already fired on the insert above).
@@ -161,7 +188,7 @@ export default function You() {
       track("profile_created", { photo: !!photoPath });
       router.replace("/where");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That did not save. Try again.");
+      setError(failed(doing, err));
     } finally {
       setBusy(false);
     }
@@ -171,6 +198,7 @@ export default function You() {
     return (
       <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
         <ScrollView contentContainerStyle={styles.body}>
+        <Brand />
           <Heading>Finishing your sign-in</Heading>
           <ActivityIndicator style={{ marginTop: spacing.lg }} color={palette.textMuted} />
         </ScrollView>
@@ -182,6 +210,7 @@ export default function You() {
     return (
       <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
         <ScrollView contentContainerStyle={styles.body}>
+        <Brand />
           <Heading>That sign-in did not come back</Heading>
           <View style={{ marginBottom: spacing.lg }}>
             <Body muted>
@@ -197,12 +226,18 @@ export default function You() {
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+        <Brand />
         <Heading>A bit about you</Heading>
         <View style={{ marginBottom: spacing.lg }}>
           <Body muted>Your first name is what people see. Nothing else here is on your profile.</Body>
         </View>
 
-        {error ? <Notice tone="stop">{error}</Notice> : null}
+        {error ? (
+          <Notice tone="stop">
+            {error.says}
+            {error.detail ? `\n${error.detail}` : ""}
+          </Notice>
+        ) : null}
 
         <Field
           label="First name"

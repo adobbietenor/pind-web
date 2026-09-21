@@ -10,7 +10,16 @@ import { useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import * as AppleAuthentication from "expo-apple-authentication";
-import { A1_POSITIONING, colors as palette, fonts, ONE_LINER, spacing } from "@pind/shared";
+import {
+  A1_POSITIONING,
+  codeLengthMismatch,
+  colors as palette,
+  EMAIL_CODE_LENGTH,
+  fonts,
+  ONE_LINER,
+  spacing,
+} from "@pind/shared";
+import { Brand } from "@/components/Brand";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
 import { methodsFor, sendEmailCode, signInError, signInWithApple, signInWithGoogle, verifyEmailCode } from "@/lib/auth";
 import { track } from "@/lib/analytics";
@@ -49,7 +58,7 @@ export default function SignIn() {
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Text style={styles.wordmark}>Pin&#39;d</Text>
+        <Brand height={26} />
         <Heading>{ONE_LINER}</Heading>
         <View style={styles.positioning}>
           {A1_POSITIONING.map((line) => (
@@ -120,19 +129,24 @@ export default function SignIn() {
           <>
             <Field
               label={`The code we sent to ${email.trim()}`}
-              placeholder="123456"
+              placeholder={"1".repeat(EMAIL_CODE_LENGTH)}
               autoComplete="one-time-code"
               keyboardType="number-pad"
               inputMode="numeric"
-              maxLength={6}
+              // **Deliberately longer than the code.** Capping the field at the
+              // expected length is what made the mismatch invisible: a pasted
+              // 8-digit code silently lost its last two digits and the screen just
+              // said no. Let it in, then say what is wrong with it.
+              maxLength={12}
               value={code}
-              onChangeText={setCode}
-              hint="Six digits. It expires in an hour."
+              onChangeText={(text) => setCode(text.replace(/\D/g, ""))}
+              hint={`${EMAIL_CODE_LENGTH} digits. It expires in an hour.`}
+              error={code.length > EMAIL_CODE_LENGTH ? codeLengthMismatch(code.length) : undefined}
             />
             <Button
               label="Continue"
               busy={busy === "verify"}
-              disabled={code.trim().length < 6}
+              disabled={code.length !== EMAIL_CODE_LENGTH}
               onPress={() => attempt("verify", () => verifyEmailCode(email, code), done("email"))}
             />
             <View style={{ marginTop: spacing.sm }}>
@@ -160,13 +174,6 @@ export default function SignIn() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.background },
   body: { padding: spacing.lg, paddingTop: spacing.xl, gap: 0 },
-  wordmark: {
-    fontFamily: fonts.headlineBold,
-    fontSize: 22,
-    color: palette.text,
-    letterSpacing: -0.5,
-    marginBottom: spacing.xl,
-  },
   positioning: { marginTop: spacing.md, marginBottom: spacing.xl, gap: 6 },
   positioningLine: { fontSize: 15, color: palette.textMuted },
   rule: { alignItems: "center", marginVertical: spacing.md },

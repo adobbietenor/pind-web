@@ -17,6 +17,7 @@ import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, PHOTO_STATE, radius, spacing } from "@pind/shared";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
+import { oneLine, failed } from "@/lib/errors";
 import { loadMe, photoUrl, saveInstagram, type Me } from "@/lib/profile";
 
 const tagName = (slug: string) => ALL_TAGS.find((t) => t.slug === slug)?.name ?? slug;
@@ -83,7 +84,7 @@ export default function Profile() {
       setMe({ ...me, instagram: handle.trim().replace(/^@/, "") || null });
       setEditing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That did not save.");
+      setError(err instanceof Error ? err.message : oneLine(failed("save your handle", err)));
     }
   };
 

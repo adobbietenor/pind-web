@@ -29,6 +29,7 @@
     "typecheck:app": "npm run typecheck --workspace app",
     "build:web": "npm run export:web --workspace app",
     "brand": "node scripts/build-brand.ts",
-    "deploy": "npm run build:web && wrangler deploy"
+    "deploy": "npm run build:web && wrangler deploy",
+    "brand:app": "node scripts/build-app-logo.ts"
   }
 }

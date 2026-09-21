@@ -81,9 +81,19 @@ export async function saveInstagram(personId: string, handle: string): Promise<v
   if (!/^[A-Za-z0-9._]{1,30}$/.test(value)) {
     throw new Error("An Instagram handle is letters, numbers, dots and underscores.");
   }
-  const { error } = await db
+  // **Not an upsert**, for the same reason as `people_private` (A2): `person_handles`
+  // grants INSERT on both columns and UPDATE on `instagram` alone, so an
+  // `ON CONFLICT DO UPDATE` that also sets `person_id` is refused outright — before
+  // Postgres knows whether the row exists. Two statements, and the one that runs is
+  // the one the grants allow.
+  const { data: existing } = await db
     .from("person_handles")
-    .upsert({ person_id: personId, instagram: value }, { onConflict: "person_id" });
+    .select("person_id")
+    .eq("person_id", personId)
+    .maybeSingle();
+  const { error } = existing
+    ? await db.from("person_handles").update({ instagram: value }).eq("person_id", personId)
+    : await db.from("person_handles").insert({ person_id: personId, instagram: value });
   if (error) throw error;
 }
 

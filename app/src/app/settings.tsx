@@ -17,7 +17,9 @@ import { useState } from "react";
 import { Platform, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors as palette, fonts, radius, spacing } from "@pind/shared";
+import { Brand } from "@/components/Brand";
 import { Body, Button, Heading, Notice } from "@/components/ui";
+import { oneLine, failed } from "@/lib/errors";
 import { deleteAccount, exportMyData } from "@/lib/profile";
 
 export default function Settings() {
@@ -48,7 +50,7 @@ export default function Settings() {
       }
       setDone("That is everything we hold about you.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "The export did not work.");
+      setError(oneLine(failed("put your data together", err)));
     } finally {
       setBusy(null);
     }
@@ -61,7 +63,7 @@ export default function Settings() {
       await deleteAccount();
       router.replace("/crowds");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That did not work.");
+      setError(oneLine(failed("delete your account", err)));
       setBusy(null);
     }
   };
@@ -69,6 +71,7 @@ export default function Settings() {
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
       <ScrollView contentContainerStyle={styles.body}>
+        <Brand />
         <Heading>Safety &amp; settings</Heading>
 
         {error ? <Notice tone="stop">{error}</Notice> : null}

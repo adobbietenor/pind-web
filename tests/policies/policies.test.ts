@@ -1963,3 +1963,93 @@ describe("Export and delete — A23 (Alex, M3.1)", () => {
     await w.service.auth.admin.deleteUser(authId);
   });
 });
+
+// ---------------------------------------------------------------------------
+// The sequence the app actually performs — P80 (M3.1).
+//
+// **Why this case exists.** Every policy A2 touches had a passing test, and A2 still
+// could not save a profile. The harness proved that a person MAY write their own
+// rows; it never performed the writes IN THE ORDER AND SHAPE the screen performs
+// them, so an `upsert` against a table deliberately granted INSERT on five columns
+// and UPDATE on two went unnoticed — Postgres checks the DO UPDATE clause's
+// privileges statically, so the first insert of a brand-new person was refused for
+// an update branch that would never run.
+//
+// So this is not another policy case. It is the screen's sequence, run as a real
+// signed-in person: the thing `tests/unit/door.test.ts` does for public reads, done
+// for the first-run writes.
+// ---------------------------------------------------------------------------
+
+describe("A person sets themselves up — the app's own sequence (M3.1)", () => {
+  it("P80 sign in, create the person, the private row, a neighbourhood, three tags and a handle — twice, because the second time is the update path", async () => {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signedIn = await client.auth.signInAnonymously({ options: { data: { harness: PREFIX } } });
+    assert.equal(signedIn.error, null, signedIn.error?.message);
+    const authId = signedIn.data.user!.id;
+
+    // --- A2, first run: no rows exist yet.
+    const person = await ok(
+      client.from("people").insert({ auth_user_id: authId, first_name: "Setup" }).select("id").single(),
+      "A2 creates the person",
+    );
+    await ok(
+      client.from("people_private").insert({
+        person_id: person.id,
+        gender: "man",
+        include_in_women_only: false,
+        birth_year: 1995,
+        age_attested_at: new Date().toISOString(),
+      }),
+      "A2 writes the private row",
+    );
+
+    // --- A3.
+    await ok(client.from("people").update({ neighbourhood: "king-west" }).eq("id", person.id), "A3 saves a neighbourhood");
+    await ok(
+      client.from("person_tags").insert(
+        ["new-to-toronto", "not-drinking", "up-for-whatever"].map((tag) => ({ person_id: person.id, tag })),
+      ),
+      "A3 saves three tags",
+    );
+
+    // --- A21.
+    await ok(
+      client.from("person_handles").insert({ person_id: person.id, instagram: handleFor(w.run, "setup") }),
+      "A21 adds a handle",
+    );
+
+    // --- Coming back and changing what CAN be changed. This half is what the upsert
+    // was standing in for, and it has to work through the narrower update grants.
+    await ok(client.from("people").update({ first_name: "Setup2" }).eq("id", person.id), "edit the name");
+    await ok(
+      client.from("people_private").update({ gender: "woman", include_in_women_only: false }).eq("person_id", person.id),
+      "change gender",
+    );
+    await ok(
+      client.from("person_handles").update({ instagram: handleFor(w.run, "setup2") }).eq("person_id", person.id),
+      "change the handle",
+    );
+    await ok(client.from("person_tags").delete().eq("person_id", person.id), "clear the tags");
+    await ok(
+      client.from("person_tags").insert([{ person_id: person.id, tag: "small-and-chatty" }]),
+      "and pick again",
+    );
+
+    // --- And the two things the grants deliberately refuse, so the narrowness that
+    // caused the bug is also the thing being protected.
+    // Refused outright rather than quietly matching no rows: a column with no UPDATE
+    // grant is a privilege error, which is the stronger of the two behaviours and the
+    // one worth pinning down.
+    await denied(client.from("people_private").update({ birth_year: 2010 }).eq("person_id", person.id), "42501");
+    assert.equal(
+      (await serviceRow("people_private", "person_id", person.id, "birth_year")).birth_year,
+      1995,
+      "the birth year moved",
+    );
+    await denied(client.from("people").update({ photo_status: "approved" }).eq("id", person.id), "42501");
+
+    await ok(client.from("person_handles").delete().eq("person_id", person.id), "remove the handle");
+    await w.service.from("people").delete().eq("id", person.id);
+    await w.service.auth.admin.deleteUser(authId);
+  });
+});

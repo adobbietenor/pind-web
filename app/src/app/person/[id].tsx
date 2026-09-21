@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, radius, spacing } from "@pind/shared";
+import { Brand } from "@/components/Brand";
 import { Body, Heading } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
@@ -88,6 +89,7 @@ export default function Person() {
     return (
       <SafeAreaView edges={["top"]} style={styles.root}>
         <ScrollView contentContainerStyle={styles.body}>
+          <Brand />
           <Heading>Not here</Heading>
           <Body muted>
             People are visible only to each other, and only once you have both pinned in and said you would like to meet at the
@@ -101,6 +103,7 @@ export default function Person() {
   return (
     <SafeAreaView edges={["top"]} style={styles.root}>
       <ScrollView contentContainerStyle={styles.body}>
+        <Brand />
         <View style={styles.head}>
           {them.photoUrl ? (
             <Image source={{ uri: them.photoUrl }} style={styles.face} />
