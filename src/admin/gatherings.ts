@@ -632,7 +632,7 @@ async function pinsHtml(request: Request, ctx: Parameters<AdminHandler>[1], id: 
       ctx.db
         .from("pins")
         .select(
-          "id, party_total, open_to_meeting, created_at, person_id, people(first_name, instagram_handle, neighbourhood, photo_status, photo_path, hidden_at)",
+          "id, party_total, open_to_meeting, created_at, person_id, people(first_name, neighbourhood, photo_status, photo_path, hidden_at, person_handles(instagram))",
         )
         .eq("gathering_id", id)
         .order("created_at"),
@@ -642,7 +642,7 @@ async function pinsHtml(request: Request, ctx: Parameters<AdminHandler>[1], id: 
   const rows = pins
     .map((pin: any) => {
       const person = one<any>(pin.people) ?? {};
-      return `<tr><td>${e(person.first_name)}</td><td>${e(person.instagram_handle ?? "")}</td><td>${e(person.neighbourhood ?? "")}</td>
+      return `<tr><td>${e(person.first_name)}</td><td>${e(one<any>(person.person_handles)?.instagram ?? "")}</td><td>${e(person.neighbourhood ?? "")}</td>
 <td>${pin.party_total}</td><td>${pin.open_to_meeting ? "yes" : "no"}</td>
 <td>${person.photo_path ? e(person.photo_status) : "no photo"}</td><td>${person.hidden_at ? `<span class="bad">hidden</span>` : ""}</td>
 <td>${e(new Date(pin.created_at).toISOString().slice(0, 16).replace("T", " "))} UTC</td>
@@ -822,7 +822,7 @@ export const exportCsv: AdminHandler = async (request, ctx) => {
     must(
       db
         .from("pins")
-        .select("party_total, open_to_meeting, created_at, person_id, people(first_name, neighbourhood, photo_path, instagram_handle, hidden_at)")
+        .select("party_total, open_to_meeting, created_at, person_id, people(first_name, neighbourhood, photo_path, hidden_at, person_handles(instagram))")
         .eq("gathering_id", id)
         .order("created_at"),
     ),
@@ -862,7 +862,7 @@ export const exportCsv: AdminHandler = async (request, ctx) => {
         pin.party_total,
         yes(pin.open_to_meeting),
         yes(!!person.photo_path),
-        yes(!!person.instagram_handle),
+        yes(!!one<any>(person.person_handles)),
         yes(!!person.hidden_at),
         s?.met ?? "",
         s?.would_have_gone ?? "",

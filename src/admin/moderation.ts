@@ -1,7 +1,7 @@
 // Photo approval queue, and reports + hidden people (H9, docs/visibility.md V6, V10).
 // Decisions go through admin_* database functions, which write the moderation log.
 import type { AdminHandler } from "./context";
-import { adminPage, back, e, here, must, postButton, str } from "./ui";
+import { adminPage, back, e, here, must, one, postButton, str } from "./ui";
 
 const PHOTOS = "photos";
 const REASONS: Record<string, string> = {
@@ -16,7 +16,7 @@ export const photoQueue: AdminHandler = async (request, ctx) => {
   const people = await must(
     ctx.db
       .from("people")
-      .select("id, first_name, instagram_handle, photo_path, updated_at")
+      .select("id, first_name, photo_path, updated_at, person_handles(instagram)")
       .eq("photo_status", "pending")
       .not("photo_path", "is", null)
       .order("updated_at"),
@@ -35,12 +35,12 @@ export const photoQueue: AdminHandler = async (request, ctx) => {
       const url = signed.get(p.photo_path);
       const fields = { photo_path: p.photo_path };
       return `<tr><td>${url ? `<img class="photo" src="${e(url)}" alt="">` : `<span class="bad">file missing</span>`}</td>
-<td>${e(p.first_name)}<br><span class="muted">${e(p.instagram_handle ?? "")}</span></td>
+<td>${e(p.first_name)}<br><span class="muted">${e(one<any>(p.person_handles)?.instagram ?? "")}</span></td>
 <td>${postButton(`/admin/photos/${p.id}`, "Approve", backTo, { fields: { ...fields, status: "approved" } })}
 ${postButton(`/admin/photos/${p.id}`, "Reject", backTo, { cls: "danger", fields: { ...fields, status: "rejected" } })}</td></tr>`;
     })
     .join("");
-  const body = `<p class="muted">People appear in lists straight away with their name and handle; their photo shows only once approved.
+  const body = `<p class="muted">People appear in lists straight away with their name; their photo shows only once approved.
 A rejected photo stays hidden and the person stays visible without one. Links on this page expire after 60 seconds: reload if images stop loading.</p>
 <table><tr><th>Photo</th><th>Person</th><th></th></tr>${rows || `<tr><td colspan="3">Nothing to review.</td></tr>`}</table>`;
   return adminPage(request, ctx.email, `Photo queue (${people.length})`, body);
@@ -79,7 +79,7 @@ export const reportQueue: AdminHandler = async (request, ctx) => {
     ...reports.flatMap((r: any) => [r.target_person_id, r.reporter_id].filter(Boolean)),
   ]);
   const people = ids.size
-    ? await must(db.from("people").select("id, first_name, instagram_handle, hidden_at").in("id", [...ids]))
+    ? await must(db.from("people").select("id, first_name, hidden_at, person_handles(instagram)").in("id", [...ids]))
     : [];
   const byId = new Map<string, any>(people.map((p: any) => [p.id, p]));
   const pinCounts = new Map<string, number>();
@@ -106,7 +106,7 @@ export const reportQueue: AdminHandler = async (request, ctx) => {
     const actions = p.hidden_at
       ? actionForm(personId, "unhide", "Unhide") + " " + (theirs.length ? actionForm(personId, "keep-hidden", "Keep hidden", "danger") : "")
       : actionForm(personId, "hide", "Hide now", "danger") + " " + actionForm(personId, "dismiss-reports", "Dismiss reports", "plain");
-    return `<tr><td><strong>${e(p.first_name ?? "?")}</strong> <span class="muted">${e(p.instagram_handle ?? "")}</span><br>
+    return `<tr><td><strong>${e(p.first_name ?? "?")}</strong> <span class="muted">${e(one<any>(p.person_handles)?.instagram ?? "")}</span><br>
 ${p.hidden_at ? `<span class="bad">hidden since ${e(p.hidden_at.slice(0, 16).replace("T", " "))} UTC</span>` : "visible"} · pins: ${pinCounts.get(personId) ?? 0}
 <ul>${list || `<li class="muted">No open reports (reviewed earlier).</li>`}</ul></td><td>${actions}</td></tr>`;
   };

@@ -142,7 +142,7 @@ describe("Public data — V2, V11", () => {
       await noAccess(w.anon, t);
     }
     await denied(w.anon.from("pins").insert({ gathering_id: w.G, person_id: id("Ava") }), "42501");
-    await denied(w.anon.from("people").insert({ first_name: "Anon", instagram_handle: handleFor(w.run, "anon") }), "42501");
+    await denied(w.anon.from("people").insert({ first_name: "Anon" }), "42501");
     await denied(w.anon.rpc("women_only_offer", { p_gathering: w.G }));
     await denied(w.anon.rpc("spot_poll", { p_gathering: w.G }));
   });
@@ -206,7 +206,7 @@ describe("Own rows — V1 writes", () => {
     const person = await ok(
       client
         .from("people")
-        .insert({ auth_user_id: authId, first_name: "Newt", instagram_handle: handleFor(w.run, "newt"), photo_path: path })
+        .insert({ auth_user_id: authId, first_name: "Newt", photo_path: path })
         .select("id, photo_status")
         .single(),
       "insert own person",
@@ -219,10 +219,10 @@ describe("Own rows — V1 writes", () => {
 
     // Not for anyone else.
     await denied(
-      client.from("people").insert({ auth_user_id: M("Ava").authId, first_name: "Fake", instagram_handle: handleFor(w.run, "fake") }),
+      client.from("people").insert({ auth_user_id: M("Ava").authId, first_name: "Fake" }),
       "42501",
     );
-    await denied(client.from("people").insert({ auth_user_id: authId, first_name: "Twice", instagram_handle: handleFor(w.run, "twice") }));
+    await denied(client.from("people").insert({ auth_user_id: authId, first_name: "Twice" }));
     await denied(client.from("pins").insert({ gathering_id: w.H, person_id: id("Ava") }), "42501");
     await denied(client.from("people_private").insert({ person_id: id("Hope"), gender: "woman" }), "42501");
     await denied(client.from("contact_points").insert({ person_id: id("Ava"), kind: "sms", value: "+15555550100" }), "42501");
@@ -231,7 +231,7 @@ describe("Own rows — V1 writes", () => {
     await denied(client.from("people").update({ photo_status: "approved" }).eq("id", person.id), "42501");
     await denied(client.from("people").update({ hidden_at: new Date().toISOString() }).eq("id", person.id), "42501");
     await denied(
-      client.from("people").insert({ first_name: "Hid", instagram_handle: handleFor(w.run, "hid"), hidden_at: new Date().toISOString() }),
+      client.from("people").insert({ first_name: "Hid", hidden_at: new Date().toISOString() }),
       "42501",
     );
     // A photo path outside their own folder.
@@ -273,13 +273,15 @@ describe("Own rows — V1 writes", () => {
 });
 
 describe("Reciprocal reveal — V1", () => {
-  it("P11 Ava CAN see Ben's name, neighbourhood, handle and pin at G / Cal (not opted in) CANNOT see Ava or Ben", async () => {
+  it("P11 Ava CAN see Ben's name, neighbourhood and pin at G — but NOT his handle (V17) / Cal (not opted in) CANNOT see Ava or Ben", async () => {
     const ava = c(M("Ava"));
-    const ben = await rows(ava.from("people").select("first_name, neighbourhood, instagram_handle").eq("id", id("Ben")));
+    const ben = await rows(ava.from("people").select("first_name, neighbourhood").eq("id", id("Ben")));
     assert.equal(ben.length, 1);
     assert.equal(ben[0].first_name, "Ben");
     assert.equal(ben[0].neighbourhood, "king-west");
-    assert.equal(ben[0].instagram_handle, handleFor(w.run, "Ben"));
+    // Until M3.1 the handle was a column on this row and came back with it. The open
+    // list is not enough for a handle (V17); P67 is the case that proves it.
+    assert.equal(await rows(ava.from("person_handles").select("instagram").eq("person_id", id("Ben"))).then((r) => r.length), 0);
     assert.equal(await seesPins(ava, "Ben", w.G), 1);
 
     const cal = c(M("Cal"));
@@ -413,11 +415,12 @@ describe("Photos — V6", () => {
     await canSign(c(M("Eve")), M("Eve").photoPath);
   });
 
-  it("P24 Ava CANNOT get Rex's rejected photo / CAN still see Rex with his handle", async () => {
+  it("P24 Ava CANNOT get Rex's rejected photo / CAN still see Rex himself, without a photo and without a handle", async () => {
     await cannotSign(c(M("Ava")), M("Rex").photoPath);
-    const rex = await rows(c(M("Ava")).from("people").select("instagram_handle").eq("id", id("Rex")));
-    assert.equal(rex.length, 1);
-    assert.equal(rex[0].instagram_handle, handleFor(w.run, "Rex"));
+    const rex = await rows(c(M("Ava")).from("people").select("first_name, photo_status").eq("id", id("Rex")));
+    assert.equal(rex.length, 1, "a rejected photo must never hide the person (V6)");
+    assert.equal(rex[0].photo_status, "rejected");
+    assert.equal(await rows(c(M("Ava")).from("person_handles").select("instagram").eq("person_id", id("Rex"))).then((r) => r.length), 0);
   });
 
   it("P25 guessing the URL: Cal and anon CANNOT get Ava's photo by its exact path / the public URL returns nothing", async () => {
@@ -1143,7 +1146,6 @@ describe("Seed rows never reach the public — V18 (Alex, M2.1)", () => {
           .insert({
             auth_user_id: signIn.data.user!.id,
             first_name: "Seeda",
-            instagram_handle: handleFor(w.run, "seeda"),
             neighbourhood: "king-west",
             is_seed: true,
           })
@@ -1151,6 +1153,8 @@ describe("Seed rows never reach the public — V18 (Alex, M2.1)", () => {
           .single(),
       )
     ).id;
+    // The handle is also this person's sweep tag (V17 moved both).
+    await ok(w.service.from("person_handles").insert({ person_id: seedPerson, instagram: handleFor(w.run, "seeda") }));
     await ok(w.service.from("people_private").insert({ person_id: seedPerson, gender: "woman", birth_year: 1995 }));
   });
 
@@ -1595,5 +1599,129 @@ describe("The public door's shape — the keys its readers need", () => {
     await denied(w.anon.rpc("chip_category", { p_classification: "Music / Rock" }), "42501");
     await denied(w.anon.rpc("admin_categorise_gatherings"), "42501");
     await denied(c(w.m.Dev).rpc("admin_categorise_gatherings"), "42501");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// V17 — the Instagram handle (Alex, M3.1). Two branches: a crewmate, or a
+// connection. A solo-plan partner is a crewmate (`kind = 'solo'`, M3.4), so it
+// needs no branch of its own; M3.4 adds the column and the case that proves it.
+//
+// Crews and connections have no screens yet (M3.3, M3.4), so these rows are made
+// with the service key. That is honest for this rule: V17 asks who shares a crew
+// and who is connected, and never whether anybody is pinned.
+// ---------------------------------------------------------------------------
+
+describe("Instagram handles — V17 (Alex, M3.1)", () => {
+  const handleSeen = async (viewer: SupabaseClient, target: string): Promise<string | null> => {
+    const r = await rows(viewer.from("person_handles").select("instagram").eq("person_id", id(target)));
+    return r.length === 0 ? null : r[0].instagram;
+  };
+
+  // A crew at `gathering` with these people in it. Returns the crew id.
+  const crewOf = async (gathering: string, names: string[]): Promise<string> => {
+    const crew = await ok(
+      w.service.from("crews").insert({ gathering_id: gathering }).select("id").single(),
+      "make a crew",
+    );
+    for (const name of names) {
+      await ok(
+        w.service.from("crew_members").insert({ crew_id: crew.id, gathering_id: gathering, person_id: id(name) }),
+        `put ${name} in the crew`,
+      );
+    }
+    return crew.id;
+  };
+
+  it("P67 the open list is NOT enough: Ava CAN see Ben at G but CANNOT read his handle / each CAN read and edit their own / anon has no access at all", async () => {
+    const ava = c(M("Ava"));
+    const ben = c(M("Ben"));
+    assert.equal(await seesPeople(ava, "Ben"), 1, "Ava can see Ben — this case is only meaningful if she can");
+
+    assert.equal(await handleSeen(ava, "Ben"), null, "the open list leaked a handle");
+    assert.equal(await handleSeen(ben, "Ava"), null, "the open list leaked a handle");
+
+    // Their own, always — read and write.
+    assert.equal(await handleSeen(ava, "Ava"), handleFor(w.run, "Ava"));
+    await ok(ava.from("person_handles").update({ instagram: handleFor(w.run, "Ava") }).eq("person_id", id("Ava")), "edit own");
+    // Never anyone else's. An update or delete the policy refuses matches no row
+    // rather than raising, so the proof is that nothing changed.
+    const edited = await rows(ava.from("person_handles").update({ instagram: "stolen" }).eq("person_id", id("Ben")).select("person_id"));
+    assert.equal(edited.length, 0, "Ava edited Ben's handle");
+    const removed = await rows(ava.from("person_handles").delete().eq("person_id", id("Ben")).select("person_id"));
+    assert.equal(removed.length, 0, "Ava deleted Ben's handle");
+    await denied(ava.from("person_handles").insert({ person_id: id("Cal"), instagram: "planted" }), "42501");
+    assert.equal(
+      (await serviceRow("person_handles", "person_id", id("Ben"), "instagram")).instagram,
+      handleFor(w.run, "Ben"),
+      "Ben's handle was changed by someone else",
+    );
+
+    await noAccess(w.anon, "person_handles");
+  });
+
+  it("P68 a crewmate CAN read it / leaving the crew ends it", async () => {
+    const ava = c(M("Ava"));
+    const ben = c(M("Ben"));
+    const crew = await crewOf(w.G, ["Ava", "Ben"]);
+
+    assert.equal(await handleSeen(ava, "Ben"), handleFor(w.run, "Ben"));
+    assert.equal(await handleSeen(ben, "Ava"), handleFor(w.run, "Ava"));
+
+    // Leaving is what ends it — not the crew's state (Alex, M3.1: a crew is a crew
+    // whatever its state, forming through dissolved).
+    await ok(
+      w.service.from("crew_members").update({ left_at: new Date().toISOString() }).eq("crew_id", crew).eq("person_id", id("Ben")),
+      "Ben leaves",
+    );
+    assert.equal(await handleSeen(ava, "Ben"), null, "a departed crewmate's handle stayed readable");
+    assert.equal(await handleSeen(ben, "Ava"), null, "someone who left kept reading handles");
+
+    // A dissolved crew still counts (Alex, M3.1): Ben is back in, the crew dissolves,
+    // and the handle is still there. The state never decides this; leaving does.
+    await ok(
+      w.service.from("crew_members").update({ left_at: null }).eq("crew_id", crew).eq("person_id", id("Ben")),
+      "Ben rejoins",
+    );
+    await ok(
+      w.service.from("crews").update({ state: "dissolved", dissolved_at: new Date().toISOString() }).eq("id", crew),
+      "dissolve it",
+    );
+    assert.equal(await handleSeen(ava, "Ben"), handleFor(w.run, "Ben"), "a dissolved crew should still count");
+  });
+
+  it("P69 a connection CAN read it even with no gathering in common / it does not make them visible under V1", async () => {
+    const ava = c(M("Ava"));
+    const cal = c(M("Cal"));
+    // Cal is pinned at G but not opted in, so V1 denies both of them, in both
+    // directions (P12). The connection branch is independent of V1 by design.
+    assert.equal(await seesPeople(ava, "Cal"), 0);
+    assert.equal(await seesPeople(cal, "Ava"), 0);
+
+    const pair = [id("Ava"), id("Cal")].sort();
+    await ok(w.service.from("connections").insert({ person_a: pair[0], person_b: pair[1] }), "connect them");
+
+    assert.equal(await handleSeen(ava, "Cal"), handleFor(w.run, "Cal"));
+    assert.equal(await handleSeen(cal, "Ava"), handleFor(w.run, "Ava"));
+    // And nothing else moved: they still cannot see each other's rows.
+    assert.equal(await seesPeople(ava, "Cal"), 0, "the connection branch changed V1");
+    assert.equal(await seesPeople(cal, "Ava"), 0, "the connection branch changed V1");
+  });
+
+  it("P70 a pending join request is not a crewmate / a block and a moderation hide both override the crew branch", async () => {
+    const crew = await crewOf(w.G, ["Dee"]);
+    await ok(w.service.from("crew_join_requests").insert({ crew_id: crew, person_id: id("Hana") }), "Hana asks to join");
+    assert.equal(await handleSeen(c(M("Hana")), "Dee"), null, "a pending requester read a member's handle");
+    assert.equal(await handleSeen(c(M("Dee")), "Hana"), null, "a member read a pending requester's handle");
+
+    // Gus blocked Hal in P14. Being in a crew together does not undo a block (V4).
+    await crewOf(w.H, ["Gus", "Hal"]);
+    assert.equal(await handleSeen(c(M("Gus")), "Hal"), null, "a block did not stop a handle");
+    assert.equal(await handleSeen(c(M("Hal")), "Gus"), null, "a block did not stop a handle");
+
+    // Ivy1 is hidden by moderation (P45). Hidden works in both directions.
+    await crewOf(w.C4, ["Ava", "Ivy1"]);
+    assert.equal(await handleSeen(c(M("Ava")), "Ivy1"), null, "a hidden person's handle was readable");
+    assert.equal(await handleSeen(c(M("Ivy1")), "Ava"), null, "a hidden person read a handle");
   });
 });

@@ -2066,3 +2066,33 @@ occurrences to 31 December**, three and a half months out.
   - **Revisit when there are real pins.** Today every gathering has zero, so the page
     would be an empty list ordered by nothing — and it would be the first page in the
     product whose emptiness is a statement about the product rather than about the week.
+
+### Decided in Phase 3 M3.1
+
+- **V17: a crew is a crew whatever its state** (Alex, M3.1). Forming, spot set, live,
+  done and dissolved all let crewmates read each other's Instagram handle. **Leaving
+  is what ends it** (`crew_members.left_at`), not the crew's state. The alternative —
+  a crew that met keeps it, a crew that dissolved does not — was considered and
+  rejected: "the rule gets harder to state and harder for the M4.2 reviewer to audit,
+  for a case that's rare. And a dissolved crew still had people in a thread together,
+  which isn't nothing. If a real problem shows up, split it then with evidence."
+- **V17 has two branches, not three** (Alex, M3.1, accepting the recommendation). The
+  spec names crewmates, a solo-plan partner and connections, but a solo plan **is** a
+  crew (`kind = 'solo'`, M3.4), so the solo partner falls out of the crew branch and
+  needs no rule of its own. M3.4 adds the column and the harness case that proves it.
+- **A pending join request is not a crewmate** (Alex, M3.1). The handle appears only
+  once a member has approved you.
+- **A photo that fails its check is a fourth state, and it is recorded** (Alex, M3.1).
+  A check that errored, timed out or never ran is **not** "needs a human" and **not**
+  "waiting": it leaves `photo_status` at `pending` and writes a failure row to
+  `photo_checks`, and the admin counts *waiting for a human*, *never successfully
+  checked* and *check failing* separately. Leaving it at pending with no record is the
+  M2.3 map bug exactly — unset is a different state from broken. The check's spend
+  joins `admin_ai_spend_today` in the same migration that creates the table, so the
+  $3/day cap can see it from the first call.
+- **A deleted person's messages stay in the thread** (Alex, M3.1), rendered as "someone
+  who left". "Removing a departed member's lines rewrites a conversation other people
+  are still reading."
+- **Export includes the reports you filed** (Alex, M3.1) — your reason and the date,
+  never the moderation outcome, "which isn't mine". The export is read **as you**
+  through RLS, never with the service key, so it cannot over-return.

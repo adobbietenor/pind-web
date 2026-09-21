@@ -2,7 +2,8 @@
 // swept away afterwards. Every row the harness creates is tagged so a sweep can find
 // it again, even after a crashed run:
 //   - auth users:   email "pindhx-…@example.com", or (anonymous) user_metadata.harness = "pindhx"
-//   - people:       instagram_handle "pindhx_…"
+//   - people:       their person_handles.instagram is "pindhx_…" (V17 moved the
+//                   handle off the people row in M3.1; the tag moved with it)
 //   - gatherings, venues: name "pindhx …"
 //   - venue maps:   venue-maps/<harness venue id>/…
 //   - moderation log rows: actor "pindhx@example.com"
@@ -104,10 +105,10 @@ export async function sweep(service: SupabaseClient): Promise<void> {
 
   const personIds = new Set<string>();
   const tagged = await must(
-    service.from("people").select("id, instagram_handle").like("instagram_handle", `${PREFIX}%`),
+    service.from("person_handles").select("person_id, instagram").like("instagram", `${PREFIX}%`),
     "sweep: find people",
   );
-  for (const p of tagged) if (p.instagram_handle.startsWith(`${PREFIX}_`)) personIds.add(p.id);
+  for (const p of tagged) if (p.instagram.startsWith(`${PREFIX}_`)) personIds.add(p.person_id);
   if (authIds.length) {
     const linked = await must(service.from("people").select("id").in("auth_user_id", authIds), "sweep: linked people");
     for (const p of linked) personIds.add(p.id);
@@ -130,6 +131,11 @@ export async function sweep(service: SupabaseClient): Promise<void> {
       service.from("moderation_log").delete().in("gathering_id", gatheringIds.slice(i, i + 100)),
       "sweep: gathering log",
     );
+  }
+  // Crews hold their gathering with `on delete restrict`, so they go before it.
+  // Members, join requests, proposals and messages cascade with the crew.
+  for (let i = 0; i < gatheringIds.length; i += 100) {
+    await must(service.from("crews").delete().in("gathering_id", gatheringIds.slice(i, i + 100)), "sweep: crews");
   }
   // Cascades to pins, spot options, votes, survey responses, group links, sources,
   // AI scores, flags and withdrawals.
@@ -222,7 +228,6 @@ async function person(
       .insert({
         auth_user_id: authId,
         first_name: name,
-        instagram_handle: handleFor(w.run, name),
         neighbourhood: "king-west",
         photo_path: photoPath,
         photo_status: spec.photo ?? "pending",
@@ -231,6 +236,12 @@ async function person(
       .select("id")
       .single(),
     `insert person ${name}`,
+  );
+  // V17: the handle lives in its own table now. It is also how the sweep finds this
+  // person again, so it is written for every member of the cast.
+  await must(
+    w.service.from("person_handles").insert({ person_id: row.id, instagram: handleFor(w.run, name) }),
+    `insert handle for ${name}`,
   );
   await must(
     w.service.from("people_private").insert({
