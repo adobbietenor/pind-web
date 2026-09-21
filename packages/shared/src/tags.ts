@@ -1,82 +1,86 @@
-// The tag list (Alex, M3.1 — final; seeded by
-// `20260921…_m3_1_seed_tags`). It replaces the M2.0 draft, which was twenty tags in
-// four groups and skewed hard to an arena: four of them (post-game pints, loud in the
-// 300s, away-game bars, season splitter) meant nothing anywhere but a ticketed game,
-// and the community third of the product — run clubs, games nights, markets, library
-// circles — had one slug between it, filed under a group called "How you do a night"
-// that assumed an evening.
+// The tag list (Alex, after walking A3 in M3.1 — this replaces the fifteen seeded
+// earlier the same day, reseeded by `20260921130537_m3_1_tags_v2`).
 //
 // **Tags are conversation handles, not match criteria** (spec A3). There is no
-// matching anywhere in Pin'd. A person picks exactly 3 (`TAGS_PER_PROFILE`), once,
-// and those 3 travel with them to every gathering they pin — which is why nothing
-// here is arena-shaped.
+// matching anywhere in Pin'd.
 //
-// **Three rules the list was cut against:**
+// **Why it changed.** The fifteen skewed toward newcomers — new here, first time at
+// this, usually go alone — and the product is as much for somebody who has lived here
+// ten years and wants a good night out. This list **weights personality over
+// circumstance**, and puts the locals and the newcomers side by side in one small
+// group rather than making arrival the main thing a profile says.
 //
-//  1. **The vibe chips own the night; the tags own the person** (Alex, M3.1). Anything
-//     about when you arrive, how long you stay or what you drink belongs to the crew
-//     (spec §3, "Crew vibe"), not to the person. The draft collided with those nine
-//     chips in seven places, two of them word for word, and they render inches apart
-//     on A10. "Always slightly late" survives the rule because early is a plan a crew
-//     can make and late is a confession only a person can make.
-//  2. **A tag that names the gathering it is read at is dead.** Tags are only ever
-//     read inside one gathering (A22 opens from that gathering's people list), so
-//     "sport" at a hockey game is true of nineteen thousand people. Taste survives
-//     only as a handle — "here for the support act" — never as a category, which is
-//     also what keeps these from being mistaken for W1's filter chips.
-//  3. **Nothing everybody would tick.** "Here to meet people" was cut because every
-//     person whose profile can be read has `open_to_meeting = true` — V1 requires it
-//     of both parties — so it was true of 100% of the people who could ever see it.
-//     "Easy company" was cut as unfalsifiable: nobody's self-assessment says
-//     otherwise.
+// `not-drinking` and `enjoys-a-drink` are a deliberate pair, like the opposites
+// elsewhere: both tell somebody something useful before they meet, and a list with
+// only the first one makes drinking the default and abstaining the declaration.
 //
-// **Why fifteen and not twenty** (Alex, M3.1): `person_tags.tag` references
-// `tags.slug` with `on delete restrict`, so **adding a tag later is an insert and
-// removing one anybody has picked is a data migration.** The two directions are not
-// symmetric, so the safe error is short.
+// **The rules, and where each one lives:**
 //
-// **`not-drinking` is the load-bearing tag** — the only one that changes what a crew
-// does (where it meets) rather than describing someone. Worth knowing when this list
-// is next revisited.
+//   at least three   the A3 screen, and **never the database** — the link path pins
+//                    with no tags at all, so a minimum in the database would make a
+//                    pin impossible.
+//   up to ten        the database (`person_tags_within_caps`), because a screen's
+//                    rule is one a session token walks around.
+//   three on a list  the person chooses which (`person_tags.on_list`). Not a
+//                    visibility rule: every tag is readable by anyone V19 allows, and
+//                    the profile behind the list shows all of them.
 //
-// The slug is the contract and is one-way after the seed. The `name` is copy and can
-// be changed here in an ordinary commit forever; the seed writes it to the table only
-// so the table stays self-describing. The groups are display only — `public.tags` has
-// no group column.
+// The maximum is not advertised, but an eleventh tap says so — a control that
+// silently ignores you looks broken.
+//
+// The slug is the contract and is one-way once anybody has picked it; the `name` is
+// copy and can change here in an ordinary commit forever.
 export const TAGS = [
-  {
-    group: "New here",
-    tags: [
-      { slug: "new-to-toronto", name: "new to Toronto" },
-      { slug: "usually-go-alone", name: "usually go alone" },
-      { slug: "first-time-at-this", name: "first time at this sort of thing" },
-    ],
-  },
   {
     group: "Company",
     tags: [
-      { slug: "small-and-chatty", name: "small and chatty" },
+      { slug: "chatty", name: "chatty" },
+      { slug: "will-talk-to-anyone", name: "will talk to anyone" },
+      { slug: "good-listener", name: "good listener" },
       { slug: "dont-mind-the-quiet", name: "don't mind the quiet" },
+      { slug: "takes-a-minute-to-warm-up", name: "takes a minute to warm up" },
       { slug: "happy-to-explain", name: "happy to explain things" },
-      { slug: "not-drinking", name: "not drinking" },
+      { slug: "the-hype-person", name: "the hype person" },
+      { slug: "will-introduce-you-to-everyone", name: "will introduce you to everyone" },
+      { slug: "knows-all-the-good-spots", name: "knows all the good spots" },
+      { slug: "always-looking-for-new-friends", name: "always looking for new friends" },
     ],
   },
   {
     group: "What I'm like",
     tags: [
-      { slug: "always-slightly-late", name: "always slightly late" },
-      { slug: "will-talk-to-anyone", name: "will talk to anyone" },
       { slug: "up-for-whatever", name: "up for whatever" },
+      { slug: "will-try-anything-once", name: "will try anything once" },
+      { slug: "first-on-the-dance-floor", name: "first on the dance floor" },
+      { slug: "loud-in-the-best-way", name: "loud in the best way" },
+      { slug: "competitive-about-everything", name: "competitive about everything" },
+      { slug: "overthinks-the-plan", name: "overthinks the plan" },
+      { slug: "always-slightly-late", name: "always slightly late" },
+      { slug: "terrible-with-names", name: "terrible with names" },
+      { slug: "asks-too-many-questions", name: "asks too many questions" },
+      { slug: "will-make-friends-with-the-bouncer", name: "will make friends with the bouncer" },
     ],
   },
   {
-    group: "Bring me into",
+    group: "Interests",
     tags: [
+      { slug: "live-music", name: "live music" },
+      { slug: "club-nights", name: "club nights" },
       { slug: "sport-of-any-kind", name: "sport of any kind" },
       { slug: "games-and-puzzles", name: "games and puzzles" },
       { slug: "anything-outdoors", name: "anything outdoors" },
+      { slug: "comedy", name: "comedy" },
       { slug: "here-for-the-support-act", name: "here for the support act" },
-      { slug: "will-try-what-im-bad-at", name: "will try the thing I'm bad at" },
+    ],
+  },
+  {
+    group: "Good to know",
+    tags: [
+      { slug: "not-drinking", name: "not drinking" },
+      { slug: "enjoys-a-drink", name: "enjoys a drink" },
+      { slug: "toronto-born-and-raised", name: "Toronto born and raised" },
+      { slug: "new-to-toronto", name: "new to Toronto" },
+      { slug: "usually-go-alone", name: "usually go alone" },
     ],
   },
 ] as const;
@@ -85,3 +89,15 @@ export type TagSlug = (typeof TAGS)[number]["tags"][number]["slug"];
 
 // Flat, in the order they are seeded and the order A3 shows them.
 export const ALL_TAGS = TAGS.flatMap((g) => g.tags.map((t) => ({ ...t, group: g.group })));
+
+// What the screen asks for, and what the database allows. They are different numbers
+// on purpose: see the header.
+export const TAGS_MINIMUM = 3;
+export const TAGS_MAXIMUM = 10;
+// How many show on the "going & open to meeting" row, chosen by the person.
+export const TAGS_ON_LIST = 3;
+
+// Said only when somebody reaches for an eleventh. The maximum is not advertised —
+// but a tap that does nothing looks broken, which is the fault the code field had.
+export const TAGS_AT_MAXIMUM = `That's ${TAGS_MAXIMUM}, which is as many as a profile carries. Take one off to add another.`;
+export const TAGS_LIST_FULL = `Three is what fits on the list. Take one off to feature a different one — the rest still show on your profile.`;

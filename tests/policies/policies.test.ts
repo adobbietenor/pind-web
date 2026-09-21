@@ -1869,16 +1869,32 @@ describe("Tags — V19 (Alex, M3.1)", () => {
     assert.equal((await tagsSeen(c(M("Ivy1")), "Ivy1")).length, 1);
   });
 
-  it("P77 a person writes only their own, at most three, and the cap is the database's not the screen's", async () => {
+  it("P77 a person writes only their own, at most TEN, three of them on the list, and both caps are the database's not the screen's", async () => {
     const ava = c(M("Ava"));
-    await ok(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "new-to-toronto" }), "own tag");
-    await ok(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "small-and-chatty" }), "own tag");
-    await ok(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "always-slightly-late" }), "own tag");
-    // The fourth is refused by the database, not by a form.
+    // Ten is the cap (Alex, after the A3 walk; it was three until the list grew to
+    // 32). "At least three" stays a rule on the screen, because the link path pins
+    // with none and a database minimum would make a pin impossible.
+    const ten = [
+      "chatty", "will-talk-to-anyone", "good-listener", "dont-mind-the-quiet", "takes-a-minute-to-warm-up",
+      "happy-to-explain", "the-hype-person", "knows-all-the-good-spots", "up-for-whatever", "always-slightly-late",
+    ];
+    for (const tag of ten) {
+      await ok(ava.from("person_tags").insert({ person_id: id("Ava"), tag }), `pick ${tag}`);
+    }
+    // The ELEVENTH is refused by the database, not by a form. P77 asserted a fourth
+    // until the rules changed; inverted rather than deleted, so the cap moving is
+    // visible in the history.
     await denied(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "not-drinking" }));
     // Removing one makes room again: this is a cap, not a quota spent once.
-    await ok(ava.from("person_tags").delete().eq("person_id", id("Ava")).eq("tag", "new-to-toronto"), "remove one");
+    await ok(ava.from("person_tags").delete().eq("person_id", id("Ava")).eq("tag", "chatty"), "remove one");
     await ok(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "not-drinking" }), "and add another");
+
+    // Three of them show on the list, and that cap is the database's too. It is not
+    // a visibility rule: every tag is readable by anyone V19 allows either way.
+    for (const tag of ten.slice(1, 4)) {
+      await ok(ava.from("person_tags").update({ on_list: true }).eq("person_id", id("Ava")).eq("tag", tag), `feature ${tag}`);
+    }
+    await denied(ava.from("person_tags").update({ on_list: true }).eq("person_id", id("Ava")).eq("tag", "not-drinking"));
 
     // Never anyone else's, in either verb.
     await denied(ava.from("person_tags").insert({ person_id: id("Ben"), tag: "up-for-whatever" }), "42501");
@@ -2031,7 +2047,7 @@ describe("A person sets themselves up — the app's own sequence (M3.1)", () => 
     );
     await ok(client.from("person_tags").delete().eq("person_id", person.id), "clear the tags");
     await ok(
-      client.from("person_tags").insert([{ person_id: person.id, tag: "small-and-chatty" }]),
+      client.from("person_tags").insert([{ person_id: person.id, tag: "chatty" }]),
       "and pick again",
     );
 

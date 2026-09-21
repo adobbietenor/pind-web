@@ -7,7 +7,7 @@ import { categoryLabel, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, T
 import type { Env } from "../env";
 import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
 import { markSvg } from "./brand";
-import { crowd, crowds, type Counts, type Crowd, type Crowd2, type Spot } from "./data";
+import { city, crowd, crowds, type Counts, type Crowd, type Crowd2, type Spot } from "./data";
 import { DOT, escape, header, notice, page } from "./layout";
 import {
   addDays,
@@ -132,6 +132,10 @@ const READ_WEEKS = 2;
 // browser in under a second (CLAUDE.md, "Keep the Worker lean").
 export async function w1(request: Request, env: Env, tab: TabValue): Promise<Response> {
   const url = new URL(request.url);
+  // The label above the list, from the `cities` row (M3.1). W1 serves both tabs, so
+  // Events and Community get it together; a crowd page does not, because it is
+  // already about one place.
+  const place = await city(env);
   const now = new Date();
   const win = windowFor(now, DEFAULT_TZ, url.searchParams.get("from"));
 
@@ -175,7 +179,7 @@ export async function w1(request: Request, env: Env, tab: TabValue): Promise<Res
     : emptyWeek(tab, other, otherCount, win);
 
   return page(
-    `${header()}
+    `${header(place)}
 <h1>${escape(tab === "community" ? "Community this week" : "This week’s crowds")}</h1>
 <p class="lede">${escape(ONE_LINER)}</p>
 ${tabs(tab, win)}

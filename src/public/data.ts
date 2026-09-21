@@ -165,3 +165,27 @@ export async function crowd(env: Env, slug: string): Promise<Door> {
   if (error) throw new Error(`public_gathering: ${error.message}`);
   return (data ?? { status: "gone" }) as Door;
 }
+
+// Which city this is, for the label W1 wears (M3.1). Read **through the anon key like
+// everything else on these pages**, so a visitor's own privileges decide it and there
+// is no second opinion about what is public (the door rule).
+//
+// It is on the `cities` row rather than in the page for the reason the search radius
+// and the timezone are: **another city is a row, not a rebuild** (decisions Part 5).
+export interface City {
+  name: string;
+  country: string;
+  countryCode: string;
+}
+
+export async function city(env: Env, slug = "toronto"): Promise<City | null> {
+  const { data, error } = await anonClient(env)
+    .from("cities")
+    .select("name, country, country_code")
+    .eq("slug", slug)
+    .maybeSingle();
+  // A label is not worth failing a page for: no city means no label, and the list
+  // underneath it is the thing somebody came for.
+  if (error || !data) return null;
+  return { name: data.name, country: data.country, countryCode: data.country_code };
+}

@@ -58,7 +58,7 @@ export default function SignIn() {
   return (
     <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
       <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Brand height={26} />
+        <Brand />
         <Heading>{ONE_LINER}</Heading>
         <View style={styles.positioning}>
           {A1_POSITIONING.map((line) => (

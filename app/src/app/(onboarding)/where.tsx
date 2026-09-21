@@ -21,21 +21,21 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors as palette, fonts, NEIGHBOURHOODS, radius, spacing, TAGS, TAGS_PER_PROFILE } from "@pind/shared";
+import { colors as palette, fonts, NEIGHBOURHOODS, radius, spacing, TAGS_MINIMUM } from "@pind/shared";
 import { Brand } from "@/components/Brand";
+import { TagPicker, enoughPicked, type Picked } from "@/components/TagPicker";
 import { Body, Button, Heading, Notice } from "@/components/ui";
+import { oneLine, failed } from "@/lib/errors";
+import { saveTags } from "@/lib/tags";
 import { supabase } from "@/lib/supabase";
 
 export default function Where() {
   const router = useRouter();
   const [hood, setHood] = useState<string | null>(null);
-  const [picked, setPicked] = useState<string[]>([]);
+  const [picked, setPicked] = useState<Picked[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-
-  const full = picked.length >= TAGS_PER_PROFILE;
-  const toggle = (slug: string) =>
-    setPicked((was) => (was.includes(slug) ? was.filter((s) => s !== slug) : was.length >= TAGS_PER_PROFILE ? was : [...was, slug]));
+  const [note, setNote] = useState("");
 
   const finish = async (save: boolean) => {
     setBusy(true);
@@ -50,19 +50,11 @@ export default function Where() {
           const { error: saveError } = await db.from("people").update({ neighbourhood: hood }).eq("id", me.id);
           if (saveError) throw saveError;
         }
-        if (picked.length) {
-          // Replace rather than merge: this screen is the whole answer, and the
-          // database refuses a fourth row anyway.
-          await db.from("person_tags").delete().eq("person_id", me.id);
-          const { error: tagError } = await db
-            .from("person_tags")
-            .insert(picked.map((tag) => ({ person_id: me.id, tag })));
-          if (tagError) throw tagError;
-        }
+        if (picked.length) await saveTags(me.id, picked);
       }
       router.replace("/crowds");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "That did not save. Try again.");
+      setError(oneLine(failed("save that", err)));
     } finally {
       setBusy(false);
     }
@@ -97,42 +89,26 @@ export default function Where() {
         </View>
 
         <View style={{ marginTop: spacing.xl }}>
-          <Heading>Three things to say</Heading>
+          <Heading>A few things to say</Heading>
         </View>
         <View style={{ marginBottom: spacing.md }}>
           <Body muted>
-            They are conversation starters, not a filter — nothing here sorts anyone. Pick {TAGS_PER_PROFILE}.
+            Conversation starters, not a filter — nothing here sorts anyone. Pick at least {TAGS_MINIMUM}.
           </Body>
         </View>
-        {TAGS.map((group) => (
-          <View key={group.group} style={{ marginBottom: spacing.md }}>
-            <Text style={styles.groupName}>{group.group}</Text>
-            <View style={styles.hoods}>
-              {group.tags.map((t) => {
-                const on = picked.includes(t.slug);
-                return (
-                  <Pressable
-                    key={t.slug}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: on, disabled: !on && full }}
-                    onPress={() => toggle(t.slug)}
-                    style={[styles.hood, on && styles.hoodOn, !on && full && { opacity: 0.4 }]}
-                  >
-                    <Text style={[styles.hoodLabel, on && { color: palette.onAccent }]}>{t.name}</Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-        ))}
-        <View style={{ marginTop: spacing.sm }}>
-          <Body muted>
-            {picked.length} of {TAGS_PER_PROFILE} picked{full ? " — that is a complete profile." : ""}
-          </Body>
-        </View>
+        {note ? <Notice>{note}</Notice> : null}
+        <TagPicker picked={picked} onChange={setPicked} onSay={setNote} />
 
         <View style={{ marginTop: spacing.lg }}>
-          <Button label="Continue" busy={busy} disabled={!hood && !picked.length} onPress={() => finish(true)} />
+          <Button
+            label="Continue"
+            busy={busy}
+            // Tags are never a gate before a pin, so Continue works with none at
+            // all — but if somebody has started picking, the screen asks for the
+            // three it said it wanted rather than saving one and moving on.
+            disabled={picked.length > 0 && !enoughPicked(picked)}
+            onPress={() => finish(true)}
+          />
         </View>
         <View style={{ marginTop: spacing.sm }}>
           <Button kind="quiet" label="Skip for now" onPress={() => finish(false)} />

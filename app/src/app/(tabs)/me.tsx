@@ -134,10 +134,13 @@ export default function Profile() {
             ))}
           </View>
         ) : (
-          <View style={{ marginBottom: spacing.md }}>
-            <Body muted>No tags yet — three of them give a crew something to start with.</Body>
+          <View style={{ marginBottom: spacing.sm }}>
+            <Body muted>No tags yet — a few of them give a crew something to start with.</Body>
           </View>
         )}
+        <View style={{ marginBottom: spacing.lg }}>
+          <Button kind="quiet" label={me.tags.length ? "Edit tags" : "Pick tags"} onPress={() => router.push("/tags")} />
+        </View>
 
         <View style={styles.counts}>
           <View style={styles.count}>

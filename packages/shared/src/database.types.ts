@@ -58,6 +58,8 @@ export type Database = {
           community_slots_weekly: number
           community_weeks: number
           core_radius_km: number | null
+          country: string
+          country_code: string
           distance_penalty_max: number | null
           distance_penalty_per_km: number | null
           grow_median_pins: number
@@ -91,6 +93,8 @@ export type Database = {
           community_slots_weekly?: number
           community_weeks?: number
           core_radius_km?: number | null
+          country?: string
+          country_code?: string
           distance_penalty_max?: number | null
           distance_penalty_per_km?: number | null
           grow_median_pins?: number
@@ -124,6 +128,8 @@ export type Database = {
           community_slots_weekly?: number
           community_weeks?: number
           core_radius_km?: number | null
+          country?: string
+          country_code?: string
           distance_penalty_max?: number | null
           distance_penalty_per_km?: number | null
           grow_median_pins?: number
@@ -1531,14 +1537,17 @@ export type Database = {
       }
       person_tags: {
         Row: {
+          on_list: boolean
           person_id: string
           tag: string
         }
         Insert: {
+          on_list?: boolean
           person_id: string
           tag: string
         }
         Update: {
+          on_list?: boolean
           person_id?: string
           tag?: string
         }
@@ -2356,6 +2365,20 @@ export type Database = {
           check_failing: number
           never_checked: number
           waiting_for_human: number
+        }[]
+      }
+      admin_photo_webhook_health: {
+        Args: never
+        Returns: {
+          last_at: string
+          last_body: string
+          last_error: string
+          last_status: number
+          secret_fingerprint: string
+          secret_padded: boolean
+          secret_set: boolean
+          url: string
+          waiting: number
         }[]
       }
       admin_publish_gathering: {

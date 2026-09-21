@@ -20,33 +20,42 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Resvg } from "@cf-wasm/resvg/node";
-import { LOCKUP } from "../src/public/brand.ts";
+import { MARK, WORDMARK } from "../src/public/brand.ts";
 
-// Three times the layout size, so it stays sharp on a 3× screen without shipping
-// anything enormous: the lockup is two dozen paths and compresses to a few KB.
+// **Two pieces, not one lockup.** The header is the mark at one end and the wordmark
+// at the other, with the row between them — which is what `src/public/layout.ts` does
+// and what the app now does too. The composed LOCKUP is the OG image's layout, where
+// the two sit together in the middle of a picture; using it in a header puts both
+// logos in the corner and leaves the rest of the row empty.
+//
+// Three times the layout size, so each stays sharp on a 3× screen. Both are a handful
+// of paths and compress to a few KB.
 const SCALE = 3;
-const HEIGHT = 78.88;
+const PIECES = [
+  { name: "mark", art: MARK, height: 24 },
+  { name: "wordmark", art: WORDMARK, height: 19 },
+] as const;
 
 async function main() {
   // The node build loads its own wasm; only the workerd build needs initialising.
-  const width = (LOCKUP.width / LOCKUP.height) * HEIGHT;
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${LOCKUP.width} ${LOCKUP.height}" ` +
-    `width="${LOCKUP.width}" height="${LOCKUP.height}" fill="none" color="#FFFFFF">${LOCKUP.body}</svg>`;
+  for (const piece of PIECES) {
+    const { art, height } = piece;
+    const svg =
+      `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${art.width} ${art.height}" ` +
+      `width="${art.width}" height="${art.height}" fill="none" color="#FFFFFF">${art.body}</svg>`;
 
-  // `Resvg.async` rather than `new Resvg`: the node build loads its wasm lazily and
-  // the synchronous constructor throws if it is not ready yet.
-  const image = await Resvg.async(svg, {
-    fitTo: { mode: "height", value: Math.round(HEIGHT * SCALE) },
-    background: "rgba(0,0,0,0)",
-  });
-  const png = image.render().asPng();
-
-  const out = join(process.cwd(), "app", "assets", "lockup.png");
-  await writeFile(out, png);
-  console.log(
-    `${out}  ${Math.round((width * SCALE))}×${Math.round(HEIGHT * SCALE)}  ${(png.length / 1024).toFixed(1)} KB`,
-  );
+    // `Resvg.async` rather than `new Resvg`: the node build loads its wasm lazily and
+    // the synchronous constructor throws if it is not ready yet.
+    const image = await Resvg.async(svg, {
+      fitTo: { mode: "height", value: Math.round(height * SCALE) },
+      background: "rgba(0,0,0,0)",
+    });
+    const png = image.render().asPng();
+    const out = join(process.cwd(), "app", "assets", `${piece.name}.png`);
+    await writeFile(out, png);
+    const width = Math.round((art.width / art.height) * height * SCALE);
+    console.log(`${piece.name.padEnd(9)} ${width}×${Math.round(height * SCALE)}  ${(png.length / 1024).toFixed(1)} KB`);
+  }
 }
 
 main().catch((err) => {

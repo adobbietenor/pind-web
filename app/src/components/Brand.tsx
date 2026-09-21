@@ -1,31 +1,39 @@
 import { Image } from "expo-image";
 import { StyleSheet, View } from "react-native";
-import { spacing } from "@pind/shared";
+import { MARK, WORDMARK } from "@pind/shared";
 
-// The mark and the wordmark, the same lockup the public pages carry (W1–W4).
+// **The mark at one end of the row and the wordmark at the other** — the same header
+// the public pages carry (`src/public/layout.ts`: "the mark at one end, the wordmark
+// at the other, and nothing else competing with either").
 //
-// **Generated, not drawn.** `app/assets/lockup.png` comes from `npm run brand:app`,
-// which rasterises the same paths `src/public/brand.ts` inlines — so the app and the
-// Worker cannot drift into two logos. It is a PNG because React Native cannot draw an
-// SVG without a dependency, and `expo-image` was already here.
+// M3.1 first shipped this as the composed LOCKUP, which is the **OG image's** layout:
+// the two pieces together in the middle of a picture. In a header that puts both logos
+// in the corner and leaves the rest of the row empty. They are two pieces here, spread
+// across the width, which is what makes it a header rather than a badge.
 //
-// The app never had it: M2.1 gave the Worker's pages the brand and the Expo shell kept
-// the placeholder text it was born with, which nothing connected.
-export function Brand({ height = 22 }: { height?: number }) {
-  // 214.22 × 78.88 is the lockup's own aspect (src/public/brand.ts).
-  const width = (214.22 / 78.88) * height;
+// **Generated, not drawn.** `npm run brand:app` rasterises the same paths
+// `src/public/brand.ts` inlines, so the app and the Worker cannot drift into two
+// logos. PNG because React Native cannot draw an SVG without a dependency, and
+// `expo-image` was already here.
+export function Brand() {
   return (
-    <View style={styles.row}>
+    <View style={styles.row} accessibilityRole="header" accessibilityLabel="Pin'd">
       <Image
-        source={require("../../assets/lockup.png")}
-        style={{ width, height }}
+        source={require("../../assets/mark.png")}
+        style={{ width: (MARK.width / MARK.height) * 24, height: 24 }}
         contentFit="contain"
-        accessibilityLabel="Pin'd"
+      />
+      <Image
+        source={require("../../assets/wordmark.png")}
+        style={{ width: (WORDMARK.width / WORDMARK.height) * 19, height: 19 }}
+        contentFit="contain"
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", marginBottom: spacing.md },
+  // space-between, so the two ends of the row are the two pieces — exactly the
+  // public header's rule, and the reason the city label can sit between them later.
+  row: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 16 },
 });
