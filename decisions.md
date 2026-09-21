@@ -2254,3 +2254,42 @@ inconsistency to iron out.
   broken" needed a third sibling: set on both sides and different.** Until that line
   existed, nobody — not Alex, not the Worker, not the database — could tell those two
   apart, and all of them presented as "the photo is still pending".
+
+### Custom SMTP is required, not optional (Alex, M3.1)
+
+Supabase's **built-in email cannot be used for sign-in**, and the reason is worth
+writing down because it looks like a preference and is not.
+
+- **It is the only way to send a code at all.** Supabase refuses to let you edit the
+  email templates until custom SMTP is configured, and the default Magic Link template
+  sends a **link**. Pin'd sends a **six-digit code** (Part 5, "Identity": no magic
+  links, no session cookie), so without custom SMTP the third sign-in method — the only
+  one that needs no developer console, and the one the web path leans on — **did not
+  work at all**.
+- **The built-in sender is capped at a few messages an hour**, which is invisible
+  while one person tests and would have bitten on the first real crowd, at exactly the
+  moment a queue of people are trying to sign in at once.
+
+**As configured** (Alex, 21 Sept 2026): Resend SMTP, `smtp.resend.com`, sender
+**auth@pind.social**, with **its own API key named `supabase-auth`** rather than
+reusing the alerts key. The Magic Link template carries `{{ .Token }}`, and a
+six-digit code was confirmed arriving on a phone from `pind.social/sign-in`.
+
+**Why a separate key rather than one Resend key for everything.** The two paths fail
+differently and are rotated for different reasons. An alerts key that is rotated or
+revoked costs us a monitoring gap; **a sign-in key that is revoked means nobody can
+get in**, and the two should not be able to take each other down. It also keeps the
+blast radius of a leak to one of them.
+
+**The blind spot this creates, stated rather than discovered later.** We now have a
+**hard dependency for sign-in that our own health page cannot see**. The admin's
+Configuration panel asks Resend whether the sending domain is verified — that check
+uses `RESEND_API_KEY`, ours, and covers `pind.social`, which both senders share. It
+does **not** and cannot check the `supabase-auth` key, which lives in Supabase's SMTP
+settings and never reaches the Worker. So a revoked or expired auth key presents as
+*people quietly not receiving codes*, with nothing anywhere saying why.
+
+What would actually detect it is a real sign-in attempt. That is a delivery-monitoring
+problem and it belongs with **M3.5**, which builds the notification queue, its retries
+and its failure records; the auth email should get the same treatment then rather than
+a one-off check bolted on here. Until then it is a known gap, not an unknown one.
