@@ -62,8 +62,15 @@ export async function photoWebhook(request: Request, env: Env): Promise<Response
   // not to whoever finds the URL. Naming a setting in a public reply tells a stranger
   // what we are missing and helps nobody who can act on it.
   const expected = env.PHOTO_WEBHOOK_SECRET?.trim();
-  const given = request.headers.get("x-pind-webhook") ?? "";
-  if (!expected || !sameSecret(given, expected)) return json(401, { error: "no" });
+  const given = (request.headers.get("x-pind-webhook") ?? "").trim();
+  if (!expected || !sameSecret(given, expected)) {
+    // **Which 401 this is, in one word.** "No header arrived" and "a header arrived
+    // and did not match" are different faults — the first is the trigger or pg_net,
+    // the second is the two halves of the secret — and they were indistinguishable
+    // from the database side, which cost a round trip on the M3.1 walk. It tells a
+    // prober nothing they do not already know: whether they sent a header.
+    return json(401, { error: "no", header: given ? "mismatch" : "missing" });
+  }
 
   let payload: { record?: { id?: string; photo_path?: string | null }; old_record?: { photo_path?: string | null } };
   try {

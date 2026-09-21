@@ -16,6 +16,7 @@ import { checkSendingDomain, sendAlert, testAlert, type DomainCheck } from "../o
 import { alertsConfigured, checkSecrets, type SecretCheck, type SecretName } from "../ops/secrets";
 
 import type { AdminContext, AdminHandler } from "./context";
+import { webhookSection } from "./webhook";
 import { formatLocal } from "./time";
 import { adminPage, back, e, here, must, postButton } from "./ui";
 
@@ -151,6 +152,7 @@ Until ${broken.length === 1 ? "it is" : "they are"} set, the parts named below d
     : `<p class="flash ok">Every required setting is present.</p>`;
 
   const alerts = await alertsSection(ctx, alertsOn, here(request));
+  const webhook = await webhookSection(ctx);
 
   const body = `
 ${summary}
@@ -173,6 +175,7 @@ Worker overwrites that line with the real expression and fire time on every sche
 shift, or a wrong assumption about which timezone cron triggers use moves the threshold instead of raising a false alarm.
 The second clock is there because a Worker cannot report its own cron being dead.</p>
 ${alerts}
+${webhook}
 <h2>Settings and secrets</h2>
 <p class="muted">Presence only — no value is read or shown here, and none is ever logged.
 "Set but EMPTY" is its own state because an empty secret lists like a real one and fails at first use.</p>
