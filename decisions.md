@@ -2196,11 +2196,20 @@ with the rest so they are cheap now rather than expensive later):
 - **The 24-hour floor wants a ceiling too.** The import looks 8 weeks ahead and M2.3
   found that "a horizon a year out is not evidence". A submission dated next August is
   a different kind of problem from one dated tonight, and only one of them has a rule.
-- **Scoring is not moderation.** The AI rubric that scores drafts 0–100 answers "would
-  a crowd form here", which is not the same question as "is this a gathering at all, or
-  an advert, a scam, a rally, or somebody's contact details in a `name` field". The
-  second question needs its own check, and its uncertain answer is a human, exactly like
-  the photo check's.
+- **Scoring is not moderation, and this is why approval cannot just be the existing
+  rubric with a human on the end of it** (Alex, M3.1: "make sure that's on the
+  record"). The AI rubric scores drafts 0–100 on *would a crowd form here* — crowd
+  size, audience age, people going alone, somewhere to meet, shared identity. That is
+  a **ranking** question, and its failure mode is a dull gathering published above a
+  good one. "Is this a gathering at all, or an advert, a scam, a rally, or somebody's
+  contact details typed into a `name` field" is a **safety** question, and its failure
+  mode is a stranger's text on a public page with our name on it. Different questions,
+  different failure modes, and a high score is no evidence at all about the second —
+  a well-written advert for a timeshare scores well on every line of the rubric. So
+  the submission check is its own check, with its own three outcomes and its own
+  uncertain state meaning *a human looks*, exactly like the photo check's. Running one
+  rubric and reading it as an answer to both is the M2.2 venue-cap shape again: a
+  status computed against the wrong fact reads as correct while being wrong.
 - **A submission needs a person attached, or there is nothing to rate-limit or block.**
   The link path makes anonymous users, which is fine for a pin and is not fine for a
   write that strangers read. Rate limiting is the practical defence and it needs an
@@ -2213,3 +2222,35 @@ with the rest so they are cheap now rather than expensive later):
 submitted gathering is community sourcing through a different door — but its gate is
 the opposite of M4.4's auto-publishing, and that difference is the point, not an
 inconsistency to iron out.
+
+### Decided in Phase 3 M3.1 — later
+
+- **V19: a person's tags ride V1** (Alex, M3.1). Reading somebody's three tags is
+  allowed exactly when you can see that person at all — the same rule as their first
+  name and neighbourhood, `private.can_see`, no wider and no narrower. Unlike V17, it
+  needed no rule of its own: an Instagram handle is a way to contact someone off
+  Pin'd, while **a tag is a handle the person chose in order to be read by the people
+  on the list with them**, which is what it is for. It picks up the crew and
+  connection branches free when H3 adds them, the same saving as V17's two branches.
+  **At most 3 in the database, exactly 3 asked for by A3**: a minimum in the database
+  would make a pin impossible on the link path, where a profile is deliberately
+  incomplete. `docs/visibility.md` V19 (§12h); harness P74–P77, and P04 inverted.
+- **expo-web-browser and expo-auth-session are added to the native module list**
+  (Alex, M3.1), joining apple-authentication, image-picker, image, notifications and
+  secure-store. **The reasoning, so it is not re-argued:** Google is the most common
+  sign-in on Android and on the web, and Supabase's OAuth flow cannot work in the
+  native app without an in-app browser session — so dropping it in the app would make
+  the platforms diverge for no good reason. Pinned like everything else:
+  `expo-web-browser` 57.0.3, `expo-auth-session` 57.0.12, and `expo-web-browser` is
+  added to the Expo config's plugins so the redirect comes back through the app's own
+  scheme.
+- **A 401 says which 401 it is** (Claude, M3.1, after the webhook walk). The
+  photo-check webhook's refusal now answers `missing` (no header arrived — the trigger
+  or pg_net) or `mismatch` (a header arrived and was wrong — the two halves of the
+  secret). Both halves are compared by a **fingerprint** — the first ten hex
+  characters of each one's SHA-256 — shown side by side on the admin's Configuration
+  panel, so a secret set correctly on one side and mistyped on the other can be
+  diagnosed without either value being revealed. **"Unset is a different state from
+  broken" needed a third sibling: set on both sides and different.** Until that line
+  existed, nobody — not Alex, not the Worker, not the database — could tell those two
+  apart, and all of them presented as "the photo is still pending".

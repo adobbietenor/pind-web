@@ -149,9 +149,12 @@ describe("Public data — V2, V11", () => {
 
   it("P04 a signed-in user CANNOT read or write any locked app table", async () => {
     const ava = c(M("Ava"));
+    // `tags` and `person_tags` left this list in M3.1: the vocabulary is public
+    // reference data like `neighbourhoods`, and a person's own tags are theirs.
+    // P74–P77 are the cases that replaced them.
     for (const t of [
       "crews", "crew_members", "crew_proposals", "crew_proposal_votes", "crew_join_requests",
-      "crew_messages", "confirmations", "connections", "tags", "person_tags", "magic_links", "outbound_messages",
+      "crew_messages", "confirmations", "connections", "magic_links", "outbound_messages",
     ]) {
       await noAccess(ava, t);
     }
@@ -1811,5 +1814,79 @@ describe("The photo check — V6 (Alex, M3.1)", () => {
     );
     assert.equal(stale, null, "a check about a replaced photo decided something");
     assert.ok(Array.isArray(before), "admin_photo_states returns a row");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// V19 — a person's three tags (Alex, M3.1). They ride V1 rather than inventing a
+// stricter rule: a tag is a conversation handle chosen in order to be read by the
+// people on the list with you, so it travels with the first name.
+// ---------------------------------------------------------------------------
+
+describe("Tags — V19 (Alex, M3.1)", () => {
+  const tagsSeen = (viewer: SupabaseClient, target: string) =>
+    rows(viewer.from("person_tags").select("tag").eq("person_id", id(target)));
+
+  it("P74 the vocabulary is public and read-only / anon CAN read the fifteen tags and CANNOT write one", async () => {
+    const all = await rows(w.anon.from("tags").select("slug"));
+    assert.ok(all.length >= 15, `expected the seeded vocabulary, got ${all.length}`);
+    assert.ok(
+      all.some((t: any) => t.slug === "not-drinking"),
+      "the seed is missing",
+    );
+    await denied(w.anon.from("tags").insert({ slug: "made-up", name: "made up", sort_order: 99 }), "42501");
+    await denied(c(M("Ava")).from("tags").insert({ slug: "made-up", name: "made up", sort_order: 99 }), "42501");
+    // A person's tags are never anon's, vocabulary or not.
+    await noAccess(w.anon, "person_tags");
+  });
+
+  it("P75 Ava CAN read Ben's tags, because she can see Ben / Cal CANNOT, because he cannot", async () => {
+    await ok(
+      w.service.from("person_tags").insert([
+        { person_id: id("Ben"), tag: "usually-go-alone" },
+        { person_id: id("Ben"), tag: "not-drinking" },
+        { person_id: id("Ben"), tag: "here-for-the-support-act" },
+      ]),
+      "Ben picks three",
+    );
+    assert.equal(await seesPeople(c(M("Ava")), "Ben"), 1, "this case only means something if Ava can see Ben");
+    assert.equal((await tagsSeen(c(M("Ava")), "Ben")).length, 3);
+    // Cal is pinned but not opted in, so V1 denies him the person — and the tags with
+    // them, at the same door rather than a second one.
+    assert.equal(await seesPeople(c(M("Cal")), "Ben"), 0);
+    assert.equal((await tagsSeen(c(M("Cal")), "Ben")).length, 0);
+  });
+
+  it("P76 a blocked person and a hidden person CANNOT read them, in both directions / the owner always CAN", async () => {
+    // Gus blocked Hal in P14; Ivy1 is hidden by moderation (P45).
+    await ok(w.service.from("person_tags").insert({ person_id: id("Hal"), tag: "up-for-whatever" }), "Hal picks one");
+    await ok(w.service.from("person_tags").insert({ person_id: id("Ivy1"), tag: "up-for-whatever" }), "Ivy1 picks one");
+    assert.equal((await tagsSeen(c(M("Gus")), "Hal")).length, 0, "a block did not stop tags");
+    assert.equal((await tagsSeen(c(M("Hal")), "Gus")).length, 0, "a block did not stop tags");
+    assert.equal((await tagsSeen(c(M("Ava")), "Ivy1")).length, 0, "a hidden person's tags were readable");
+    // Their own, whatever anyone else can see.
+    assert.equal((await tagsSeen(c(M("Hal")), "Hal")).length, 1);
+    assert.equal((await tagsSeen(c(M("Ivy1")), "Ivy1")).length, 1);
+  });
+
+  it("P77 a person writes only their own, at most three, and the cap is the database's not the screen's", async () => {
+    const ava = c(M("Ava"));
+    await ok(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "new-to-toronto" }), "own tag");
+    await ok(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "small-and-chatty" }), "own tag");
+    await ok(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "always-slightly-late" }), "own tag");
+    // The fourth is refused by the database, not by a form.
+    await denied(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "not-drinking" }));
+    // Removing one makes room again: this is a cap, not a quota spent once.
+    await ok(ava.from("person_tags").delete().eq("person_id", id("Ava")).eq("tag", "new-to-toronto"), "remove one");
+    await ok(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "not-drinking" }), "and add another");
+
+    // Never anyone else's, in either verb.
+    await denied(ava.from("person_tags").insert({ person_id: id("Ben"), tag: "up-for-whatever" }), "42501");
+    const removed = await rows(ava.from("person_tags").delete().eq("person_id", id("Ben")).select("tag"));
+    assert.equal(removed.length, 0, "Ava deleted Ben's tags");
+    assert.equal((await tagsSeen(c(M("Ava")), "Ben")).length, 3, "Ben's three are untouched");
+
+    // And a slug that is not in the vocabulary is not a tag.
+    await denied(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "invented-slug" }));
   });
 });

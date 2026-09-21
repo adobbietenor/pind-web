@@ -6,15 +6,15 @@ database functions in `supabase/migrations/` implement. Agreed with Alex on
 adversarial review — a fresh Claude Code session with no prior context, using
 `docs/m1.1-review-brief.md` — checks the SQL and the harness (`tests/policies`)
 against this file for leaks, and Alex gives this file their own read. Every rule has
-an ID (V1–V18), and §16 maps each rule to the SQL that enforces it and the harness
-cases (P01–P73) that prove it. M1.2 (admin) added V12, the draft/dismissed states in
+an ID (V1–V19), and §16 maps each rule to the SQL that enforces it and the harness
+cases (P01–P77) that prove it. M1.2 (admin) added V12, the draft/dismissed states in
 V11, and cases P38–P47. M1.3 (Ticketmaster import) added V13 (withdrawn, §12c), the
 importer's rights (§12d), three admin-only tables, and cases P48–P54. M2.1 (the public
 web layer) added **V18 — seed rows never reach the public** (§12f), the one door the
 public pages read through, the public slug, and cases P55–P61. M2.2 and M2.3 added
 P62–P66. M3.1 **enforced V17** (§12g), moving the Instagram handle off the `people`
 row, and added cases P67–P70, and rewrote **V6** for the automated photo check (§8) with cases
-P71–P73.
+P71–P73, and added **V19 — a person's tags** (§12h) with cases P74–P77.
 
 Binding sources: `decisions.md` H3 (reciprocal reveal), H6 (honest counts), H7
 (women-only), H9 (block/report), H11 (visibility in the database), Q1, Q3, Q9, and
@@ -67,7 +67,7 @@ whom.
 | Unpublished gatherings and their spot options | — | — | — | all |
 | Public counts (§4) | numbers only | numbers only | numbers only | all |
 | Other people's pins | — | — | opted-in pins at G of people V1 allows | all |
-| Other people's first name, neighbourhood | — | — | people V1 allows | all |
+| Other people's first name, neighbourhood, tags (V19) | — | — | people V1 allows | all |
 | Other people's Instagram handle (`person_handles`) | — | — | **crewmates and connections only — V1 is not enough (V17)** | all |
 | Other people's photo | — | — | people V1 allows, **approved photos only** (V6) | all |
 | Gender, women-only flag, birth year, age attestation (`people_private`) | — | own only | own only — **never anyone else's** | all |
@@ -385,6 +385,41 @@ own policies, for the same reason gender and birth year live in `people_private`
 - Harness: **P67–P70**, both sides of each branch. P11 and P24 were inverted in the
   same commit — both used to assert that the handle came back with the person's row.
 
+## 12h · A person's tags — V19 (Alex, M3.1)
+
+A person may carry up to three tags from a fixed vocabulary (spec A3;
+`packages/shared/src/tags.ts`). They are **conversation handles, never match
+criteria** — there is no matching anywhere in Pin'd.
+
+- **Your own tags are always yours** — read, add, remove, whenever.
+- **Someone else's tags are readable exactly when you can see that person at all.**
+  The same rule as their first name and neighbourhood, no wider and no narrower:
+  `private.can_see`. Both of you pinned and opted in at the same gathering, no block
+  in either direction, neither of you hidden, the list still open.
+- **Nobody else, ever:** not `anon`, not somebody who pinned without opting in, not a
+  blocked person in either direction, not a hidden person, and never on a public page
+  or in a link preview.
+- **The vocabulary itself is public reference data.** `public.tags` is fifteen seeded
+  rows that say nothing about anyone, readable exactly like `neighbourhoods` and
+  writable by nobody but the service key.
+
+**Why this rides V1 rather than getting a stricter rule of its own, which V17 needed.**
+An Instagram handle is a way to contact someone off Pin'd, so it earned its own rule.
+A tag is a handle the person chose **in order to be read by the people on the list with
+them** — that is what it is for. So it travels with the first name, and it picks up the
+crew and connection branches for free when H3 adds them to `can_see_at`, the same
+saving as V17 having two branches instead of three.
+
+**At most three, and no minimum** (Alex, M3.1). "Exactly 3" is what a *complete*
+profile means and A3 is what asks for it. A minimum in the database would make a pin
+impossible on the link path, where a profile is deliberately incomplete. A maximum is
+a different thing: without one, `person_tags` is a place to write fifteen. The cap is
+a constraint trigger rather than a screen, because a visitor's session token is theirs
+and the app is not a gate (§1).
+
+**P04 was inverted in the same commit** — it asserted `tags` and `person_tags` were
+locked to every visitor, which was true until this rule existed.
+
 ### Still pending — decided, not yet enforced
 
 V14 (solo), V15 (review-only gatherings) and V16 (anonymous people) are added with
@@ -580,7 +615,8 @@ is what lets the redirect work; nothing else about them is public.
 | Public read (published only where it applies, and never a seed row — V18) | `venues`, `meeting_spots`, `gatherings`, `gathering_spots`, `gathering_slug_history`, `neighbourhoods`, `cities`; storage `venue-maps` (public URLs, no visitor writes) |
 | Rules above | `people`, `people_private`, `person_handles`, `pins`, `pin_friends`, `contact_points`, `spot_votes`, `gathering_group_links`, `blocks`, `reports`, `survey_responses`, storage `photos` |
 | Service key only, permanently | `photo_checks`, `magic_links`, `outbound_messages`, `gathering_sources`, `gathering_triage`, `spot_suggestions`, `venue_aliases`, `venue_external_ids`, `moderation_log`, `import_runs`, `gathering_flags`, `gathering_withdrawals`; functions `admin_*` |
-| Locked until the app phases (no privileges, no policies) | `tags`, `person_tags`, `crews`, `crew_members`, `crew_proposals`, `crew_proposal_votes`, `crew_join_requests`, `crew_messages`, `confirmations`, `connections` (read by V17's rule, never granted to a visitor directly) |
+| Public reference data | `tags` (the fixed vocabulary; read-only to visitors) |
+| Locked until the app phases (no privileges, no policies) | `crews`, `crew_members`, `crew_proposals`, `crew_proposal_votes`, `crew_join_requests`, `crew_messages`, `confirmations`, `connections` (read by V17's rule, never granted to a visitor directly) |
 
 ## 16 · Rule → SQL → proof
 
@@ -610,6 +646,7 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | V13 withdrawn | `private.is_published`, `private.list_open`, `private.i_am_pinned_at`; policies `gatherings_read_published`, `gathering_spots_read_published`; `public.gathering_counts`; `admin_withdraw_gathering`, `admin_unwithdraw_gathering` | P49–P51 |
 | Importer rights | `admin_import_apply`, `admin_resolve_flag`, `admin_start_import_run`, `admin_purge_ticketmaster_data`, `admin_merge_venues`, `admin_confirm_venue` | P52–P54 |
 | V17 Instagram handles (M3.1) | table `public.person_handles`; `private.can_see_handle`, `private.share_crew`, `private.are_connected`, `private.is_hidden`; policies `person_handles_read_own`, `person_handles_read_visible`, `person_handles_*_own` | P67–P70, P11, P24 |
+| V19 a person's tags (M3.1) | policies `tags_read`, `person_tags_read_own`, `person_tags_read_visible`, `person_tags_*_own`; `private.can_see`; trigger `person_tags_at_most_three` → `private.person_tags_cap` | P74–P77, P04 |
 | V18 seed rows | `venues.is_seed`, `gatherings.is_seed`, `people.is_seed`; triggers `gatherings_seed_follows_venue`, `venues_seed_spreads`; `private.is_published`, `private.list_open`, `private.is_open_at`, `private.is_seed_venue`; policies `gatherings_read_published`, `gathering_spots_read_published`, `venues_read`, `meeting_spots_read`; `public.gathering_counts` | P55–P58 |
 | The public web's one door | `public.public_gatherings`, `public.public_gathering` | P55, P59, P61, P65 |
 | The chip a Ticketmaster gathering wears (M2.3) | `public.chip_category`, `public.admin_categorise_gatherings` — both `service_role` only; written once, never over an existing value | P66 |

@@ -9,28 +9,22 @@
 // Three methods, and no password field anywhere:
 //   Apple   native in the app (Apple's rule: it must be offered beside Google).
 //           On the web it comes later (decisions Part 5).
-//   Google  on the web today. In the app it needs a browser session, which is a
-//           native module we have not agreed — see GOOGLE_IN_APP below.
-//   Email   a six-digit code, everywhere, with no new dependency.
+//   Google  everywhere. On the web it is a redirect; in the app it is an in-app
+//           browser session that hands the tokens back through the app's scheme.
+//   Email   a six-digit code, everywhere.
 
 import * as AppleAuthentication from "expo-apple-authentication";
+import * as AuthSession from "expo-auth-session";
+import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
 import { supabase } from "./supabase";
 
 export type Method = "apple" | "google" | "email";
 
-// **Google in the native app is not wired up, deliberately.** Supabase's OAuth flow
-// needs an in-app browser session, which means expo-web-browser / expo-auth-session —
-// native modules outside the agreed M2.0 list (apple-authentication, image-picker,
-// image, notifications, secure-store), and CLAUDE.md says a dependency is Alex's call
-// rather than something a milestone helps itself to. Until he says yes the app offers
-// Apple and the email code, and the web offers Google and the email code, which is
-// what the M3.1 acceptance list asks for on each platform anyway.
-export const GOOGLE_IN_APP = false;
-
+// Apple is required beside any other social sign-in on iOS (Apple's own rule), and
+// comes to the web later (decisions Part 5, "Sign in with Apple on the web: later").
 export function methodsFor(platform = Platform.OS): Method[] {
-  if (platform === "web") return ["google", "email"];
-  return GOOGLE_IN_APP ? ["apple", "google", "email"] : ["apple", "email"];
+  return platform === "web" ? ["google", "email"] : ["apple", "google", "email"];
 }
 
 // Apple hands us an identity token once. Supabase verifies it; we never see a
@@ -47,14 +41,42 @@ export async function signInWithApple(): Promise<void> {
   if (error) throw error;
 }
 
-// Web only for now. The redirect returns to the app's own origin, which is
-// pind.social — the same host the Worker serves, so nothing leaves our origin.
+// **Two shapes, one provider** (Alex, M3.1, agreeing the two modules: Google is the
+// most common sign-in on Android and on the web, and dropping it in the app would
+// make the platforms diverge for no good reason).
+//
+// On the **web** it is an ordinary redirect back to our own origin — pind.social, the
+// same host the Worker serves, so nothing leaves it.
+//
+// In the **app** Supabase cannot redirect to a page, so the flow is: open Google in an
+// in-app browser session, let it come back to the app's own scheme with a code, and
+// exchange that code for a session. `skipBrowserRedirect` is what stops supabase-js
+// trying to navigate a window that does not exist.
 export async function signInWithGoogle(redirectTo?: string): Promise<void> {
-  const { error } = await supabase().auth.signInWithOAuth({
+  const auth = supabase().auth;
+  if (Platform.OS === "web") {
+    const { error } = await auth.signInWithOAuth({ provider: "google", options: { redirectTo } });
+    if (error) throw error;
+    return;
+  }
+
+  const returnTo = AuthSession.makeRedirectUri();
+  const { data, error } = await auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo },
+    options: { redirectTo: returnTo, skipBrowserRedirect: true },
   });
   if (error) throw error;
+  if (!data.url) throw new Error("Google did not give us a sign-in page");
+
+  const result = await WebBrowser.openAuthSessionAsync(data.url, returnTo);
+  // Dismissed or cancelled is not an error: signInError() turns it into no message
+  // at all, so closing the sheet leaves no red text behind.
+  if (result.type !== "success") throw new Error("ERR_REQUEST_CANCELED");
+
+  const code = new URL(result.url).searchParams.get("code");
+  if (!code) throw new Error("Google came back without a code");
+  const exchange = await auth.exchangeCodeForSession(code);
+  if (exchange.error) throw exchange.error;
 }
 
 // A six-digit code, not a magic link (decisions Part 5, "Identity": no magic links).

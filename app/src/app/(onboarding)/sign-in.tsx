@@ -41,8 +41,8 @@ export default function SignIn() {
     }
   };
 
-  const done = () => {
-    track("sign_in", { method: sent ? "email" : "apple" });
+  const done = (method: string) => () => {
+    track("sign_in", { method });
     router.replace("/you");
   };
 
@@ -69,7 +69,7 @@ export default function SignIn() {
               buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.WHITE}
               cornerRadius={12}
               style={{ height: 52 }}
-              onPress={() => attempt("apple", signInWithApple, done)}
+              onPress={() => attempt("apple", signInWithApple, done("apple"))}
             />
           </View>
         ) : null}
@@ -81,8 +81,12 @@ export default function SignIn() {
               label="Continue with Google"
               busy={busy === "google"}
               onPress={() =>
-                attempt("google", () =>
-                  signInWithGoogle(Platform.OS === "web" ? `${window.location.origin}/you` : undefined),
+                attempt(
+                  "google",
+                  () => signInWithGoogle(Platform.OS === "web" ? `${window.location.origin}/you` : undefined),
+                  // The web navigates away and never comes back to this handler; the
+                  // app returns here with a session in hand.
+                  Platform.OS === "web" ? undefined : done("google"),
                 )
               }
             />
@@ -129,7 +133,7 @@ export default function SignIn() {
               label="Continue"
               busy={busy === "verify"}
               disabled={code.trim().length < 6}
-              onPress={() => attempt("verify", () => verifyEmailCode(email, code), done)}
+              onPress={() => attempt("verify", () => verifyEmailCode(email, code), done("email"))}
             />
             <View style={{ marginTop: spacing.sm }}>
               <Button
