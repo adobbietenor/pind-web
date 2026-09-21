@@ -17,6 +17,7 @@ import { alertsConfigured, checkSecrets, type SecretCheck, type SecretName } fro
 
 import type { AdminContext, AdminHandler } from "./context";
 import { webhookSection } from "./webhook";
+import { expiringCredentials, type Expiry } from "../ops/expiry";
 import { formatLocal } from "./time";
 import { adminPage, back, e, here, must, postButton } from "./ui";
 
@@ -153,6 +154,28 @@ Until ${broken.length === 1 ? "it is" : "they are"} set, the parts named below d
 
   const alerts = await alertsSection(ctx, alertsOn, here(request));
   const webhook = await webhookSection(ctx);
+  // **A credential nothing can ask about.** Apple's client secret lives in Supabase
+  // and lapses on a date; when it does, the web breaks and the app does not, so the
+  // half that still works hides the half that stopped.
+  const expiries = expiringCredentials(ctx.env);
+  const EXPIRY_CLASS: Record<Expiry["state"], string> = {
+    ok: "good",
+    soon: "bad",
+    lapsed: "bad",
+    unrecorded: "bad",
+    unreadable: "bad",
+  };
+  const expirySection = `<h2>Credentials that lapse</h2>
+<table><tr><th>Setting</th><th>State</th><th>What stops</th></tr>
+${expiries
+  .map(
+    (x) =>
+      `<tr><td><code>${e(x.name)}</code></td><td class="${EXPIRY_CLASS[x.state]}">${e(x.says)}</td><td class="muted">${e(x.what)}</td></tr>`,
+  )
+  .join("")}</table>
+<p class="muted">Recorded rather than asked, because nothing can ask: Apple refuses an expired secret in the middle of somebody's
+sign-in, and only on the web. <code>scripts/apple-client-secret.ts</code> mints a new one and prints the date to put in
+<code>wrangler.jsonc</code>.</p>`;
 
   const body = `
 ${summary}
@@ -176,6 +199,7 @@ shift, or a wrong assumption about which timezone cron triggers use moves the th
 The second clock is there because a Worker cannot report its own cron being dead.</p>
 ${alerts}
 ${webhook}
+${expirySection}
 <h2>Settings and secrets</h2>
 <p class="muted">Presence only — no value is read or shown here, and none is ever logged.
 "Set but EMPTY" is its own state because an empty secret lists like a real one and fails at first use.</p>

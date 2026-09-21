@@ -41,6 +41,12 @@ export interface Env {
   // Hard daily AI spend cap in US dollars, per Toronto calendar day (M1.3). Not a
   // secret: set in wrangler.jsonc "vars".
   AI_DAILY_CAP_USD?: string;
+  // The day Apple's client secret for Sign in with Apple lapses, YYYY-MM-DD (M3.1).
+  // **A date, not a secret** — the secret itself lives in Supabase's provider
+  // settings and never reaches the Worker. It is recorded because nothing can ask:
+  // Apple only refuses it in the middle of somebody's sign-in, and only on the web.
+  // `scripts/apple-client-secret.ts` prints the line to paste.
+  APPLE_SECRET_EXPIRES?: string;
   // AI spot suggestions: "on" to enable in the nightly run and the admin. Off unless
   // exactly "on" — moved to M1.3b (spec §6). Not a secret: wrangler.jsonc "vars".
   AI_SPOT_SUGGESTIONS?: string;

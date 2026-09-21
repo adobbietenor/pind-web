@@ -565,6 +565,8 @@ any of it.
 
 - A new Supabase project `pind-prod` on Pro (daily backups, no pausing), same region, migrations applied by the CLI only, no seed data ever; secrets and Access for production; the Worker's production environment; Apple config for the production bundle ID; Resend on the live domain.
 - External TestFlight through Beta App Review with the review notes from §5; a public link for volunteers.
+- **Sign in with Apple has to be re-pointed** (Alex, M3.1). The Services ID `social.pind.web` was created with **`social.pind.app.staging` as its primary App ID**, because `social.pind.app` did not exist yet. It has to be changed to the production App ID here, or Apple sign-in on the web is wrong for production. Enable Sign in with Apple on the production App ID first, then change the Services ID's primary, then mint a fresh client secret (`scripts/apple-client-secret.ts`) and update `APPLE_SECRET_EXPIRES`.
+- **Redirect URLs for production.** `pind://**` is already on the staging project's allow-list; the production Supabase project needs the whole list built again — it is per-project, not per-domain.
 
 **Acceptance**
 
@@ -572,6 +574,7 @@ any of it.
 - Staging seed rows do not exist in production (a query proves it).
 - The external TestFlight link installs the app and it talks to production.
 - The production bundle ID (`social.pind.app`) **reuses the existing Pin'd APNs key**. The team is at Apple's limit of two, so if EAS offers to create a key, stop and reuse. No certificate is ever revoked to make room: create, never revoke (Alex, M2.0).
+- Apple sign-in on **the web** works against production — which means the Services ID's primary App ID was changed off the staging one and a fresh client secret was minted. Native iOS sign-in would keep working either way, so testing the app alone proves nothing here.
 - The production app's internal TestFlight group has Alex only. Either create it by hand with just Alex before the first submit, or stop EAS filling its auto-created "Team (Expo)" group with every App Store Connect user on the Tenor team (Alex, M2.0).
 
 8–12 h

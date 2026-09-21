@@ -2293,3 +2293,34 @@ What would actually detect it is a real sign-in attempt. That is a delivery-moni
 problem and it belongs with **M3.5**, which builds the notification queue, its retries
 and its failure records; the auth email should get the same treatment then rather than
 a one-off check bolted on here. Until then it is a known gap, not an unknown one.
+
+### Sign in with Apple: the secret is a JWT, and it lapses (Alex, M3.1)
+
+- **Supabase's "Secret Key" field wants a JWT, not the `.p8`.** Apple's client secret
+  is a short-lived ES256 JWT *signed with* the `.p8`: `iss` the Team ID, `sub` the
+  **Services ID** (`social.pind.web` — not the bundle identifier), `aud`
+  `https://appleid.apple.com`, `kid` the Key ID. `scripts/apple-client-secret.ts`
+  mints it locally. **The `.p8` never enters the repo, a chat or a web tool**, and the
+  script refuses to read a key from inside the repository — a private key one
+  `git add -A` from being published is a different risk from one that is not.
+  - One detail that is load-bearing rather than trivia: **ES256 in a JWS is the raw
+    r‖s signature, not DER.** Node signs EC as DER by default and Apple answers
+    `invalid_client` with nothing saying why, so `dsaEncoding: "ieee-p1363"` is the
+    difference between working and an evening. Proved before use against a throwaway
+    key: 64-byte signature, verifies, correct claims.
+- **Apple caps the secret at six months, and when it lapses the break is partial.**
+  **Web** Apple sign-in stops; **native iOS keeps working**, because the native flow
+  verifies an identity token and never uses this secret. So the half that still works
+  hides the half that stopped — easier to miss, not harder (Alex).
+- **Nothing can detect it by asking.** The secret lives in Supabase's provider
+  settings and never reaches the Worker, and Apple only refuses it in the middle of
+  somebody's sign-in. So the expiry is **recorded** where it is minted — the script
+  prints the line — in `APPLE_SECRET_EXPIRES` (a date, not a secret), and watched two
+  ways: the admin's Configuration panel shows it, and the 09:00 cron sends one alert a
+  day from six weeks out. **Unrecorded is its own state and is also worth an alert**,
+  because it is the state in which the warning does not exist.
+- **The staging Services ID points at the staging App ID.** `social.pind.web` was
+  created with `social.pind.app.staging` as its primary, because `social.pind.app` is
+  not registered until M4.3. Changing it, and minting a fresh secret, is in M4.3's
+  scope and acceptance — and the acceptance says it out loud, because testing the app
+  would prove nothing: native sign-in works either way.

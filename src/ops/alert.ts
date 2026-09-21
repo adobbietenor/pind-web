@@ -17,7 +17,7 @@ const DEFAULT_FROM = "Pin'd alerts <alerts@pind.social>";
 // The cron has no request to take an origin from, and the admin is always here.
 const SITE = "https://pind.social";
 
-export type AlertKind = "import_failed" | "import_missing" | "test";
+export type AlertKind = "import_failed" | "import_missing" | "credential_expiring" | "test";
 
 export interface AlertResult {
   sent: boolean;

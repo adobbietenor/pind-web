@@ -2,6 +2,7 @@ import { runSeriesChecks, CHECKER, LIVENESS_CRON } from "./community/run";
 import { spotSuggestionsOn, type Env } from "./env";
 import { escape, page } from "./html";
 import { IMPORTER, runImport } from "./import/run";
+import { checkExpiringCredentials } from "./ops/watch";
 import { PHOTO_SWEEP_CRON, sweepPhotos } from "./photo/sweep";
 import { route } from "./router";
 import { ConfigError, serviceClient } from "./supabase";
@@ -35,8 +36,21 @@ export default {
   // so none can report another as busy.
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
     if (controller.cron === PHOTO_SWEEP_CRON) {
-      const outcome = await sweepPhotos(env);
-      console.log(outcome.message);
+      // Two small jobs share this trigger. The sweep spends money and is bounded;
+      // the credential check is a date comparison that costs nothing and cannot
+      // stall, which is why it does not get a cron of its own. Each is wrapped so
+      // neither can stop the other — the failure this whole area keeps hitting is
+      // one thing quietly preventing another from running at all.
+      for (const job of [
+        () => sweepPhotos(env),
+        () => checkExpiringCredentials(env),
+      ]) {
+        try {
+          console.log((await job()).message);
+        } catch (err) {
+          console.error("09:00 run:", err instanceof Error ? err.message : err);
+        }
+      }
       return;
     }
     if (controller.cron === LIVENESS_CRON) {

@@ -66,7 +66,13 @@
 
   // Not secrets. The hard daily AI spend cap, US dollars per Toronto calendar day;
   // AI spot suggestions stay off until M1.3b ("on" to enable).
-  "vars": { "AI_DAILY_CAP_USD": "3", "AI_SPOT_SUGGESTIONS": "off" },
+  //
+  // APPLE_SECRET_EXPIRES is the day Apple's client secret lapses (M3.1). A date, not
+  // a secret: the secret is in Supabase's provider settings and never reaches the
+  // Worker. It is here because **nothing can ask** — Apple refuses an expired secret
+  // in the middle of a sign-in, and only on the web, since native iOS never uses it.
+  // Empty until the first one is minted, and "unrecorded" is a state the admin names.
+  "vars": { "AI_DAILY_CAP_USD": "3", "AI_SPOT_SUGGESTIONS": "off", "APPLE_SECRET_EXPIRES": "" },
 
   // M2.1: the two Poppins faces the OG image is rasterised with are imported as
   // bytes, not base64 (src/public/ogpng.ts). Nothing else in the Worker loads a font.
