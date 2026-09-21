@@ -18,19 +18,26 @@
 // sides and different*. It now has a name and a line on the Configuration panel.
 
 import type { AdminContext } from "./context";
+import { e } from "./ui";
 
 export interface WebhookHealth {
-  url_set: boolean;
+  url: string | null;
   secret_set: boolean;
   secret_fingerprint: string | null;
+  secret_padded: boolean;
   last_at: string | null;
   last_status: number | null;
   last_error: string | null;
+  last_body: string | null;
   waiting: number;
 }
 
+// **Of the trimmed value, and the database fingerprints the trimmed value too.** Two
+// numbers measured differently are not a comparison — the first version of this panel
+// fingerprinted a trimmed secret here and an untrimmed one there, and then reported
+// the difference between its own two rulers as a difference between the secrets.
 export async function fingerprint(secret: string | undefined): Promise<string | null> {
-  const value = secret ?? "";
+  const value = (secret ?? "").trim();
   if (!value) return null;
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
   return [...new Uint8Array(digest)]
@@ -69,18 +76,23 @@ export async function webhookSection(ctx: AdminContext): Promise<string> {
   const health = (Array.isArray(data) ? data[0] : data) as WebhookHealth | undefined;
   if (!health) return `<p class="bad">The webhook health check returned nothing.</p>`;
 
-  const worker = await fingerprint(ctx.env.PHOTO_WEBHOOK_SECRET?.trim());
+  const worker = await fingerprint(ctx.env.PHOTO_WEBHOOK_SECRET);
   const verdict = compare(health, worker);
   const cls = verdict.state === "match" ? "good" : "bad";
+  // **The timestamp only moves when a photo is uploaded.** Saying so matters: an
+  // unchanged time after a fix reads as a cached page, and it is not — it is the
+  // honest answer that nothing has been tried since.
   const last = health.last_at
-    ? `${health.last_status ?? "—"}${health.last_error ? ` · ${health.last_error}` : ""} <span class="muted">at ${health.last_at.slice(0, 16).replace("T", " ")} UTC</span>`
+    ? `${health.last_status ?? "—"}${health.last_error ? ` · ${e(health.last_error)}` : ""}
+${health.last_body ? `<br><code>${e(health.last_body)}</code>` : ""}
+<br><span class="muted">at ${health.last_at.slice(0, 16).replace("T", " ")} UTC — this moves only when a photo is uploaded, so an unchanged time means nothing has been tried since, not that this page is stale.</span>`
     : `<span class="muted">nothing recent — pg_net keeps replies for a few hours only, so this is "not lately", not "never"</span>`;
 
   return `<h2>The photo check's webhook</h2>
 <p class="${cls}"><strong>${verdict.text}</strong></p>
 <table>
-<tr><td>Vault <code>photo_check_url</code></td><td>${health.url_set ? `<span class="good">set</span>` : `<span class="bad">not set</span>`}</td></tr>
-<tr><td>Vault <code>photo_check_secret</code></td><td>${health.secret_set ? `<span class="good">set</span> · <code>${health.secret_fingerprint}</code>` : `<span class="bad">not set</span>`}</td></tr>
+<tr><td>Vault <code>photo_check_url</code></td><td>${health.url ? `<code>${e(health.url)}</code>` : `<span class="bad">not set</span>`}</td></tr>
+<tr><td>Vault <code>photo_check_secret</code></td><td>${health.secret_set ? `<span class="good">set</span> · <code>${e(health.secret_fingerprint ?? "")}</code>${health.secret_padded ? ` <span class="muted">(stored with whitespace round it — harmless now, both sides trim)</span>` : ""}` : `<span class="bad">not set</span>`}</td></tr>
 <tr><td>Worker <code>PHOTO_WEBHOOK_SECRET</code></td><td>${worker ? `<span class="good">set</span> · <code>${worker}</code>` : `<span class="bad">not set</span>`}</td></tr>
 <tr><td>Last reply from the Worker</td><td>${last}</td></tr>
 <tr><td>Queued, not yet sent</td><td>${health.waiting}</td></tr>

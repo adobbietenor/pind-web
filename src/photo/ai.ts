@@ -13,12 +13,14 @@
 // Sonnet 5, same model the import scores with. Vision comes free with it.
 export const PHOTO_MODEL = "claude-sonnet-5";
 
-// **Before the labelled run this is a guess, and it is deliberately high.** An
-// estimate that runs under the real cost is worse than one that runs over: it is
-// counted for every aborted call, and an aborted call is billed while its usage never
-// arrives (M1.3b). A 1024px photo is roughly 1.6k input tokens and the answer is
-// ~60 output, which at Sonnet 5's prices is about $0.004. Two cents leaves room for a
-// large image and a retry, and the eval run replaces it with a measured number.
+// **Deliberately above the real cost.** An estimate that runs under is worse than one
+// that runs over: it is what every aborted call is counted at, and an aborted call is
+// billed while its usage never arrives (M1.3b).
+//
+// **Measured on the first real end-to-end run (21 Sept 2026): $0.004676 for a 1024px
+// PNG, 2.9 seconds** — trigger to verdict. Two cents is four times that, which is the
+// headroom a larger photo and a retry want. The labelled run confirms it across a
+// real set; a number that only ever saw one image is not a measurement yet.
 export const ESTIMATE_PER_PHOTO = 0.02;
 
 // CLAUDE.md's M1.3b pattern: streamed, and aborted outright at four minutes.
