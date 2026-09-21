@@ -27,8 +27,14 @@ export interface Env {
   ADMIN_EMAILS?: string;
   // Ticketmaster Discovery API key (M1.3). Secret.
   TICKETMASTER_CONSUMER_KEY?: string;
-  // Anthropic API key (M1.3: AI vetting and spot suggestions; T3: photo checks). Secret.
+  // Anthropic API key (M1.3: AI vetting and spot suggestions; M3.1: the photo
+  // check). Secret.
   ANTHROPIC_API_KEY?: string;
+  // Shared secret the Supabase database webhook sends on every photo-check call
+  // (M3.1), in the x-pind-webhook header. Secret. Without it the webhook route
+  // refuses everything and says which setting is missing, rather than running a
+  // check for anyone who finds the URL.
+  PHOTO_WEBHOOK_SECRET?: string;
   // Mapbox Static Images token (M2.1). Secret, and NEVER in the page: the Worker
   // fetches each venue's map server-side, once, and serves it from our own origin.
   MAPBOX_TOKEN?: string;

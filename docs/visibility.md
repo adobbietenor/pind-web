@@ -7,13 +7,14 @@ adversarial review — a fresh Claude Code session with no prior context, using
 `docs/m1.1-review-brief.md` — checks the SQL and the harness (`tests/policies`)
 against this file for leaks, and Alex gives this file their own read. Every rule has
 an ID (V1–V18), and §16 maps each rule to the SQL that enforces it and the harness
-cases (P01–P70) that prove it. M1.2 (admin) added V12, the draft/dismissed states in
+cases (P01–P73) that prove it. M1.2 (admin) added V12, the draft/dismissed states in
 V11, and cases P38–P47. M1.3 (Ticketmaster import) added V13 (withdrawn, §12c), the
 importer's rights (§12d), three admin-only tables, and cases P48–P54. M2.1 (the public
 web layer) added **V18 — seed rows never reach the public** (§12f), the one door the
 public pages read through, the public slug, and cases P55–P61. M2.2 and M2.3 added
 P62–P66. M3.1 **enforced V17** (§12g), moving the Instagram handle off the `people`
-row, and added cases P67–P70.
+row, and added cases P67–P70, and rewrote **V6** for the automated photo check (§8) with cases
+P71–P73.
 
 Binding sources: `decisions.md` H3 (reciprocal reveal), H6 (honest counts), H7
 (women-only), H9 (block/report), H11 (visibility in the database), Q1, Q3, Q9, and
@@ -173,12 +174,37 @@ directions from one row.
   requester passes V1 for the photo's owner **and** the photo is `approved` **and**
   it sits in its owner's own folder. The owner can always read their own photo,
   whatever its status.
-- **Moderation (Test 0):** a person appears in the list **immediately** with name and
-  Instagram handle. Their photo shows only after admin approves it (the page shows a
-  placeholder until then). A rejected photo stays hidden and the person stays
-  visible without one. Changing the photo sends it back to `pending`. The
-  approve/reject control is built in the admin milestone; this rule and its tests
-  are here.
+- **Moderation — rewritten in M3.1, when the automated check replaced the admin as
+  the first decider.** A person appears in the list **immediately**, with their name.
+  Their photo shows only once it is `approved`. **A photo state never hides the
+  person**: a rejected photo leaves them visible without one.
+
+  Four states, and the two that hide a photo are not the same thing:
+
+  | State | What happened | What others see |
+  |---|---|---|
+  | `pending` | uploaded, not checked yet | the person, without a photo |
+  | `approved` | a clear photo of a real person | the photo, to people V1 allows |
+  | `needs_review` | **the check could not tell** — possibly not a real person, possibly someone else's, possibly a minor | the person, without a photo; a human decides |
+  | `rejected` | **the check refused it** | the person, without a photo; they may upload another |
+
+  - `ai:photo-check` moves `pending` to one of the other three. The admin moves any of
+    them to `approved` or `rejected` and **cannot** set `pending` or `needs_review` —
+    those are what a human was asked to resolve.
+  - **The check never decides age on its own** (H8). A possible minor is routed to
+    `needs_review`, never rejected. The 19+ rule stays with the attestation, the date
+    of birth, reports and admin review.
+  - Changing the photo sends it back to `pending` (trigger
+    `people_photo_change_resets_status`), and a check that comes back about a photo the
+    person has since replaced is **recorded and applies nothing** — the same
+    stale-photo rule the admin's own button follows.
+  - **A check that failed is not a state.** An error, a timeout or a missing key
+    leaves the photo at `pending` and writes a `failed` row to `photo_checks`, so the
+    admin can count *waiting for a human*, *never checked* and *check failing* apart
+    (`admin_photo_states`). Unset is a different state from broken — the M2.3 map bug,
+    one layer down.
+  - `photo_checks` is service-key only, like every other operational record (V12), and
+    every attempt's cost lands in `admin_ai_spend_today` so the $3/day cap can see it.
 - **Signed URLs:** the Worker requests them with a 5-minute lifetime. The lifetime is
   chosen by whoever asks for the URL, so the database cannot enforce it: someone who
   is *allowed* to see a photo could mint a longer-lived link with their own session
@@ -553,7 +579,7 @@ is what lets the redirect work; nothing else about them is public.
 |---|---|
 | Public read (published only where it applies, and never a seed row — V18) | `venues`, `meeting_spots`, `gatherings`, `gathering_spots`, `gathering_slug_history`, `neighbourhoods`, `cities`; storage `venue-maps` (public URLs, no visitor writes) |
 | Rules above | `people`, `people_private`, `person_handles`, `pins`, `pin_friends`, `contact_points`, `spot_votes`, `gathering_group_links`, `blocks`, `reports`, `survey_responses`, storage `photos` |
-| Service key only, permanently | `magic_links`, `outbound_messages`, `gathering_sources`, `gathering_triage`, `spot_suggestions`, `venue_aliases`, `venue_external_ids`, `moderation_log`, `import_runs`, `gathering_flags`, `gathering_withdrawals`; functions `admin_*` |
+| Service key only, permanently | `photo_checks`, `magic_links`, `outbound_messages`, `gathering_sources`, `gathering_triage`, `spot_suggestions`, `venue_aliases`, `venue_external_ids`, `moderation_log`, `import_runs`, `gathering_flags`, `gathering_withdrawals`; functions `admin_*` |
 | Locked until the app phases (no privileges, no policies) | `tags`, `person_tags`, `crews`, `crew_members`, `crew_proposals`, `crew_proposal_votes`, `crew_join_requests`, `crew_messages`, `confirmations`, `connections` (read by V17's rule, never granted to a visitor directly) |
 
 ## 16 · Rule → SQL → proof
@@ -571,6 +597,7 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | V4 blocks | `private.blocked_between` (inside V1); policies `blocks_*` | P14–P16 |
 | V5 women-only | `private.women_only_open`, `public.women_only_offer`; policies `group_links_*` | P17–P20 |
 | V6 photos | bucket `photos`; `private.can_see_photo`; storage policies `photos_*`; trigger `people_photo_change_resets_status`; `people_insert_self` / `people_update_self` folder check | P07, P07b, P21, P23–P26 |
+| V6 the automated check (M3.1) | `photo_status` gains `needs_review`; table `photo_checks`; `admin_record_photo_check`, `admin_photo_states`, `admin_set_photo_status`; trigger `people_photo_check_webhook` → `private.photo_check_webhook` | P71–P73 |
 | V7 +1s | column grant on `pin_friends`; policies `pin_friends_read_*` | P27, P28 |
 | V8 removing a pin | V1 and `public.spot_poll` read live pins | P21, P22 |
 | V9 filing reports | column grant on `reports`; policy `reports_insert_on_visible_person` | P33 |

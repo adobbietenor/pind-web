@@ -1,6 +1,7 @@
 import { admin } from "./admin/routes";
 import type { Env } from "./env";
 import { page } from "./html";
+import { photoCheckForMe, photoWebhook } from "./photo/routes";
 import { publicRoutes } from "./public/routes";
 import { health } from "./routes/health";
 
@@ -9,6 +10,11 @@ export type Handler = (request: Request, env: Env) => Promise<Response>;
 // One line per route: "METHOD /path". Later milestones add lines here.
 const routes: Record<string, Handler> = {
   "GET /health": health,
+  // M3.1, the automated photo check. The webhook is the mechanism; the app's own
+  // call after an upload is the net (decisions Part 5). Both are listed in
+  // `run_worker_first` in wrangler.jsonc — a route that is not there never runs.
+  "POST /hooks/photo-check": photoWebhook,
+  "POST /photo-check": photoCheckForMe,
 };
 
 export async function route(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {

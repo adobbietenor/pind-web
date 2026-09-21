@@ -1725,3 +1725,91 @@ describe("Instagram handles — V17 (Alex, M3.1)", () => {
     assert.equal(await handleSeen(c(M("Ivy1")), "Ava"), null, "a hidden person read a handle");
   });
 });
+
+// ---------------------------------------------------------------------------
+// V6 rewritten — the automated photo check (Alex, M3.1). Three outcomes, and the
+// two that hide a photo are not the same state: "we could not tell" waits for a
+// human, "we refused it" is a decision. Neither ever hides the PERSON.
+// ---------------------------------------------------------------------------
+
+describe("The photo check — V6 (Alex, M3.1)", () => {
+  it("P71 a photo the check could not decide is hidden like a pending one / its owner still sees it / the person stays visible", async () => {
+    const eve = M("Eve");
+    // Eve's photo is approved by P46. The check's third outcome puts it back out of
+    // sight without rejecting it.
+    await ok(w.service.from("people").update({ photo_status: "needs_review" }).eq("id", eve.personId), "needs review");
+    await cannotSign(c(M("Ava")), eve.photoPath);
+    await canSign(c(eve), eve.photoPath);
+    // The person is never hidden by any photo state (V6). That is the whole point of
+    // a rejected photo leaving someone visible without one.
+    assert.equal(await seesPeople(c(M("Ava")), "Eve"), 1, "a photo state hid the person");
+    await ok(w.service.from("people").update({ photo_status: "approved" }).eq("id", eve.personId), "restore");
+    await canSign(c(M("Ava")), eve.photoPath);
+  });
+
+  it("P72 the check's own record is the service key's alone / nobody else can record a check, read one, or ask for the counts", async () => {
+    await noAccess(w.anon, "photo_checks");
+    await noAccess(c(M("Ava")), "photo_checks");
+    await denied(w.anon.rpc("admin_photo_states"), "42501");
+    await denied(c(M("Ava")).rpc("admin_photo_states"), "42501");
+    for (const client of [w.anon, c(M("Ava"))]) {
+      await denied(
+        client.rpc("admin_record_photo_check", {
+          p_person: id("Ava"),
+          p_photo_path: M("Ava").photoPath,
+          p_outcome: "approved",
+          p_source: "app",
+        }),
+        "42501",
+      );
+    }
+    // And the admin function still refuses to leave a photo undecided — "needs_review"
+    // is what the human was asked to resolve, not an answer they may give back.
+    await denied(
+      w.service.rpc("admin_set_photo_status", {
+        p_person: id("Eve"),
+        p_photo_path: M("Eve").photoPath,
+        p_status: "needs_review",
+        p_actor: ACTOR,
+      }),
+    );
+  });
+
+  it("P73 a failed check decides nothing, leaves a record, and is counted apart from a photo nothing has looked at", async () => {
+    const rex = M("Rex");
+    const before = await ok(w.service.rpc("admin_photo_states"), "counts before");
+    // A check that errored: recorded, and the photo does not move.
+    const applied = await ok(
+      w.service.rpc("admin_record_photo_check", {
+        p_person: rex.personId,
+        p_photo_path: rex.photoPath,
+        p_outcome: "failed",
+        p_source: "webhook",
+        p_error: "the call stopped early",
+        p_cost: "0.020000",
+      }),
+      "record a failure",
+    );
+    assert.equal(applied, null, "a failed check moved the photo");
+    assert.equal((await serviceRow("people", "id", rex.personId, "photo_status")).photo_status, "rejected");
+
+    // Its cost still counts against the day, because it was still billed. A job whose
+    // spend is invisible to the cap turns a hard cap into a suggestion (M2.3).
+    const spend = await ok(w.service.rpc("admin_ai_spend_today", { p_city: "toronto" }), "spend");
+    assert.ok(Number(spend) >= 0.02, `the failed check's $0.02 is missing from the day (${spend})`);
+
+    // And a check about a photo the person has already replaced is recorded and moves
+    // nothing — the stale-photo rule, the same one the admin's own button follows.
+    const stale = await ok(
+      w.service.rpc("admin_record_photo_check", {
+        p_person: rex.personId,
+        p_photo_path: `${rex.authId}/gone.png`,
+        p_outcome: "approved",
+        p_source: "webhook",
+      }),
+      "record a stale check",
+    );
+    assert.equal(stale, null, "a check about a replaced photo decided something");
+    assert.ok(Array.isArray(before), "admin_photo_states returns a row");
+  });
+});

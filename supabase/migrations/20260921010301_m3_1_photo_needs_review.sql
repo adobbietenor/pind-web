@@ -1,0 +1,26 @@
+-- Phase 3 M3.1 — a photo the check could not decide is its own state (V6 rewritten).
+--
+-- Until now `photo_status` was pending / approved / rejected, and "pending" carried
+-- two different facts: *nobody has looked yet* and *we looked and could not tell*.
+-- The automated check makes that gap matter, because those two states want two
+-- different sentences and two different people acting on them. **"We could not tell"
+-- and "we refused" must never converge** (Alex, M3.1) — the same distinction the
+-- liveness check draws between a page it cannot read and a series that has stopped.
+--
+--   pending       uploaded, not checked yet          nobody has looked
+--   approved      a clear photo of a real person     visible to people V1 allows
+--   needs_review  the check could not tell           a human decides
+--   rejected      the check refused it               the person stays visible without one
+--
+-- A fourth fact — *the check itself failed* — is deliberately NOT a status. It leaves
+-- the photo at `pending` and writes a failure row to `photo_checks`, because a check
+-- that errored is not waiting on a human and is not a decision. See the next
+-- migration.
+--
+-- `private.can_see_photo` asks for `= 'approved'`, so a photo in this new state is
+-- hidden from everyone but its owner with no change to the rule.
+--
+-- Its own migration: Postgres will not let a new enum value be USED in the
+-- transaction that adds it.
+
+alter type public.photo_status add value if not exists 'needs_review' after 'approved';

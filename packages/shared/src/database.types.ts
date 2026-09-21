@@ -1559,6 +1559,56 @@ export type Database = {
           },
         ]
       }
+      photo_checks: {
+        Row: {
+          ai_cost_usd: number
+          at: string
+          duration_ms: number | null
+          error: string | null
+          id: number
+          model: string | null
+          outcome: string
+          person_id: string | null
+          photo_path: string
+          reason: string | null
+          source: string
+        }
+        Insert: {
+          ai_cost_usd?: number
+          at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: never
+          model?: string | null
+          outcome: string
+          person_id?: string | null
+          photo_path: string
+          reason?: string | null
+          source: string
+        }
+        Update: {
+          ai_cost_usd?: number
+          at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: never
+          model?: string | null
+          outcome?: string
+          person_id?: string | null
+          photo_path?: string
+          reason?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photo_checks_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pin_friends: {
         Row: {
           age_attested_at: string | null
@@ -2300,6 +2350,14 @@ export type Database = {
         Returns: undefined
       }
       admin_mint_slug: { Args: { p_gathering: string }; Returns: string }
+      admin_photo_states: {
+        Args: never
+        Returns: {
+          check_failing: number
+          never_checked: number
+          waiting_for_human: number
+        }[]
+      }
       admin_publish_gathering: {
         Args: { p_actor: string; p_gathering: string }
         Returns: undefined
@@ -2330,6 +2388,20 @@ export type Database = {
           p_venue: string
         }
         Returns: number
+      }
+      admin_record_photo_check: {
+        Args: {
+          p_cost?: number
+          p_duration_ms?: number
+          p_error?: string
+          p_model?: string
+          p_outcome: string
+          p_person: string
+          p_photo_path: string
+          p_reason?: string
+          p_source: string
+        }
+        Returns: Database["public"]["Enums"]["photo_status"]
       }
       admin_record_promotion: {
         Args: {
@@ -2528,7 +2600,7 @@ export type Database = {
       join_request_status: "pending" | "approved" | "declined"
       message_kind: "system" | "user" | "arrival"
       outbound_kind: "threshold" | "survey"
-      photo_status: "pending" | "approved" | "rejected"
+      photo_status: "pending" | "approved" | "needs_review" | "rejected"
       publish_mark: "publish" | "never"
       publish_outcome: "published" | "skipped"
       report_reason: "uncomfortable" | "not_who_they_said" | "under_19" | "spam"
@@ -2693,7 +2765,7 @@ export const Constants = {
       join_request_status: ["pending", "approved", "declined"],
       message_kind: ["system", "user", "arrival"],
       outbound_kind: ["threshold", "survey"],
-      photo_status: ["pending", "approved", "rejected"],
+      photo_status: ["pending", "approved", "needs_review", "rejected"],
       publish_mark: ["publish", "never"],
       publish_outcome: ["published", "skipped"],
       report_reason: ["uncomfortable", "not_who_they_said", "under_19", "spam"],
