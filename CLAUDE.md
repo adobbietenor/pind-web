@@ -237,6 +237,42 @@ Two things that make this failure mode hard to see from inside, both worth knowi
   cleaning a value on the way in destroys the evidence that something upstream is
   adding it.
 
+## A guard that never ran looks exactly like a guard that passed
+
+The sibling of the rule above, and the harder one to catch. An instrument that
+measures the wrong thing at least *says* something wrong. **A guard that never fires
+says nothing at all** — and so does a guard that correctly found nothing to stop.
+The safe path and the broken path report the same thing.
+
+M3.1: `admin_rescore_photo` exists so that re-judging photos after a rubric change
+**never overrules a person**. Its guard looked up the last decision with
+`like 'photo\_%'` — one backslash too many, a literal backslash in a
+standard-conforming string, matching nothing. Every photo looked undecided. The first
+real run overwrote four photos Alex had rejected by hand minutes earlier and signed
+them `ai:photo-check`. Nothing errored. No count moved. Every line of output said
+"now approved", which is exactly what it would have said if the guard had worked.
+
+**So a rule whose job is to refuse something is proved by a test that makes it
+refuse — never by an absence of complaints.** The test has to put the forbidden thing
+in front of the guard and insist it is turned away. `P81` is the shape: a human
+decision, then a rescore, then an assertion that the status did not move.
+
+Two things that follow, both cheap and both easy to skip:
+
+- **Check the boundary from both sides.** A cap proved only by the thing it allows is
+  a cap nobody has seen work. P77 asserts the eleventh tag is refused *and* that
+  removing one makes room again.
+- **Watch for a guard nothing can even load.** The tag picker's "that's ten" refusal
+  lived inside a React Native component, so `node --test` could not reach it and
+  nothing proved it fired — a refusal that exists *specifically* so a tap never
+  silently does nothing, with nothing checking that it speaks. It moved to
+  `packages/shared` for the same reason `ageOn` did: **a rule is not a component
+  detail just because a component is the only thing that calls it.**
+- **Audit by reading the tests, not by remembering them.** Asked which guards lacked a
+  firing test, I named the publisher's capacity floor — and it has four, including
+  both sides of the boundary. Confidently wrong about my own coverage is the same
+  failure as the instrument above, pointed inward.
+
 ## Measure what the phone does, not what the server sent
 
 A fast server response is not a fast page. M2.1 hit the same one-layer-down gap three

@@ -16,59 +16,35 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   ALL_TAGS,
   colors as palette,
+  countOnList,
   fonts,
   radius,
   spacing,
   TAGS,
-  TAGS_AT_MAXIMUM,
-  TAGS_LIST_FULL,
-  TAGS_MAXIMUM,
   TAGS_MINIMUM,
   TAGS_ON_LIST,
+  toggleOnList,
+  toggleTag,
+  type PickedTag,
 } from "@pind/shared";
 import { Body } from "./ui";
 
-export interface Picked {
-  slug: string;
-  onList: boolean;
-}
-
-export function countOnList(picked: Picked[]): number {
-  return picked.filter((p) => p.onList).length;
-}
-
-export function enoughPicked(picked: Picked[]): boolean {
-  return picked.length >= TAGS_MINIMUM;
-}
-
-// Tapping a tag adds or removes it. Tapping a tag you already have, in the second
-// row, is what moves it on and off the list.
-export function toggle(picked: Picked[], slug: string): { next: Picked[]; says?: string } {
-  const have = picked.find((p) => p.slug === slug);
-  if (have) return { next: picked.filter((p) => p.slug !== slug) };
-  if (picked.length >= TAGS_MAXIMUM) return { next: picked, says: TAGS_AT_MAXIMUM };
-  // The first three picked are the first three shown, so somebody who never opens the
-  // second row still has a sensible row rather than a blank one.
-  return { next: [...picked, { slug, onList: countOnList(picked) < TAGS_ON_LIST }] };
-}
-
-export function toggleOnList(picked: Picked[], slug: string): { next: Picked[]; says?: string } {
-  const have = picked.find((p) => p.slug === slug);
-  if (!have) return { next: picked };
-  if (!have.onList && countOnList(picked) >= TAGS_ON_LIST) return { next: picked, says: TAGS_LIST_FULL };
-  return { next: picked.map((p) => (p.slug === slug ? { ...p, onList: !p.onList } : p)) };
-}
+// The caps and their sentences live in `@pind/shared` so they can be tested under
+// bare node — a rule whose job is to refuse something is proved by a test that
+// makes it refuse, and this one could not be loaded where it was.
+export type { PickedTag as Picked } from "@pind/shared";
+export { countOnList, enoughPicked } from "@pind/shared";
 
 export function TagPicker({
   picked,
   onChange,
   onSay,
 }: {
-  picked: Picked[];
-  onChange: (next: Picked[]) => void;
+  picked: PickedTag[];
+  onChange: (next: PickedTag[]) => void;
   onSay: (says: string) => void;
 }) {
-  const apply = (result: { next: Picked[]; says?: string }) => {
+  const apply = (result: { next: PickedTag[]; says?: string }) => {
     if (result.says) onSay(result.says);
     else onSay("");
     onChange(result.next);
@@ -89,7 +65,7 @@ export function TagPicker({
                   key={t.slug}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: on }}
-                  onPress={() => apply(toggle(picked, t.slug))}
+                  onPress={() => apply(toggleTag(picked, t.slug))}
                   style={[styles.chip, on && styles.chipOn]}
                 >
                   <Text style={[styles.chipLabel, on && { color: palette.onAccent }]}>{t.name}</Text>

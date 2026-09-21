@@ -105,3 +105,52 @@ export const TAGS_ON_LIST = 3;
 // but a tap that does nothing looks broken, which is the fault the code field had.
 export const TAGS_AT_MAXIMUM = `That's ${TAGS_MAXIMUM}, which is as many as a profile carries. Take one off to add another.`;
 export const TAGS_LIST_FULL = `Three is what fits on the list. Take one off to feature a different one — the rest still show on your profile.`;
+
+// ---------------------------------------------------------------------------
+// The picker's rules, here rather than in the component (M3.1).
+//
+// **They moved because they could not be tested where they were.** They lived in
+// `app/src/components/TagPicker.tsx`, which imports React Native and therefore cannot
+// be loaded by `node --test` — so the eleventh-tap refusal, which exists precisely to
+// stop a tap doing nothing silently, had nothing proving it fires. The database half
+// has P77; this is the half a person actually sees.
+//
+// Same move as `ageOn`: a rule is not a component detail just because a component is
+// the only thing that calls it.
+// ---------------------------------------------------------------------------
+
+export interface PickedTag {
+  slug: string;
+  onList: boolean;
+}
+
+export function countOnList(picked: readonly PickedTag[]): number {
+  return picked.filter((p) => p.onList).length;
+}
+
+export function enoughPicked(picked: readonly PickedTag[]): boolean {
+  return picked.length >= TAGS_MINIMUM;
+}
+
+// Adding or removing one. Tapping a tag you already have takes it off — there is no
+// separate remove, because a chip that is on and a chip that is off are the same
+// control.
+export function toggleTag(picked: readonly PickedTag[], slug: string): { next: PickedTag[]; says?: string } {
+  const have = picked.find((p) => p.slug === slug);
+  if (have) return { next: picked.filter((p) => p.slug !== slug) };
+  // **The refusal says so.** The maximum is not advertised, but a tap that silently
+  // does nothing looks broken — the same fault the code field had when it swallowed
+  // two digits of a pasted code.
+  if (picked.length >= TAGS_MAXIMUM) return { next: [...picked], says: TAGS_AT_MAXIMUM };
+  // The first three picked are the first three shown, so somebody who never opens the
+  // second row still has a sensible row rather than a blank one.
+  return { next: [...picked, { slug, onList: countOnList(picked) < TAGS_ON_LIST }] };
+}
+
+// Moving one on or off the list of three that shows beside a name.
+export function toggleOnList(picked: readonly PickedTag[], slug: string): { next: PickedTag[]; says?: string } {
+  const have = picked.find((p) => p.slug === slug);
+  if (!have) return { next: [...picked] };
+  if (!have.onList && countOnList(picked) >= TAGS_ON_LIST) return { next: [...picked], says: TAGS_LIST_FULL };
+  return { next: picked.map((p) => (p.slug === slug ? { ...p, onList: !p.onList } : p)) };
+}
