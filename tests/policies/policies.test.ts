@@ -13,7 +13,7 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEnv } from "./env.ts";
-import { ACTOR, BUCKET, MAPS, PNG, buildWorld, handleFor, newClient, sweep, type Member, type World } from "./world.ts";
+import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, newClient, sweep, type Member, type World } from "./world.ts";
 
 interface Result {
   data: any;
@@ -1888,5 +1888,78 @@ describe("Tags — V19 (Alex, M3.1)", () => {
 
     // And a slug that is not in the vocabulary is not a tag.
     await denied(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "invented-slug" }));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A23's two halves — the export reads as you, and delete takes the right things
+// (Alex, M3.1). V9 is extended, not loosened: a reporter reads their own reason
+// and date and nothing the moderator wrote.
+// ---------------------------------------------------------------------------
+
+describe("Export and delete — A23 (Alex, M3.1)", () => {
+  it("P78 a reporter CAN read their own reason and date / CANNOT read the outcome / nobody else CAN read it at all", async () => {
+    // Ava filed on Ivy1 and Ivy2 earlier in this run (P34, P35), so these are real
+    // rows rather than ones this case arranged for itself.
+    const ava = c(M("Ava"));
+    const mine = await rows(ava.from("reports").select("id, target_kind, reason, created_at"));
+    assert.ok(mine.length >= 2, `a reporter cannot read the reports they filed (${mine.length})`);
+    assert.ok(mine.every((r: any) => r.reason && r.created_at && r.target_kind === "person"));
+
+    // The moderator's half stays shut, and it is the column grant that shuts it:
+    // `auto_hidden` would tell a reporter their report hid someone (H9).
+    for (const column of ["status", "decision_note", "reviewed_at", "is_safety", "reported_content_snapshot", "reporter_id", "target_person_id"]) {
+      await denied(ava.from("reports").select(column), "42501");
+    }
+    // Not the target's, not a stranger's, not anon's. Ivy2 was reported by Ava and
+    // by Dev, and reads nothing at all.
+    assert.equal((await rows(c(M("Ivy2")).from("reports").select("id, reason"))).length, 0, "the target read a report about them");
+    // Dee has filed nothing all run, which is what makes her the bystander here —
+    // Ben filed one in P35, so he would be reading his own and proving nothing.
+    assert.equal((await rows(c(M("Dee")).from("reports").select("id, reason"))).length, 0, "a bystander read someone's report");
+    await noAccess(w.anon, "reports");
+  });
+
+  it("P79 deleting a person takes what is keyed to them and leaves what outlives them", async () => {
+    // A person of this case's own, so nothing else in the world depends on them.
+    const authId = (await ok(
+      w.service.auth.admin.createUser({ email: `${PREFIX}-gone-${w.run}@example.com`, email_confirm: true }),
+      "make a user",
+    )).user.id;
+    const person = await ok(
+      w.service.from("people").insert({ auth_user_id: authId, first_name: "Gone" }).select("id").single(),
+      "make a person",
+    );
+    await ok(w.service.from("person_handles").insert({ person_id: person.id, instagram: handleFor(w.run, "gone") }), "handle");
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1994 }), "private");
+    await ok(w.service.from("person_tags").insert({ person_id: person.id, tag: "up-for-whatever" }), "a tag");
+    await ok(w.service.from("pins").insert({ gathering_id: w.G, person_id: person.id, open_to_meeting: true }), "a pin");
+    await ok(
+      w.service.from("reports").insert({ reporter_id: person.id, target_kind: "person", target_person_id: id("Ava"), reason: "spam" }),
+      "a report they filed",
+    );
+    await ok(
+      w.service.from("moderation_log").insert({ actor: ACTOR, action: "account_deleted", person_id: person.id }),
+      "the log row the delete writes first",
+    );
+
+    await ok(w.service.from("people").delete().eq("id", person.id), "delete the person");
+
+    // Gone, by cascade.
+    for (const table of ["person_handles", "people_private", "person_tags"]) {
+      assert.equal((await rows(w.service.from(table).select("person_id").eq("person_id", person.id))).length, 0, `${table} survived`);
+    }
+    assert.equal((await rows(w.service.from("pins").select("id").eq("person_id", person.id))).length, 0, "a pin survived");
+
+    // Kept, with the person reference nulled — a safety record must not disappear
+    // because somebody deleted an account.
+    const report = await rows(w.service.from("reports").select("id, reporter_id, reason").eq("target_person_id", id("Ava")).eq("reason", "spam"));
+    assert.ok(report.some((r: any) => r.reporter_id === null), "the report they filed was deleted with them");
+
+    // And the log, which has no foreign keys precisely so it outlives the row.
+    const log = await rows(w.service.from("moderation_log").select("action").eq("person_id", person.id));
+    assert.ok(log.some((l: any) => l.action === "account_deleted"), "the deletion left no record");
+
+    await w.service.auth.admin.deleteUser(authId);
   });
 });

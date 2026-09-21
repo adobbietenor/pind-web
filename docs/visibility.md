@@ -7,14 +7,14 @@ adversarial review — a fresh Claude Code session with no prior context, using
 `docs/m1.1-review-brief.md` — checks the SQL and the harness (`tests/policies`)
 against this file for leaks, and Alex gives this file their own read. Every rule has
 an ID (V1–V19), and §16 maps each rule to the SQL that enforces it and the harness
-cases (P01–P77) that prove it. M1.2 (admin) added V12, the draft/dismissed states in
+cases (P01–P79) that prove it. M1.2 (admin) added V12, the draft/dismissed states in
 V11, and cases P38–P47. M1.3 (Ticketmaster import) added V13 (withdrawn, §12c), the
 importer's rights (§12d), three admin-only tables, and cases P48–P54. M2.1 (the public
 web layer) added **V18 — seed rows never reach the public** (§12f), the one door the
 public pages read through, the public slug, and cases P55–P61. M2.2 and M2.3 added
 P62–P66. M3.1 **enforced V17** (§12g), moving the Instagram handle off the `people`
 row, and added cases P67–P70, and rewrote **V6** for the automated photo check (§8) with cases
-P71–P73, and added **V19 — a person's tags** (§12h) with cases P74–P77.
+P71–P73, and added **V19 — a person's tags** (§12h) with cases P74–P77, and extended **V9** so an export can read the reports you filed (P78–P79).
 
 Binding sources: `decisions.md` H3 (reciprocal reveal), H6 (honest counts), H7
 (women-only), H9 (block/report), H11 (visibility in the database), Q1, Q3, Q9, and
@@ -238,6 +238,15 @@ directions from one row.
 ## 11 · Reports and auto-hide — V9, V10
 
 - **V9 filing:** a signed-in person can file a report on a person V1 lets them see.
+- **V9 reading, added in M3.1 for "export my data" (Alex):** a reporter can read
+  **their own** reports, and the column grant lets them see four things — the id, what
+  kind of thing it was about, **their reason and the date**. Everything the moderator
+  touched stays shut: `status` (where `auto_hidden` would tell a reporter their report
+  hid someone, which is what H9 keeps quiet), `decision_note`, `reviewed_at`,
+  `is_safety`, the message snapshot, and the ids. A report is still unreadable by its
+  target, by any other person and by `anon`. It exists because the export is **read as
+  the person through RLS** rather than with the service key — walking around RLS is
+  how an export quietly becomes a wider query.
   They cannot read any report, including their own (Test 0). `is_safety` derives from
   the reason (a generated column); `status` cannot be set by the reporter. Crew and
   message reports arrive with the app.
@@ -637,6 +646,8 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | V7 +1s | column grant on `pin_friends`; policies `pin_friends_read_*` | P27, P28 |
 | V8 removing a pin | V1 and `public.spot_poll` read live pins | P21, P22 |
 | V9 filing reports | column grant on `reports`; policy `reports_insert_on_visible_person` | P33 |
+| V9 reading your own (M3.1) | column grant `(id, target_kind, reason, created_at)`; policy `reports_read_own_filed` | P78 |
+| Deleting an account (M3.1) | `people` cascades; `reports.reporter_id` / `crew_messages.author_id` on delete set null; `moderation_log` has no foreign keys; `POST /account/delete` on the Worker | P79 |
 | V10 auto-hide | trigger `reports_auto_hide` → `private.auto_hide_on_report` | P34–P36 |
 | V11 published | policies `gatherings_read_published`, `gathering_spots_read_published`; `private.is_published` in pin/survey inserts | P01, P02, P08, P38, P39 |
 | V11 publishing rules | trigger `gatherings_status_rules` → `private.gathering_status_rules`; `admin_publish_gathering`, `admin_merge_gatherings` | P42, P43 |
