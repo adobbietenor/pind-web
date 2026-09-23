@@ -75,7 +75,7 @@ Derived counts:
 attestation, as a Supabase anonymous user. It becomes **permanent at opt-in** (A27) by
 linking an email (one-time code), Apple or Google identity; the id never changes, so
 the pin survives. A person who never opts in is deleted with their last pin.
-Date of birth, gender and the face photo are collected at opt-in (A27) on the link
+Date of birth, gender and the photo are collected at opt-in (A27) on the link
 path, and at A2 on the store path.
 Self-declared `gender`: woman / man / nonbinary / undisclosed.
 `include_in_women_only` (default false) is offered **only** to nonbinary people; when
@@ -87,7 +87,7 @@ Date of birth is used for the 19+ check, then only the year is kept.
 `hidden_from_solo` (default false): set at insert by **any** report on the person,
 whatever the reason; it removes them from every solo list (§1 block / report).
 **Instagram handle** (Alex, revised build plan): optional on the profile, never
-required, and never a substitute for the face photo. Visible **only** to the person's
+required, and never a substitute for the photo. Visible **only** to the person's
 crewmates, their solo-plan partner and their connections — never on the "going & open
 to meeting" list, never on any public page, never in link previews (H2, and solo's
 mutual accept). Enforced in the database with harness cases when the profile is built
@@ -491,7 +491,7 @@ Only for someone who ticked "meet up" (or turns it on later). One screen more:
 - Date of birth — **under 19 stops here**, no soft fail (H8); only the year is kept
 - Gender: woman / man / nonbinary / prefer not to say; nonbinary is offered "include me
   in women-only crews"; never shown to others
-- A face photo (Q2), with the automated check and its pending state
+- A photo (Q2; it need not be a face), with the automated check and its pending state
 - A way to reach you: email me a code, Continue with Apple or Continue with Google, on
   the web and in the app (Alex, M3.1)
 - Optional Instagram handle (§1 person)

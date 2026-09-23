@@ -49,13 +49,24 @@ an unnamed +1, and a +1 occupies a seat: a member with a +1 takes 2 of the 8.
 the organiser and undercounts real groups.
 
 ### Q2 — Photo policy, web vs app
-**Call** (Alex, revised build plan; replaces Test 0's "photo **or** Instagram
-handle"): the face photo is **required to opt in to meeting** (A27 on the link path, A2
-on the store path), **never to pin** — a pin buys a count, which needs no face; opting
-in buys visibility, which does. Crews look for faces at a patio table. There is no
-Instagram alternative: a handle is an optional profile extra, never a substitute for
-the photo (Part 5, "Instagram handle"). The check is automated (Part 5, "Automated
-photo moderation").
+**Call, as it stands** (Alex, M3.1): a photo is **required to opt in to meeting** (A27
+on the link path, A2 on the store path), **never to pin** — a pin buys a count, which
+needs no photo; opting in buys visibility, which does. **The photo need not be a
+face:** the check approves anything that is not nudity, hate imagery or gore, and sends
+only a possible minor to a human (Part 5, "The photo check holds almost nothing now").
+The screen encourages one — "A photo of you makes it easier to find each other" — and
+does not demand it. There is no Instagram alternative: a handle is an optional profile
+extra, never a substitute for the photo (Part 5, "Instagram handle"). The check is
+automated (Part 5, "Automated photo moderation").
+
+**Superseded wording** (Alex, revised build plan; replaced Test 0's "photo **or**
+Instagram handle"), kept so the history is readable: *"the face photo is required to
+opt in to meeting … opting in buys visibility, which does [need a face]. Crews look for
+faces at a patio table."* **Superseded in M3.1** because it describes the old photo
+rule: once a cartoon, a pet or a landscape is approved, "a face at a patio table" is a
+promise the product does not keep, and a binding call that says otherwise is a stale
+rule waiting to be walked against (as the M3.1 acceptance line nearly was). What
+survives unchanged: required to opt in, never to pin, no Instagram substitute.
 **Alternative:** require photos everywhere from day one. Safer-feeling list, worse funnel.
 
 ### Q3 — Gender mix at tiny counts
@@ -155,7 +166,7 @@ school, sexual orientation. Tags are optional on the link path and nudged later
 (Alex, revised build plan); "exactly 3" defines a complete profile.
 
 Collected only if the person chooses to add it: an **Instagram handle** — optional,
-never required, never a substitute for the face photo, and visible only to crewmates,
+never required, never a substitute for the photo, and visible only to crewmates,
 a solo-plan partner and connections (Part 5, "Instagram handle").
 
 Collected with a stated purpose: **self-declared gender** (woman / man / nonbinary /
@@ -474,7 +485,7 @@ change). Where the plan has more detail, the plan is the reference.
   nudged later; "exactly 3 tags" defines a complete profile, never a gate before a pin.
 - **Instagram handle** (Alex, revised build plan — Alex's own change to the plan, which
   had dropped it). A person may add an Instagram handle to their profile. It is
-  **always optional**, never required, and **never a substitute for the face photo**.
+  **always optional**, never required, and **never a substitute for the photo**.
   **Who can see it:** only that person's **crewmates**, their **solo-plan partner** and
   their **connections**. Never on the open "going & open to meeting" list, never on any
   public page, never in link previews — this protects H2 (no cold DMs) and solo's
@@ -2548,3 +2559,54 @@ proved what it said. S01–S03 now say it.
 list and "exactly 3 tags" in spec A3): **a decision that changes a rule is not done
 until the rule is edited where it is written** — in the spec, the acceptance list and
 the code that obeys it. A stale rule does not look stale; it looks like the plan.
+
+### Apple and Google as one pair — what each brand allows (Alex, M3.1)
+
+Alex, after Apple reached the web: a white Apple button over a black Google one "look
+like two different products stacked". Two looks were built to pick from on the phone,
+both inside both brands' published rules — **read from the rules, not remembered**,
+because Apple can revoke a sign-in method whose button breaks its terms.
+
+**Apple** (HIG, "Sign in with Apple", custom buttons):
+- Styles: white (for dark backgrounds), white with outline (light backgrounds only),
+  black (light backgrounds). A **custom** button may change the font, weight and size,
+  the corner radius, and add "a stroke to emphasize the button bezel"; the overall
+  colour **stays black or white**; logo and title are **both black or both white**.
+- Titles only "Sign in / Sign up / Continue with Apple". Logo-and-text buttons are
+  rectangular (a corner radius is fine).
+- **Logo only from Apple Design Resources; never a custom Apple logo.** Its file's
+  height matches the button's; never cropped; no added vertical padding. It may be
+  inset to align with other providers' logos.
+- The title is **43% of the button's height, "regardless of the font you choose"**.
+  Minimum 140 × 30. **No smaller than any other sign-in button.**
+
+**Google** (Sign in with Google branding guidelines):
+- Themes: light (#FFFFFF, stroke #747775, text #1F1F1F), **dark (#131314, stroke
+  #8E918F, text #E3E3E3)**, neutral (#F2F2F2). Google Sans Medium 14/20 in a 40-high
+  button. Rectangular or pill.
+- **The G is always the standard full-colour gradient G**, never monochrome, never
+  redrawn or outdated, on a light, dark or neutral fill only. Padding 12 / 10 / 12.
+- "Continue with Google" is allowed. At least as prominent as other third-party
+  buttons.
+
+**Where they meet, and the calls made:**
+- **One geometry:** 44 high, 1 px stroke, radius 12, the title 18 px (43% of the 42
+  inside the stroke) in the **system font**. Apple's proportion is stated as a rule;
+  Google's 35% is a spec of its own button. **Deviations from Google's letter, both
+  deliberate:** the system font rather than Google Sans (a web font would cost load
+  time and a dependency), and a white title rather than #E3E3E3 in the outline look.
+- **The marks share one centre line**: the G at Google's padding, Apple's Medium file
+  inset to match.
+- **Look 1, "matched":** Apple white; Google in its own dark theme. **Look 2,
+  "outline":** both black (#000 — the Apple file's own background is #000, so the fill
+  is exactly black rather than our near-black), both with Google's #8E918F stroke,
+  both titles white. Apple's HIG steers its *system* black button off dark
+  backgrounds; a custom black button with a stroked bezel is its stated allowance.
+- **The files are the brands' own**, unmodified except where `app/assets/signin/README.md`
+  says: the Apple Medium logos byte-identical from `Logo-Sign-in-with-Apple.dmg`; the G
+  from Google's `signin-assets.zip`, with only the button behind it removed, rendered
+  to PNG and compared against Google's own PNG of it.
+- **The old Google button broke Google's rules and nobody had noticed**: no G at all,
+  and a text-only "Continue with Google" is exactly what the guidelines steer away from.
+- In the app, Apple stays **Apple's own system button** (white or black to match),
+  framed in the same stroke; only the web draws Apple's button by hand.

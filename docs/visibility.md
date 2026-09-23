@@ -355,7 +355,7 @@ draft Alex dismissed or merged (P52). Ticketmaster's ids, links and facts are de
 ### V17 · Instagram handles
 
 A person may add an Instagram handle to their profile. It is always optional, never
-required, and never a substitute for the face photo.
+required, and never a substitute for the photo.
 
 - **Who can see it:** only the person's **crewmates** (members of a crew they share),
   their **solo-plan partner**, and their **connections**.
