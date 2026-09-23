@@ -22,6 +22,9 @@ const routes: Record<string, Handler> = {
   // bundle — and a half-finished delete is worse than either state, so it is one
   // server-side call rather than the app doing the parts it can.
   "POST /account/delete": deleteAccount,
+  // M3.2, the hand-off: the app claims the quick pin's session once
+  // (src/public/quickpin.ts). /session/* is in run_worker_first.
+  "POST /session/claim": claimSession,
 };
 
 export async function route(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {

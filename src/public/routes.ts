@@ -10,7 +10,7 @@ import type { Env } from "../env";
 import { crowd } from "./data";
 import { appSiteAssociation, ogImage } from "./og";
 import { pngResponse, rasterise } from "./ogpng";
-import { ensureVenueMap, venueMapImage, venueMapUpload } from "./mapserve";
+import { venueMapImage, venueMapUpload } from "./mapserve";
 import { about, favicon, ics, robots, w1, w2, w3 } from "./pages";
 import { privacy, terms } from "./policy";
 import { quickPinPage } from "./quickpin";
@@ -66,7 +66,11 @@ export async function publicRoutes(request: Request, env: Env, ctx?: ExecutionCo
   if (tail.length === 0 || (tail.length === 1 && tail[0] === "")) return w2(request, env, slug, ctx);
   if (tail.length === 1 && tail[0] === "spot") return w3(request, env, slug);
 
-  // /g/<slug>/pin and anything else under a gathering belong to the app.
+  // A26, the quick pin — the Worker's since M3.2 (spec §4). Its POST is routed in
+  // router.ts, because this function answers GET and HEAD only.
+  if (tail.length === 1 && tail[0] === "pin") return quickPinPage(env, slug);
+
+  // Anything else under a gathering belongs to the app.
   return toApp(request, env);
 }
 
