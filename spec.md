@@ -643,7 +643,7 @@ working. Hours are Alex's, agent-assisted.
 | M2.2 | Auto-publishing v1 — fixed target (§8) | **Done** — merged as `ec9d74d` | 4–6 |
 | M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | **Done** — merged as `M2.3` | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
-| M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | **Walked on the web** (Alex and a friend, 22 Sept); native Google, Apple and HEIC wait on the internal TestFlight build. Not merged | 12–16 |
+| M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | **Done** — merged to `main` on 23 Sept 2026 | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel, universal links (A5–A9, A19, A26, A27) | Not started | 12–18 |
 | M3.3 | Crews, the thread, the night, the morning after (A10–A17, A20, "Put me in a crew") | Not started | 20–28 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
@@ -962,6 +962,82 @@ the current pace, raise the hours or shrink the phase.
     - **the liveness cron has no watchdog**: the Community page says when no run has
       finished in 48 hours, but M2.2's pg_cron watchdog covers the import only, and
       generalising it is a refactor rather than a copy.
+
+- **Phase 3 M3.1 complete** (branch `phase3/m3.1-identity`, merged to `main` on
+  23 Sept 2026): identity and profile. 40 commits, 20 migrations; `test:policies`
+  91/91, `test:unit` 305/305. What the repo cannot show — every dashboard and console
+  setting — is in `docs/configuration.md`, which M4.3 rebuilds for production.
+  - **Built.** Three ways in — Apple, Google, a six-digit email code — on the web and in
+    the app, with no password anywhere. Anonymous → permanent keeps the same user, pin,
+    party size and opt-in (P84–P86, for M3.2). A2 with the under-19 stop and year-only
+    storage; A3 with 32 tags, three to ten, three on the list; A21 with preview, Edit
+    tags and Change photo; A22 shell; A23 export and delete. **Nothing waits on the
+    photo check**: a photo is visible from upload unless rejected, the check can only
+    remove, a possible minor is flagged to Alex and never to the owner, and the sweep
+    is hourly behind a cron router in which an unknown cron runs nothing.
+  - **How each part was proved — honestly.**
+    - **Walked on a phone (TestFlight):** signing in (native Apple is walked again on
+      M3.2's first build); cross-platform restore
+      (signed out in the app, in on pind.social, landed on Crowds with the profile
+      intact); the under-19 stop; tags; the profile header; export and delete; Change
+      photo → Choose another → Save, and Remove photo → Save.
+    - **Walked on the web:** the same ways in; a failed photo upload greyed, removed,
+      and the profile finished without one; **the failed-upload wording with no
+      hostname** (Alex, 23 Sept); **a code — six digits — to a brand-new address**,
+      which is the Confirm signup template whose body used to send a link.
+    - **Proved by test, not walked on any device:** **the offline screens** — offline
+      is never read as signed out (N01–N09), and no screen calls the network check or
+      writes its own sign-in sentence (S16–S19, each failing on the old code on exactly
+      the files that carried the fault). **The raw-error wording on the phone** — only
+      sentences we wrote reach a screen (L01–L07, S20–S21) — is walked on the web only.
+    - **Carried into M3.2's first build, not held against this merge:** the photo
+      picker from the phone's own library, HEIC, native Apple sign-in, and the offline
+      screens and forced upload failure in airplane mode.
+  - **Findings worth keeping.**
+    1. **The tag rules were tested in shared code and not used by the screens** — both
+       screens gated Continue on their own expression, so Continue worked with no tags
+       while T09 was green; `screens.test.ts` now fails if a caller goes its own way
+       (CLAUDE.md, "A test of a rule proves nothing about a screen that does not call
+       it").
+    2. **The photo path only ever failed on the phone**: `text/plain` (a Blob loses its
+       type in React Native, and storage-js drops the `contentType` option for a Blob)
+       and the A2 dead end both passed on the web all weekend.
+    3. **Cross-platform restore works end to end** — the "lost profile" was A2 showing a
+       blank form to a returning person, not a lost account.
+    4. **Offline was called a lost sign-in** — the third time in the milestone a system
+       was confident about a failure it had not diagnosed. `getUser()` is a network
+       call; six screens shared it, and each read its offline "no user" as signed out
+       and dropped the error — the tags fault again in a new place. The distinction now
+       in force: **signed out is said only when it is true** — nothing on the phone, or
+       the server refusing the session. **Unreachable is not signed out, and an error
+       nothing recognises is neither.** Every failure sentence carries its exit — Sign
+       in again or Try again — enforced by reading the source, because a rule followed
+       by convention is not followed.
+    5. **Only sentences we wrote reach a screen.** The web walk's failed upload printed
+       "load failed (mxuajvlrkggrqpntekqt.supabase.co)" — the browser's own text,
+       carrying the host that already makes the Google sheet look like a scam. The raw
+       error, a table name or a Postgres code now goes to Sentry.
+    6. **A test that reads the source must prove its own pattern matches something
+       real**, or it passes by finding nothing: S20's regex was mangled on the way in
+       and matched nothing while reporting a pass; it now asserts that it sees a real
+       `.message` read before it trusts an empty result. The guard rule pointed at the
+       tests themselves (CLAUDE.md).
+    7. **Every email template that can sign someone in sends a code**, set all at once
+       after the third link from a template nobody had thought of, and read back from
+       the server rather than the dashboard — which had claimed three were done when
+       one was.
+    8. **Read a disputed setting from what enforces it** — manual linking showed on in
+       the dashboard and was off in the stored config (`config diff`, P86); and **never
+       `supabase config push`**. Both are in CLAUDE.md.
+  - **Carried into M3.2:** the native-only walk list above, on its first build; the
+    email-code field and a bottom-of-screen field with the keyboard up, walked with
+    A26's fresh accounts; A22 built properly; the Google consent screen to In
+    production; and a watch for Apple sign-in on the web failing once, unreproduced
+    and not guessed at. **M4.3:** the custom auth domain — the only fix for Google's
+    "continue to …supabase.co" (the free consent-screen route was tried and does not
+    work); re-pointing the Services ID and minting a fresh Apple secret.
+  - **Considered, not built:** six photos (A/B/C priced at 9–12, 6–8, 8–11 h) and a bio
+    (a V17 bypass). Revisit after the first real crowds.
 
 #### M2.2 — the nightly import had never actually run on schedule
 Found on 2026-09-20, when the admin showed "TICKETMASTER_CONSUMER_KEY is missing" and
