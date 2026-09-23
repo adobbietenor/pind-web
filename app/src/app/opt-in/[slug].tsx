@@ -31,6 +31,7 @@ import {
   PHOTO_LABEL,
   PHOTO_WHY,
   photoActions,
+  POLICY_VERSION,
   radius,
   removePhoto,
   spacing,
@@ -236,6 +237,11 @@ export default function OptIn() {
     setTrouble(null);
     setBusy(true);
     try {
+      // The version accepted, on record (M3.2, P110–P112): M4.1 asks again when it changes.
+      const { error: acceptError } = await supabase()
+        .from("policy_acceptances")
+        .upsert({ person_id: mine.personId, version: POLICY_VERSION }, { onConflict: "person_id,version", ignoreDuplicates: true });
+      if (acceptError) throw acceptError;
       const { error } = await supabase()
         .from("pins")
         .update({ open_to_meeting: true })

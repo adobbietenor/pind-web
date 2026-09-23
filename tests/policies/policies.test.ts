@@ -2823,3 +2823,40 @@ describe("Open to meeting only for someone who has finished A27 — permanent, d
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — which policy version a person accepted (Alex, M3.2)
+// ---------------------------------------------------------------------------
+
+describe("Policy acceptances: one row per acceptance, owner-only, never changed (M3.2)", () => {
+  const V = `pindhx-test-version-${Date.now()}`;
+
+  after(async () => {
+    await w.service.from("policy_acceptances").delete().eq("version", V);
+  });
+
+  it("P110 a person CAN record their own acceptance, and CANNOT record one for someone else", async () => {
+    await ok(c(M("Ava")).from("policy_acceptances").insert({ person_id: id("Ava"), version: V }), "own acceptance");
+    await denied(c(M("Ava")).from("policy_acceptances").insert({ person_id: id("Ben"), version: V }), "42501");
+  });
+
+  it("P111 only the person reads it — not someone who can see them, not a visitor", async () => {
+    assert.equal((await rows(c(M("Ava")).from("policy_acceptances").select("version").eq("version", V))).length, 1, "Ava cannot read her own");
+    assert.equal(
+      (await rows(c(M("Eve")).from("policy_acceptances").select("person_id").eq("person_id", id("Ava")))).length,
+      0,
+      "Eve read Ava's acceptance",
+    );
+    await noAccess(w.anon, "policy_acceptances");
+  });
+
+  it("P112 an acceptance cannot be changed or removed by anyone signed in; a new version is a new row", async () => {
+    const ava = c(M("Ava"));
+    const changed = await ava.from("policy_acceptances").update({ version: "forged" }).eq("version", V).select("id");
+    assert.ok(changed.error || (changed.data?.length ?? 0) === 0, "Ava changed her acceptance");
+    const removed = await ava.from("policy_acceptances").delete().eq("version", V).select("id");
+    assert.ok(removed.error || (removed.data?.length ?? 0) === 0, "Ava removed her acceptance");
+    await ok(ava.from("policy_acceptances").insert({ person_id: id("Ava"), version: `${V}-next` }), "a new version adds a row");
+    await w.service.from("policy_acceptances").delete().eq("version", `${V}-next`);
+  });
+});

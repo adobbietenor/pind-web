@@ -1727,6 +1727,35 @@ export type Database = {
           },
         ]
       }
+      policy_acceptances: {
+        Row: {
+          accepted_at: string
+          id: string
+          person_id: string
+          version: string
+        }
+        Insert: {
+          accepted_at?: string
+          id?: string
+          person_id: string
+          version: string
+        }
+        Update: {
+          accepted_at?: string
+          id?: string
+          person_id?: string
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_acceptances_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       publish_decisions: {
         Row: {
           adjustment: number | null
