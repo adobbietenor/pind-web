@@ -2880,3 +2880,40 @@ the milestone does not stop for them.
 
 DMARC for pind.social is live with `rua=mailto:dmarc@pind.social` and `p=none`, the
 address forwarded to Alex by Email Routing. `p=quarantine` waits a week of reports.
+
+### Decided at M3.2's opening (Alex, 23 Sept 2026)
+
+- **A testers list — a V18 change, for the M4.2 review.** The seed rule hides a seed
+  person from every signed-in reader, which is right for every other purpose and wrong
+  for walking a list. So: a short list of real accounts (Alex and a friend) who, signed
+  in, can see the seed gathering and the seed people at it, under the usual reciprocal
+  and block rules. **Only the admin writes the list, with the service key; nobody can
+  add themselves.** **It changes nothing on any public page** — a tester signed out
+  sees what a stranger sees. Harness cases on both sides: a tester sees; a signed-in
+  non-tester, a signed-out visitor and every public page do not. Anything that makes
+  hidden rows visible to somebody is the class of thing M4.2 exists for.
+- **Test people** for the list walks are seed people at one seed gathering, visible to
+  testers only (the resolution of decision 6 above). Unmarked test people at a real
+  gathering were rejected: any stranger who opted in there would see them.
+- **After the effective end, a pin can be removed but not edited.** Taking yourself off
+  a list is always possible; changing party size or opting in after the fact is editing
+  history.
+- **Two pins at one gathering after A27's merge: the last one wins**, the older row
+  goes, and the count does not double. **Nothing merges until the address is proved
+  with its code** — somebody typing an address that is not theirs must never end up
+  holding another person's pin.
+- **The privacy policy and terms are built early in M3.2**, at exactly
+  `https://pind.social/privacy` and `https://pind.social/terms`, served by the Worker
+  and marked clearly as drafts. **Why early:** publishing the Google consent screen
+  required a home page, a privacy policy URL and a terms URL, and Google accepted all
+  three without fetching them — so the consent screen links to two pages that do not
+  exist yet. They cover the Ticketmaster data and its 30-day purge, the automated photo
+  check, gender and why it is asked, retention, and PIPEDA access and deletion. M4.1
+  replaces them with lawyer-read versions and asks again; that is why the accepted
+  version is stored.
+- **The Google consent screen is In production** (Alex, 23 Sept). Its test-user list
+  had been empty all along — only Alex, as the project owner, could ever have signed in
+  with Google, which is why nothing looked broken. Still to verify, without blocking
+  anything: a Google account that is not Alex's signs in on pind.social without "Access
+  blocked".
+- **Associated Domains is on for `social.pind.app.staging`** (Alex, 23 Sept).

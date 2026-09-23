@@ -573,6 +573,7 @@ any of it.
 
 - A fresh Claude Code session with no prior context, tasked only with finding leaks, given `docs/m1.1-review-brief.md` with its M1.2 and M1.3 sections plus a new M3 section (solo branch, review-only gatherings, anonymous users, photo pending state, thread snapshots). Every leak found becomes a migration with a harness case.
 - Alex's own read of `docs/visibility.md`, updated for V14+ (solo), V15 (review-only), V16 (anonymous people).
+- **The testers list (a V18 change, M3.2).** Real accounts on a short admin-set list see seed rows when signed in, so a list can be walked with test people. The review should try to add itself to the list, reach a seed row from a public page while being a tester, and reach one as a signed-in non-tester (decisions, "Decided at M3.2's opening").
 
 **Acceptance**
 
