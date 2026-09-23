@@ -2381,6 +2381,13 @@ export type Database = {
           waiting: number
         }[]
       }
+      admin_photos_waiting: {
+        Args: { p_limit: number }
+        Returns: {
+          id: string
+          photo_path: string
+        }[]
+      }
       admin_publish_gathering: {
         Args: { p_actor: string; p_gathering: string }
         Returns: undefined
@@ -2453,6 +2460,19 @@ export type Database = {
       admin_report_import_schedule: {
         Args: { p_cron: string; p_scheduled_time: string }
         Returns: undefined
+      }
+      admin_rescore_photo: {
+        Args: {
+          p_cost?: number
+          p_duration_ms?: number
+          p_model?: string
+          p_only_if_ai?: boolean
+          p_outcome: string
+          p_person: string
+          p_photo_path: string
+          p_reason?: string
+        }
+        Returns: string
       }
       admin_resolve_flag: {
         Args: { p_actor: string; p_flag: string; p_resolution: string }

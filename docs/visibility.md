@@ -82,7 +82,10 @@ whom.
 **Writes by a signed-in visitor** — only ever their own rows:
 - create their own person (once) and their own `people_private` row;
 - create, edit (`party_total`, `open_to_meeting`) and delete their own pins, on
-  published gatherings only;
+  published gatherings only. **Create and edit close at the gathering's effective
+  end; delete never does** (M3.2, `private.pinning_open`; P37b inverted, P90, P91) —
+  open during the gathering, shut after, and taking yourself off a list is always
+  possible;
 - create and edit their own contact points;
 - edit their own first name, last initial, neighbourhood, photo path (own folder
   only), gender and women-only flag;

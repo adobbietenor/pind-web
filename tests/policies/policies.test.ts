@@ -599,34 +599,20 @@ describe("After the gathering — V1 (list closes 24h after effective end)", () 
   });
 
   // Asked by Alex in M2.2 and written down here rather than inferred: nothing about
-  // publishing lead times reaches pinning. The only conditions on inserting a pin are
-  // "it is me" and "the gathering is published, not withdrawn, not seeded".
+  // publishing lead times reaches pinning. Pinning an hour before doors works, and
+  // nothing about publish_lead_days_min reaches it.
   //
-  // The first half is the rule and is meant to hold: pinning an hour before doors
-  // works, and nothing about publish_lead_days_min reaches it.
-  //
-  // THE SECOND HALF RECORDS A BUG, NOT AN INTENTION. There is no upper bound either,
-  // so a pin can be taken after the gathering has ended. That is a gap left over from
-  // M1.1, not a decision, and M3.2 closes it when A26 exists: pins close at the
-  // effective end. WHEN M3.2 LANDS THIS ASSERTION IS SUPPOSED TO FAIL — invert it to
-  // `assert.ok(ended.error)` and rename the case. It is here so the gap is visible and
-  // dated rather than discovered again, not because anyone wants it (Alex, M2.2).
-  it("P37b pinning has no lower time gate (intended) / and no upper one either — CURRENT BEHAVIOUR, A BUG M3.2 CLOSES", async () => {
+  // THE UPPER BOUND, INVERTED IN M3.2 as M2.2 asked. Until M3.2 a pin could be taken
+  // after the gathering had ended — a gap left from M1.1, recorded here so it stayed
+  // visible. Pinning now closes at the effective end (Alex, before M3.2): open during
+  // the gathering, shut after. Edits close with it; removing a pin never does.
+  it("P37b pinning has no lower time gate, and is REFUSED after the effective end (inverted in M3.2)", async () => {
     const ava = c(M("Ava"));
-    const ended = await ava
-      .from("pins")
-      .insert({ gathering_id: w.P, person_id: id("Ava"), party_total: 1, open_to_meeting: false })
-      .select("id")
-      .single();
-    // Pending M3.2: this is the bug, recorded. Invert it there, do not "fix" the test.
-    assert.equal(
-      ended.error,
-      null,
-      "pinning after the end was refused — if M3.2 closed the bound, invert this assertion rather than treating it as a regression",
+    await denied(
+      ava.from("pins").insert({ gathering_id: w.P, person_id: id("Ava"), party_total: 1, open_to_meeting: false }),
+      "42501",
     );
-    await ok(w.service.from("pins").delete().eq("id", ended.data!.id));
 
-    // The same for a gathering about to start: published is the only gate.
     const soon = await ok(
       w.service
         .from("gatherings")
@@ -635,12 +621,62 @@ describe("After the gathering — V1 (list closes 24h after effective end)", () 
         .single(),
     );
     await ok(w.service.from("gatherings").update({ published_at: new Date().toISOString() }).eq("id", soon.id));
-    const late = await ava
+    const early = await ava
       .from("pins")
       .insert({ gathering_id: soon.id, person_id: id("Ava"), party_total: 1, open_to_meeting: false })
       .select("id")
       .single();
-    assert.equal(late.error, null, `pinning an hour before doors was refused: ${late.error?.message}`);
+    assert.equal(early.error, null, `pinning an hour before doors was refused: ${early.error?.message}`);
+  });
+
+  // Both sides of the new edge, and the one thing it must never touch.
+  it("P90 pinning is OPEN during the gathering — started an hour ago, not yet ended (the 9pm case)", async () => {
+    const now = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} Under Way`, starts_at: new Date(Date.now() - 3_600_000).toISOString(), venue_id: w.venue })
+        .select("id")
+        .single(),
+    );
+    await ok(w.service.from("gatherings").update({ published_at: new Date().toISOString() }).eq("id", now.id));
+    const ava = c(M("Ava"));
+    const pin = await ava
+      .from("pins")
+      .insert({ gathering_id: now.id, person_id: id("Ava"), party_total: 1, open_to_meeting: false })
+      .select("id")
+      .single();
+    assert.equal(pin.error, null, `pinning during the gathering was refused: ${pin.error?.message}`);
+    const edited = await ava.from("pins").update({ party_total: 2 }).eq("id", pin.data!.id).select("id");
+    assert.equal(edited.data?.length, 1, "editing a pin during the gathering was refused");
+  });
+
+  it("P91 after the effective end a pin CANNOT be edited, and CAN always be removed", async () => {
+    // A pin taken while it was open, then the gathering ends (moved into the past by
+    // the service key, the only way a test can make time pass).
+    const g = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} Ends Now`, starts_at: new Date(Date.now() - 3_600_000).toISOString(), venue_id: w.venue })
+        .select("id")
+        .single(),
+    );
+    await ok(w.service.from("gatherings").update({ published_at: new Date().toISOString() }).eq("id", g.id));
+    const ava = c(M("Ava"));
+    const pin = await ok(
+      ava.from("pins").insert({ gathering_id: g.id, person_id: id("Ava"), party_total: 1, open_to_meeting: false }).select("id").single(),
+    );
+    await ok(
+      w.service.from("gatherings").update({ starts_at: new Date(Date.now() - 5 * 3_600_000).toISOString() }).eq("id", g.id),
+    );
+
+    // An update the policy refuses matches no row: no error, nothing changed.
+    const edited = await ava.from("pins").update({ party_total: 3, open_to_meeting: true }).eq("id", pin.id).select("id");
+    assert.equal(edited.data?.length ?? 0, 0, "a pin was edited after the gathering ended");
+    const after = await ok(w.service.from("pins").select("party_total, open_to_meeting").eq("id", pin.id).single());
+    assert.deepEqual(after, { party_total: 1, open_to_meeting: false }, "the ended pin changed");
+
+    const removed = await ava.from("pins").delete().eq("id", pin.id).select("id");
+    assert.equal(removed.data?.length, 1, "removing a pin after the end was refused — it never may be");
   });
 });
 
