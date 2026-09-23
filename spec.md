@@ -307,22 +307,28 @@ body (system font on the web), SF Symbols icons, purple `#582883`. Four tabs:
   in with one tap. The store path keeps A1–A4 as designed.
 
 ### A1–A4 — Onboarding, store path (4 steps, under 90 seconds)
-- **A1 sign in** — Continue with Apple / Continue with Google / Email me a code. No
+- **A1 sign in** — Continue with Apple / Continue with Google / Email me a code, **on
+  the web and in the app alike** (Alex, M3.1 — Apple on the web was "later" until the
+  Services ID was built; decisions Part 5, "Sign in with Apple on the web"). No
   password path. Three positioning lines on screen one: "19+ · no location permission,
   ever · not a dating app".
 - **A2 you** — first name; date of birth (**under 19 cannot continue**, H8); gender
   (woman / man / nonbinary / prefer not to say; nonbinary is offered "include me in
-  women-only crews"; never shown on a profile); **face
-  photo required** (Q2) with one line of why: "your crew looks for a face at a patio
-  table". Photo passes the automated check (decisions Part 5, "Automated photo
+  women-only crews"; never shown on a profile); **a
+  photo required** (Q2) with one line of why: "A photo of you makes it easier to find
+  each other" (Alex, M3.1 — the photo need not be a face; decisions, "The photo check
+  holds almost nothing now"). Photo passes the automated check (decisions Part 5, "Automated photo
   moderation") before it is visible to anyone. Optional Instagram handle, never a
   substitute for the photo, shown only to crewmates, a solo-plan partner and
   connections (§1 person).
-- **A3 neighbourhood + 3 tags** — neighbourhood from a fixed list, shown instead of
-  location ("Pin'd never asks where you are"). Exactly 3 tags from a fixed list. Tags
-  are conversation handles, **not match criteria** — there is no matching anywhere.
-  "Exactly 3" defines a complete profile; on the link path neighbourhood and tags are
-  optional and nudged later, never a gate before a pin.
+- **A3 neighbourhood + tags** — neighbourhood from a fixed list, shown instead of
+  location ("Pin'd never asks where you are"). **At least 3 and at most 10 tags** from
+  a fixed list of 32 in four groups, and the person chooses **which 3 show on the
+  "going & open to meeting" row**; the profile shows them all (Alex, M3.1). Tags are
+  conversation handles, **not match criteria** — there is no matching anywhere. "At
+  least 3" defines a complete profile and is asked by the screen, never the database;
+  on the link path neighbourhood and tags are optional and nudged later, never a gate
+  before a pin. Tags are editable later from Profile, with the same picker.
 - **A4 how Pin'd works** — three cards: (1) Pin in; (2) Crews; (3) You're in control
   (leave any time, block & report two taps, no location, no DMs, women-only crews,
   share your crew's spot with a friend). The safety card is part of onboarding, never
@@ -435,7 +441,7 @@ opens this week's crowds to pick one. Deliberately not an inbox. Empty state exp
 that connections come from crews.
 
 ### A21–A22 — Profile
-- **A21 self** — face, first name + initial, neighbourhood, 3 tags, gatherings count,
+- **A21 self** — photo, first name + initial, neighbourhood, their tags, gatherings count,
   crews-met count, the **"showed up" badge** (the only badge in Pin'd), and the
   optional Instagram handle (add, edit, remove). Edit profile; preview what others
   see — the preview shows that the handle is visible only to crewmates, a solo-plan
@@ -486,8 +492,8 @@ Only for someone who ticked "meet up" (or turns it on later). One screen more:
 - Gender: woman / man / nonbinary / prefer not to say; nonbinary is offered "include me
   in women-only crews"; never shown to others
 - A face photo (Q2), with the automated check and its pending state
-- A way to reach you: email me a code, or Continue with Google (Apple later on the web;
-  in the app, Apple and Google)
+- A way to reach you: email me a code, Continue with Apple or Continue with Google, on
+  the web and in the app (Alex, M3.1)
 - Optional Instagram handle (§1 person)
 → the anonymous user becomes permanent with the same id; the pin, party size and
 opt-in survive. Then **one safety sheet** (the link path's version of A4): *crews are
@@ -636,7 +642,7 @@ working. Hours are Alex's, agent-assisted.
 | M2.2 | Auto-publishing v1 — fixed target (§8) | **Done** — merged as `ec9d74d` | 4–6 |
 | M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | **Done** — merged as `M2.3` | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
-| M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | Not started | 12–16 |
+| M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | **Walked on the web** (Alex and a friend, 22 Sept); native Google, Apple and HEIC wait on the internal TestFlight build. Not merged | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel, universal links (A5–A9, A19, A26, A27) | Not started | 12–18 |
 | M3.3 | Crews, the thread, the night, the morning after (A10–A17, A20, "Put me in a crew") | Not started | 20–28 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |

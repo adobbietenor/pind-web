@@ -396,7 +396,8 @@ own policies, for the same reason gender and birth year live in `people_private`
 
 ## 12h · A person's tags — V19 (Alex, M3.1)
 
-A person may carry up to three tags from a fixed vocabulary (spec A3;
+A person may carry up to ten tags from a fixed vocabulary, and marks at most three of
+them `on_list` — the three shown on the "going & open to meeting" row (spec A3;
 `packages/shared/src/tags.ts`). They are **conversation handles, never match
 criteria** — there is no matching anywhere in Pin'd.
 
@@ -408,8 +409,8 @@ criteria** — there is no matching anywhere in Pin'd.
 - **Nobody else, ever:** not `anon`, not somebody who pinned without opting in, not a
   blocked person in either direction, not a hidden person, and never on a public page
   or in a link preview.
-- **The vocabulary itself is public reference data.** `public.tags` is fifteen seeded
-  rows that say nothing about anyone, readable exactly like `neighbourhoods` and
+- **The vocabulary itself is public reference data.** `public.tags` is thirty-two seeded
+  rows in four groups that say nothing about anyone, readable exactly like `neighbourhoods` and
   writable by nobody but the service key.
 
 **Why this rides V1 rather than getting a stricter rule of its own, which V17 needed.**
@@ -419,12 +420,18 @@ them** — that is what it is for. So it travels with the first name, and it pic
 crew and connection branches for free when H3 adds them to `can_see_at`, the same
 saving as V17 having two branches instead of three.
 
-**At most three, and no minimum** (Alex, M3.1). "Exactly 3" is what a *complete*
-profile means and A3 is what asks for it. A minimum in the database would make a pin
+**At most ten, at most three on the list, and no minimum** (Alex, M3.1; the cap was
+three until `20260921130537_m3_1_tags_v2`). "At least 3" is what a *complete* profile
+means and A3 is what asks for it. A minimum in the database would make a pin
 impossible on the link path, where a profile is deliberately incomplete. A maximum is
-a different thing: without one, `person_tags` is a place to write fifteen. The cap is
-a constraint trigger rather than a screen, because a visitor's session token is theirs
-and the app is not a gate (§1).
+a different thing: without one, `person_tags` is a place to write thirty-two. Both caps
+are one constraint trigger, `person_tags_within_caps`, run on insert **and update**
+(because `on_list` is set by an update), rather than a screen, because a visitor's
+session token is theirs and the app is not a gate (§1).
+
+**`on_list` is not a visibility rule.** Every tag is readable by exactly the people
+V19 allows, and the profile shows them all; `on_list` only chooses which three the row
+shows. The owner may update `on_list` and nothing else (`person_tags_update_own`).
 
 **P04 was inverted in the same commit** — it asserted `tags` and `person_tags` were
 locked to every visitor, which was true until this rule existed.
@@ -657,7 +664,7 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | V13 withdrawn | `private.is_published`, `private.list_open`, `private.i_am_pinned_at`; policies `gatherings_read_published`, `gathering_spots_read_published`; `public.gathering_counts`; `admin_withdraw_gathering`, `admin_unwithdraw_gathering` | P49–P51 |
 | Importer rights | `admin_import_apply`, `admin_resolve_flag`, `admin_start_import_run`, `admin_purge_ticketmaster_data`, `admin_merge_venues`, `admin_confirm_venue` | P52–P54 |
 | V17 Instagram handles (M3.1) | table `public.person_handles`; `private.can_see_handle`, `private.share_crew`, `private.are_connected`, `private.is_hidden`; policies `person_handles_read_own`, `person_handles_read_visible`, `person_handles_*_own` | P67–P70, P11, P24 |
-| V19 a person's tags (M3.1) | policies `tags_read`, `person_tags_read_own`, `person_tags_read_visible`, `person_tags_*_own`; `private.can_see`; trigger `person_tags_at_most_three` → `private.person_tags_cap` | P74–P77, P04 |
+| V19 a person's tags (M3.1) | policies `tags_read`, `person_tags_read_own`, `person_tags_read_visible`, `person_tags_*_own` (insert, delete, update of `on_list`); `private.can_see`; constraint trigger `person_tags_within_caps` → `private.person_tags_cap` (ten tags, three on the list) | P74–P77, P04 |
 | V18 seed rows | `venues.is_seed`, `gatherings.is_seed`, `people.is_seed`; triggers `gatherings_seed_follows_venue`, `venues_seed_spreads`; `private.is_published`, `private.list_open`, `private.is_open_at`, `private.is_seed_venue`; policies `gatherings_read_published`, `gathering_spots_read_published`, `venues_read`, `meeting_spots_read`; `public.gathering_counts` | P55–P58 |
 | The public web's one door | `public.public_gatherings`, `public.public_gathering` | P55, P59, P61, P65 |
 | The chip a Ticketmaster gathering wears (M2.3) | `public.chip_category`, `public.admin_categorise_gatherings` — both `service_role` only; written once, never over an existing value | P66 |

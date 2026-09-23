@@ -7,8 +7,8 @@
 // and the opt-in all survive — nothing is copied and nothing is re-keyed.
 //
 // Three methods, and no password field anywhere:
-//   Apple   native in the app (Apple's rule: it must be offered beside Google).
-//           On the web it comes later (decisions Part 5).
+//   Apple   native in the app (Apple's rule: it must be offered beside Google); on
+//           the web a redirect through the Services ID `social.pind.web`.
 //   Google  everywhere. On the web it is a redirect; in the app it is an in-app
 //           browser session that hands the tokens back through the app's scheme.
 //   Email   a six-digit code, everywhere.
@@ -17,19 +17,31 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
+import { signInMethods, type SignInMethod } from "@pind/shared";
 import { supabase } from "./supabase";
 
-export type Method = "apple" | "google" | "email";
+export type Method = SignInMethod;
 
-// Apple is required beside any other social sign-in on iOS (Apple's own rule), and
-// comes to the web later (decisions Part 5, "Sign in with Apple on the web: later").
-export function methodsFor(platform = Platform.OS): Method[] {
-  return platform === "web" ? ["google", "email"] : ["apple", "google", "email"];
+// The table lives in `@pind/shared`, where a test can load it (tests/unit/signin.test.ts).
+export function methodsFor(platform: string = Platform.OS): Method[] {
+  return signInMethods(platform);
 }
 
-// Apple hands us an identity token once. Supabase verifies it; we never see a
-// password and never store the token.
-export async function signInWithApple(): Promise<void> {
+// In the app, Apple hands us an identity token once. Supabase verifies it; we never
+// see a password and never store the token.
+//
+// On the **web** it is a redirect, like Google's: Supabase sends the person to Apple
+// with the Services ID, Apple posts back to Supabase's callback, and Supabase returns
+// to `redirectTo` on our own origin with the session in the URL. This half uses the
+// client secret minted from the `.p8` — the one that lapses on `APPLE_SECRET_EXPIRES`
+// while native keeps working (decisions, "Sign in with Apple: the secret is a JWT").
+export async function signInWithApple(redirectTo?: string): Promise<void> {
+  if (Platform.OS === "web") {
+    const { error } = await supabase().auth.signInWithOAuth({ provider: "apple", options: { redirectTo } });
+    if (error) throw error;
+    return;
+  }
+
   const credential = await AppleAuthentication.signInAsync({
     requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME],
   });

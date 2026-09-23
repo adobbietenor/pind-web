@@ -171,7 +171,7 @@ Tags are conversation handles, not match criteria (A3). On the link path, make n
 
 Two more consequences. A person who pins and never opts in is a body in the count and nothing else; their anonymous user is deleted with their pin 30 days after the gathering. And the A4 cards collapse, on the link path, into one sheet at opt-in: *crews are 3–8 people at a public spot before the event; leave any time; block and report are two taps away; women-only crews on every gathering.* The "19+ · no location, ever · not a dating app" line is already in the crowd page footer; A1 keeps it for the store path.
 
-Sign in with Apple is required in the app because Google is offered there (Apple's rule); on the web, offer the email code and Google first and add Apple later if you want it — it needs a Services ID and a return URL and is not worth an evening before the first crowds.
+Sign in with Apple is required in the app because Google is offered there (Apple's rule). On the web it was planned for later; the Services ID and return URL were built in M3.1 anyway, so **Apple is offered on the web too** (Alex, M3.1).
 
 ## 5 · Solo crew: the design inside the guardrails, and what App Review will ask
 
@@ -397,16 +397,16 @@ any of it.
 
 **Goal.** A person exists, can be reached, has a checked face, and can delete themselves — on both platforms — before any of that is exposed to anyone.
 
-- Sign in: Apple and Google native in the app, Google and the email code on the web; anonymous sign-in for the link path; anonymous → permanent linking (updateUser with email, linkIdentity for OAuth) with the pin surviving.
+- Sign in: Apple and Google native in the app; Apple, Google and the email code on the web (Alex, M3.1 — Apple on the web was "later"); anonymous sign-in for the link path; anonymous → permanent linking (updateUser with email, linkIdentity for OAuth) with the pin surviving.
 - A2 you: DOB with the under-19 hard stop and year-only storage; gender (nonbinary offers women-only inclusion) into `people_private`; face photo to the private bucket with a pending state.
 - The photo check: database webhook → Worker → Claude vision → approve / reject / queue, each written to `moderation_log` as `ai:photo-check`; a rejected photo leaves the person visible without one (V6). Fallback if the webhook is flaky: the app calls the Worker directly after upload with its JWT.
 - A3 neighbourhood + tags (optional on the link path); A21 self profile with preview; A22 other-person profile shell; A23 with export and delete account.
 
 **Acceptance**
 
-- All three sign-in methods work in the app; email code and Google work on web; there is no password field anywhere.
+- All three sign-in methods work in the app **and on the web** (Alex, M3.1); there is no password field anywhere.
 - A DOB under 19 stops the flow with no soft fail; the database holds the year only.
-- A clear selfie is approved within about a minute; a cartoon lands in the admin photo queue; an inappropriate image is rejected and the profile stays visible without a photo; all three appear in `moderation_log`.
+- The photo check follows the permissive rubric (Alex, M3.1; decisions, "The photo check holds almost nothing now"): **a clear selfie, a cartoon and a group photo are each approved** within about a minute; **only nudity, hate imagery or gore is rejected**, and the profile stays visible without a photo; **a possible minor is the one thing that goes to a human**, in the admin photo queue. Every verdict appears in `moderation_log` as `ai:photo-check`.
 - Gender is asked once and appears on no profile, not even your own.
 - Delete account removes the auth user, the pins and the photo; export downloads a JSON of your data.
 - Signing out and back in restores the profile on the other platform.
@@ -781,7 +781,7 @@ Everything below is a gate. Items that only applied to the WhatsApp Test 0 are g
 | Android                                         | **After iOS, from the same code**; the web covers Android until then                                                     | Reddit skews Android; the web build already serves them                                                               |
 | Analytics and crashes                           | **PostHog + SQL views; Sentry on both halves**                                                                           | Free tiers; the outcome numbers live in Postgres anyway                                                               |
 | Who covers moderation at night                  | **Tatiana's daytime is Toronto's night**; Alex and Jayme cover the day; nobody wakes up for the queue                    | A rota that exists is the one that gets followed                                                                      |
-| Sign in with Apple on the web                   | **Later**; email code and Google first                                                                                   | Apple's rule applies to the app; the web setup is an evening for little gain                                          |
+| Sign in with Apple on the web                   | **Offered** (Alex, M3.1; was "later")                                                                                    | The web setup was built in M3.1 anyway; A1 is three methods everywhere                                                |
 
 ## 11 · Edits for Claude Code: spec.md, decisions.md, CLAUDE.md
 

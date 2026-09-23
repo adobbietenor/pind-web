@@ -481,9 +481,10 @@ change). Where the plan has more detail, the plan is the reference.
   mutual-accept rule. Enforced in the database like every other visibility rule, with
   harness cases proving both who can and who cannot see it, when the profile is built
   (**M3.1**; `docs/visibility.md` V17, pending).
-- **Sign in with Apple on the web: later** (Alex, revised build plan). The email code
-  and Google come first on the web. In the app, Apple is offered alongside Google
-  (Apple's rule).
+- **Sign in with Apple on the web** (Alex, revised build plan: "later"; **reversed in
+  M3.1** — see "Apple was built for the web and never rendered there"). Apple, Google
+  and the email code are offered on the web and in the app alike. In the app Apple
+  is required alongside Google (Apple's rule).
 - **Android after iOS, from the same code** (Alex, revised build plan). The web build
   serves Android users until then. Register the Play account under the corporation.
 - **Analytics and crashes** (Alex, revised build plan). **PostHog** for in-app funnel
@@ -2232,9 +2233,10 @@ inconsistency to iron out.
   Pin'd, while **a tag is a handle the person chose in order to be read by the people
   on the list with them**, which is what it is for. It picks up the crew and
   connection branches free when H3 adds them, the same saving as V17's two branches.
-  **At most 3 in the database, exactly 3 asked for by A3**: a minimum in the database
-  would make a pin impossible on the link path, where a profile is deliberately
-  incomplete. `docs/visibility.md` V19 (§12h); harness P74–P77, and P04 inverted.
+  **At most 10 in the database, at most 3 of them on the list, at least 3 asked for by
+  A3** (Alex, M3.1; the cap was 3 until the tag list was redone at 32 tags): a minimum
+  in the database would make a pin impossible on the link path, where a profile is
+  deliberately incomplete. `docs/visibility.md` V19 (§12h); harness P74–P77, and P04 inverted.
 - **expo-web-browser and expo-auth-session are added to the native module list**
   (Alex, M3.1), joining apple-authentication, image-picker, image, notifications and
   secure-store. **The reasoning, so it is not re-argued:** Google is the most common
@@ -2518,3 +2520,31 @@ evidence.
 **A safety rule with no test proving it fires is a comment.** That is the general form,
 and it belongs beside the instrument rule: one is about a check that measures the
 wrong thing, this is about a check that measures nothing.
+
+### Apple was built for the web and never rendered there (Alex, M3.1)
+
+**Found after the web walk passed:** `pind.social/sign-in` offered Google and the email
+code, and no Apple. Everything behind the button existed — the Services ID
+`social.pind.web`, the client secret minted from the `.p8`, `APPLE_SECRET_EXPIRES` and
+its 09:00 watch — and a probe had confirmed Apple's 302. **The probe proved the path
+existed, not that anyone could reach it.**
+
+**Why:** two gates, both deliberate, both from the plan's "Sign in with Apple on the
+web: later". `methodsFor()` returned `["google", "email"]` on the web, and the screen
+rendered Apple only when `Platform.OS === "ios"`, because Apple's native button does
+not exist on the web. The decision was overtaken by the work — the Services ID was
+built for the web — and nobody reversed it where it was written, so the code kept
+obeying it.
+
+**Decided:** A1 is three methods everywhere. The web draws Apple's white button by hand
+(logo inlined, own origin) and uses `signInWithOAuth({ provider: "apple" })` with a
+return to `/you`, the same shape as Google's.
+
+**The table moved to `packages/shared` (`signInMethods`)** for the reason the tag caps
+did: `lib/auth.ts` imports React Native, so `node --test` could not load it and nothing
+proved what it said. S01–S03 now say it.
+
+**The general form, the third time in M3.1** (after the photo line in the acceptance
+list and "exactly 3 tags" in spec A3): **a decision that changes a rule is not done
+until the rule is edited where it is written** — in the spec, the acceptance list and
+the code that obeys it. A stale rule does not look stale; it looks like the plan.
