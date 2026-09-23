@@ -3047,3 +3047,15 @@ address forwarded to Alex by Email Routing. `p=quarantine` waits a week of repor
   (M3.2) becomes the web's hand-off to the product and gets design attention for that
   reason. M3.5's email mirror of the five notifications is what web-only crowd members
   live on, and stays. M3.6's dogfood includes at least one person on the web only.
+- **The Worker A26, measured after it shipped** (M3.2, Lighthouse mobile, two runs
+  each, same session): A26 shown and usable at **0.8–1.6 s**, 22 KB in 4 requests,
+  score 99–100, no blocking time — W2 beside it at 1.6 s, 85 KB. The Expo A26 it
+  replaced was usable at 5.6 s. Walked from the terminal as a no-JavaScript visitor:
+  the refusal beside the 19+ box, the pin ("You're #2 pinned", the progress line, the
+  no-JavaScript note), a second pin from the same browser updating the same person
+  rather than making another, the rows (one person, the `a26` record, the updated
+  pin), and the claim handing over the session once. Cleaned up after.
+  - **Found by that walk, not by the suite:** the GET route and `/session/claim` had
+    been imported and never wired — green typecheck, green tests, green deploy, and
+    the live page served the app's index.html with a 200. `tests/unit/wiring.test.ts`
+    (W01–W03) now fails on exactly that class, and proved it against the broken commit.
