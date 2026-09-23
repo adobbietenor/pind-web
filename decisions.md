@@ -2671,3 +2671,37 @@ pickers differ in exactly the way that mattered, and only an installed build sho
   exactly what it is there to say. Not provable here: entering the code
   (`verifyOtp({ type: "email_change" })`), which needs an inbox, and the OAuth round
   trip, which needs a browser — both walked in M3.2.
+
+### The second TestFlight walk: five faults, and why the tests missed the tag ones (Alex, M3.1)
+
+- **Tag limits.** Continue worked with no tags, and the eleventh tap looked like nothing.
+  **The tests passed because they proved functions the screens did not use.** Both
+  tag screens gated on their own expression, `picked.length > 0 && !enoughPicked(picked)`
+  — a "none is fine" exception T09 never saw. The eleventh-tap sentence *was* produced
+  (T03), and shown in a notice above all 32 chips, off-screen from the tap. Fixed: one
+  rule, `tagsCanContinue` (three to ten; leaving with none is "Skip for now"), with a
+  sentence under a disabled Continue; a message on the tap that reaches ten; the
+  picker shows its own note under the group that was tapped. **And the gap itself is
+  now tested:** `tests/unit/screens.test.ts` reads the route files and fails if a tag
+  screen gates on anything but `tagsCanContinue` — run against the old screens it
+  failed on exactly this. The general form: **a test of a rule proves nothing about a
+  screen that does not call it.**
+- **The keyboard and the missing Profile header — one cause.** Every screen drew its
+  own frame; Profile forgot the header, and no scroll view knew about the keyboard. Now
+  one shell, `AppScreen` (header first, `automaticallyAdjustKeyboardInsets`, taps land
+  with the keyboard up), and S11/S12 fail the build if a route draws its own
+  SafeAreaView or ScrollView. Both failed against the old screens.
+- **The app's Apple button.** Not a deliberate change of mine in the sense Alex saw: the
+  app used Apple's **system** button, which centres its logo and scales it with the
+  button's height. When the pair went from 52 to 44 high (deliberate: Apple's default
+  height and the 43% title rule), the system logo shrank with it, and it could never
+  sit on the web's centre line. The app now draws the same custom button as the web,
+  with Apple's own logo file — the HIG's stated allowance for aligning logos across
+  providers.
+- **Cross-platform restore.** Not identity: **every sign-in landed on A2, and A2 showed
+  a blank form to a person who already had a profile.** A2 now asks first; somebody who
+  finished it goes home (A05), a link-path pinner arrives with their name filled (A06).
+- **"That code has expired" with no code in play.** Any message containing "invalid"
+  became that sentence — including a stale session. Now the sentence depends on the
+  step, only entering a code can say a code expired, and a stale session is cleared
+  locally and named as what it is (S05–S07).

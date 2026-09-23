@@ -104,6 +104,14 @@ export const TAGS_ON_LIST = 3;
 // Said only when somebody reaches for an eleventh. The maximum is not advertised —
 // but a tap that does nothing looks broken, which is the fault the code field had.
 export const TAGS_AT_MAXIMUM = `That's ${TAGS_MAXIMUM}, which is as many as a profile carries. Take one off to add another.`;
+// Said on the tap that reaches ten, before anybody hits the wall (Alex, M3.1: "a cap
+// that stops responding without saying so reads as broken").
+export const TAGS_REACHED_MAXIMUM = `That's ${TAGS_MAXIMUM} — the most you can pick.`;
+// Under the Continue button whenever it is not available, so a greyed button is never
+// the only answer.
+export const TAGS_NEED_MORE = (have: number, canSkip = true) =>
+  (have === 0 ? `Pick ${TAGS_MINIMUM} to continue` : `${TAGS_MINIMUM - have} more to continue`) +
+  (canSkip ? " — or skip for now." : ".");
 export const TAGS_LIST_FULL = `Three is what fits on the list. Take one off to feature a different one — the rest still show on your profile.`;
 
 // ---------------------------------------------------------------------------
@@ -132,6 +140,15 @@ export function enoughPicked(picked: readonly PickedTag[]): boolean {
   return picked.length >= TAGS_MINIMUM;
 }
 
+// **The one rule both tag screens gate on** (Alex, M3.1, after walking A3). The screens
+// used to write their own — `picked.length > 0 && !enoughPicked(picked)` — which let
+// Continue through with NONE, while the copy said "pick at least three" and T09 proved
+// `enoughPicked`. The test proved a function the screen did not ask. Leaving with no
+// tags is what "Skip for now" is for; Continue and Save mean "these are my tags".
+export function tagsCanContinue(picked: readonly PickedTag[]): boolean {
+  return picked.length >= TAGS_MINIMUM && picked.length <= TAGS_MAXIMUM;
+}
+
 // Adding or removing one. Tapping a tag you already have takes it off — there is no
 // separate remove, because a chip that is on and a chip that is off are the same
 // control.
@@ -144,7 +161,8 @@ export function toggleTag(picked: readonly PickedTag[], slug: string): { next: P
   if (picked.length >= TAGS_MAXIMUM) return { next: [...picked], says: TAGS_AT_MAXIMUM };
   // The first three picked are the first three shown, so somebody who never opens the
   // second row still has a sensible row rather than a blank one.
-  return { next: [...picked, { slug, onList: countOnList(picked) < TAGS_ON_LIST }] };
+  const next = [...picked, { slug, onList: countOnList(picked) < TAGS_ON_LIST }];
+  return next.length === TAGS_MAXIMUM ? { next, says: TAGS_REACHED_MAXIMUM } : { next };
 }
 
 // Moving one on or off the list of three that shows beside a name.

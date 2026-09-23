@@ -21,12 +21,12 @@
 // upload through to a saved profile.
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import {
   type A2Photo,
   ageOn,
   canContinue,
+  landingAfterSignIn,
   photoActions,
   removePhoto,
   savePlan,
@@ -41,7 +41,7 @@ import {
   spacing,
   UNDER_19,
 } from "@pind/shared";
-import { Brand } from "@/components/Brand";
+import { AppScreen } from "@/components/AppScreen";
 import { Body, Button, Choice, Field, Heading, Notice } from "@/components/ui";
 import { track } from "@/lib/analytics";
 import { failed, type Described } from "@/lib/errors";
@@ -104,6 +104,37 @@ export default function You() {
   useEffect(() => {
     if (auth === "ready" && arrivedFromUrl.current) track("sign_in", { method: "oauth_web" });
   }, [auth]);
+
+  // **A returning person never sees this form** (M3.1, from the walk): signing out on
+  // one platform and in on the other landed here, blank, and looked like a lost
+  // profile. Asked once the session exists; until it answers, the form waits.
+  const [known, setKnown] = useState(false);
+  useEffect(() => {
+    if (auth !== "ready") return;
+    let live = true;
+    (async () => {
+      const db = supabase();
+      const { data: user } = await db.auth.getUser();
+      const id = user.user?.id;
+      const { data: person } = id
+        ? await db.from("people").select("id, first_name").eq("auth_user_id", id).maybeSingle()
+        : { data: null };
+      const { data: priv } = person
+        ? await db.from("people_private").select("person_id").eq("person_id", person.id).maybeSingle()
+        : { data: null };
+      if (!live) return;
+      const landing = landingAfterSignIn(person ? { firstName: person.first_name, hasPrivate: !!priv } : null);
+      if (landing.go === "home") {
+        router.replace("/crowds");
+        return;
+      }
+      if (landing.firstName) setFirstName((was) => was || landing.firstName);
+      setKnown(true);
+    })().catch(() => live && setKnown(true));
+    return () => {
+      live = false;
+    };
+  }, [auth, router]);
 
   const age = useMemo(() => ageOn(Number(day), Number(month), Number(year)), [day, month, year]);
   const tooYoung = age !== null && !isOldEnough(age);
@@ -217,39 +248,31 @@ export default function You() {
     }
   };
 
-  if (auth === "waiting") {
+  if (auth === "waiting" || (auth === "ready" && !known)) {
     return (
-      <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
-        <ScrollView contentContainerStyle={styles.body}>
-        <Brand />
-          <Heading>Finishing your sign-in</Heading>
+      <AppScreen edges={["top", "bottom"]}>
+        <Heading>Finishing your sign-in</Heading>
           <ActivityIndicator style={{ marginTop: spacing.lg }} color={palette.textMuted} />
-        </ScrollView>
-      </SafeAreaView>
+        </AppScreen>
     );
   }
 
   if (auth === "none") {
     return (
-      <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
-        <ScrollView contentContainerStyle={styles.body}>
-        <Brand />
-          <Heading>That sign-in did not come back</Heading>
+      <AppScreen edges={["top", "bottom"]}>
+        <Heading>That sign-in did not come back</Heading>
           <View style={{ marginBottom: spacing.lg }}>
             <Body muted>
               Nothing was saved, and nothing went wrong on your side. Try again — the email code is the quickest way in.
             </Body>
           </View>
           <Button label="Back to sign in" onPress={() => router.replace("/sign-in")} />
-        </ScrollView>
-      </SafeAreaView>
+        </AppScreen>
     );
   }
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Brand />
+    <AppScreen edges={["top", "bottom"]}>
         <Heading>A bit about you</Heading>
         <View style={{ marginBottom: spacing.lg }}>
           <Body muted>Your first name is what people see. Nothing else here is on your profile.</Body>
@@ -348,8 +371,7 @@ export default function You() {
         </View>
 
         <Button label="Continue" busy={busy} disabled={!complete} onPress={save} />
-      </ScrollView>
-    </SafeAreaView>
+      </AppScreen>
   );
 }
 

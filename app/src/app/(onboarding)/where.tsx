@@ -19,11 +19,10 @@
 // instead of a location, because there is no location permission to grant (H4).
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { colors as palette, fonts, NEIGHBOURHOODS, radius, spacing, TAGS_MINIMUM } from "@pind/shared";
-import { Brand } from "@/components/Brand";
-import { TagPicker, enoughPicked, type Picked } from "@/components/TagPicker";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { colors as palette, fonts, NEIGHBOURHOODS, radius, spacing, TAGS_MINIMUM, TAGS_NEED_MORE } from "@pind/shared";
+import { TagPicker, tagsCanContinue, type Picked } from "@/components/TagPicker";
+import { AppScreen } from "@/components/AppScreen";
 import { Body, Button, Heading, Notice } from "@/components/ui";
 import { oneLine, failed } from "@/lib/errors";
 import { saveTags } from "@/lib/tags";
@@ -35,7 +34,6 @@ export default function Where() {
   const [picked, setPicked] = useState<Picked[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
-  const [note, setNote] = useState("");
 
   const finish = async (save: boolean) => {
     setBusy(true);
@@ -61,9 +59,7 @@ export default function Where() {
   };
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
-      <ScrollView contentContainerStyle={styles.body}>
-        <Brand />
+    <AppScreen edges={["top", "bottom"]}>
         <Heading>Where in the city?</Heading>
         <View style={{ marginBottom: spacing.lg }}>
           <Body muted>Pin&#39;d never asks where you are. Pick the part of town you would say you are from — it gives a crew something to start with.</Body>
@@ -96,25 +92,28 @@ export default function Where() {
             Conversation starters, not a filter — nothing here sorts anyone. Pick at least {TAGS_MINIMUM}.
           </Body>
         </View>
-        {note ? <Notice>{note}</Notice> : null}
-        <TagPicker picked={picked} onChange={setPicked} onSay={setNote} />
+        <TagPicker picked={picked} onChange={setPicked} />
 
         <View style={{ marginTop: spacing.lg }}>
           <Button
             label="Continue"
             busy={busy}
-            // Tags are never a gate before a pin, so Continue works with none at
-            // all — but if somebody has started picking, the screen asks for the
-            // three it said it wanted rather than saving one and moving on.
-            disabled={picked.length > 0 && !enoughPicked(picked)}
+            // The shared rule, and only the shared rule (T10): three to ten. Leaving
+            // with none is what "Skip for now" is for — tags are never a gate before
+            // a pin, and Skip is how that stays true.
+            disabled={!tagsCanContinue(picked)}
             onPress={() => finish(true)}
           />
+          {!tagsCanContinue(picked) ? (
+            <View style={{ marginTop: spacing.sm }}>
+              <Body muted>{TAGS_NEED_MORE(picked.length)}</Body>
+            </View>
+          ) : null}
         </View>
         <View style={{ marginTop: spacing.sm }}>
           <Button kind="quiet" label="Skip for now" onPress={() => finish(false)} />
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      </AppScreen>
   );
 }
 

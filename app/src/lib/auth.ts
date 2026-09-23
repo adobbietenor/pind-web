@@ -17,7 +17,7 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
-import { signInMethods, type SignInMethod } from "@pind/shared";
+import { isStaleSession, signInMethods, signInSays, type SignInMethod, type SignInStep } from "@pind/shared";
 import { supabase } from "./supabase";
 
 export type Method = SignInMethod;
@@ -125,13 +125,11 @@ export async function isPermanent(): Promise<boolean> {
   return !!data.user && !data.user.is_anonymous;
 }
 
-// A friendly sentence for a failure the person can act on, and the raw message for
-// one they cannot. Supabase's own strings are terse and sometimes blame the reader.
-export function signInError(err: unknown): string {
+// The sentence lives in `@pind/shared` (signInSays), where S05–S07 prove a stale
+// session is never called an expired code. A stale session is also cleared here, so
+// the next attempt starts clean instead of tripping over it again.
+export function signInError(step: SignInStep, err: unknown): string {
   const message = err instanceof Error ? err.message : String(err ?? "");
-  if (/token has expired|invalid|expired/i.test(message)) return "That code has expired. Ask for a new one.";
-  if (/rate limit|too many/i.test(message)) return "Too many tries. Give it a minute.";
-  if (/canceled|cancelled|ERR_REQUEST_CANCELED/i.test(message)) return "";
-  if (/provider is not enabled/i.test(message)) return "That way in is not switched on yet. Try the email code.";
-  return message || "That did not work. Try again.";
+  if (isStaleSession(message)) void supabase().auth.signOut({ scope: "local" });
+  return signInSays(step, message);
 }

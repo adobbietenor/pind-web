@@ -17,10 +17,9 @@
 // here: `person_handles` simply returns nothing to someone it is not for.
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, radius, spacing } from "@pind/shared";
-import { Brand } from "@/components/Brand";
+import { AppScreen } from "@/components/AppScreen";
 import { Body, Heading } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
@@ -79,31 +78,26 @@ export default function Person() {
 
   if (them === undefined) {
     return (
-      <SafeAreaView edges={["top"]} style={styles.root}>
+      <AppScreen edges={["top"]} scroll={false}>
         <ActivityIndicator style={{ marginTop: spacing.xl }} color={palette.textMuted} />
-      </SafeAreaView>
+      </AppScreen>
     );
   }
 
   if (them === null) {
     return (
-      <SafeAreaView edges={["top"]} style={styles.root}>
-        <ScrollView contentContainerStyle={styles.body}>
-          <Brand />
-          <Heading>Not here</Heading>
+      <AppScreen edges={["top"]}>
+        <Heading>Not here</Heading>
           <Body muted>
             People are visible only to each other, and only once you have both pinned in and said you would like to meet at the
             same gathering.
           </Body>
-        </ScrollView>
-      </SafeAreaView>
+        </AppScreen>
     );
   }
 
   return (
-    <SafeAreaView edges={["top"]} style={styles.root}>
-      <ScrollView contentContainerStyle={styles.body}>
-        <Brand />
+    <AppScreen edges={["top"]}>
         <View style={styles.head}>
           {them.photoUrl ? (
             <Image source={{ uri: them.photoUrl }} style={styles.face} />
@@ -145,8 +139,7 @@ export default function Person() {
         >
           <Text style={styles.moreLabel}>⋯</Text>
         </Pressable>
-      </ScrollView>
-    </SafeAreaView>
+      </AppScreen>
   );
 }
 

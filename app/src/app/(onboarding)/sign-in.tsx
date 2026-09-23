@@ -9,9 +9,7 @@
 // rendered there, because the table still said "later".
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import * as AppleAuthentication from "expo-apple-authentication";
+import { Platform, StyleSheet, Text, View } from "react-native";
 import {
   A1_POSITIONING,
   codeLengthMismatch,
@@ -21,8 +19,8 @@ import {
   ONE_LINER,
   spacing,
 } from "@pind/shared";
-import { Brand } from "@/components/Brand";
-import { BUTTON_HEIGHT, BUTTON_RADIUS, NativeAppleFrame, SignInButton } from "@/components/SignInButton";
+import { SignInButton } from "@/components/SignInButton";
+import { AppScreen } from "@/components/AppScreen";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
 import { methodsFor, sendEmailCode, signInError, signInWithApple, signInWithGoogle, verifyEmailCode } from "@/lib/auth";
 import { track } from "@/lib/analytics";
@@ -46,8 +44,9 @@ export default function SignIn() {
       await run();
       then?.();
     } catch (err) {
-      // A cancelled Apple sheet is not an error and must not leave red text behind.
-      setError(signInError(err));
+      // Which step failed decides the sentence: only entering a code can say a code
+      // expired (S05–S07). A cancelled sheet says nothing at all.
+      setError(signInError(what === "send" ? "send" : what === "verify" ? "verify" : "oauth", err));
     } finally {
       setBusy(null);
     }
@@ -59,9 +58,7 @@ export default function SignIn() {
   };
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
-      <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-        <Brand />
+    <AppScreen edges={["top", "bottom"]}>
         <Heading>{ONE_LINER}</Heading>
         <View style={styles.positioning}>
           {A1_POSITIONING.map((line) => (
@@ -75,26 +72,21 @@ export default function SignIn() {
 
         {methods.includes("apple") ? (
           <View style={{ marginBottom: spacing.sm }}>
-            {Platform.OS === "web" ? (
-              <SignInButton
-                provider="apple"
-                busy={busy === "apple"}
-                // Like Google on the web: the page navigates to Apple and never comes
-                // back to this handler. The return lands on /you, which counts it.
-                onPress={() => attempt("apple", () => signInWithApple(`${window.location.origin}/you`))}
-              />
-            ) : (
-              // Apple's own black button in the app, inside the pair's stroke.
-              <NativeAppleFrame>
-                <AppleAuthentication.AppleAuthenticationButton
-                  buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
-                  cornerRadius={BUTTON_RADIUS - 1}
-                  style={{ height: BUTTON_HEIGHT - 2 }}
-                  onPress={() => attempt("apple", signInWithApple, done("apple"))}
-                />
-              </NativeAppleFrame>
-            )}
+            {/* One button on both platforms (Alex, M3.1: the web is the reference).
+                Apple's system button centres its logo and scales it with the button's
+                height, so in the app it could never match the web's. A custom button
+                with Apple's own logo file is what the HIG allows for exactly this —
+                aligning logos across several sign-in buttons. */}
+            <SignInButton
+              provider="apple"
+              busy={busy === "apple"}
+              onPress={() =>
+                Platform.OS === "web"
+                  ? // The page navigates to Apple and never comes back to this handler.
+                    attempt("apple", () => signInWithApple(`${window.location.origin}/you`))
+                  : attempt("apple", () => signInWithApple(), done("apple"))
+              }
+            />
           </View>
         ) : null}
 
@@ -180,8 +172,7 @@ export default function SignIn() {
         <View style={{ marginTop: spacing.lg }}>
           <Body muted>No password, ever. We will not post anything or read your contacts.</Body>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      </AppScreen>
   );
 }
 

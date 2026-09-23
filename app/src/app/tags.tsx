@@ -8,11 +8,10 @@
 // have found until somebody wanted to change one (Alex, walking A3).
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { colors as palette, spacing, TAGS_MINIMUM } from "@pind/shared";
-import { Brand } from "@/components/Brand";
-import { TagPicker, enoughPicked, type Picked } from "@/components/TagPicker";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { colors as palette, spacing, TAGS_MINIMUM, TAGS_NEED_MORE } from "@pind/shared";
+import { TagPicker, tagsCanContinue, type Picked } from "@/components/TagPicker";
+import { AppScreen } from "@/components/AppScreen";
 import { Body, Button, Heading, Notice } from "@/components/ui";
 import { oneLine, failed } from "@/lib/errors";
 import { loadMe } from "@/lib/profile";
@@ -22,7 +21,6 @@ export default function EditTags() {
   const router = useRouter();
   const [personId, setPersonId] = useState<string | null>(null);
   const [picked, setPicked] = useState<Picked[] | null>(null);
-  const [note, setNote] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -54,16 +52,14 @@ export default function EditTags() {
 
   if (!picked) {
     return (
-      <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
+      <AppScreen edges={["top", "bottom"]} scroll={false}>
         <ActivityIndicator style={{ marginTop: spacing.xl }} color={palette.textMuted} />
-      </SafeAreaView>
+      </AppScreen>
     );
   }
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
-      <ScrollView contentContainerStyle={styles.body}>
-        <Brand />
+    <AppScreen edges={["top", "bottom"]}>
         <Heading>Your tags</Heading>
         <View style={{ marginBottom: spacing.md }}>
           <Body muted>
@@ -73,18 +69,21 @@ export default function EditTags() {
         </View>
 
         {error ? <Notice tone="stop">{error}</Notice> : null}
-        {note ? <Notice>{note}</Notice> : null}
-
-        <TagPicker picked={picked} onChange={setPicked} onSay={setNote} />
+        <TagPicker picked={picked} onChange={setPicked} />
 
         <View style={{ marginTop: spacing.lg }}>
-          <Button label="Save" busy={busy} disabled={picked.length > 0 && !enoughPicked(picked)} onPress={save} />
+          {/* The shared rule, and only the shared rule (T10). */}
+          <Button label="Save" busy={busy} disabled={!tagsCanContinue(picked)} onPress={save} />
+          {!tagsCanContinue(picked) ? (
+            <View style={{ marginTop: spacing.sm }}>
+              <Body muted>{TAGS_NEED_MORE(picked.length, false)}</Body>
+            </View>
+          ) : null}
         </View>
         <View style={{ marginTop: spacing.sm }}>
           <Button kind="quiet" label="Cancel" onPress={() => router.back()} />
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      </AppScreen>
   );
 }
 

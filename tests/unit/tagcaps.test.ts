@@ -17,6 +17,9 @@ import {
   TAGS_MAXIMUM,
   TAGS_MINIMUM,
   TAGS_ON_LIST,
+  TAGS_NEED_MORE,
+  TAGS_REACHED_MAXIMUM,
+  tagsCanContinue,
   toggleOnList,
   toggleTag,
   type PickedTag,
@@ -50,12 +53,13 @@ describe("The eleventh tap is refused, and says so", () => {
     assert.match(String(refused.says), new RegExp(String(TAGS_MAXIMUM)), "the sentence does not name the number");
   });
 
-  it("T04 the boundary from the other side: the tenth is allowed", () => {
+  it("T04 the boundary from the other side: the tenth is allowed, and says it is the last (Alex, M3.1)", () => {
     // A cap proved only by what it blocks is half a cap.
     const nine = some(TAGS_MAXIMUM - 1);
     const tenth = toggleTag(nine, "number-ten");
-    assert.equal(tenth.next.length, TAGS_MAXIMUM);
-    assert.equal(tenth.says, undefined, "the tenth tag was told off");
+    assert.equal(tenth.next.length, TAGS_MAXIMUM, "the tenth tag was refused");
+    assert.equal(tenth.says, TAGS_REACHED_MAXIMUM, "reaching ten said nothing");
+    assert.equal(toggleTag(some(3), "fourth").says, undefined, "an ordinary tap was told something");
   });
 
   it("T05 removing one makes room again — a cap, not a quota spent once", () => {
@@ -96,5 +100,21 @@ describe("Enough picked", () => {
     assert.equal(enoughPicked(some(TAGS_MINIMUM - 1)), false);
     assert.equal(enoughPicked(some(TAGS_MINIMUM)), true);
     assert.equal(enoughPicked([]), false);
+  });
+});
+
+describe("What Continue and Save ask — the rule the screens gate on (Alex, M3.1)", () => {
+  it("T10 none, one and two are refused; three to ten are allowed", () => {
+    // The walk found Continue working with NONE: the screen had its own rule with a
+    // "zero is fine" exception T09 never saw.
+    for (const n of [0, 1, 2]) assert.equal(tagsCanContinue(some(n)), false, `${n} tags let Continue through`);
+    for (const n of [3, 7, 10]) assert.equal(tagsCanContinue(some(n)), true, `${n} tags were refused`);
+  });
+
+  it("T11 a refused Continue always has a sentence under it, naming how many more", () => {
+    assert.match(TAGS_NEED_MORE(0), /Pick 3/);
+    assert.match(TAGS_NEED_MORE(2), /1 more/);
+    assert.match(TAGS_NEED_MORE(1), /skip/);
+    assert.doesNotMatch(TAGS_NEED_MORE(1, false), /skip/, "the editor offered a skip it does not have");
   });
 });

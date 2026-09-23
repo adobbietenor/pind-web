@@ -17,19 +17,21 @@
 //   - Logo and title both white on Apple (Apple's rule: both black or both white); the
 //     G is always full colour, on a dark fill (Google's rule).
 //
-// In the app, Apple is Apple's own black system button (AppleAuthenticationButton),
-// which sizes its own title; this component draws the web's Apple button and
-// Google's everywhere.
+// **One component on both platforms** (Alex, M3.1, from TestFlight: the app's Apple
+// logo had moved to the centre and shrunk). The app used Apple's system button, which
+// centres its logo and scales it with the height — so when the pair went to 44 high,
+// its logo got smaller, and it could never sit on the web's centre line. This draws
+// Apple's own logo file in the app too; expo-image renders the SVG natively.
 import { Image } from "expo-image";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
 
 export type Provider = "apple" | "google";
 
-export const BUTTON_HEIGHT = 44;
+const BUTTON_HEIGHT = 44;
 const STROKE = 1;
 const INNER = BUTTON_HEIGHT - 2 * STROKE; // 42
 const TITLE = Math.round(INNER * 0.43); // 18
-export const BUTTON_RADIUS = 12;
+const BUTTON_RADIUS = 12;
 
 // Google: the G is half the button's height, 12/40 of the height in from the edge.
 const G_SIZE = INNER / 2;
@@ -89,12 +91,6 @@ export function SignInButton({
   );
 }
 
-// In the app, Apple's own black system button inside the same stroke, so the pair
-// matches there too.
-export function NativeAppleFrame({ children }: { children: React.ReactNode }) {
-  return <View style={[styles.frame, { borderColor: PAIR.stroke, backgroundColor: PAIR.fill }]}>{children}</View>;
-}
-
 const styles = StyleSheet.create({
   button: {
     height: BUTTON_HEIGHT,
@@ -110,10 +106,4 @@ const styles = StyleSheet.create({
   apple: { position: "absolute", left: APPLE_LEFT, top: 0, width: APPLE_W, height: INNER },
   g: { position: "absolute", left: G_LEFT, top: (INNER - G_SIZE) / 2, width: G_SIZE, height: G_SIZE },
   title: { fontSize: TITLE, fontWeight: "500", letterSpacing: 0 },
-  frame: {
-    height: BUTTON_HEIGHT,
-    borderWidth: STROKE,
-    borderRadius: BUTTON_RADIUS,
-    overflow: "hidden",
-  },
 });

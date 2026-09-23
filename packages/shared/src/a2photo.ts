@@ -42,3 +42,22 @@ export function canContinue(fields: { firstName: string; oldEnough: boolean; gen
 export function savePlan(photo: A2Photo): ("upload" | "person" | "private")[] {
   return photo.state === "none" ? ["person", "private"] : ["upload", "person", "private"];
 }
+
+// ---------------------------------------------------------------------------
+// Where a sign-in lands (M3.1, after the TestFlight walk).
+//
+// **Every sign-in, on every platform, went to A2 — and A2 showed an empty form to a
+// person who already had a profile.** Signing out in the app and back in on the web
+// looked exactly like a lost profile: a blank "A bit about you". The identity was
+// fine; the screen never asked whether the person had been here before.
+//
+// A2 is finished when the private row exists (it holds the birth year and gender,
+// which only A2 writes). A person row without one is the link path — pinned at A26,
+// not yet through A2 — so A2 opens with their first name already in it.
+// ---------------------------------------------------------------------------
+export type Landing = { go: "home" } | { go: "a2"; firstName: string };
+
+export function landingAfterSignIn(me: { firstName: string | null; hasPrivate: boolean } | null): Landing {
+  if (me?.hasPrivate) return { go: "home" };
+  return { go: "a2", firstName: me?.firstName ?? "" };
+}

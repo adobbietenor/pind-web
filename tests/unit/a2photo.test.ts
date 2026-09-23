@@ -53,3 +53,16 @@ describe("A2 after a failed upload", () => {
     assert.match((failed as { says: string }).says, /remove it and continue/);
   });
 });
+
+describe("Where a sign-in lands (M3.1, from the walk)", () => {
+  it("A05 somebody who finished A2 goes home, never to a blank A2", async () => {
+    const { landingAfterSignIn } = await import("../../packages/shared/src/a2photo.ts");
+    assert.deepEqual(landingAfterSignIn({ firstName: "Alex", hasPrivate: true }), { go: "home" });
+  });
+
+  it("A06 a new person goes to A2; a link-path pinner goes to A2 with their name already in it", async () => {
+    const { landingAfterSignIn } = await import("../../packages/shared/src/a2photo.ts");
+    assert.deepEqual(landingAfterSignIn(null), { go: "a2", firstName: "" });
+    assert.deepEqual(landingAfterSignIn({ firstName: "Sam", hasPrivate: false }), { go: "a2", firstName: "Sam" });
+  });
+});

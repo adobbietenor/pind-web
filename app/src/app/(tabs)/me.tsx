@@ -13,9 +13,9 @@
 // that the handle goes no further than crewmates and connections (V17).
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, PHOTO_STATE, radius, spacing } from "@pind/shared";
+import { AppScreen } from "@/components/AppScreen";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
 import { oneLine, failed } from "@/lib/errors";
 import { loadMe, photoUrl, saveInstagram, type Me } from "@/lib/profile";
@@ -53,17 +53,16 @@ export default function Profile() {
 
   if (me === undefined) {
     return (
-      <SafeAreaView edges={["top"]} style={styles.root}>
+      <AppScreen edges={["top"]} scroll={false}>
         <ActivityIndicator style={{ marginTop: spacing.xl }} color={palette.textMuted} />
-      </SafeAreaView>
+      </AppScreen>
     );
   }
 
   if (me === null) {
     return (
-      <SafeAreaView edges={["top"]} style={styles.root}>
-        <ScrollView contentContainerStyle={styles.body}>
-          <Heading>Profile</Heading>
+      <AppScreen edges={["top"]}>
+        <Heading>Profile</Heading>
           <View style={styles.card}>
             <Body muted>
               Nothing here yet. Set yourself up and the people you meet will have a face and a first name to go on.
@@ -72,8 +71,7 @@ export default function Profile() {
               <Button label="Set up your profile" onPress={() => router.push("/sign-in")} />
             </View>
           </View>
-        </ScrollView>
-      </SafeAreaView>
+        </AppScreen>
     );
   }
 
@@ -91,8 +89,7 @@ export default function Profile() {
   const approved = me.photoStatus === "approved";
 
   return (
-    <SafeAreaView edges={["top"]} style={styles.root}>
-      <ScrollView contentContainerStyle={styles.body}>
+    <AppScreen edges={["top"]}>
         <Heading>Profile</Heading>
 
         {error ? <Notice tone="stop">{error}</Notice> : null}
@@ -244,8 +241,7 @@ export default function Profile() {
             Safety &amp; settings
           </Link>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      </AppScreen>
   );
 }
 

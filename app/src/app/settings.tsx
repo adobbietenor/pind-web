@@ -14,10 +14,9 @@
 // rediscovered (decisions Part 3, and M3.1).
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Platform, ScrollView, Share, StyleSheet, Text, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { Platform, Share, StyleSheet, Text, View } from "react-native";
 import { colors as palette, fonts, radius, spacing } from "@pind/shared";
-import { Brand } from "@/components/Brand";
+import { AppScreen } from "@/components/AppScreen";
 import { Body, Button, Heading, Notice } from "@/components/ui";
 import { oneLine, failed } from "@/lib/errors";
 import { deleteAccount, exportMyData } from "@/lib/profile";
@@ -69,9 +68,7 @@ export default function Settings() {
   };
 
   return (
-    <SafeAreaView edges={["top", "bottom"]} style={styles.root}>
-      <ScrollView contentContainerStyle={styles.body}>
-        <Brand />
+    <AppScreen edges={["top", "bottom"]}>
         <Heading>Safety &amp; settings</Heading>
 
         {error ? <Notice tone="stop">{error}</Notice> : null}
@@ -152,8 +149,7 @@ export default function Settings() {
             switches when they start being sent.
           </Body>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      </AppScreen>
   );
 }
 

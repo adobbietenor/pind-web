@@ -6,12 +6,18 @@
 //
 // **Three rules it has to make visible rather than merely obey:**
 //   * at least three — asked here, never in the database (the link path pins with none);
-//   * up to ten — the database's rule, and this says so only when somebody reaches
-//     for an eleventh. A cap that is advertised reads as a budget; a cap that
-//     silently ignores a tap reads as broken;
+//   * up to ten — the database's rule; the tap that reaches ten says so, and an
+//     eleventh says why it did nothing. A cap that silently ignores a tap reads as
+//     broken;
 //   * three of them show on the "going & open to meeting" row, and the person picks
 //     which. Everything else still shows on the profile behind it, so this chooses a
 //     headline, not an audience.
+//
+// **The note appears under the chips that were tapped** (Alex, M3.1, walking A3). It
+// used to be handed up to the screen, which showed it above all 32 chips — off-screen
+// from a tap near the bottom, so the eleventh tap looked like nothing at all. The
+// refusal was produced (T03 proved it) and never seen.
+import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import {
   ALL_TAGS,
@@ -33,22 +39,27 @@ import { Body } from "./ui";
 // bare node — a rule whose job is to refuse something is proved by a test that
 // makes it refuse, and this one could not be loaded where it was.
 export type { PickedTag as Picked } from "@pind/shared";
-export { countOnList, enoughPicked } from "@pind/shared";
+export { countOnList, enoughPicked, tagsCanContinue } from "@pind/shared";
 
 export function TagPicker({
   picked,
   onChange,
-  onSay,
 }: {
   picked: PickedTag[];
   onChange: (next: PickedTag[]) => void;
-  onSay: (says: string) => void;
 }) {
-  const apply = (result: { next: PickedTag[]; says?: string }) => {
-    if (result.says) onSay(result.says);
-    else onSay("");
+  // What the last tap said, and where: the name of the group it was in, or "list".
+  const [note, setNote] = useState<{ says: string; at: string } | null>(null);
+  const apply = (result: { next: PickedTag[]; says?: string }, at: string) => {
+    setNote(result.says ? { says: result.says, at } : null);
     onChange(result.next);
   };
+  const noteAt = (at: string) =>
+    note?.at === at ? (
+      <View style={styles.note} accessibilityLiveRegion="polite">
+        <Text style={styles.noteText}>{note.says}</Text>
+      </View>
+    ) : null;
 
   const chosen = picked.map((p) => p.slug);
 
@@ -65,7 +76,7 @@ export function TagPicker({
                   key={t.slug}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: on }}
-                  onPress={() => apply(toggleTag(picked, t.slug))}
+                  onPress={() => apply(toggleTag(picked, t.slug), group.group)}
                   style={[styles.chip, on && styles.chipOn]}
                 >
                   <Text style={[styles.chipLabel, on && { color: palette.onAccent }]}>{t.name}</Text>
@@ -73,6 +84,7 @@ export function TagPicker({
               );
             })}
           </View>
+          {noteAt(group.group)}
         </View>
       ))}
 
@@ -92,7 +104,7 @@ export function TagPicker({
                   key={p.slug}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: p.onList }}
-                  onPress={() => apply(toggleOnList(picked, p.slug))}
+                  onPress={() => apply(toggleOnList(picked, p.slug), "list")}
                   style={[styles.chip, p.onList && styles.chipOn, !p.onList && { opacity: 0.55 }]}
                 >
                   <Text style={[styles.chipLabel, p.onList && { color: palette.onAccent }]}>{name}</Text>
@@ -100,6 +112,7 @@ export function TagPicker({
               );
             })}
           </View>
+          {noteAt("list")}
         </View>
       ) : null}
 
@@ -127,6 +140,14 @@ const styles = StyleSheet.create({
   },
   chipOn: { backgroundColor: palette.accent, borderColor: palette.accent },
   chipLabel: { fontSize: 15, color: palette.text },
+  note: {
+    marginTop: spacing.sm,
+    borderLeftWidth: 3,
+    borderLeftColor: palette.accentText,
+    paddingLeft: spacing.sm,
+    paddingVertical: 4,
+  },
+  noteText: { fontSize: 14, lineHeight: 20, color: palette.textTint },
   listBox: {
     marginTop: spacing.sm,
     borderTopWidth: 1,
