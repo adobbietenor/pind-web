@@ -435,6 +435,8 @@ any of it.
 - The +1: shown as "+1 friend"; a +1 who wants to be seen pins in themselves through the share link; no claim page (§10).
 - **Close the pinning window at the effective end** (found and dated in M2.2, harness P37b). Pinning has no upper time bound today: a pin can be taken at a gathering that ended two days ago. It is a gap left from M1.1, not a decision, and A26 is the first screen with a real button to hang the rule on. Decide the exact edge with A26 — almost certainly the effective end, matching everything else time-driven — enforce it in the database, and **invert P37b rather than treating its failure as a regression**; the case is written to say so.
 
+- **Watch for: Apple sign-in on the web failing once, unreproduced** (Alex, M3.1 walk, about 12:20 UTC on 2026-09-23, iPhone Safari). A notification said it was "trying to sign back in but couldn't"; the retry two minutes later worked (a web Apple session at 12:24:07 UTC). The Supabase side was healthy when read — the authorize redirect names `social.pind.web` and the Supabase callback — and a failed attempt leaves no session, the project's auth audit table is empty, and the text is not ours. **Not fixed, not diagnosed, and no cause guessed at.** If it happens again, note the minute and pull **Logs → Auth** for it straight away: the auth server's own log is the only record of a refused attempt.
+
 **Acceptance**
 
 - From a link in iMessage on a phone with no app: tap → Worker page → Pin in → pinned in under 30 seconds with no account and no photo; the Worker page's count is one higher on reload.
