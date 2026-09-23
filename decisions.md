@@ -2761,3 +2761,39 @@ Alex asked what up to six photos would cost. **About 9–12 hours**:
 followers, no grids, no bio*. A profile with six photos is a different product — the
 one H2 exists to avoid. **Revisit after the first real crowds**, when it is known
 whether one photo is actually the problem.
+
+**Priced three ways** (Alex asked what it costs if only the first photo is checked):
+
+| Version | What is built | Hours |
+|---|---|---|
+| **A. Every photo checked** | the photo table, V6 and storage policies per photo, every photo case rewritten, and the webhook, sweep, admin queue and rescore per photo; the app | **9–12** |
+| **B. Only the first checked** | the first photo stays on `people.photo_path` with its whole pipeline untouched; the extras in their own table, visible exactly when their owner is; their harness cases; the app | **6–8** |
+| **C. Extras through the same check** | B, plus a trigger on the extras, verdicts recorded by path, a rejection removing that one image — no new states, no new queue | **8–11** |
+
+The cost is mostly **not the check**: it is the app (A21 add, remove and reorder, the preview, A22 swiping, export — about 3–4 h in every version) and visibility for a new kind of stored object (about 2–3 h). The check is 0 h in B, about 2 in C, about 2.5 in A. **The two things that decide it:**
+- **B is a hole in the only automated scan we have.** Pass a clean first photo and put anything behind it; with nothing waiting on the check it is visible from upload; and at App Review "we scan photos" (1.2) would be false for five in six of them.
+- **C's upper hour is the possible-minor question.** A flag found on an extra is about the *person*, and the check never decides age (H8), so it must still reach Alex's queue under the person's name — removing the image is only the easy half.
+
+Any version is milestone-sized, not a small thing.
+
+### A bio is a V17 bypass, and so is any free text a stranger can read (Alex, M3.1)
+
+Asked whether profiles are thin for lack of photos or for lack of anything to read, the
+cheaper answers were priced, and two are refused **by rule, not by taste**:
+
+- **An "about you" line — no.** Not because A21 says "no bio", but because **free text
+  a stranger can read is a way round V17**: "insta @foo" in a bio puts a contact handle
+  on the open "going & open to meeting" list, which is exactly the cold-DM path H2 and
+  V17 exist to close. **The general rule: any free-text field a stranger can read is a
+  V17 bypass unless it is filtered** — for handles, phone numbers and links — and the
+  filter is part of the field's cost, not an afterthought.
+- **Making the Instagram handle prominent at the deciding moment — no.** That moment is
+  the list and A22, before any crew, and V17 allows the handle only to crewmates, a
+  1-on-1 partner and connections. Showing it there reverses V17 rather than styling
+  something. On the crew card, where it is allowed, prominence is an M3.3 design call.
+- **Which gatherings someone has been to — no.** A stranger seeing a pattern of where
+  somebody goes is new visibility, against Part 4. **A count** is fine, and is in.
+- **What is in**, in M3.2's A22 (build-plan §8): the shared context, all the tags grouped,
+  and the gathering count — 2–3 h inside work happening anyway. The "showed up" badge
+  follows with M3.3's confirmations (about 0.5 h to show), and is zero for everyone
+  until crews have met, so it helps later rather than at launch.
