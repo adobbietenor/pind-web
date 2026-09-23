@@ -3123,3 +3123,24 @@ or solo."* Where the two meet and where they do not:
   the page, and they see counts and no faces. It must read as **one step away, not a
   locked door** — its copy and the toggle's prominence are a named M3.2 acceptance item,
   not whatever wording it happens to get.
+
+### The opt-in gate, the build order, test people's faces (Alex, M3.2, 23 Sept 2026)
+
+- **"Open to meeting" is true only for someone who has finished A27**: a permanent
+  sign-in (email, Apple or Google), a date of birth and gender on record, and a photo.
+  Refused in the database for the Worker, the app and a raw token alike, with tests on
+  both sides. **The A26 tick records intent and sends the person to A27 — nothing more.**
+  - **Found on the walk:** Alex's anonymous pin with the tick showed "1 of 5" — **the
+    count was honest about the flag, and the flag was wrong.** Nothing in the database
+    stopped an anonymous, photo-less pin from being open to meeting.
+- **The build order inside M3.2** (Alex): the walkable path first — the gate, A27, A8
+  and A9, A22, the testers page and the test crowd — then A5–A7, interests, search, My
+  Events and W2's button after the walk. The walk starts in the app on the seed
+  gathering's A8; the link-to-pin half is already walked on a real gathering, and
+  nothing changes on a public page.
+- **Test people's photos are illustrations**, generated, visibly not photographs —
+  nobody should mistake a test person for a real one on a screen being judged — and
+  approved without the AI check. No real faces.
+- **The existing-email merge is written up before it is built.** Alex's condition: the
+  code proves it is the same person before anything moves, and the service-key step
+  runs only when both sessions are presented together.
