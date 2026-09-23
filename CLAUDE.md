@@ -327,6 +327,12 @@ Two things that follow, both cheap and both easy to skip:
   firing test, I named the publisher's capacity floor — and it has four, including
   both sides of the boundary. Confidently wrong about my own coverage is the same
   failure as the instrument above, pointed inward.
+- **A chained command runs the next step whether or not the check passed, unless
+  it is chained with `&&`.** M3.2: `npm run typecheck ...; git commit` committed twice
+  with the typecheck red, because `;` runs regardless and the typecheck's output was
+  sent to /dev/null. The commit said nothing was wrong because nothing asked. **Gate
+  every commit, push and deploy on its check with `&&`**, and never hide a check's
+  output and its exit code at the same time.
 - **A test that reads the source must prove its own pattern matches something real.**
   An empty result is what a pattern that matches nothing returns, so it passes by
   finding nothing. M3.1: S20's regex was mangled on the way into the file and matched
