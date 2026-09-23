@@ -1,10 +1,17 @@
-import PostHog from "posthog-react-native";
+import type PostHog from "posthog-react-native";
 import { Platform } from "react-native";
+import { afterFirstPaint } from "./later";
 
 // Funnel events (decisions Part 5, "Analytics and crashes"). Off unless the
 // project key is set, and it says so once in the console. No autocapture and
 // no GeoIP: only the events we name, and nothing about where anyone is (H4).
+//
+// **Loaded after first paint on the web** (Alex, M3.2): PostHog is about 0.75 MB of
+// source, and A26 has a W2-sized budget. It is a separate chunk fetched once the page
+// is usable; an event tracked before then is queued, not lost. On a phone it starts at
+// once, as before.
 let posthog: PostHog | undefined;
+const queued: { event: AnalyticsEvent; properties?: Record<string, string | number | boolean> }[] = [];
 
 // On iOS PostHog persists to files through expo-file-system (part of expo itself).
 // On the web it would keep nothing between visits, so give it localStorage.
@@ -27,16 +34,20 @@ export function initAnalytics(): void {
     console.info("PostHog disabled: EXPO_PUBLIC_POSTHOG_KEY not set");
     return;
   }
-  posthog = new PostHog(key, {
-    host: analyticsHost(),
-    customStorage: Platform.OS === "web" ? webStorage : undefined,
-    captureAppLifecycleEvents: false,
-    // Send each event at once. The default batches for 10 seconds, and a tab
-    // closed or backgrounded before then loses its events (seen in M2.0).
-    flushAt: 1,
-    disableGeoip: true,
+  afterFirstPaint(async () => {
+    const { default: PostHogClient } = await import("posthog-react-native");
+    posthog = new PostHogClient(key, {
+      host: analyticsHost(),
+      customStorage: Platform.OS === "web" ? webStorage : undefined,
+      captureAppLifecycleEvents: false,
+      // Send each event at once. The default batches for 10 seconds, and a tab
+      // closed or backgrounded before then loses its events (seen in M2.0).
+      flushAt: 1,
+      disableGeoip: true,
+    });
+    console.info("PostHog enabled");
+    for (const q of queued.splice(0)) posthog.capture(q.event, q.properties);
   });
-  console.info("PostHog enabled");
 }
 
 // The funnel events, named here so the set is a list rather than whatever a screen
@@ -48,5 +59,6 @@ export type AnalyticsEvent = "app_open" | "sign_in" | "profile_created";
 // every event (decisions Part 5, "Analytics, as built"), and this is the other half
 // of that promise: nothing identifying is put in deliberately either.
 export function track(event: AnalyticsEvent, properties?: Record<string, string | number | boolean>): void {
-  posthog?.capture(event, properties);
+  if (posthog) posthog.capture(event, properties);
+  else if (queued.length < 50) queued.push({ event, properties });
 }

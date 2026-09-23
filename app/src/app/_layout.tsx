@@ -6,11 +6,12 @@ import { DarkTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
-import { View } from "react-native";
+import { Platform, View } from "react-native";
 import { colors as palette } from "@pind/shared";
 import { initAnalytics, track } from "@/lib/analytics";
 import { queryClient } from "@/lib/query";
 import { initSentry, wrapRoot } from "@/lib/sentry";
+import { isQuickPinPath } from "@/lib/typeface";
 
 // Runs once per launch. Nothing here touches Supabase auth: opening the app
 // creates no user (the anonymous user is made at pin, A26).
@@ -21,8 +22,15 @@ initAnalytics();
 // the fallback font.
 SplashScreen.preventAutoHideAsync();
 
+// **A26 on the web asks for no Poppins at all** (Alex, M3.2): the quick pin has W2's
+// budget, and holding the whole page back for two font files was most of its first
+// paint. It renders at once in the system face (typeface.ts). Decided on the URL a
+// visitor LANDED on, so someone who lands on A26 keeps the system face for that tab.
+const landedOnQuickPin =
+  Platform.OS === "web" && typeof window !== "undefined" && isQuickPinPath(window.location.pathname);
+
 function RootLayout() {
-  const [fontsLoaded] = useFonts({ Poppins_600SemiBold, Poppins_700Bold });
+  const [fontsLoaded] = useFonts(landedOnQuickPin ? {} : { Poppins_600SemiBold, Poppins_700Bold });
 
   useEffect(() => {
     track("app_open");

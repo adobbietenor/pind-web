@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/react-native";
 import { isRunningInExpoGo } from "expo";
 import Constants from "expo-constants";
+import { reportable } from "./reportable";
 
 // Crash reporting (decisions Part 5, "Analytics and crashes"). Off unless the DSN
 // is set, and off in Expo Go, which has no Sentry native module. Either way it
@@ -24,12 +25,10 @@ export const wrapRoot = Sentry.wrap;
 
 // **Where a failure's technical detail goes** (Alex, M3.1): the person reads a
 // sentence we wrote, and the raw error — hostname, code, table and all — comes here.
-// A PostgREST or Storage error is a plain object, not an Error, so it is wrapped to
-// keep its message and code rather than arriving as "Non-Error exception".
+// On the web this file is replaced by sentry.web.ts, which loads Sentry after first
+// paint (M3.2); the wrapping is shared in reportable.ts.
 export function report(err: unknown, doing: string): void {
-  const record = typeof err === "object" && err !== null ? (err as Record<string, unknown>) : {};
-  const error =
-    err instanceof Error ? err : new Error(typeof record.message === "string" ? record.message : String(err));
-  Sentry.captureException(error, { tags: { doing }, extra: { code: record.code, status: record.status ?? record.statusCode } });
+  const { error, context } = reportable(err, doing);
+  Sentry.captureException(error, context);
   if (__DEV__) console.warn(`[${doing}]`, err);
 }

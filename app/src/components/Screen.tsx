@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { colors as palette, fonts, spacing } from "@pind/shared";
+import { colors as palette, spacing } from "@pind/shared";
+import { headlineFamily } from "@/lib/typeface";
 import { Brand } from "./Brand";
 
 // The shell every tab screen sits in: a Poppins headline on the scheme's background.
@@ -23,7 +24,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   brand: { paddingHorizontal: spacing.md, paddingTop: spacing.md },
   title: {
-    fontFamily: fonts.headline,
+    fontFamily: headlineFamily,
     fontSize: 28,
     lineHeight: 36,
     paddingHorizontal: spacing.md,

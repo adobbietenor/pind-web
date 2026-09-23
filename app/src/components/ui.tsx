@@ -10,7 +10,8 @@ import {
   View,
   type TextInputProps,
 } from "react-native";
-import { colors as palette, fonts, radius, spacing } from "@pind/shared";
+import { colors as palette, radius, spacing } from "@pind/shared";
+import { headlineFamily } from "@/lib/typeface";
 
 export function Heading({ children }: { children: ReactNode }) {
   return (
@@ -136,7 +137,7 @@ export function Notice({ tone = "quiet", children }: { tone?: "quiet" | "stop"; 
 
 const styles = StyleSheet.create({
   heading: {
-    fontFamily: fonts.headline,
+    fontFamily: headlineFamily,
     fontSize: 27,
     lineHeight: 34,
     color: palette.text,
@@ -145,7 +146,7 @@ const styles = StyleSheet.create({
   },
   body: { fontSize: 16, lineHeight: 23, color: palette.text },
   label: {
-    fontFamily: fonts.headline,
+    fontFamily: headlineFamily,
     fontSize: 14,
     color: palette.textMuted,
     marginBottom: spacing.xs + 2,
@@ -171,7 +172,7 @@ const styles = StyleSheet.create({
   },
   primary: { backgroundColor: palette.accent },
   quiet: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },
-  buttonLabel: { fontFamily: fonts.headline, fontSize: 16, color: palette.onAccent },
+  buttonLabel: { fontFamily: headlineFamily, fontSize: 16, color: palette.onAccent },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   chip: {
     borderWidth: 1,

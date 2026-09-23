@@ -12,7 +12,8 @@
 // is not the place to guess at one.
 import { Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams } from "expo-router";
-import { colors as palette, fonts, radius, spacing, THRESHOLD } from "@pind/shared";
+import { colors as palette, radius, spacing, THRESHOLD } from "@pind/shared";
+import { headlineFamily } from "@/lib/typeface";
 import { Screen } from "@/components/Screen";
 
 export default function QuickPinHolding() {
@@ -56,5 +57,5 @@ const styles = StyleSheet.create({
     paddingVertical: 15,
     alignItems: "center",
   },
-  buttonText: { color: palette.onAccent, fontFamily: fonts.headline, fontSize: 16 },
+  buttonText: { color: palette.onAccent, fontFamily: headlineFamily, fontSize: 16 },
 });
