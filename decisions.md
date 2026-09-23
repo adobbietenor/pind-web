@@ -2843,3 +2843,40 @@ pick first and only then takes the current photo off; a failed upload is marked,
 how to get out, and leaves the old photo in place. Saving deletes the replaced file
 from the person's folder — a replaced photo is not kept. P89 proves the person's own
 writes: upload, repoint, delete the old file, clear.
+
+### Decided before Phase 3 M3.2 opened (Alex, 23 Sept 2026)
+
+Seven questions the spec left open or deferred to build time, settled in one pass so
+the milestone does not stop for them.
+
+1. **The quick pin page's limit is time, not bytes: under a second on a cold phone.**
+   Bytes matter only through what they do to that. A26 stays in Expo; it is measured
+   on day one and the number brought back. **If Expo cannot get near a second, stop and
+   come back before building a Worker-rendered fallback** — that would cross the
+   boundary rule ("if it needs a session, it is Expo"), and the rule is changed
+   deliberately or not at all.
+2. **A27 with an email that already has an account: sign in to that account and move
+   the pin across, then delete the anonymous user.** Losing a pin because somebody
+   happened to have an account is the worst outcome (Alex hit exactly this on 23
+   Sept). **Nothing moves until the person has proved the address with its code** —
+   typing an address is not owning it. The pin's states and what moves it between them
+   are listed for Alex before this is built (CLAUDE.md, lifecycles).
+3. **The privacy policy and terms at A27 are a placeholder marked "draft"**, noindex,
+   staging only, and **the version accepted is stored**, so M4.1's real policy can be
+   asked for again.
+4. **Pinning closes at the effective end of the gathering** — open during it, shut
+   after. Somebody deciding at 9pm to join a thing that started at 8 is exactly who
+   this is for. P37b is inverted.
+5. **Interests (the remembered chips) and tags stay separate.** Chips shape what you
+   see; tags describe you to others. The same reasoning that turned down the bio.
+6. **Test people for the list walks: Alex and a friend on real phones for the two-way
+   list; Claude creates the rest at one staging gathering, marked so they can never
+   reach a real page.** *Open: the seed rule, as it stands, hides a seed person from
+   every signed-in reader too — so they could not appear in the list being walked.
+   How they are marked is put to Alex before any are made.*
+7. **Anonymous sign-in abuse: Supabase's rate limit, no CAPTCHA.** A third-party script
+   on A26 breaks the own-origin rule, on the page that has to be fastest. Revisit
+   before the first real crowds.
+
+DMARC for pind.social is live with `rua=mailto:dmarc@pind.social` and `p=none`, the
+address forwarded to Alex by Email Routing. `p=quarantine` waits a week of reports.
