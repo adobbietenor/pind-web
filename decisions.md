@@ -3144,3 +3144,26 @@ or solo."* Where the two meet and where they do not:
 - **The existing-email merge is written up before it is built.** Alex's condition: the
   code proves it is the same person before anything moves, and the service-key step
   runs only when both sessions are presented together.
+
+### The merge approved; M3.2b split out (Alex, M3.2, 23 Sept 2026)
+
+- **The existing-email merge, as written** (the steps and states are in this file's
+  M3.2 notes and in the build): nothing moves until the code proves the address, and a
+  stranger typing someone else's address can never produce the second session. Two
+  additions (Alex):
+  - **Each of the Worker's four checks has a test that makes it fire** — both sessions
+    valid now, the first really anonymous, the second really permanent, different
+    people. A refusal nobody has seen refuse is not proven.
+  - **A failure between the code and the merge says so on the screen**: "Nothing was
+    lost — your pin is still there." Never silence, never a person unsure whether
+    their pin survived.
+- **M3.2b — the app's front door** (A5–A7, interests, search, A19 My Events), about
+  11–12 hours, **between M3.2 and M3.3**. M3.3 stays the loop and nothing else. The
+  "get the app" nudge moves to M3.3 (it is shown when crews open); the admin control
+  to block a pair moves to M3.5 (Safety). **Checked:** nothing on M3.2's walk needs the
+  home list (it enters by link); M3.3's one reliance — "invite" opens this week's
+  crowds — and M3.6's TestFlight phones are both satisfied because M3.2b lands first.
+  It is not the dogfood's problem moved, as long as the order holds.
+- **Worth keeping from the gate:** three M3.1 cases failed on it first, because they
+  pinned an anonymous user already open to meeting — now forbidden. Tests catching a
+  rule change against their own assumptions is the harness doing its job.

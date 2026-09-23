@@ -418,20 +418,14 @@ any of it.
 
 **Goal.** The Reddit link ends in a pin in thirty seconds and in a reciprocal list at two — the first showable checkpoint, worth sending to friends even with no crews.
 
-- A5–A7 home from published gatherings, by day, honest counts, mix at 5+, "be the first"; A8 in-app crowd page with the same anatomy as W2.
+- A8 in-app crowd page with the same anatomy as W2. (A5–A7, the app's home list, moved to M3.2b — Alex, M3.2.)
 - **A26 Quick pin** (new, link path): first name, alone / +1 / +2 / a group, "I'd like to meet up", 19+ → pinned as an anonymous user. **A27 Opt in** (new): DOB, gender, photo, contact → permanent account; one safety sheet.
 - Opt-in toggle; A9 locked state with the number named; the reciprocal list (RLS already does the work — the screen just renders what the policy returns); tapping a person opens A22, never a chat.
-- Edit and remove my pin; A19 My Events; universal links into the app; the "get the app" nudge shown once at crews-open.
+- Edit and remove my pin; universal links into the app. (A19 My Events moved to M3.2b; the "get the app" nudge to M3.3, because it is shown at crews-open and crews are M3.3 — Alex, M3.2.)
 - **A22, built properly, answers "nothing to read"** (Alex, M3.1): **the shared context** ("you're both pinned to Leafs vs Bruins"), **all the person's tags, grouped** — not only the three on the list — and **their gathering count**. 2–3 h inside A22 work that happens here anyway. It exists to answer the feeling that a profile is thin **without a bio, a handle leak or a grid** (decisions, "Six photos — considered" and "A bio is a V17 bypass"). **Not** the list of which gatherings someone has been to: a stranger seeing a pattern of where somebody goes is new visibility, against Part 4. Photos are revisited after the first real crowds.
 - **Move the Google OAuth consent screen from Testing to In production** (Alex, M3.1), so strangers can sign in with Google without being on Alex's test-user list — until then anyone else gets "Access blocked". With only the email and profile scopes it needs no scope review. **No logo on the consent screen, ever, unless we choose to be reviewed:** uploading one forces Google's brand verification for any app that is not Internal or in Testing, and this step is exactly what takes it out of Testing.
-- **Interests, remembered** (Alex, M3.1, after walking A3): somebody picking a neighbourhood wanted to say what they are into as well, so the list shows more of what they like. **This is not the tags** — tags describe you to other people; this shapes what you see. The cheap, honest version is **remembering the chip selection** rather than inventing a second taxonomy: a stored set per person, defaulted onto the app's list, one tap to clear. 2–3 h, here, because this is where A5–A7 build the list it filters.
-  - **Narrowing is a filter; reordering is an algorithm** (Alex, M3.1). Q10 says the calendar is the ordering, and a filter leaves that untouched — the remaining rows stay in date order. **The moment it becomes "things you like first", Q10 is dead.** That sentence is the acceptance test for this feature, not a note about it.
-  - **It must be visibly on, with a one-tap clear.** A default-on filter that hides things is a new way to see an empty week and conclude the product is dead.
-  - **The empty state says why**: "nothing matching your interests this week", never a bare "nothing on".
-  - **The overlap with the Interests tag group is settled when this is built, not before** — seven of the 32 tags are taste and so are the chips, and if this ships the obvious question is why tapping "comedy" as a tag does not change the list.
 - **The crowd-page button follows what you have done at that gathering** (Alex, M3.1, after "Open" appeared on every crowd page): not pinned → `PIN_IN`, already pinned → `SEE_WHO`. **"Open" never appears on the web.** A26 is what makes the second state reachable, so both halves land here.
   - **The mechanism, decided and not free to change:** the pin writes a **same-origin marker** that W2's script reads. Asking the database from the page breaks the own-origin rule (M2.1: 911 ms against 133 ms, paid per host), and a cookie the Worker could read at render time would make W2 vary by cookie and lose its edge cache. No network, no cookie, no cache change.
-- **Search** (designed in M2.3 and filed here; confirmed still M3.2 by Alex, M3.1). About two hours. **No client JavaScript**: it is the same page with an optional query, so W1 keeps its byte budget and works with scripting off. **One door function with an optional query, shared by the Worker's list and the app's** — the M2.3 rule about a second copy of "what is public" drifting applies to "which rows match" as well, and `publicVenueIds()`/`crowds()` in `src/public/data.ts` is where it goes. It was carried out of M2.3 into spec §6 but never into this list, which is the list a session reads first.
 - The +1: shown as "+1 friend"; a +1 who wants to be seen pins in themselves through the share link; no claim page (§10).
 - **Decided before M3.2 opened** (decisions.md, the section of that name): the page limit is time; A27 with an existing email moves the pin to that account only after its code is proved; a draft privacy policy with the accepted version stored; pinning open until the effective end; chips and tags separate; Supabase's rate limit and no CAPTCHA on anonymous sign-in. **Still open:** how the staging test people are marked (the seed rule hides them from signed-in readers too).
 - **Close the pinning window at the effective end** (found and dated in M2.2, harness P37b). Pinning has no upper time bound today: a pin can be taken at a gathering that ended two days ago. It is a gap left from M1.1, not a decision, and A26 is the first screen with a real button to hang the rule on. Decide the exact edge with A26 — almost certainly the effective end, matching everything else time-driven — enforce it in the database, and **invert P37b rather than treating its failure as a regression**; the case is written to say so.
@@ -447,7 +441,7 @@ any of it.
 - Ticking "meet up" asks for DOB, gender, photo and an email code; afterwards the pin is still there under the same user.
 - Two test people opted in each see the other's first name and, once approved, photo; a third who pinned without opting in sees nobody and is not seen.
 - The locked state reads "3 of 5 · 2 to go" with three test opt-ins.
-- A blocked pair (set in the admin for the test) cannot see each other's pins in the list.
+- A blocked pair cannot see each other's pins in the list — proved by the harness. **The admin control to set a block, and walking it, moved to M3.5** (Safety; Alex, M3.2).
 - **The who's-going page for someone pinned but not open to meeting reads as one step
   away, not a locked door** (Alex, M3.2 — the most important empty state in the
   product). The counts are there and nobody's face is; the page says why in one plain
@@ -458,10 +452,31 @@ any of it.
   up" → A27) or "See who's going" (→ A9). Measured: the tap does not land on a loading
   screen.
 - With the app installed, the same iMessage link opens the app on that crowd page; without it, Safari.
-- Remove my pin drops the count; edit changes party size and opt-in; My Events shows the pinned gathering.
+- Remove my pin drops the count; edit changes party size and opt-in. (My Events moved to M3.2b.)
 - **Carried from M3.1's walk** (Alex: they need a fresh account, and A26 makes them constantly): **the email-code field with the keyboard up** — what you type stays visible — and **a field near the bottom of a screen** stays clear of the keyboard. Both rest on `AppScreen` (S11/S12 fail the build if a screen draws its own frame), which is why they did not hold M3.1's merge.
 
 20–28 h
+
+#### M3.2b · The app's front door (A5–A7, interests, search, A19)
+
+**Why its own milestone** (Alex, M3.2). M3.2 ran to about 40–45 hours against 20–28, and M3.3 is the whole loop — the biggest milestone in the plan and the riskiest — so the app's front door neither stays in the milestone meant to be "showable to a friend" nor rides on the loop. Until it lands, people find a crowd through a link; nothing on M3.2's walk needs more. **It must land before M3.3**: M3.3's acceptance has "invite" open this week's crowds, which is this list, and M3.6's TestFlight phones need it to find a crowd.
+
+- A5–A7 home from published gatherings, by day, honest counts, mix at 5+, "be the first" — the app's list, through the same door as W1 (spec §4: one door function, shared).
+- **Interests, remembered** (Alex, M3.1, after walking A3): somebody picking a neighbourhood wanted to say what they are into as well, so the list shows more of what they like. **This is not the tags** — tags describe you to other people; this shapes what you see. The cheap, honest version is **remembering the chip selection** rather than inventing a second taxonomy: a stored set per person, defaulted onto the app's list, one tap to clear. 2–3 h, here, because this is where A5–A7 build the list it filters.
+  - **Narrowing is a filter; reordering is an algorithm** (Alex, M3.1). Q10 says the calendar is the ordering, and a filter leaves that untouched — the remaining rows stay in date order. **The moment it becomes "things you like first", Q10 is dead.** That sentence is the acceptance test for this feature, not a note about it.
+  - **It must be visibly on, with a one-tap clear.** A default-on filter that hides things is a new way to see an empty week and conclude the product is dead.
+  - **The empty state says why**: "nothing matching your interests this week", never a bare "nothing on".
+  - **The overlap with the Interests tag group is settled when this is built, not before** — seven of the 32 tags are taste and so are the chips, and if this ships the obvious question is why tapping "comedy" as a tag does not change the list.
+- **Search** (designed in M2.3 and filed here; confirmed still M3.2 by Alex, M3.1). About two hours. **No client JavaScript**: it is the same page with an optional query, so W1 keeps its byte budget and works with scripting off. **One door function with an optional query, shared by the Worker's list and the app's** — the M2.3 rule about a second copy of "what is public" drifting applies to "which rows match" as well, and `publicVenueIds()`/`crowds()` in `src/public/data.ts` is where it goes. It was carried out of M2.3 into spec §6 but never into this list, which is the list a session reads first.
+- A19 My Events: the gatherings you have pinned to.
+
+**Acceptance**
+
+- The app's home list shows the same gatherings W1 does for the same week, in date order, with honest counts; a chip narrows and never reorders (Q10), is visibly on, and clears in one tap; its empty state says why.
+- Search finds a gathering by name on W1 and in the app, through the one door, with scripting off on the web.
+- My Events shows the pinned gathering; removing the pin removes it.
+
+11–12 h
 
 #### M3.3 · Crews, the thread, the night, the morning after (A10–A17, A20)
 
@@ -486,6 +501,7 @@ any of it.
 - **Crew vibe** (Alex, M2.1; spec §3, under A11–A13): up to nine preset chips, never free text, set by whoever starts the crew and changeable by any member, shown on the crew card and in the crews list so someone choosing between two open crews has something to choose on. Tatiana rewrites the starting set. No substances, nothing that reads as a dating signal, and any chip most crews would tick gets cut.
   - **The vibe chips own the night; the person's tags own the person** (Alex, M3.1). The M3.1 tag list was cut against exactly this line — anything about when you arrive, how long you stay or what you drink is the crew's, not the person's — so the nine chips can take that whole territory back without colliding with a tag. `packages/shared/src/tags.ts` records the split.
   - **"first time here" is a strange chip for a crew** (Alex, M3.1, rewriting the starting set): a crew cannot be a first-timer, its members can, and the person's version of it is already a tag (`first-time-at-this`). It wants replacing with something a crew can actually be.
+- **The "get the app" nudge, shown once at crews-open** (moved from M3.2, Alex: it is shown when crews open, so it belongs with crews). On the web it is the hand-off into the product and gets design attention for that reason.
 - A16 after the event: mutual-only "we met" and "keep in touch", invisible until mutual; the "showed up" badge; connections; A20 with the single verb "invite"; the one after-event question from §7.
 - Fallback if Realtime misbehaves on one platform: poll the thread every 10 seconds while it is open. The spot and time are on the card, so the meeting never depends on the chat.
 
@@ -533,6 +549,8 @@ any of it.
 - A23 complete: blocked people, my reports, "women-only crews only", visibility (always on), show my neighbourhood, notification toggles, export, delete, the no-location note.
 - `notification_queue` written by triggers and pg_cron; the Worker delivery cron; Expo push tokens per device; Resend for email with an unsubscribe link on the digest; deep links for every notification including cold start. Monday 6:00 PM Toronto handled across DST (two UTC schedules, local-hour check).
 - Notification 3 becomes "plan status": formed / spot set / dissolved / *gathering date changed or withdrawn* (§10). Still five.
+
+- **The admin control to set a block between two people** (moved from M3.2, Alex): the database rule was proved in M1.1's harness; this is the control and the walk.
 
 **Acceptance**
 
