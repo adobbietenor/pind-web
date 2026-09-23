@@ -2971,3 +2971,14 @@ address forwarded to Alex by Email Routing. `p=quarantine` waits a week of repor
   Surrey, BC V4P 1S4, Canada. `privacy@pind.social` forwards to Alex.
 - **The draft says so at the top**: a draft, not reviewed by a lawyer, replaced at
   M4.1 — so nobody mistakes it for a settled document.
+- **A26's first cuts, measured** (M3.2, Lighthouse mobile, two runs each). Sentry and
+  PostHog moved after first paint and Poppins skipped on A26: the web entry went from
+  3,012 KB to 1,658 KB minified, and A26 from **main content 6.3 s / usable 6.8 s to
+  3.8 s / 5.6 s**, 950 KB to 810 KB, score 67 to 82. W2 in the same session: 1.6 s,
+  score 99 — **the ruler itself moves between 1.6 s and 2.2 s from run to run**.
+  - **Splitting routes (`asyncRoutes: { web: true }`) made it worse and was reverted**:
+    main content 4.2 s → 5.6 s. It turned one download into a chain — entry, then the
+    layout, then the route — and on a slow connection each round trip costs more than
+    the smaller files save. Do not retry it for A26 without a different shape.
+  - What is left before anything draws is the framework: Expo Router, React Native Web
+    and supabase-js, about 430 KB compressed, which A26 needs to run at all.
