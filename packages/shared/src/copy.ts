@@ -99,16 +99,21 @@ export const A1_POSITIONING = ["19+", "No location permission, ever", "Not a dat
 // the system enforces.
 export const PHOTO_WHY = "A photo of you makes it easier to find each other.";
 
-// The three states an uploaded photo can be in before it is visible, said to its
-// owner. **"We could not tell" and "we refused it" never converge** (Alex, M3.1):
-// one is waiting on a person, the other is a decision, and a rejected photo leaves
-// you visible without one.
-export const PHOTO_STATE = {
-  pending: "Checking your photo — this usually takes under a minute.",
-  needs_review: "We could not tell from this one, so someone is taking a look. You are on the list either way.",
-  rejected: "That photo is not one we can use. You are still on the list without one — add a different photo any time.",
-  approved: "Your photo is live.",
-} as const;
+// **Nothing waits on the check** (Alex, M3.1). A photo shows from the moment it is
+// uploaded and the check can only remove, so there is no "checking…" state to tell
+// anyone about. **The owner is told one thing only: a rejection.** A possible-minor
+// flag is never mentioned to them — it is a note to Alex, not a verdict about them,
+// and saying so would tell anyone gaming the check exactly what trips it (the same
+// family as H9 keeping an auto-hide quiet from a reporter).
+export const PHOTO_REJECTED =
+  "That photo is not one we can use. You are still on the list without one — add a different photo any time.";
+
+// The owner's mirror of `private.can_see_photo` (V6): whether others who can see you
+// get your photo. **The database decides**; this exists so A21's preview says the
+// same thing, and P88 compares the two for every status so they cannot drift.
+export function photoShowsToOthers(status: string): boolean {
+  return status !== "rejected";
+}
 
 // Gender, asked once, shown to nobody — not even to you (D1, spec A2). The line
 // exists because a protected attribute asked for without a reason reads as nosy.

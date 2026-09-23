@@ -317,8 +317,9 @@ body (system font on the web), SF Symbols icons, purple `#582883`. Four tabs:
   women-only crews"; never shown on a profile); **a
   photo required** (Q2) with one line of why: "A photo of you makes it easier to find
   each other" (Alex, M3.1 — the photo need not be a face; decisions, "The photo check
-  holds almost nothing now"). Photo passes the automated check (decisions Part 5, "Automated photo
-  moderation") before it is visible to anyone. Optional Instagram handle, never a
+  holds almost nothing now"). The photo shows as soon as it is uploaded, to the people
+  who can see you; the automated check runs afterwards and can only remove it
+  (decisions, "Nothing waits on the photo check"). Optional Instagram handle, never a
   substitute for the photo, shown only to crewmates, a solo-plan partner and
   connections (§1 person).
 - **A3 neighbourhood + tags** — neighbourhood from a fixed list, shown instead of

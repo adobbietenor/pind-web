@@ -106,3 +106,14 @@ describe("The type is read from the bytes, never a label", () => {
     assert.throws(() => decodeBase64("not*base64"));
   });
 });
+
+describe("The app accepts only what the Worker's check can read", () => {
+  it("I09 every type the app lets through is one the check reads — the two lists cannot drift", async () => {
+    // Two copies of one rule across the app/Worker boundary: PHOTO_READABLE decides what
+    // uploads, SUPPORTED what the check can send to the model. An upload the check
+    // cannot read is a photo that is visible and never checked.
+    const { PHOTO_READABLE } = await import("../../packages/shared/src/image.ts");
+    const { SUPPORTED } = await import("../../src/photo/ai.ts");
+    for (const t of PHOTO_READABLE) assert.ok((SUPPORTED as readonly string[]).includes(t), `${t} uploads but cannot be checked`);
+  });
+});

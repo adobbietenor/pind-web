@@ -59,3 +59,16 @@ describe("Every tag screen gates on the shared rule (T10)", () => {
     }
   });
 });
+
+describe("The sign-in screen gates each way in on the shared table (signInMethods)", () => {
+  it("S15 Apple and Google appear exactly when methodsFor() lists them — no platform check of the screen's own", () => {
+    // The web had no Apple button because the screen ALSO checked Platform.OS === "ios"
+    // around it, while the table said "later". Two rules, one of them unseen.
+    const signIn = screens.find((s) => s.path.split("\\").join("/").endsWith("(onboarding)/sign-in.tsx"));
+    assert.ok(signIn, "sign-in screen not found");
+    assert.match(signIn.source, /const methods = methodsFor\(\)/);
+    assert.match(signIn.source, /methods\.includes\("apple"\) \?/);
+    assert.match(signIn.source, /methods\.includes\("google"\) \?/);
+    assert.doesNotMatch(signIn.source, /Platform\.OS === "ios"/, "the screen gates a way in on the platform itself");
+  });
+});

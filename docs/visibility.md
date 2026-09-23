@@ -171,22 +171,29 @@ directions from one row.
   files live at `<auth user id>/<file name>`, and `people.photo_path` holds that
   name. **There is no public URL.**
 - A photo is readable only through a signed URL, and Storage only issues one when the
-  requester passes V1 for the photo's owner **and** the photo is `approved` **and**
-  it sits in its owner's own folder. The owner can always read their own photo,
-  whatever its status.
-- **Moderation — rewritten in M3.1, when the automated check replaced the admin as
-  the first decider.** A person appears in the list **immediately**, with their name.
-  Their photo shows only once it is `approved`. **A photo state never hides the
-  person**: a rejected photo leaves them visible without one.
+  requester passes V1 for the photo's owner **and** the photo is **not `rejected`**
+  **and** it sits in its owner's own folder. The owner can always read their own
+  photo, whatever its status.
+- **Nothing waits on the check** (Alex, M3.1; migration
+  `20260923032603_m3_1_nothing_waits_on_the_check`). A photo shows from the moment it
+  is uploaded, to exactly the people V1 allows; the automated check runs afterwards
+  and **can only remove**. Before this, a photo showed only once `approved`, so every
+  pipeline failure meant *invisible, and nobody knows*; now it means *unchecked, and
+  counted*. **A photo state never hides the person**: a rejected photo leaves them
+  visible without one.
 
-  Four states, and the two that hide a photo are not the same thing:
+  | State | What happened | What others see | What the owner is told |
+  |---|---|---|---|
+  | `pending` | uploaded, not checked yet | **the photo** | nothing |
+  | `approved` | the check (or Alex) passed it | the photo | nothing |
+  | `needs_review` | **a possible minor**, flagged for Alex | **the photo**, while it waits in his queue | **nothing, ever** — it is a note to Alex, not a verdict, and saying so would tell anyone gaming the check what trips it (the H9 family) |
+  | `rejected` | nudity, hate imagery or gore — by the check or by Alex | **no photo**; the person, without one | that the photo can't be used, and they may upload another |
 
-  | State | What happened | What others see |
-  |---|---|---|
-  | `pending` | uploaded, not checked yet | the person, without a photo |
-  | `approved` | a clear photo of a real person | the photo, to people V1 allows |
-  | `needs_review` | **the check could not tell** — possibly not a real person, possibly someone else's, possibly a minor | the person, without a photo; a human decides |
-  | `rejected` | **the check refused it** | the person, without a photo; they may upload another |
+  - **The exposure this accepts:** a photo that will be rejected is visible to those
+    few people for the ~3 s the check takes — or, if the webhook is broken, until the
+    **hourly** sweep (`src/cron.ts`) catches it. P87 proves a rejection removes a
+    visible photo; P88 proves the app's preview rule (`photoShowsToOthers`) and this
+    one agree on every status.
 
   - `ai:photo-check` moves `pending` to one of the other three. The admin moves any of
     them to `approved` or `rejected` and **cannot** set `pending` or `needs_review` —
@@ -198,8 +205,9 @@ directions from one row.
     `people_photo_change_resets_status`), and a check that comes back about a photo the
     person has since replaced is **recorded and applies nothing** — the same
     stale-photo rule the admin's own button follows.
-  - **A check that failed is not a state.** An error, a timeout or a missing key
-    leaves the photo at `pending` and writes a `failed` row to `photo_checks`, so the
+  - **A check that failed is not a state.** An error, a timeout, a missing key or an
+    image the model could not see leaves the photo at `pending` (visible) and writes a
+    `failed` row to `photo_checks`, so the
     admin can count *waiting for a human*, *never checked* and *check failing* apart
     (`admin_photo_states`). Unset is a different state from broken — the M2.3 map bug,
     one layer down.
@@ -648,7 +656,7 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | V3 gender mix | `public.gathering_counts` | P06 |
 | V4 blocks | `private.blocked_between` (inside V1); policies `blocks_*` | P14–P16 |
 | V5 women-only | `private.women_only_open`, `public.women_only_offer`; policies `group_links_*` | P17–P20 |
-| V6 photos | bucket `photos`; `private.can_see_photo`; storage policies `photos_*`; trigger `people_photo_change_resets_status`; `people_insert_self` / `people_update_self` folder check | P07, P07b, P21, P23–P26 |
+| V6 photos | bucket `photos`; `private.can_see_photo` (not `rejected`, since M3.1); storage policies `photos_*`; trigger `people_photo_change_resets_status`; `people_insert_self` / `people_update_self` folder check | P07, P07b, P21, P23–P26, P87, P88 |
 | V6 the automated check (M3.1) | `photo_status` gains `needs_review`; table `photo_checks`; `admin_record_photo_check`, `admin_photo_states`, `admin_set_photo_status`; trigger `people_photo_check_webhook` → `private.photo_check_webhook`; the harness skip `private.is_harness_user` (app_metadata, service key only) in the trigger and `admin_photos_waiting` | P71–P73, P82, P83 |
 | V7 +1s | column grant on `pin_friends`; policies `pin_friends_read_*` | P27, P28 |
 | V8 removing a pin | V1 and `public.spot_poll` read live pins | P21, P22 |

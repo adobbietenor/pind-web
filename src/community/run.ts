@@ -37,11 +37,10 @@ import {
 
 export const CHECKER = "checker:community";
 
-// The schedule this job answers to. One definition: src/index.ts picks the job by the
-// expression that fired, and wrangler.jsonc has to carry the same string — an
-// expression that drifts out of step would silently run the import twice a day and the
-// check never.
-export const LIVENESS_CRON = "0 13 * * *";
+// The schedule this job answers to lives with the others in src/cron.ts, where an
+// expression that drifts out of step with wrangler.jsonc now fails C04 — and an
+// unknown one runs nothing, rather than the import (M3.1).
+export { LIVENESS_CRON } from "../cron.ts";
 
 // Four a night gets through 28 series in a week. Bounded so one bad night cannot
 // empty the budget, and so the run always finishes inside a cron invocation.

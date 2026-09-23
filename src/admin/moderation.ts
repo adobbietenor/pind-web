@@ -75,10 +75,10 @@ export const photoQueue: AdminHandler = async (request, ctx) => {
       // decision at all.
       const said =
         p.photo_status === "needs_review"
-          ? `<span class="bad">the check could not tell</span>${last?.reason ? ` — ${e(last.reason)}` : ""}`
+          ? `<span class="bad">flagged for you — visible meanwhile</span>${last?.reason ? ` — ${e(last.reason)}` : ""}`
           : last
-            ? `<span class="bad">the check is failing</span>${last.error ? ` — ${e(last.error)}` : ""}`
-            : `<span class="muted">not checked yet</span>`;
+            ? `<span class="bad">the check is failing — visible, unchecked</span>${last.error ? ` — ${e(last.error)}` : ""}`
+            : `<span class="muted">not checked yet — visible</span>`;
       return `<tr><td>${url ? `<img class="photo" src="${e(url)}" alt="">` : `<span class="bad">file missing</span>`}</td>
 <td>${e(p.first_name)}<br><span class="muted">${e(one<any>(p.person_handles)?.instagram ?? "")}</span><br>${said}</td>
 <td>${postButton(`/admin/photos/${p.id}`, "Approve", backTo, { fields: { ...fields, status: "approved" } })}
@@ -87,7 +87,7 @@ ${postButton(`/admin/photos/${p.id}`, "Reject", backTo, { cls: "danger", fields:
     .join("");
 
   const keyMissing = !ctx.env.ANTHROPIC_API_KEY?.trim()
-    ? `<p class="bad"><strong>ANTHROPIC_API_KEY is not set</strong>, so no photo is being checked at all — every upload stays pending and is visible to nobody.
+    ? `<p class="bad"><strong>ANTHROPIC_API_KEY is not set</strong>, so no photo is being checked at all — every upload is visible and unchecked (nothing waits on the check).
 Set it with <code>npx wrangler secret put ANTHROPIC_API_KEY</code>.</p>`
     : "";
   const hookMissing = !ctx.env.PHOTO_WEBHOOK_SECRET?.trim()
@@ -95,7 +95,7 @@ Set it with <code>npx wrangler secret put ANTHROPIC_API_KEY</code>.</p>`
     : "";
 
   // **Counting what is missing without a way to act on it is half the pattern.** The
-  // nightly sweep at 09:00 is the other half; this is the same pass, for the moment
+  // hourly sweep is the other half; this is the same pass, for the moment
   // somebody is looking at the queue and does not want to wait until tomorrow.
   const sweepNow =
     count.never_checked + count.check_failing > 0
@@ -109,7 +109,7 @@ Set it with <code>npx wrangler secret put ANTHROPIC_API_KEY</code>.</p>`
 <p class="muted">Three different situations, deliberately counted apart. <em>Waiting for a human</em> is the automated check saying it could not tell — decide it below.
 <em>Never checked</em> means nothing has looked yet, which is a question about the webhook, not about the photo.
 <em>A failing check</em> is an operational fault and wants fixing rather than clearing.${sweepNow}</p>
-<p class="muted">A nightly pass at 09:00 UTC picks up anything the webhook and the app both missed. <strong>If it ever finds much, the webhook is what is broken</strong> — the Configuration panel says whether it is reaching the Worker. A retry that quietly papers over a broken mechanism is how M2.1's map fallback became the mechanism.</p>
+<p class="muted">An hourly pass picks up anything the webhook and the app both missed. Nothing waits on it: an unchecked photo is visible, and the check can only remove. <strong>If it ever finds much, the webhook is what is broken</strong> — the Configuration panel says whether it is reaching the Worker. A retry that quietly papers over a broken mechanism is how M2.1's map fallback became the mechanism.</p>
 <p class="muted">People appear in lists straight away with their name; their photo shows only once approved.
 A rejected photo stays hidden and the person stays visible without one. Links on this page expire after 60 seconds: reload if images stop loading.</p>
 <table><tr><th>Photo</th><th>Person</th><th></th></tr>${rows || `<tr><td colspan="3">Nothing to review.</td></tr>`}</table>`;

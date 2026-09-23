@@ -45,7 +45,7 @@ export default function Person() {
       const db = supabase();
       const { data: person } = await db
         .from("people")
-        .select("first_name, neighbourhood, photo_path, photo_status")
+        .select("first_name, neighbourhood, photo_path")
         .eq("id", id)
         .maybeSingle();
       if (!live) return;
@@ -55,10 +55,12 @@ export default function Person() {
         db.from("person_handles").select("instagram").eq("person_id", id).maybeSingle(),
         db.from("person_tags").select("tag").eq("person_id", id),
       ]);
-      // Storage issues a signed URL only when the policies allow it, so an
-      // unapproved or invisible photo simply has no URL to render.
+      // **The database decides, alone** (H11). Storage issues a signed URL only when
+      // `can_see_photo` allows it — a rejected or invisible photo simply has no URL.
+      // This used to also check `photo_status === "approved"`, a second copy of the
+      // rule that went stale the day nothing waited on the check (Alex, M3.1).
       let url: string | null = null;
-      if (person.photo_path && person.photo_status === "approved") {
+      if (person.photo_path) {
         const signed = await db.storage.from("photos").createSignedUrl(person.photo_path, 300);
         url = signed.data?.signedUrl ?? null;
       }

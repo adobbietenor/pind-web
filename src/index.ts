@@ -1,9 +1,10 @@
-import { runSeriesChecks, CHECKER, LIVENESS_CRON } from "./community/run";
+import { runSeriesChecks, CHECKER } from "./community/run";
+import { jobsFor } from "./cron";
 import { spotSuggestionsOn, type Env } from "./env";
 import { escape, page } from "./html";
 import { IMPORTER, runImport } from "./import/run";
 import { checkExpiringCredentials } from "./ops/watch";
-import { PHOTO_SWEEP_CRON, sweepPhotos } from "./photo/sweep";
+import { sweepPhotos } from "./photo/sweep";
 import { route } from "./router";
 import { ConfigError, serviceClient } from "./supabase";
 
@@ -26,34 +27,38 @@ export default {
     }
   },
 
-  // Three schedules (wrangler.jsonc "triggers"), and the handler branches on which one
-  // fired: the nightly Ticketmaster import (M1.3) at 08:00 UTC, the photo sweep (M3.1)
-  // at 09:00, and the community liveness check (M2.3b) at 13:00. **Separate on
-  // purpose** — the import must not be delayed by somebody else's slow website, a
-  // liveness run that stalls must not stop the city's list refreshing, and a photo
-  // that both the webhook and the app missed must not wait on either of them (Alex:
-  // "own cron, own budget line, never inside the import"). They hold different locks,
-  // so none can report another as busy.
+  // Three schedules (wrangler.jsonc "triggers"), routed by `jobsFor` (src/cron.ts):
+  // the nightly Ticketmaster import (M1.3) at 08:00 UTC, the photo sweep (M3.1) every
+  // hour with the credential watch riding its 09:00 run, and the community liveness
+  // check (M2.3b) at 13:00. **Separate on purpose** — the import must not be delayed
+  // by somebody else's slow website, a liveness run that stalls must not stop the
+  // city's list refreshing, and a photo the webhook missed must not wait on either
+  // (Alex: "own cron, own budget line, never inside the import").
+  //
+  // **An unknown cron runs nothing.** It used to fall through to the import, which an
+  // hourly trigger one typo away would have run every hour.
   async scheduled(controller: ScheduledController, env: Env): Promise<void> {
-    if (controller.cron === PHOTO_SWEEP_CRON) {
-      // Two small jobs share this trigger. The sweep spends money and is bounded;
-      // the credential check is a date comparison that costs nothing and cannot
-      // stall, which is why it does not get a cron of its own. Each is wrapped so
-      // neither can stop the other — the failure this whole area keeps hitting is
-      // one thing quietly preventing another from running at all.
+    const jobs = jobsFor(controller.cron, controller.scheduledTime);
+    if (jobs.length === 0) {
+      console.error(`cron "${controller.cron}" matches no job; nothing ran`);
+      return;
+    }
+    if (jobs.includes("photo-sweep")) {
+      // Each is wrapped so neither can stop the other — the failure this whole area
+      // keeps hitting is one thing quietly preventing another from running at all.
       for (const job of [
         () => sweepPhotos(env),
-        () => checkExpiringCredentials(env),
+        ...(jobs.includes("credentials") ? [() => checkExpiringCredentials(env)] : []),
       ]) {
         try {
           console.log((await job()).message);
         } catch (err) {
-          console.error("09:00 run:", err instanceof Error ? err.message : err);
+          console.error("photo sweep run:", err instanceof Error ? err.message : err);
         }
       }
       return;
     }
-    if (controller.cron === LIVENESS_CRON) {
+    if (jobs.includes("liveness")) {
       const outcome = await runSeriesChecks(env, { trigger: "cron", actor: CHECKER });
       console.log(outcome.message);
       return;

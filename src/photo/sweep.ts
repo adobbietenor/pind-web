@@ -25,7 +25,7 @@ import { ESTIMATE_PER_PHOTO } from "./ai.ts";
 import type { Env } from "../env";
 import { serviceClient } from "../supabase.ts";
 
-export const PHOTO_SWEEP_CRON = "0 9 * * *";
+// Its trigger is PHOTO_SWEEP_CRON in src/cron.ts — hourly since M3.1.
 
 // A night's worth. Small on purpose: if there are more than this waiting, the answer
 // is to fix the webhook, not to grind through them one cron at a time.

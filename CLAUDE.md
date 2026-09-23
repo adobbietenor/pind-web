@@ -273,6 +273,33 @@ Two things that follow, both cheap and both easy to skip:
   both sides of the boundary. Confidently wrong about my own coverage is the same
   failure as the instrument above, pointed inward.
 
+## A test of a rule proves nothing about a screen that does not call it
+
+The third sibling. A guard that never ran says nothing; **a rule that was tested and
+then not used says "passed"** — about a function nobody asked.
+
+M3.1: the tag limits moved into `packages/shared` precisely so they could be tested,
+and T01–T09 proved them. Both tag screens then gated Continue on an expression of
+their own — `picked.length > 0 && !enoughPicked(picked)` — whose "none is fine"
+exception no test ever saw, so Continue worked with no tags while the suite was green.
+The eleventh-tap refusal was produced exactly as T03 said, and shown above all 32
+chips, off-screen from the tap. Alex walked into both on the phone.
+
+**So: a rule extracted into shared code is not in force until every caller uses it,
+and the test that proves it must be one that fails when a caller goes its own way.**
+`tests/unit/screens.test.ts` is the shape: it reads the route files and fails if a tag
+screen gates on anything but `tagsCanContinue`, if the sign-in screen checks the
+platform instead of `methodsFor()`, or if a screen draws its own frame instead of
+`AppScreen`. Run against the old code, each one failed on exactly the fault walked.
+
+- **Where a rule has two copies across a boundary, compare them** — normalised the same
+  way, per the instrument rule. P88 checks the app's `photoShowsToOthers` against the
+  database's `can_see_photo` for every status; I09 checks the types the app uploads
+  against the types the Worker's check can read; C04 checks `wrangler.jsonc`'s crons
+  against the ones the code routes.
+- **"Seen" is part of a refusal.** A sentence rendered where the person is not looking
+  is a tap that silently does nothing. Put the message where the tap was.
+
 ## Measure what the phone does, not what the server sent
 
 A fast server response is not a fast page. M2.1 hit the same one-layer-down gap three

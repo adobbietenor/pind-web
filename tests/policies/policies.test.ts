@@ -412,11 +412,22 @@ describe("Removing a pin — V8", () => {
 });
 
 describe("Photos — V6", () => {
-  it("P23 Ava CAN get Dee's approved photo / CANNOT get Eve's pending photo / Eve CAN get her own pending photo", async () => {
+  // **Inverted in M3.1, "nothing waits on the check" (Alex):** a photo nobody has
+  // checked yet is visible to whoever can see its owner. It used to be hidden until
+  // approved, so every pipeline failure meant "invisible, and nobody knows".
+  it("P23 Ava CAN get Dee's approved photo / CAN get Eve's pending photo — nothing waits on the check / Eve CAN get her own / Cal, who cannot see Eve, still CANNOT", async () => {
     await canSign(c(M("Ava")), M("Dee").photoPath);
     assert.equal(await seesPeople(c(M("Ava")), "Eve"), 1, "Eve herself is visible");
-    await cannotSign(c(M("Ava")), M("Eve").photoPath);
+    assert.equal(
+      (await serviceRow("people", "id", M("Eve").personId, "photo_status")).photo_status,
+      "pending",
+      "Eve's photo is not pending, so this case proves nothing",
+    );
+    await canSign(c(M("Ava")), M("Eve").photoPath);
     await canSign(c(M("Eve")), M("Eve").photoPath);
+    // The other side: visibility is still V1's. Somebody who cannot see Eve gets nothing.
+    assert.equal(await seesPeople(c(M("Cal")), "Eve"), 0, "Cal can see Eve, so this half proves nothing");
+    await cannotSign(c(M("Cal")), M("Eve").photoPath);
   });
 
   it("P24 Ava CANNOT get Rex's rejected photo / CAN still see Rex himself, without a photo and without a handle", async () => {
@@ -834,20 +845,24 @@ describe("Moderation actions — V6, V8, V10 after admin review", () => {
     assert.ok((await admin("admin_dismiss_reports", { p_person: id("Ivy1") })).error, "dismissed reports on a hidden person");
   });
 
-  it("P46 approving Eve's photo lets Ava get it; a stale photo path is REFUSED / rejecting hides it again", async () => {
+  // Reworked in M3.1 ("nothing waits on the check"): approving no longer reveals a
+  // photo — it was visible already. Rejecting is the only thing that hides one.
+  it("P46 a stale photo path is REFUSED / approving keeps Eve's photo visible / rejecting hides it / approving again brings it back", async () => {
     const eve = M("Eve");
-    await cannotSign(c(M("Ava")), eve.photoPath);
+    await canSign(c(M("Ava")), eve.photoPath);
     const stale = await admin("admin_set_photo_status", {
       p_person: eve.personId,
       p_photo_path: `${eve.authId}/old.png`,
       p_status: "approved",
     });
     assert.ok(stale.error, "approved a photo the admin never saw");
-    await cannotSign(c(M("Ava")), eve.photoPath);
     await ok(admin("admin_set_photo_status", { p_person: eve.personId, p_photo_path: eve.photoPath, p_status: "approved" }));
     await canSign(c(M("Ava")), eve.photoPath);
     await ok(admin("admin_set_photo_status", { p_person: eve.personId, p_photo_path: eve.photoPath, p_status: "rejected" }));
     await cannotSign(c(M("Ava")), eve.photoPath);
+    await canSign(c(eve), eve.photoPath);
+    await ok(admin("admin_set_photo_status", { p_person: eve.personId, p_photo_path: eve.photoPath, p_status: "approved" }));
+    await canSign(c(M("Ava")), eve.photoPath);
   });
 
   it("P47 admin deletes Nia's pin at G: Ava CANNOT see Nia or her pin / Nia's person row stays / the deletion is logged", async () => {
@@ -1738,12 +1753,12 @@ describe("Instagram handles — V17 (Alex, M3.1)", () => {
 // ---------------------------------------------------------------------------
 
 describe("The photo check — V6 (Alex, M3.1)", () => {
-  it("P71 a photo the check could not decide is hidden like a pending one / its owner still sees it / the person stays visible", async () => {
+  // Inverted in M3.1 ("nothing waits on the check"): a possible minor is a note to
+  // Alex, not a verdict, so the photo stays visible while it waits in his queue.
+  it("P71 a photo flagged for a human stays visible / its owner still sees it / the person stays visible", async () => {
     const eve = M("Eve");
-    // Eve's photo is approved by P46. The check's third outcome puts it back out of
-    // sight without rejecting it.
     await ok(w.service.from("people").update({ photo_status: "needs_review" }).eq("id", eve.personId), "needs review");
-    await cannotSign(c(M("Ava")), eve.photoPath);
+    await canSign(c(M("Ava")), eve.photoPath);
     await canSign(c(eve), eve.photoPath);
     // The person is never hidden by any photo state (V6). That is the whole point of
     // a rejected photo leaving someone visible without one.
@@ -2357,6 +2372,65 @@ describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.
       await w.service.from("pins").delete().eq("id", q.pinId);
       await w.service.from("people").delete().eq("id", q.personId);
       await w.service.auth.admin.deleteUser(q.authId);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Nothing waits on the check — P87 (Alex, M3.1).
+//
+// A photo is visible from the moment it lands, and the check can only remove. The
+// refusal that matters now is the check's own: a `rejected` verdict must take a
+// visible photo away, and a `needs_review` verdict must not.
+// ---------------------------------------------------------------------------
+
+describe("Nothing waits on the check — P87 (M3.1)", () => {
+  it("P87 an unchecked photo is visible / the check flagging it for a human leaves it visible / the check rejecting it removes it, from everyone but its owner", async () => {
+    const eve = M("Eve");
+    const check = (outcome: string) =>
+      ok(
+        w.service.rpc("admin_record_photo_check", {
+          p_person: eve.personId,
+          p_photo_path: eve.photoPath,
+          p_outcome: outcome,
+          p_source: "webhook",
+          p_reason: `P87 ${outcome}`,
+        }),
+        `record ${outcome}`,
+      );
+    try {
+      await ok(w.service.from("people").update({ photo_status: "pending" }).eq("id", eve.personId), "unchecked");
+      await canSign(c(M("Ava")), eve.photoPath);
+
+      await check("needs_review");
+      assert.equal((await serviceRow("people", "id", eve.personId, "photo_status")).photo_status, "needs_review");
+      await canSign(c(M("Ava")), eve.photoPath);
+
+      await ok(w.service.from("people").update({ photo_status: "pending" }).eq("id", eve.personId), "unchecked again");
+      await check("rejected");
+      assert.equal((await serviceRow("people", "id", eve.personId, "photo_status")).photo_status, "rejected", "the check's rejection did not land");
+      await cannotSign(c(M("Ava")), eve.photoPath);
+      await canSign(c(eve), eve.photoPath);
+      assert.equal(await seesPeople(c(M("Ava")), "Eve"), 1, "a rejected photo hid the person");
+    } finally {
+      await w.service.from("people").update({ photo_status: "approved" }).eq("id", eve.personId);
+    }
+  });
+
+  // **Two copies of one rule, compared** (CLAUDE.md, "an instrument that is wrong"):
+  // the database's `can_see_photo` and the app's `photoShowsToOthers`, which A21's
+  // preview uses to tell a person what others see. For every status, both must agree.
+  it("P88 the app's preview rule and the database's agree on every photo status", async () => {
+    const { photoShowsToOthers } = await import("../../packages/shared/src/copy.ts");
+    const eve = M("Eve");
+    try {
+      for (const status of ["pending", "approved", "needs_review", "rejected"]) {
+        await ok(w.service.from("people").update({ photo_status: status }).eq("id", eve.personId), status);
+        const { data } = await sign(c(M("Ava")), eve.photoPath);
+        assert.equal(!!data?.signedUrl, photoShowsToOthers(status), `${status}: the database and the preview disagree`);
+      }
+    } finally {
+      await w.service.from("people").update({ photo_status: "approved" }).eq("id", eve.personId);
     }
   });
 });

@@ -50,7 +50,7 @@
   // again when both missed, because counting what is missing without a way to act
   // on it is half the M2.3 pattern. Its own cron for the usual reason — it must not
   // delay the import and must not be skipped because the import stalled.
-  "triggers": { "crons": ["0 8 * * *", "0 9 * * *", "0 13 * * *"] },
+  "triggers": { "crons": ["0 8 * * *", "0 * * * *", "0 13 * * *"] },
 
   // M2.2: Workers Logs, on and unsampled. Without it there is no invocation history
   // at all, which is why nobody could tell whether the cron fired on the two nights

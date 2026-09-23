@@ -2705,3 +2705,59 @@ pickers differ in exactly the way that mattered, and only an installed build sho
   became that sentence — including a stale session. Now the sentence depends on the
   step, only entering a code can say a code expired, and a stale session is cleared
   locally and named as what it is (S05–S07).
+
+### Nothing waits on the photo check (Alex, M3.1)
+
+**A photo shows from the moment it is uploaded, to exactly the people who can see its
+owner (V1), unless it is `rejected`. The check runs afterwards and can only remove.**
+The industry pattern is Meetup's and Discord's — post, then moderate by background
+scanning and reports — not Hinge's.
+
+**Why:** before, a photo showed only once `approved`, so every pipeline failure — a
+broken webhook, an unset key, a model that errored, a flag waiting on Alex — meant
+**"invisible, and nobody knows"**. Now it means **"unchecked, and counted"**. Nobody is
+ever stuck invisible because a pipeline broke.
+
+**The check stays, narrowly:** nudity, hate imagery and gore rejected; a possible minor
+flagged to Alex. It is built, it is half a cent and 2.9 seconds, and a product with
+user photos and in-person meetings should not have no automated scan at all — App
+Review looks for one under 1.2.
+
+- `needs_review` is **"visible, flagged for Alex"**; `pending` means "not checked yet",
+  no longer a hiding state. `can_see_photo` asks `<> 'rejected'` instead of
+  `= 'approved'` (migration `…_m3_1_nothing_waits_on_the_check`). P23, P46 and P71 were
+  inverted and **run red against the old rule first**; P87 proves a rejection removes a
+  visible photo and a flag does not; P88 proves the app's preview rule and the
+  database's agree on every status.
+- **The owner is never told about a possible-minor flag.** Two reasons: it tells anyone
+  gaming the check exactly what trips it, and the flag is a note to Alex rather than a
+  verdict about them — the same family as H9 keeping an auto-hide quiet from a
+  reporter. A21 tells the owner one thing only: a rejection. There is no "checking"
+  state to show.
+- **The sweep is hourly** (Alex): free when nothing is waiting, and it caps the worst
+  case — a photo that will be rejected, visible while the webhook is broken — at an
+  hour rather than a day. The credential watch still runs once a day, on the 09:00 run.
+  **The scheduled handler had a trap:** any cron it did not recognise fell through to
+  the Ticketmaster import, so the new hourly string was one typo from running the
+  import every hour. Routing is now `jobsFor` in `src/cron.ts`, where an unknown cron
+  runs nothing (C03), and C04 compares `wrangler.jsonc`'s triggers with the code's.
+- A22 no longer checks `photo_status === "approved"` itself — a second copy of the rule
+  that went stale the day this changed. The database decides, alone (H11).
+
+### Six photos — considered, not built (Alex, M3.1)
+
+Alex asked what up to six photos would cost. **About 9–12 hours**:
+- **Schema and V6, ~5 h:** photos move to their own table (person, path, position 1–6,
+  status), a cap of six, `can_see_photo` per object against it, the storage policies
+  and every photo case in the harness (P07, P07b, P21, P23–P26, P46, P71–P73, P81, P82,
+  P87, P88) rewritten.
+- **The check, ~1.5 h:** the webhook, the sweep, the admin queue and the rescore guard
+  become per photo.
+- **The app, ~3–4 h:** A2 stays one photo; A21 adds, removes and reorders up to six, and
+  its preview shows them; A22 swipes through them; export includes them all. The list
+  and a crew card show the first photo only.
+
+**Not now, and not for the cost** (Alex): six is Hinge's number, and A21 says *no
+followers, no grids, no bio*. A profile with six photos is a different product — the
+one H2 exists to avoid. **Revisit after the first real crowds**, when it is known
+whether one photo is actually the problem.

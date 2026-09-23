@@ -8,13 +8,13 @@
 // nothing to hide: it is asked once at A2 and lives in `people_private`.
 //
 // **Preview what others see** is a real button, not a reassurance. It shows the two
-// things people get wrong about this product: that the photo is only visible once it
-// is approved *and* only to someone who has pinned and opted in alongside you, and
+// things people get wrong about this product: that the photo is visible only to
+// someone who has pinned and opted in alongside you (unless it was rejected), and
 // that the handle goes no further than crewmates and connections (V17).
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, PHOTO_STATE, radius, spacing } from "@pind/shared";
+import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, PHOTO_REJECTED, photoShowsToOthers, radius, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
 import { oneLine, failed } from "@/lib/errors";
@@ -86,7 +86,9 @@ export default function Profile() {
     }
   };
 
-  const approved = me.photoStatus === "approved";
+  // Whether others get the photo — the database's rule, mirrored for the preview
+  // (P88 keeps the two the same). Nothing waits on the check (Alex, M3.1).
+  const shows = !!me.photoPath && photoShowsToOthers(me.photoStatus);
 
   return (
     <AppScreen edges={["top"]}>
@@ -111,15 +113,12 @@ export default function Profile() {
           </View>
         </View>
 
-        {/* The photo's state, in its own words. "We could not tell" and "we refused
-            it" are different sentences wherever they appear (Alex, M3.1). */}
-        {me.photoPath && !approved ? (
-          <Notice tone={me.photoStatus === "rejected" ? "stop" : "quiet"}>{PHOTO_STATE[me.photoStatus]}</Notice>
-        ) : null}
+        {/* The owner hears about one state only: a rejection. Never "checking", and
+            never a possible-minor flag — that is a note to Alex, not a verdict about
+            them (Alex, M3.1). */}
+        {me.photoPath && me.photoStatus === "rejected" ? <Notice tone="stop">{PHOTO_REJECTED}</Notice> : null}
         {!me.photoPath ? (
-          <Notice>
-            You have no photo, so you are on no list yet. Your crew looks for a face at a patio table.
-          </Notice>
+          <Notice>You have no photo yet. You will need one before you can meet up with anyone.</Notice>
         ) : null}
 
         {me.tags.length ? (
@@ -197,7 +196,7 @@ export default function Profile() {
           <View style={styles.preview}>
             <Text style={styles.sectionName}>What someone on the list sees</Text>
             <View style={styles.head}>
-              {approved && url ? (
+              {shows && url ? (
                 <Image source={{ uri: url }} style={styles.face} />
               ) : (
                 <View style={[styles.face, styles.faceEmpty]}>
@@ -219,9 +218,11 @@ export default function Profile() {
               </View>
             ) : null}
             <Body muted>
-              {approved
+              {shows
                 ? "Your photo shows, and only to someone who has pinned in and said they would like to meet at the same gathering."
-                : "Your photo does not show yet — people see you without one until it is approved."}
+                : me.photoPath
+                  ? "People see you without a photo until you add a different one."
+                  : "People see you without a photo until you add one."}
             </Body>
             <View style={{ marginTop: spacing.sm }}>
               <Body muted>
