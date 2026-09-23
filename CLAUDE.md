@@ -142,6 +142,14 @@ own cron, not inside the nightly import.
 - Why it matters: the empty M2.0 shell surfaced three real bugs — keys missing from
   the web bundle, PostHog events never flushing, wrong device-registration steps.
   Each would otherwise have surfaced during the M3.6 dogfood walk.
+- **Build when a milestone is ready to walk, not when a fix lands** (Alex, M3.1). An
+  EAS build is about 40 minutes, and one proposed after every fix piles up unopened
+  until nobody remembers what it was for. The web is the same code and deploys in
+  seconds, so **fixes are walked on the web as they are deployed**. Native-only things —
+  the photo picker, HEIC, native sign-in, anything offline or device-specific — are
+  **batched and walked once, on one build at the end of the milestone**. Do not propose
+  a build in between; say when the milestone has reached the point where one is worth
+  it, and keep a running list of what that build must walk.
 
 ## Dependencies
 
@@ -288,6 +296,12 @@ Two things that follow, both cheap and both easy to skip:
   firing test, I named the publisher's capacity floor — and it has four, including
   both sides of the boundary. Confidently wrong about my own coverage is the same
   failure as the instrument above, pointed inward.
+- **A test that reads the source must prove its own pattern matches something real.**
+  An empty result is what a pattern that matches nothing returns, so it passes by
+  finding nothing. M3.1: S20's regex was mangled on the way into the file and matched
+  nothing while reporting a pass; it now asserts it can see a real `.message` read in
+  `errors.ts` before it trusts "no screen reads one". The guard rule, pointed at the
+  tests themselves.
 
 ## A test of a rule proves nothing about a screen that does not call it
 
