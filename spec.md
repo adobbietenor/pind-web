@@ -528,19 +528,24 @@ never in the digest, never in the store listing or screenshots.
 
 (Alex, revised build plan; `docs/build-plan.md` §2.)
 
-**One rule decides the boundary.** If it is public, it is the Worker. If it needs a
-session, it is Expo. If it is time-driven, it is pg_cron in Postgres. If it decides who
+**One rule decides the boundary.** Everything a stranger meets before they have
+committed is the Worker — including the one form that commits them (A26). The Worker
+may create an anonymous session exactly once, at pin-in, and hand it over; it never
+reads people or renders anything that depends on who someone is. Everything after the
+pin is Expo (Alex, M3.2 — replacing "if it is public, it is the Worker; if it needs a
+session, it is Expo", which never said which side pin-in was on). Measured in M3.2 on Lighthouse's mobile profile: the Expo A26, after every cut that worked, drew its content at 3.8 s and was usable at 5.6 s, against W2's 1.6–2.2 s — about twice the page the visitor arrived from. What was left was the framework itself. If it is
+time-driven, it is pg_cron in Postgres. If it decides who
 sees whom, it is a policy in Postgres (H11). If it sends anything or calls an AI, it is
-the Worker. Nothing is built twice.
+the Worker. Nothing is built twice, except A26 — the Worker’s for the web, Expo’s in the app — whose fields, copy and validation are shared and tested (packages/shared/src/quickpin.ts).
 
 | Surface or job | Lives in | Why there |
 |---|---|---|
-| This week's crowds (W1), the crowd page before you pin (W2), the `/spot` share card (W3), the OG image, the universal-link file, the PindScene.com redirect | **Worker** (HTML from template strings, dark look) | Must load in under a second inside a Reddit tab, work with no account, and be indexable. Reads counts through the anon key and RLS, never the service key. |
+| This week's crowds (W1), the crowd page before you pin (W2), **the quick pin (A26) and its pin write** (M3.2), the `/spot` share card (W3), the OG image, the universal-link file, the PindScene.com redirect | **Worker** (HTML from template strings, dark look) | Must load in under a second inside a Reddit tab, work with no account, and be indexable. Reads counts through the anon key and RLS, never the service key. |
 | Admin, draft queue, venues and spots, moderation queues, metrics page, publishing panel | **Worker** behind Cloudflare Access | Built. Moves from workers.dev to pind.social/admin in M2.1. |
 | Nightly Ticketmaster import, AI vetting, auto-publishing fill, the weekly adaptive adjustment, the Community & free discovery run, spot suggestions (M5.2) | **Worker cron** | The Anthropic key already lives there; M1.3b's streaming-and-abort lessons apply to every AI call. |
 | Delivering push and email | **Worker cron** every 5 minutes, reading `notification_queue` | The database decides *what* (a trigger enqueues when opt-ins reach 5, a crew changes state, a date changes); the Worker decides *how* (Expo Push API for devices, Resend for web-only people). One place to retry, one log. |
 | The AI photo check | **Worker endpoint** called by a database webhook on the new photo row | The app uploads and inserts; the check is asynchronous with a pending state (V6); the decision lands in `moderation_log` with actor `ai:photo-check`. |
-| Pin in, opt in, complete profile, photo upload, the reciprocal list, crews, solo, the thread, "I'm here", the morning after, connections, My Events, settings, report and block | **Expo** — iOS app and web build, one codebase | Everything with a session. The web build is the complete product, not a preview: the first real crowds run on it. |
+| Pin in **from inside the app** (A26 for someone who has it), opt in, complete profile, photo upload, the reciprocal list, crews, solo, the thread, "I'm here", the morning after, connections, My Events, settings, report and block | **Expo** — iOS app and web build, one codebase | Everything with a session. The web build is the complete product, not a preview: the first real crowds run on it. |
 | Crew live/done/dissolve, thread close and delete, keep-in-touch expiry, pin deletion, Ticketmaster data purge, metrics snapshots | **pg_cron** | Time-driven and keyed off the effective end; no app or Worker code path can forget to run them. |
 | Reciprocity, blocks, women-only, hidden people, solo visibility, review-only gatherings, Instagram handles | **RLS policies** + `private.can_see_at` | H11. The harness is the test suite; the adversarial review is the audit. |
 
@@ -548,7 +553,7 @@ the Worker. Nothing is built twice.
 the *same host*. The Worker renders its own routes first (`/`, `/g/<slug>`,
 `/g/<slug>/spot`, `/og/*`, `/admin*`, `/hooks/*`, `/.well-known/*`, `/health`);
 everything else falls through to the app's `index.html` with single-page-app fallback,
-so `/g/<slug>/pin`, `/crew/<id>`, `/me` and the rest are app routes. One domain, one
+so `/crew/<id>`, `/me` and the rest are app routes. `/g/<slug>/pin` is the Worker’s since M3.2 (the quick pin, above). One domain, one
 `wrangler deploy`, one universal-link file, no CORS, and the shared link is always the
 crowd page. Universal links open a crowd URL in the app when installed, the web page
 when not; Reddit's in-app browser does not always honour them, which is one more reason

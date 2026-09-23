@@ -2982,3 +2982,38 @@ address forwarded to Alex by Email Routing. `p=quarantine` waits a week of repor
     the smaller files save. Do not retry it for A26 without a different shape.
   - What is left before anything draws is the framework: Expo Router, React Native Web
     and supabase-js, about 430 KB compressed, which A26 needs to run at all.
+
+### A26 moves to the Worker — the boundary rule restated (Alex, M3.2, 23 Sept 2026)
+
+- **The rule, as it now reads** (spec §4, CLAUDE.md): everything a stranger meets
+  before they have committed is the Worker — including the one form that commits them.
+  The Worker may create an anonymous session exactly once, at pin-in, and hand it over;
+  it never reads people or renders anything that depends on who someone is. Everything
+  after the pin is Expo. It replaces "public is the Worker; a session is Expo", which
+  never said which side pin-in was on and so drifted.
+- **Why, measured:** the Expo A26 after every cut that worked drew its content at
+  3.8 s and was usable at 5.6 s against W2's 1.6–2.2 s. Deferring analytics further
+  bought about a second by losing the visits of people who leave without tapping —
+  backwards for the page whose whole job is being measured. The Worker A26 costs about
+  9 hours against about 4, plus A26 maintained twice (the app still needs its own for
+  someone who has it). A27, the list and editing a pin stay Expo.
+- **The session hand-off, as built — a cookie, not the app's storage.** The Worker
+  signs the visitor in anonymously and keeps the session in a signed, HttpOnly,
+  SameSite=Lax cookie (`SESSION_SECRET`, declared since M1.0 for exactly this). When
+  the app next loads it asks the Worker for it once (`POST /session/claim`, same origin
+  only) and installs it with supabase-js's own public `setSession`. So nothing writes
+  supabase-js's internal storage format. What the page still reads is only **whether**
+  a session exists under supabase-js's storage key — someone already signed in is sent
+  to the app's A26 so they pin as themselves — and a unit test derives that key the way
+  supabase-js does. supabase-js upgrades are deliberate and re-checked (CLAUDE.md).
+- **No JavaScript** (Alex's condition: never a silent dead end). The form is a plain
+  HTML form and pins without script: the count moves and the session waits in the
+  cookie. The page that comes back says so — you are pinned; to change or remove it,
+  open this page again with JavaScript on in this browser, where your pin is kept. The
+  next visit with script on claims it, so edit and remove are reached rather than lost.
+  How often: GOV.UK measured about 1 visit in 100 arriving without its JavaScript
+  running, mostly scripts that failed to load rather than switched off — the case this
+  covers, not only the rare person who turned it off.
+- **The divergence guard is written first** (Alex): A26's fields, copy and validation in
+  `packages/shared/src/quickpin.ts`; `tests/unit/quickpin.test.ts` fails if either A26
+  writes its own, and proves its own pattern matches something real (the S20 rule).

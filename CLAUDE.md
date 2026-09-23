@@ -48,11 +48,26 @@ There is no separate `pind-app` repo. `app/` and `packages/shared/` arrived in M
 
 ## Where things live (the boundary rule — do not cross it)
 
-If it is public, it is the Worker. If it needs a session, it is Expo. If it is
+**Everything a stranger meets before they have committed is the Worker — including the
+one form that commits them (A26, the quick pin). The Worker may create an anonymous
+session exactly once, at pin-in, and hand it over; it never reads people or renders
+anything that depends on who someone is. Everything after the pin is Expo.** If it is
 time-driven, it is pg_cron in Postgres. If it decides who sees whom, it is a policy in
-Postgres (H11). If it sends anything or calls an AI, it is the Worker. Nothing is built
-twice. So: **no people lists rendered by the Worker; no AI or email calls from the
-app.** (spec.md §4 has the full table.)
+Postgres (H11). If it sends anything or calls an AI, it is the Worker. So: **no people
+lists rendered by the Worker; no AI or email calls from the app.** (spec.md §4 has the
+full table.)
+
+**Why the line moved** (Alex, M3.2). It used to read "if it is public, it is the
+Worker; if it needs a session, it is Expo" — which never said which side pin-in was
+on, so it drifted into Expo. Measured in M3.2 on Lighthouse's mobile profile: the Expo A26, after every cut that worked, drew its content at 3.8 s and was usable at 5.6 s, against W2's 1.6–2.2 s — about twice the page the visitor arrived from. What was left was the framework itself. The new line has an edge you can test: the
+next page that wants to cross it has to be before commitment, and A27, the list and
+editing a pin are not. `SESSION_SECRET`, declared since M1.0 for exactly this, says
+the original design was right.
+
+**The one thing built twice, on purpose: A26** — the Worker's for the web, Expo's for
+someone who has the app. Its fields, copy and validation live in `packages/shared`
+(`quickpin.ts`), and `tests/unit/quickpin.test.ts` fails if either A26 writes its own.
+Nothing else is built twice.
 
 ## Expo rules
 
@@ -158,6 +173,12 @@ own cron, not inside the nightly import.
 - Do not upgrade anything mid-milestone. Upgrades happen deliberately, between phases,
   when I ask.
 - Do not add a dependency without asking first.
+- **supabase-js upgrades are deliberate and re-checked, never incidental** (M3.2).
+  The Worker's A26 hands its anonymous session to the app, and the app finds it by the
+  key supabase-js stores sessions under. A silent upgrade that moved it would break
+  pinning on the web with nothing saying so. `tests/unit/quickpin.test.ts` derives the
+  key the way supabase-js does and fails if they part; after any upgrade, also pin once
+  on the web and open the pinned crowd page in the app.
 
 ## Keep the Worker lean
 
