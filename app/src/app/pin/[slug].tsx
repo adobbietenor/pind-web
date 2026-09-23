@@ -64,7 +64,7 @@ export default function QuickPin() {
   const [fieldError, setFieldError] = useState<{ field: string; says: string } | null>(null);
   const [trouble, setTrouble] = useState<Described | null>(null);
   const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<{ already: boolean; pinned?: number; open?: number } | null>(null);
+  const [result, setResult] = useState<{ already: boolean; needsOptIn: boolean; pinned?: number; open?: number } | null>(null);
 
   const load = useCallback(async () => {
     setTrouble(null);
@@ -147,7 +147,7 @@ export default function QuickPin() {
       const who = await whoAmI();
       const userId = who.state === "in" ? who.userId : who.state === "out" ? await ensureAnonymousUser() : await myAuthId();
       const written = await writeQuickPin(supabase() as unknown as QuickPinDb, userId, gathering.id, read.value);
-      setResult({ already: written.already, ...(await counts(gathering.id)) });
+      setResult({ already: written.already, needsOptIn: written.needsOptIn, ...(await counts(gathering.id)) });
       setStage("done");
     } catch (err) {
       setTrouble(failed("pin you in", err));
@@ -199,6 +199,11 @@ export default function QuickPin() {
       <AppScreen>
         <Heading>{result.already ? QUICKPIN_COPY.alreadyPinned : QUICKPIN_COPY.pinned}</Heading>
         <Body muted>{where}</Body>
+        {result.needsOptIn ? (
+          <View style={{ marginTop: spacing.md }}>
+            <Body>{QUICKPIN_COPY.optInNext}</Body>
+          </View>
+        ) : null}
         {result.pinned !== undefined ? (
           <View style={{ marginTop: spacing.lg, gap: spacing.xs }}>
             <Heading>{quickPinPlace(result.pinned)}</Heading>

@@ -262,6 +262,7 @@ export async function quickPinSubmit(request: Request, env: Env, slug: string): 
 
   let tokens: Tokens;
   let already = false;
+  let needsOptIn = false;
   try {
     tokens = await sessionFor(env, request);
     const written = await writeQuickPin(
@@ -271,6 +272,7 @@ export async function quickPinSubmit(request: Request, env: Env, slug: string): 
       read.value,
     );
     already = written.already;
+    needsOptIn = written.needsOptIn;
   } catch (err) {
     if (err instanceof ConfigError) throw err;
     console.error("quick pin failed:", err);
@@ -285,7 +287,7 @@ export async function quickPinSubmit(request: Request, env: Env, slug: string): 
 
   const entry = await appEntry(env, new URL(request.url).origin);
   const cookie = await seal(sessionSecret(env), { userId: tokens.userId, refreshToken: tokens.refreshToken, issuedAt: Date.now() });
-  const res = page(done(door, already, row), {
+  const res = page(done(door, already, needsOptIn, row), {
     title: `${QUICKPIN_COPY.pinned} · ${door.gathering.name} · Pin'd`,
     head: `<style>${FORM_CSS}</style>${entry ? `<link rel="prefetch" href="${escape(entry)}" as="script">` : ""}`,
     // A same-origin marker W2's button reads to say SEE_WHO instead of PIN_IN (M3.2,
@@ -298,13 +300,19 @@ export async function quickPinSubmit(request: Request, env: Env, slug: string): 
   return res;
 }
 
-function done(door: Crowd2, already: boolean, counts: { pinned: number; open_to_meeting: number } | undefined): string {
+function done(
+  door: Crowd2,
+  already: boolean,
+  needsOptIn: boolean,
+  counts: { pinned: number; open_to_meeting: number } | undefined,
+): string {
   const g = door.gathering;
   return `${header()}
 <div class="done">
 <h1>${escape(already ? QUICKPIN_COPY.alreadyPinned : QUICKPIN_COPY.pinned)}</h1>
 <p class="lede">${escape(g.name)}${DOT}${escape(door.venue.name)}</p>
 ${counts ? `<p class="place">${escape(quickPinPlace(counts.pinned))}</p><p class="lede">${escape(quickPinProgress(counts.open_to_meeting, THRESHOLD))}</p>` : ""}
+${needsOptIn ? `<p class="note" style="text-align:left;margin-top:16px">${escape(QUICKPIN_COPY.optInNext)}</p>` : ""}
 <noscript><p class="note" style="text-align:left;margin-top:16px">${escape(QUICKPIN_COPY.noScript)}</p></noscript>
 <div class="links">
 <a href="/pin/${escape(g.slug)}">${escape(QUICKPIN_COPY.editOrRemove)}</a>

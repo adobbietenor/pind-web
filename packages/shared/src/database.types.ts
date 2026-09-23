@@ -2628,6 +2628,7 @@ export type Database = {
           women: number
         }[]
       }
+      i_may_meet: { Args: never; Returns: boolean }
       public_gathering: { Args: { p_slug: string }; Returns: Json }
       public_gatherings: {
         Args: { p_from: string; p_to: string }

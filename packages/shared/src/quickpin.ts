@@ -64,6 +64,9 @@ export const QUICKPIN_COPY = {
   // The one primary button after the pin (Alex, M3.2): into the app, which the page has
   // already started loading. Ticked "meet up" goes to the details; otherwise the list.
   nextDetails: "Next: a few details so people can find you",
+  // Said to someone who ticked "meet up" and has not finished A27: the tick is intent,
+  // not yet a place on the list (M3.2).
+  optInNext: "You'd like to meet people — one more step: a photo, your date of birth and a way to sign in. Until then you're counted as going, not as open to meeting.",
   // The no-JavaScript case (Alex, M3.2): never a silent dead end.
   noScript:
     "You're in. To change or remove it later, open this page again in this browser with JavaScript switched on — your pin is kept for you here.",
@@ -87,7 +90,9 @@ export const quickPinProgress = (open: number, threshold: number) =>
 export type QuickPinInput = Partial<Record<QuickPinField, string | undefined>>;
 
 export type QuickPinResult =
-  | { ok: true; value: { firstName: string; partyTotal: number; openToMeeting: boolean } }
+  // `wantsToMeet` is INTENT (Alex, M3.2): the tick sends a person to A27; it becomes
+  // "open to meeting" only once they may meet (the database's gate, P105–P109).
+  | { ok: true; value: { firstName: string; partyTotal: number; wantsToMeet: boolean } }
   | { ok: false; field: QuickPinField; says: string };
 
 // A checkbox posts "on" (HTML) or is true in the app's state as "on"; absent is off.
@@ -115,7 +120,7 @@ export function readQuickPin(input: QuickPinInput): QuickPinResult {
 
   if (!ticked(input[F.nineteen])) return { ok: false, field: F.nineteen, says: QUICKPIN_COPY.needNineteen };
 
-  return { ok: true, value: { firstName: name, partyTotal, openToMeeting: ticked(input[F.meetUp]) } };
+  return { ok: true, value: { firstName: name, partyTotal, wantsToMeet: ticked(input[F.meetUp]) } };
 }
 
 // The key supabase-js stores a session under, derived the way supabase-js derives it
@@ -153,6 +158,7 @@ interface Query {
 }
 export interface QuickPinDb {
   from(table: string): Query;
+  rpc(fn: "i_may_meet"): Result<unknown>;
 }
 
 async function step<T>(q: PromiseLike<{ data: T; error: { message?: string } | null }>, what: string): Promise<T> {
@@ -165,8 +171,8 @@ export async function writeQuickPin(
   db: QuickPinDb,
   authUserId: string,
   gatheringId: string,
-  value: { firstName: string; partyTotal: number; openToMeeting: boolean },
-): Promise<{ personId: string; already: boolean }> {
+  value: { firstName: string; partyTotal: number; wantsToMeet: boolean },
+): Promise<{ personId: string; already: boolean; needsOptIn: boolean }> {
   const mine = (await step(db.from("people").select("id").eq("auth_user_id", authUserId).maybeSingle(), "read my person")) as {
     id: string;
   } | null;
@@ -186,15 +192,20 @@ export async function writeQuickPin(
     db.from("age_attestations").upsert({ person_id: personId, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }),
     "record 19+",
   );
-  const pin = { party_total: value.partyTotal, open_to_meeting: value.openToMeeting };
+  // The tick is intent. It becomes "open to meeting" only for someone who may meet —
+  // the database's own answer, the same rule it enforces on the write (M3.2). For
+  // anyone else it means "A27 next", and the pin is written closed.
+  const mayMeet = value.wantsToMeet ? (await step(db.rpc("i_may_meet"), "may I meet")) === true : false;
+  const needsOptIn = value.wantsToMeet && !mayMeet;
+  const pin = { party_total: value.partyTotal, open_to_meeting: mayMeet };
   const existing = (await step(
     db.from("pins").select("id").eq("person_id", personId).eq("gathering_id", gatheringId).maybeSingle(),
     "read my pin",
   )) as { id: string } | null;
   if (existing) {
     await step(db.from("pins").update(pin).eq("id", existing.id), "update my pin");
-    return { personId, already: true };
+    return { personId, already: true, needsOptIn };
   }
   await step(db.from("pins").insert({ gathering_id: gatheringId, person_id: personId, ...pin }), "pin");
-  return { personId, already: false };
+  return { personId, already: false, needsOptIn };
 }

@@ -53,8 +53,8 @@ function ownFieldNames(source: string): string[] {
 describe("A26's shared rule: the fields, the copy, the validation (M3.2)", () => {
   it("Q01 validation, both sides of every edge", () => {
     const good = { first_name: "  Sam ", party: "2", meet_up: "on", nineteen: "on" };
-    assert.deepEqual(readQuickPin(good), { ok: true, value: { firstName: "Sam", partyTotal: 2, openToMeeting: true } });
-    assert.deepEqual(readQuickPin({ ...good, meet_up: undefined }), { ok: true, value: { firstName: "Sam", partyTotal: 2, openToMeeting: false } });
+    assert.deepEqual(readQuickPin(good), { ok: true, value: { firstName: "Sam", partyTotal: 2, wantsToMeet: true } });
+    assert.deepEqual(readQuickPin({ ...good, meet_up: undefined }), { ok: true, value: { firstName: "Sam", partyTotal: 2, wantsToMeet: false } });
 
     // The 19+ tick is required, and it says which field.
     const noTick = readQuickPin({ ...good, nineteen: undefined });

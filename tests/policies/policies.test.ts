@@ -9,6 +9,7 @@
 //
 // Cases run in order: later cases change the world (blocks, removed pins, reports).
 
+import { randomUUID } from "node:crypto";
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -2431,7 +2432,8 @@ describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.
     const pin = await ok(
       client
         .from("pins")
-        .insert({ gathering_id: w.G, person_id: person.id, open_to_meeting: true, party_total: 2 })
+        // Closed: an anonymous pinner may not be open to meeting (the gate, M3.2).
+        .insert({ gathering_id: w.G, person_id: person.id, open_to_meeting: false, party_total: 2 })
         .select("id")
         .single(),
       "A26 pins",
@@ -2447,13 +2449,13 @@ describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.
     assert.equal(person[0].auth_user_id, authId);
     const pin = await rows(client.from("pins").select("id, open_to_meeting, party_total").eq("id", pinId));
     assert.equal(pin.length, 1, "the pin did not survive");
-    assert.equal(pin[0].open_to_meeting, true, "the opt-in did not survive");
+    assert.equal(pin[0].open_to_meeting, false, "the pin changed state across the link");
     assert.equal(pin[0].party_total, 2, "the party size did not survive");
     // And it is still the person's to change — the write half of RLS, not only reads.
     await ok(client.from("pins").update({ party_total: 3 }).eq("id", pinId), "edit my pin after the link");
   }
 
-  it("P84 an anonymous pinner made permanent keeps the same id, and the person, the pin, the party size and the opt-in come with it", async () => {
+  it("P84 an anonymous pinner made permanent keeps the same id, the person, the pin and the party size — and the SAME pin opens to meeting once A27 is done (the gate, M3.2)", async () => {
     const q = await quickPin("Link");
     try {
       // The conversion itself, as the email code will do it once verified: the same
@@ -2470,6 +2472,12 @@ describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.
       assert.equal(claims.sub, q.authId, "the new token is for a different user");
       assert.equal(claims.is_anonymous, false, "the new token still says anonymous");
       await stillMine(q.client, q.authId, q.personId, q.pinId);
+
+      // A27's details (date of birth and gender, a photo) — and now the SAME pin opens.
+      await ok(w.service.from("people_private").insert({ person_id: q.personId, gender: "woman", birth_year: 1995 }));
+      await ok(w.service.from("people").update({ photo_path: `${q.authId}/face.png` }).eq("id", q.personId));
+      const opened = await ok(q.client.from("pins").update({ open_to_meeting: true }).eq("id", q.pinId).select("open_to_meeting"));
+      assert.deepEqual(opened, [{ open_to_meeting: true }], "after the link and A27 the pin could not open");
     } finally {
       await w.service.from("pins").delete().eq("id", q.pinId);
       await w.service.from("people").delete().eq("id", q.personId);
@@ -2710,5 +2718,108 @@ describe("A pin needs the 19+ tick, recorded where nobody else can read it (M3.2
     assert.equal((await rows(w.service.from("people").select("id").eq("id", id("Ava")))).length, before.length, "Ava was removed");
     const a = await w.anon.rpc("remove_me_under_19");
     assert.ok(a.error, "a visitor with no session ran it");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — the opt-in gate: "open to meeting" only after A27 (Alex, M3.2)
+// ---------------------------------------------------------------------------
+
+describe("Open to meeting only for someone who has finished A27 — permanent, dated, with a photo (M3.2)", () => {
+  // A person made the way each case needs: anonymous or permanent, with or without the
+  // private row and the photo. Every one has the 19+ record, so only the gate decides.
+  async function someone(label: string, o: { permanent: boolean; privateRow: boolean; photo: boolean }) {
+    const client = newClient(w.env, w.env.publishableKey);
+    let authId: string;
+    if (o.permanent) {
+      const email = `${PREFIX}-${w.run}-gate-${label.toLowerCase()}@example.com`;
+      const password = randomUUID();
+      const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+      assert.equal(made.error, null, made.error?.message);
+      authId = made.data.user!.id;
+      const signIn = await client.auth.signInWithPassword({ email, password });
+      assert.equal(signIn.error, null, signIn.error?.message);
+    } else {
+      const signIn = await client.auth.signInAnonymously();
+      assert.equal(signIn.error, null, signIn.error?.message);
+      authId = signIn.data.user!.id;
+      await markHarness(w.service, authId);
+    }
+    const person = await ok(
+      w.service
+        .from("people")
+        .insert({ auth_user_id: authId, first_name: label, photo_path: o.photo ? `${authId}/face.png` : null })
+        .select("id")
+        .single(),
+    );
+    if (o.privateRow) {
+      await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "woman", birth_year: 1995 }));
+    }
+    await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    return { client, authId, personId: person.id as string };
+  }
+  const gone = async (q: { authId: string; personId: string }) => {
+    await w.service.from("people").delete().eq("id", q.personId);
+    await w.service.auth.admin.deleteUser(q.authId);
+  };
+  const pinOpen = (q: { client: SupabaseClient; personId: string }, open: boolean) =>
+    q.client.from("pins").insert({ gathering_id: w.G, person_id: q.personId, party_total: 1, open_to_meeting: open }).select("id").single();
+
+  it("P105 an ANONYMOUS pinner cannot be open to meeting — not on insert, not by a later update; closed is fine", async () => {
+    const q = await someone("GateAnon", { permanent: false, privateRow: false, photo: false });
+    try {
+      await denied(pinOpen(q, true), "42501");
+      const pin = await ok(pinOpen(q, false), "a closed pin is fine");
+      await denied(q.client.from("pins").update({ open_to_meeting: true }).eq("id", pin.id).select("id"), "42501");
+      assert.equal(await ok(q.client.rpc("i_may_meet")), false);
+    } finally {
+      await gone(q);
+    }
+  });
+
+  it("P106 permanent but no photo, or no date of birth and gender, cannot be open to meeting either", async () => {
+    const noPhoto = await someone("GateNoPhoto", { permanent: true, privateRow: true, photo: false });
+    const noPrivate = await someone("GateNoPrivate", { permanent: true, privateRow: false, photo: true });
+    try {
+      await denied(pinOpen(noPhoto, true), "42501");
+      await denied(pinOpen(noPrivate, true), "42501");
+    } finally {
+      await gone(noPhoto);
+      await gone(noPrivate);
+    }
+  });
+
+  it("P107 someone who HAS finished A27 — permanent, dated, with a photo — CAN be open to meeting, on insert and on update", async () => {
+    const q = await someone("GateDone", { permanent: true, privateRow: true, photo: true });
+    try {
+      assert.equal(await ok(q.client.rpc("i_may_meet")), true);
+      const pin = await ok(pinOpen(q, false));
+      const up = await ok(q.client.from("pins").update({ open_to_meeting: true }).eq("id", pin.id).select("open_to_meeting"));
+      assert.deepEqual(up, [{ open_to_meeting: true }], "a complete person could not opt in");
+    } finally {
+      await gone(q);
+    }
+  });
+
+  it("P108 turning it OFF is never refused, even for someone the gate would refuse now", async () => {
+    const q = await someone("GateOff", { permanent: false, privateRow: false, photo: false });
+    try {
+      // Set open by the service key, as a pin made before the gate existed would be.
+      const pin = await ok(w.service.from("pins").insert({ gathering_id: w.G, person_id: q.personId, party_total: 1, open_to_meeting: true }).select("id").single());
+      const off = await ok(q.client.from("pins").update({ open_to_meeting: false }).eq("id", pin.id).select("open_to_meeting"));
+      assert.deepEqual(off, [{ open_to_meeting: false }], "opting out was refused");
+    } finally {
+      await gone(q);
+    }
+  });
+
+  it("P109 i_may_meet answers for the caller only, and a visitor with no session cannot ask", async () => {
+    const a = await someone("GateAsk", { permanent: true, privateRow: true, photo: true });
+    try {
+      assert.equal(await ok(a.client.rpc("i_may_meet")), true);
+      assert.ok((await w.anon.rpc("i_may_meet")).error, "a visitor with no session called i_may_meet");
+    } finally {
+      await gone(a);
+    }
   });
 });
