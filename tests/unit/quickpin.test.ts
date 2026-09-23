@@ -67,8 +67,9 @@ describe("A26's shared rule: the fields, the copy, the validation (M3.2)", () =>
     assert.equal(readQuickPin({ ...good, first_name: "x".repeat(41) }).ok, false);
 
     // Who's coming: alone, +1, +2, or a group of a number up to the database's 10.
-    assert.equal(readQuickPin({ ...good, party: "1" }).ok && readQuickPin({ ...good, party: "1" }).value.partyTotal, 1);
-    assert.equal(readQuickPin({ ...good, party: "group", group_size: "7" }).ok && readQuickPin({ ...good, party: "group", group_size: "7" }).value.partyTotal, 7);
+    const total = (r: ReturnType<typeof readQuickPin>) => (r.ok ? r.value.partyTotal : null);
+    assert.equal(total(readQuickPin({ ...good, party: "1" })), 1);
+    assert.equal(total(readQuickPin({ ...good, party: "group", group_size: "7" })), 7);
     assert.equal(readQuickPin({ ...good, party: "group", group_size: "10" }).ok, true);
     assert.equal(readQuickPin({ ...good, party: "group", group_size: "11" }).ok, false);
     assert.equal(readQuickPin({ ...good, party: "group", group_size: "" }).ok, false);
