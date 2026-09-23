@@ -2831,3 +2831,15 @@ auth server's public settings report `phone: false`, so no SMS method is enabled
 there is nothing to turn off. It is not the stack rule ("no SMS, no Twilio") being
 broken. Worth knowing only because "Twilio is set as the SMS provider" reads like a
 configuration somebody made.
+
+### A photo can be changed after A2 (Alex, M3.1 walk)
+
+Found on the phone: Remove and Choose another existed during A2 and vanished after it,
+so somebody with a bad photo was stuck with it — a bug, because "nothing waits on the
+check" assumes a photo is easy to swap. **Profile → Change photo** (`/photo`), beside
+Edit tags: the same picker and the same states as A2 (`startEdit` … `editPlan` in
+`@pind/shared`, A07–A10), plus the photo already on the profile. Remove discards a new
+pick first and only then takes the current photo off; a failed upload is marked, says
+how to get out, and leaves the old photo in place. Saving deletes the replaced file
+from the person's folder — a replaced photo is not kept. P89 proves the person's own
+writes: upload, repoint, delete the old file, clear.

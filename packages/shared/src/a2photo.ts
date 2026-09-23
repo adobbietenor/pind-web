@@ -61,3 +61,50 @@ export function landingAfterSignIn(me: { firstName: string | null; hasPrivate: b
   if (me?.hasPrivate) return { go: "home" };
   return { go: "a2", firstName: me?.firstName ?? "" };
 }
+
+// ---------------------------------------------------------------------------
+// Changing or removing a photo after A2 — A21's photo edit (Alex, M3.1 walk).
+//
+// **A bug, not a missing feature:** Remove and Choose another existed during A2 and
+// vanished after it, so somebody with a bad photo was stuck with it — and "nothing
+// waits on the check" assumes a photo is easy to swap. Same picker, same states as A2,
+// plus the photo already on the profile.
+//
+// Remove works on what is showing: a new pick is discarded first (back to the photo
+// already there), and only then does Remove take the current photo off the profile.
+// ---------------------------------------------------------------------------
+export interface PhotoEdit<P = unknown> {
+  current: string | null; // the object name on the profile now
+  removed: boolean; // the person asked to take the current one off
+  pick: A2Photo<P>; // a new photo chosen here, if any
+}
+
+export function startEdit<P>(current: string | null): PhotoEdit<P> {
+  return { current, removed: false, pick: { state: "none" } };
+}
+
+export function editShows(e: PhotoEdit): "pick" | "current" | "nothing" {
+  if (e.pick.state !== "none") return "pick";
+  return e.current && !e.removed ? "current" : "nothing";
+}
+
+export function editActions(e: PhotoEdit): PhotoAction[] {
+  return editShows(e) === "nothing" ? ["choose"] : ["choose-another", "remove"];
+}
+
+export function editRemove<P>(e: PhotoEdit<P>): PhotoEdit<P> {
+  if (e.pick.state !== "none") return { ...e, pick: { state: "none" } };
+  return e.current ? { ...e, removed: true } : e;
+}
+
+export function editChoose<P>(e: PhotoEdit<P>, picked: P): PhotoEdit<P> {
+  return { ...e, pick: { state: "chosen", picked } };
+}
+
+// What Save does. A new pick is uploaded and replaces the current one; a removal
+// clears the profile's photo; anything else changes nothing.
+export function editPlan(e: PhotoEdit): "upload" | "clear" | "nothing" {
+  if (e.pick.state !== "none") return "upload";
+  if (e.removed && e.current) return "clear";
+  return "nothing";
+}

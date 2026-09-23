@@ -2434,3 +2434,51 @@ describe("Nothing waits on the check — P87 (M3.1)", () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Changing or removing your photo after A2 — P89 (Alex, M3.1 walk).
+//
+// The app's own writes, in the screen's order, as the person: upload a new file into
+// your folder, point your profile at it, delete the old file; then take the photo off
+// altogether. The screen existed nowhere until the walk found a bad photo could not be
+// changed, so its writes get a case the way A2's did (P80).
+// ---------------------------------------------------------------------------
+
+describe("Changing or removing a photo — P89 (M3.1)", () => {
+  it("P89 a person CAN replace their photo, delete the old file and clear the photo / the old file is really gone", async () => {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signedIn = await client.auth.signInAnonymously();
+    assert.equal(signedIn.error, null, signedIn.error?.message);
+    const authId = signedIn.data.user!.id;
+    await markHarness(w.service, authId);
+    const first = `${authId}/first.png`;
+    const second = `${authId}/second.png`;
+    let personId: string | null = null;
+    try {
+      await ok(client.storage.from(BUCKET).upload(first, PNG, { contentType: "image/png" }), "upload the first");
+      personId = (await ok(
+        client.from("people").insert({ auth_user_id: authId, first_name: "Swap", photo_path: first }).select("id").single(),
+        "A2 with a photo",
+      )).id as string;
+
+      // Change photo: upload, point the profile at it, delete the old file.
+      await ok(client.storage.from(BUCKET).upload(second, PNG, { contentType: "image/png" }), "upload the second");
+      await ok(client.from("people").update({ photo_path: second }).eq("id", personId), "point at the second");
+      await ok(client.storage.from(BUCKET).remove([first]), "delete the old file");
+      const listed = await ok(client.storage.from(BUCKET).list(authId), "list my folder");
+      assert.deepEqual(
+        (listed as { name: string }[]).map((f) => f.name).sort(),
+        ["second.png"],
+        "the replaced file is still stored",
+      );
+
+      // Remove photo: the profile no longer has one.
+      await ok(client.from("people").update({ photo_path: null }).eq("id", personId), "clear the photo");
+      assert.equal((await serviceRow("people", "id", personId, "photo_path")).photo_path, null);
+    } finally {
+      if (personId) await w.service.from("people").delete().eq("id", personId);
+      await w.service.storage.from(BUCKET).remove([first, second]);
+      await w.service.auth.admin.deleteUser(authId);
+    }
+  });
+});

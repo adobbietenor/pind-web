@@ -446,6 +446,7 @@ any of it.
 - A blocked pair (set in the admin for the test) cannot see each other's pins in the list.
 - With the app installed, the same iMessage link opens the app on that crowd page; without it, Safari.
 - Remove my pin drops the count; edit changes party size and opt-in; My Events shows the pinned gathering.
+- **Carried from M3.1's walk** (Alex: they need a fresh account, and A26 makes them constantly): **the email-code field with the keyboard up** — what you type stays visible — and **a field near the bottom of a screen** stays clear of the keyboard. Both rest on `AppScreen` (S11/S12 fail the build if a screen draws its own frame), which is why they did not hold M3.1's merge.
 
 20–28 h
 

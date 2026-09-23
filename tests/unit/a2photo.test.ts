@@ -66,3 +66,42 @@ describe("Where a sign-in lands (M3.1, from the walk)", () => {
     assert.deepEqual(landingAfterSignIn({ firstName: "Sam", hasPrivate: false }), { go: "a2", firstName: "Sam" });
   });
 });
+
+describe("Changing or removing a photo after A2 (A21, Alex's walk)", () => {
+  it("A07 the photo on the profile can be swapped: choose another, and Save uploads it", async () => {
+    const { startEdit, editActions, editChoose, editPlan, editShows } = await import("../../packages/shared/src/a2photo.ts");
+    const e = startEdit<string>("u/old.jpg");
+    assert.deepEqual(editActions(e), ["choose-another", "remove"], "a photo on the profile offers no way to change it");
+    const next = editChoose(e, "file://new.jpg");
+    assert.equal(editShows(next), "pick");
+    assert.equal(editPlan(next), "upload");
+  });
+
+  it("A08 the photo on the profile can be removed, and Save clears it", async () => {
+    const { startEdit, editActions, editRemove, editPlan, editShows } = await import("../../packages/shared/src/a2photo.ts");
+    const e = editRemove(startEdit<string>("u/old.jpg"));
+    assert.equal(editShows(e), "nothing");
+    assert.deepEqual(editActions(e), ["choose"]);
+    assert.equal(editPlan(e), "clear");
+  });
+
+  it("A09 a failed upload here is never a dead end either: Remove discards it and the old photo stays", async () => {
+    const { startEdit, editChoose, editRemove, editPlan, editShows, uploadFailed, editActions } = await import(
+      "../../packages/shared/src/a2photo.ts"
+    );
+    let e = editChoose(startEdit<string>("u/old.jpg"), "file://new.jpg");
+    e = { ...e, pick: uploadFailed(e.pick, "mime type text/plain is not supported") };
+    assert.equal(e.pick.state, "failed");
+    assert.ok(editActions(e).includes("remove"), "a failed pick offers no way out");
+    e = editRemove(e);
+    assert.equal(editShows(e), "current", "removing the failed pick lost the photo already there");
+    assert.equal(editPlan(e), "nothing");
+  });
+
+  it("A10 with no photo yet, the only action is to choose one, and Save changes nothing", async () => {
+    const { startEdit, editActions, editPlan } = await import("../../packages/shared/src/a2photo.ts");
+    const e = startEdit<string>(null);
+    assert.deepEqual(editActions(e), ["choose"]);
+    assert.equal(editPlan(e), "nothing");
+  });
+});

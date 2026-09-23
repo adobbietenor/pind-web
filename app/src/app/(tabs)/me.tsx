@@ -120,6 +120,15 @@ export default function Profile() {
         {!me.photoPath ? (
           <Notice>You have no photo yet. You will need one before you can meet up with anyone.</Notice>
         ) : null}
+        {/* Change or remove the photo after A2 (Alex, M3.1 walk: it could not be
+            changed once set, so a bad photo was stuck). The same picker and states. */}
+        <View style={{ marginBottom: spacing.md }}>
+          <Button
+            kind="quiet"
+            label={me.photoPath ? "Change photo" : "Add a photo"}
+            onPress={() => router.push("/photo")}
+          />
+        </View>
 
         {me.tags.length ? (
           <View style={styles.chips}>
