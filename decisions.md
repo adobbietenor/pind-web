@@ -2797,3 +2797,27 @@ cheaper answers were priced, and two are refused **by rule, not by taste**:
   and the gathering count — 2–3 h inside work happening anyway. The "showed up" badge
   follows with M3.3's confirmations (about 0.5 h to show), and is zero for everyone
   until crews have met, so it helps later rather than at launch.
+
+### P86: what refused, found without the dashboard (M3.1)
+
+Alex's screenshot showed **Allow manual linking** on for PIND-staging, and P86 still
+failed. Diagnosed from the server's side rather than by toggling again:
+
+- `linkIdentity` calls `GET /auth/v1/user/identities/authorize` with the session's
+  token. The reply, for Google and for Apple alike, was **`404` with
+  `error_code: manual_linking_disabled`** from GoTrue v2.197.0 — and in GoTrue that
+  code comes from one guard that reads one thing, the server's
+  `security_manual_linking_enabled`. So the message was not misleading and the test was
+  calling the right thing.
+- **`npx supabase config diff`** (read-only, through the Management API) lists every
+  hosted auth field that differs from `config.toml`. The repo's file says
+  `enable_manual_linking = false`, and the diff does **not** list it — so the stored
+  hosted value is `false` too. Two independent reads agree: off.
+- So the dashboard's toggle state is not what the project holds — most likely switched
+  and never saved. The screenshot proved what the page showed, not what was stored:
+  the same one-layer-down gap as a server response against a phone.
+
+The diff also showed `sms.twilio.enabled: true` on the hosted project. **No SMS path is
+live** — the auth server's public settings report `phone: false` — so it is a provider
+selection with the phone method off, not a way in; recorded because "no SMS, no
+Twilio" is a stack rule and the setting is visible.

@@ -539,6 +539,8 @@ any of it.
 - The three of you, with five synthetic accounts, walk from a fake Reddit post to the next-morning ticks on two phones and a laptop, using a staging gathering scheduled hours ahead; every acceptance item above is re-checked; the fix list is closed.
 - The internal TestFlight build is installed on all team phones; Sentry shows no crash in the walk.
 - The web build's photo capture works on iOS Safari and Android Chrome (borrow an Android phone once).
+- **A photo rejection fires live, once, end to end** (moved here from M3.1 by Alex: P87 already proves the database half, and a throwaway account exists here anyway). The photo leaves others' view within seconds, the profile stays visible without it, and `moderation_log` shows `ai:photo-check` / `photo_rejected`.
+  - **Answer this first: can it be proved without storing a harmful image at all?** Mostly yes. A *corrupt* image no longer proves it — since M3.1 an image the model cannot see is a `failed` check, not a rejection. What only a real image proves is **the model's judgement**; every other hop (verdict → `admin_record_photo_check` → hidden) can be driven by a stubbed model in a test. And the judgement can be proved **without the image ever entering the bucket or the database**: `scripts/photo-check-eval.ts` in its dry mode reads the file from local disk, sends it to the model and records nothing. So: stub the model for the pipeline, run the eval dry on one rejectable image for the judgement, and nothing harmful is stored anywhere of ours.
 
 ### Phase 4 — Before the first real crowd (28–42 h)
 

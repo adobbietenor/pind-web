@@ -90,6 +90,12 @@ own cron, not inside the nightly import.
 - **Never** run ad-hoc DDL against the database. **Never** change schema in the
   Supabase dashboard. A schema I cannot reproduce from this repo is a broken repo.
 - Apply with `npx supabase db push` to **staging only**. Never touch production.
+- **Never run `npx supabase config push`.** `supabase/config.toml` is `supabase init`'s
+  local template, not the hosted settings: pushing it would set pind-staging's site URL
+  to `127.0.0.1`, replace the redirect allow-list, switch Apple off and more, and a
+  non-interactive run proceeds without asking. To see what the hosted auth config
+  actually holds, use the read-only **`npx supabase config diff`** — it is how P86's
+  "manual linking is disabled" was settled in M3.1 when the dashboard said otherwise.
 - RLS is enabled on every table. Visibility is decided by policies in the database,
   never by filtering in Worker or app code (H11).
 - The `service_role` key is used only by the Worker and Edge Functions, never by the
