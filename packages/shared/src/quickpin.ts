@@ -94,5 +94,7 @@ export function readQuickPin(input: QuickPinInput): QuickPinResult {
 // themselves. Q02 compares it with a real client's; supabase-js upgrades are
 // deliberate and re-checked (CLAUDE.md).
 export function supabaseStorageKey(supabaseUrl: string): string {
-  return `sb-${new URL(supabaseUrl).hostname.split(".")[0]}-auth-token`;
+  // The hostname without `URL`, which the shared package's own config does not assume.
+  const host = supabaseUrl.replace(/^[a-z]+:\/\//i, "").split(/[/:?#]/)[0] ?? "";
+  return `sb-${host.split(".")[0]}-auth-token`;
 }
