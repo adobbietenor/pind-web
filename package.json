@@ -24,7 +24,7 @@
     "dev": "wrangler dev",
     "types": "wrangler types",
     "test:policies": "node --env-file=.dev.vars --test --test-concurrency=1 tests/policies/policies.test.ts",
-    "test:unit": "node --test tests/unit/access.test.ts tests/unit/origin.test.ts tests/unit/csv-time.test.ts tests/unit/import.test.ts tests/unit/ai.test.ts tests/unit/public.test.ts tests/unit/list.test.ts tests/unit/door.test.ts tests/unit/series.test.ts tests/unit/publish.test.ts tests/unit/secrets.test.ts tests/unit/photo.test.ts tests/unit/expiry.test.ts tests/unit/age.test.ts tests/unit/tagcaps.test.ts tests/unit/signin.test.ts tests/unit/image.test.ts tests/unit/a2photo.test.ts tests/unit/evalset.test.ts tests/unit/screens.test.ts tests/unit/cron.test.ts",
+    "test:unit": "node --test tests/unit/access.test.ts tests/unit/origin.test.ts tests/unit/csv-time.test.ts tests/unit/import.test.ts tests/unit/ai.test.ts tests/unit/public.test.ts tests/unit/list.test.ts tests/unit/door.test.ts tests/unit/series.test.ts tests/unit/publish.test.ts tests/unit/secrets.test.ts tests/unit/photo.test.ts tests/unit/expiry.test.ts tests/unit/age.test.ts tests/unit/tagcaps.test.ts tests/unit/signin.test.ts tests/unit/image.test.ts tests/unit/a2photo.test.ts tests/unit/evalset.test.ts tests/unit/screens.test.ts tests/unit/session.test.ts tests/unit/cron.test.ts",
     "seed:staging": "node --env-file=.dev.vars scripts/seed-staging.ts",
     "typecheck:app": "npm run typecheck --workspace app",
     "build:web": "npm run export:web --workspace app",

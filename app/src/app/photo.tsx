@@ -12,6 +12,11 @@
 // Saving a new photo sends it back to `pending` (a database trigger) and it shows at
 // once — nothing waits on the check. The old file is deleted from the person's folder
 // afterwards: a replaced photo is not kept.
+//
+// **Offline is its own state, never "no profile"** (M3.1, the airplane-mode walk). The
+// screen used to ask `getUser()` — a network call — and read offline as nobody, after
+// which Save quietly went back without saving. Now a load that could not arrive says
+// so with Try again, and the upload is what fails when the network is off.
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
@@ -30,10 +35,12 @@ import {
   type PhotoEdit,
 } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
-import { Body, Button, Heading, Notice } from "@/components/ui";
-import { failed, oneLine } from "@/lib/errors";
+import { Trouble } from "@/components/Trouble";
+import { Body, Button, Heading } from "@/components/ui";
+import { failed, type Described } from "@/lib/errors";
 import { PhotoError, askForCheck, pickPhoto, uploadPhoto, type Picked } from "@/lib/photo";
 import { loadMe, photoUrl } from "@/lib/profile";
+import { myAuthId } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 
 export default function ChangePhoto() {
@@ -41,28 +48,39 @@ export default function ChangePhoto() {
   const [me, setMe] = useState<{ id: string; authId: string } | null>(null);
   const [edit, setEdit] = useState<PhotoEdit<Picked> | null>(null);
   const [currentUrl, setCurrentUrl] = useState<string | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Described | null>(null);
   const [busy, setBusy] = useState(false);
+  const [loadTrouble, setLoadTrouble] = useState<Described | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let live = true;
+    setLoadTrouble(null);
     (async () => {
-      const [loaded, user] = await Promise.all([loadMe().catch(() => null), supabase().auth.getUser()]);
+      const authId = await myAuthId();
+      const loaded = await loadMe();
       if (!live) return;
-      if (!loaded || !user.data.user) {
-        setEdit(startEdit(null));
-        return;
-      }
-      setMe({ id: loaded.id, authId: user.data.user.id });
+      if (!loaded) throw new Error("There is no profile on this account yet.");
+      setMe({ id: loaded.id, authId });
       setEdit(startEdit(loaded.photoPath));
       if (loaded.photoPath) setCurrentUrl(await photoUrl(loaded.photoPath).catch(() => null));
-    })();
+    })().catch((err) => live && setLoadTrouble(failed("load your photo", err)));
     return () => {
       live = false;
     };
-  }, []);
+  }, [attempt]);
 
-  if (!edit) {
+  if (loadTrouble) {
+    return (
+      <AppScreen>
+        <Heading>Your photo</Heading>
+        <Trouble what={loadTrouble} onRetry={() => setAttempt((n) => n + 1)} />
+        <Button kind="quiet" label="Back to your profile" onPress={() => router.back()} />
+      </AppScreen>
+    );
+  }
+
+  if (!edit || !me) {
     return (
       <AppScreen scroll={false}>
         <ActivityIndicator style={{ marginTop: spacing.xl }} color={palette.textMuted} />
@@ -71,20 +89,20 @@ export default function ChangePhoto() {
   }
 
   const choose = async () => {
-    setError("");
+    setError(null);
     try {
       const picked = await pickPhoto();
       if (picked) setEdit(editChoose(edit, picked));
     } catch (err) {
-      setError(err instanceof PhotoError ? err.message : oneLine(failed("open that photo", err)));
+      setError(err instanceof PhotoError ? { says: err.message } : failed("open that photo", err));
     }
   };
 
   const save = async () => {
     const plan = editPlan(edit);
-    if (plan === "nothing" || !me) return router.back();
+    if (plan === "nothing") return router.back();
     setBusy(true);
-    setError("");
+    setError(null);
     const db = supabase();
     try {
       let next: string | null = null;
@@ -94,7 +112,8 @@ export default function ChangePhoto() {
         } catch (err) {
           const marked = uploadFailed(edit.pick, err instanceof Error ? err.message : String(err));
           setEdit({ ...edit, pick: marked });
-          if (marked.state === "failed") setError(marked.says);
+          // Its way out is on the screen already: Remove photo, or Choose another.
+          if (marked.state === "failed") setError({ says: marked.says });
           return;
         }
       }
@@ -105,7 +124,7 @@ export default function ChangePhoto() {
       if (next) void askForCheck();
       router.back();
     } catch (err) {
-      setError(oneLine(failed(plan === "clear" ? "remove your photo" : "save your photo", err)));
+      setError(failed(plan === "clear" ? "remove your photo" : "save your photo", err));
     } finally {
       setBusy(false);
     }
@@ -121,7 +140,7 @@ export default function ChangePhoto() {
         <Body muted>{PHOTO_WHY}</Body>
       </View>
 
-      {error ? <Notice tone="stop">{error}</Notice> : null}
+      {error ? <Trouble what={error} onRetry={save} busy={busy} /> : null}
 
       <View style={styles.row}>
         {previewUri ? (
@@ -141,7 +160,7 @@ export default function ChangePhoto() {
                 label="Remove photo"
                 onPress={() => {
                   setEdit(editRemove(edit));
-                  setError("");
+                  setError(null);
                 }}
               />
             ) : (

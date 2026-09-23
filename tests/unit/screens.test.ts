@@ -72,3 +72,43 @@ describe("The sign-in screen gates each way in on the shared table (signInMethod
     assert.doesNotMatch(signIn.source, /Platform\.OS === "ios"/, "the screen gates a way in on the platform itself");
   });
 });
+
+describe("Nothing reads offline as signed out, and every sentence carries its exit (M3.1, airplane mode)", () => {
+  // Every source file in the app, not just routes: the fault lived in `loadMe()` too.
+  const SRC = join(process.cwd(), "app", "src");
+  const all = (function walk(dir: string): { path: string; source: string }[] {
+    return readdirSync(dir).flatMap((name) => {
+      const path = join(dir, name);
+      if (statSync(path).isDirectory()) return walk(path);
+      return /\.tsx?$/.test(name) ? [{ path: path.slice(SRC.length + 1), source: readFileSync(path, "utf8") }] : [];
+    });
+  })(SRC);
+  // Code only: the comments explaining why these are banned name them.
+  const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
+
+  it("S16 nothing calls auth.getUser() — a network call whose offline null read as a lost sign-in", () => {
+    assert.ok(all.length >= 20, `only ${all.length} files found under ${SRC}`);
+    const callers = all.filter((f) => /\.getUser\(/.test(code(f.source))).map((f) => f.path);
+    assert.deepEqual(callers, [], "ask whoAmI() / myAuthId() in lib/session.ts instead");
+  });
+
+  it("S17 no file writes its own 'sign in again' sentence — the shared one comes with its button", () => {
+    const own = all
+      .filter((f) => !f.path.endsWith("Trouble.tsx"))
+      .filter((f) => /lost your sign-in|sign in again|session has expired/i.test(code(f.source)))
+      .map((f) => f.path);
+    assert.deepEqual(own, []);
+  });
+
+  it("S18 Trouble offers Sign in for a sign-out and Try again for the rest", () => {
+    const trouble = all.find((f) => f.path.endsWith("Trouble.tsx"));
+    assert.ok(trouble, "Trouble.tsx not found");
+    assert.match(trouble.source, /wayOut === "sign-in" \?[\s\S]*router\.replace\("\/sign-in"\)/);
+    assert.match(trouble.source, /wayOut === "retry" && onRetry \?[\s\S]*label="Try again"/);
+  });
+
+  it("S19 no screen prints a described failure by hand — so none can drop its exit (the old A2 shape)", () => {
+    const own = screens.filter((s) => /\{\s*\w+\.says\s*\}/.test(s.source)).map((s) => s.path);
+    assert.deepEqual(own, [], "render a Described through <Trouble>");
+  });
+});

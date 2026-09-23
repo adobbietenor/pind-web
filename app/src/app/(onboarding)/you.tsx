@@ -42,10 +42,12 @@ import {
   UNDER_19,
 } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
+import { Trouble } from "@/components/Trouble";
 import { Body, Button, Choice, Field, Heading, Notice } from "@/components/ui";
 import { track } from "@/lib/analytics";
 import { failed, type Described } from "@/lib/errors";
 import { PhotoError, askForCheck, pickPhoto, uploadPhoto, type Picked } from "@/lib/photo";
+import { myAuthId } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 
 type Gender = "woman" | "man" | "nonbinary" | "undisclosed";
@@ -108,20 +110,30 @@ export default function You() {
   // **A returning person never sees this form** (M3.1, from the walk): signing out on
   // one platform and in on the other landed here, blank, and looked like a lost
   // profile. Asked once the session exists; until it answers, the form waits.
+  //
+  // **And if it cannot answer, the screen says so** rather than showing the blank form
+  // (M3.1, airplane mode): a question that failed to arrive used to read as "no
+  // profile", which is the lost-profile fault again by another road.
   const [known, setKnown] = useState(false);
+  const [checkTrouble, setCheckTrouble] = useState<Described | null>(null);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (auth !== "ready") return;
     let live = true;
+    setCheckTrouble(null);
     (async () => {
       const db = supabase();
-      const { data: user } = await db.auth.getUser();
-      const id = user.user?.id;
-      const { data: person } = id
-        ? await db.from("people").select("id, first_name").eq("auth_user_id", id).maybeSingle()
-        : { data: null };
-      const { data: priv } = person
+      const id = await myAuthId();
+      const { data: person, error: personError } = await db
+        .from("people")
+        .select("id, first_name")
+        .eq("auth_user_id", id)
+        .maybeSingle();
+      if (personError) throw personError;
+      const { data: priv, error: privError } = person
         ? await db.from("people_private").select("person_id").eq("person_id", person.id).maybeSingle()
-        : { data: null };
+        : { data: null, error: null };
+      if (privError) throw privError;
       if (!live) return;
       const landing = landingAfterSignIn(person ? { firstName: person.first_name, hasPrivate: !!priv } : null);
       if (landing.go === "home") {
@@ -130,11 +142,11 @@ export default function You() {
       }
       if (landing.firstName) setFirstName((was) => was || landing.firstName);
       setKnown(true);
-    })().catch(() => live && setKnown(true));
+    })().catch((err) => live && setCheckTrouble(failed("check whether you already have a profile", err)));
     return () => {
       live = false;
     };
-  }, [auth, router]);
+  }, [auth, router, attempt]);
 
   const age = useMemo(() => ageOn(Number(day), Number(month), Number(year)), [day, month, year]);
   const tooYoung = age !== null && !isOldEnough(age);
@@ -164,13 +176,11 @@ export default function You() {
     let doing = "finish signing you in";
     try {
       const db = supabase();
-      const { data: session } = await db.auth.getUser();
-      const authUserId = session.user?.id;
-      if (!authUserId) {
-        setError({ says: "We lost your sign-in. Go back and sign in again — nothing here was saved." });
-        setBusy(false);
-        return;
-      }
+      // Read from this device, so airplane mode reaches the upload and fails THERE,
+      // with the photo's own sentence — not at a sign-in check that could not tell
+      // "offline" from "signed out" (M3.1). A real sign-out throws a SessionProblem
+      // whose sentence comes with a Sign in button.
+      const authUserId = await myAuthId();
 
       // A failed upload stops here with the photo marked failed and removable; the
       // rest of the profile is untouched, so removing it and tapping Continue again
@@ -248,6 +258,15 @@ export default function You() {
     }
   };
 
+  if (checkTrouble) {
+    return (
+      <AppScreen edges={["top", "bottom"]}>
+        <Heading>A bit about you</Heading>
+        <Trouble what={checkTrouble} onRetry={() => setAttempt((n) => n + 1)} />
+      </AppScreen>
+    );
+  }
+
   if (auth === "waiting" || (auth === "ready" && !known)) {
     return (
       <AppScreen edges={["top", "bottom"]}>
@@ -277,13 +296,6 @@ export default function You() {
         <View style={{ marginBottom: spacing.lg }}>
           <Body muted>Your first name is what people see. Nothing else here is on your profile.</Body>
         </View>
-
-        {error ? (
-          <Notice tone="stop">
-            {error.says}
-            {error.detail ? `\n${error.detail}` : ""}
-          </Notice>
-        ) : null}
 
         <Field
           label="First name"
@@ -370,6 +382,10 @@ export default function You() {
           <Body muted>Nobody sees it until you have both pinned in to the same gathering and said you would like to meet.</Body>
         </View>
 
+        {/* Beside the button that was tapped, not at the top of a long form (CLAUDE.md:
+            "seen" is part of a refusal). Its exit comes with it: Sign in again when the
+            session is gone, Try again when Pin'd could not be reached (M3.1). */}
+        {error ? <Trouble what={error} onRetry={save} busy={busy} /> : null}
         <Button label="Continue" busy={busy} disabled={!complete} onPress={save} />
       </AppScreen>
   );

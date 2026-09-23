@@ -17,20 +17,21 @@ import { useState } from "react";
 import { Platform, Share, StyleSheet, Text, View } from "react-native";
 import { colors as palette, fonts, radius, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
+import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice } from "@/components/ui";
-import { oneLine, failed } from "@/lib/errors";
+import { failed, type Described } from "@/lib/errors";
 import { deleteAccount, exportMyData } from "@/lib/profile";
 
 export default function Settings() {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Described | null>(null);
   const [done, setDone] = useState("");
   const [confirming, setConfirming] = useState(false);
 
   const runExport = async () => {
     setBusy("export");
-    setError("");
+    setError(null);
     setDone("");
     try {
       const data = await exportMyData();
@@ -49,7 +50,7 @@ export default function Settings() {
       }
       setDone("That is everything we hold about you.");
     } catch (err) {
-      setError(oneLine(failed("put your data together", err)));
+      setError(failed("put your data together", err));
     } finally {
       setBusy(null);
     }
@@ -57,12 +58,12 @@ export default function Settings() {
 
   const runDelete = async () => {
     setBusy("delete");
-    setError("");
+    setError(null);
     try {
       await deleteAccount();
       router.replace("/crowds");
     } catch (err) {
-      setError(oneLine(failed("delete your account", err)));
+      setError(failed("delete your account", err));
       setBusy(null);
     }
   };
@@ -71,7 +72,10 @@ export default function Settings() {
     <AppScreen edges={["top", "bottom"]}>
         <Heading>Safety &amp; settings</Heading>
 
-        {error ? <Notice tone="stop">{error}</Notice> : null}
+        {/* No Try again here: the Export and Delete buttons below are the retry, and a
+            second Delete button at the top would be one tap too easy. A sign-out still
+            comes with its Sign in button. */}
+        {error ? <Trouble what={error} /> : null}
         {done ? <Notice>{done}</Notice> : null}
 
         <Text style={styles.sectionName}>Who can see you</Text>

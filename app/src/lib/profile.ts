@@ -5,6 +5,8 @@
 // So "what others see" on the preview is not a re-implementation of the rules: it is
 // the same columns the same policies would hand someone else, described honestly.
 
+import { readSession } from "@pind/shared";
+import { SessionProblem, whoAmI } from "./session";
 import { supabase } from "./supabase";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL || "https://pind.social";
@@ -25,16 +27,21 @@ export interface Me {
   showedUp: boolean;
 }
 
+// **`null` means one thing: signed in on no device, or signed in with no profile yet.**
+// Anything that failed to arrive THROWS, so the Profile tab cannot read "offline" as
+// "Nothing here yet — set up your profile" (the airplane-mode walk, M3.1).
 export async function loadMe(): Promise<Me | null> {
   const db = supabase();
-  const { data: session } = await db.auth.getUser();
-  if (!session.user) return null;
+  const read = await whoAmI();
+  if (read.state === "out") return null;
+  if (read.state !== "in") throw new SessionProblem(read);
 
-  const { data: person } = await db
+  const { data: person, error: personError } = await db
     .from("people")
     .select("id, first_name, last_initial, neighbourhood, photo_path, photo_status")
-    .eq("auth_user_id", session.user.id)
+    .eq("auth_user_id", read.userId)
     .maybeSingle();
+  if (personError) throw personError;
   if (!person) return null;
 
   const [handle, tags, pins, crews] = await Promise.all([
@@ -103,13 +110,14 @@ export async function saveInstagram(personId: string, handle: string): Promise<v
 // outcome, which is not yours.
 export async function exportMyData(): Promise<Record<string, unknown>> {
   const db = supabase();
-  const { data: session } = await db.auth.getUser();
-  if (!session.user) throw new Error("Sign in first.");
-  const { data: person } = await db
+  const read = await whoAmI();
+  if (read.state !== "in") throw new SessionProblem(read);
+  const { data: person, error: personError } = await db
     .from("people")
     .select("*")
-    .eq("auth_user_id", session.user.id)
+    .eq("auth_user_id", read.userId)
     .maybeSingle();
+  if (personError) throw personError;
   if (!person) throw new Error("There is nothing here to export yet.");
 
   const [priv, handle, tags, pins, contacts, votes, surveys, blocks, crews, messages, reports] = await Promise.all([
@@ -152,9 +160,12 @@ export async function exportMyData(): Promise<Record<string, unknown>> {
 // signs in to nothing or a profile nobody can reach.
 export async function deleteAccount(): Promise<void> {
   const db = supabase();
-  const { data } = await db.auth.getSession();
+  const { data, error } = await db.auth.getSession();
   const token = data.session?.access_token;
-  if (!token) throw new Error("Sign in first.");
+  if (!token) {
+    const read = readSession(data.session, error);
+    throw new SessionProblem(read.state === "in" ? { state: "out" } : read);
+  }
   const response = await fetch(`${SITE}/account/delete`, {
     method: "POST",
     headers: { authorization: `Bearer ${token}` },

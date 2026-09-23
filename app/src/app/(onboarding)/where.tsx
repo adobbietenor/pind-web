@@ -23,8 +23,10 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors as palette, fonts, NEIGHBOURHOODS, radius, spacing, TAGS_MINIMUM, TAGS_NEED_MORE } from "@pind/shared";
 import { TagPicker, tagsCanContinue, type Picked } from "@/components/TagPicker";
 import { AppScreen } from "@/components/AppScreen";
-import { Body, Button, Heading, Notice } from "@/components/ui";
-import { oneLine, failed } from "@/lib/errors";
+import { Trouble } from "@/components/Trouble";
+import { Body, Button, Heading } from "@/components/ui";
+import { failed, type Described } from "@/lib/errors";
+import { myAuthId } from "@/lib/session";
 import { saveTags } from "@/lib/tags";
 import { supabase } from "@/lib/supabase";
 
@@ -33,17 +35,21 @@ export default function Where() {
   const [hood, setHood] = useState<string | null>(null);
   const [picked, setPicked] = useState<Picked[]>([]);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<Described | null>(null);
 
   const finish = async (save: boolean) => {
     setBusy(true);
-    setError("");
+    setError(null);
     try {
       if (save && (hood || picked.length)) {
         const db = supabase();
-        const { data: session } = await db.auth.getUser();
-        const { data: me } = await db.from("people").select("id").eq("auth_user_id", session.user!.id).maybeSingle();
-        if (!me) throw new Error("Sign in again — this session has expired.");
+        // Read from this device (session.ts): offline used to be "this session has
+        // expired" — or a crash on a null user — for a session that was fine (M3.1).
+        const authUserId = await myAuthId();
+        const { data: me, error: meError } = await db.from("people").select("id").eq("auth_user_id", authUserId).maybeSingle();
+        if (meError) throw meError;
+        // Signed in, but A2 never saved: the true sentence, not "expired".
+        if (!me) throw new Error("your profile from the last screen is not saved yet. Go back a step and tap Continue again");
         if (hood) {
           const { error: saveError } = await db.from("people").update({ neighbourhood: hood }).eq("id", me.id);
           if (saveError) throw saveError;
@@ -52,7 +58,7 @@ export default function Where() {
       }
       router.replace("/crowds");
     } catch (err) {
-      setError(oneLine(failed("save that", err)));
+      setError(failed("save that", err));
     } finally {
       setBusy(false);
     }
@@ -65,7 +71,7 @@ export default function Where() {
           <Body muted>Pin&#39;d never asks where you are. Pick the part of town you would say you are from — it gives a crew something to start with.</Body>
         </View>
 
-        {error ? <Notice tone="stop">{error}</Notice> : null}
+        {error ? <Trouble what={error} onRetry={() => finish(true)} busy={busy} /> : null}
 
         <View style={styles.hoods}>
           {NEIGHBOURHOODS.map((n) => {

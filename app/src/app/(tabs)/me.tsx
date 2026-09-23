@@ -14,10 +14,11 @@
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, PHOTO_REJECTED, photoShowsToOthers, radius, spacing } from "@pind/shared";
+import { ALL_TAGS, colors as palette, fonts, isUnreachable, NEIGHBOURHOODS, PHOTO_REJECTED, photoShowsToOthers, radius, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
+import { Trouble } from "@/components/Trouble";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
-import { oneLine, failed } from "@/lib/errors";
+import { oneLine, failed, type Described } from "@/lib/errors";
 import { loadMe, photoUrl, saveInstagram, type Me } from "@/lib/profile";
 
 const tagName = (slug: string) => ALL_TAGS.find((t) => t.slug === slug)?.name ?? slug;
@@ -31,25 +32,40 @@ export default function Profile() {
   const [editing, setEditing] = useState(false);
   const [preview, setPreview] = useState(false);
   const [error, setError] = useState("");
+  const [loadTrouble, setLoadTrouble] = useState<Described | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   // Reloads on every visit rather than once: the photo's state changes underneath
   // this screen while a check runs, and a stale "checking…" would be the screen
   // lying about something the person is waiting on.
+  //
+  // **A load that could not arrive is not "nothing here"** (M3.1, airplane mode): it
+  // used to fall through to "Set up your profile" for somebody who has one.
   useFocusEffect(
     useCallback(() => {
       let live = true;
+      setLoadTrouble(null);
       (async () => {
-        const loaded = await loadMe().catch(() => null);
+        const loaded = await loadMe();
         if (!live) return;
         setMe(loaded);
         setHandle(loaded?.instagram ?? "");
-        setUrl(await photoUrl(loaded?.photoPath ?? null));
-      })();
+        setUrl(await photoUrl(loaded?.photoPath ?? null).catch(() => null));
+      })().catch((err) => live && setLoadTrouble(failed("load your profile", err)));
       return () => {
         live = false;
       };
-    }, []),
+    }, [attempt]),
   );
+
+  if (loadTrouble) {
+    return (
+      <AppScreen edges={["top"]}>
+        <Heading>Profile</Heading>
+        <Trouble what={loadTrouble} onRetry={() => setAttempt((n) => n + 1)} />
+      </AppScreen>
+    );
+  }
 
   if (me === undefined) {
     return (
@@ -82,7 +98,8 @@ export default function Profile() {
       setMe({ ...me, instagram: handle.trim().replace(/^@/, "") || null });
       setEditing(false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : oneLine(failed("save your handle", err)));
+      // A bad handle is our own sentence; a network failure is not, and gets the shared one.
+      setError(err instanceof Error && !isUnreachable(err) ? err.message : oneLine(failed("save your handle", err)));
     }
   };
 

@@ -120,9 +120,10 @@ export async function linkEmail(email: string): Promise<void> {
 }
 
 // Whether this session is a real identity or still the anonymous one made at a pin.
+// Read from the device (never `getUser()`, which is a network call — see session.ts).
 export async function isPermanent(): Promise<boolean> {
-  const { data } = await supabase().auth.getUser();
-  return !!data.user && !data.user.is_anonymous;
+  const { data } = await supabase().auth.getSession();
+  return !!data.session && !data.session.user.is_anonymous;
 }
 
 // The sentence lives in `@pind/shared` (signInSays), where S05–S07 prove a stale

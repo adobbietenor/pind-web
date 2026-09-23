@@ -12,8 +12,9 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { colors as palette, spacing, TAGS_MINIMUM, TAGS_NEED_MORE } from "@pind/shared";
 import { TagPicker, tagsCanContinue, type Picked } from "@/components/TagPicker";
 import { AppScreen } from "@/components/AppScreen";
+import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice } from "@/components/ui";
-import { oneLine, failed } from "@/lib/errors";
+import { oneLine, failed, type Described } from "@/lib/errors";
 import { loadMe } from "@/lib/profile";
 import { loadTags, saveTags } from "@/lib/tags";
 
@@ -23,19 +24,26 @@ export default function EditTags() {
   const [picked, setPicked] = useState<Picked[] | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [loadTrouble, setLoadTrouble] = useState<Described | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
+  // **A load that failed is not "no tags"** (M3.1, airplane mode): it used to show an
+  // empty picker, as if the person had none, with a Save that silently did nothing.
   useEffect(() => {
     let live = true;
+    setLoadTrouble(null);
     (async () => {
-      const me = await loadMe().catch(() => null);
-      if (!live || !me) return setPicked([]);
+      const me = await loadMe();
+      if (!me) throw new Error("There is no profile on this account yet.");
+      const tags = await loadTags(me.id);
+      if (!live) return;
       setPersonId(me.id);
-      setPicked(await loadTags(me.id).catch(() => []));
-    })();
+      setPicked(tags);
+    })().catch((err) => live && setLoadTrouble(failed("load your tags", err)));
     return () => {
       live = false;
     };
-  }, []);
+  }, [attempt]);
 
   const save = async () => {
     if (!personId || !picked) return;
@@ -49,6 +57,16 @@ export default function EditTags() {
       setBusy(false);
     }
   };
+
+  if (loadTrouble) {
+    return (
+      <AppScreen edges={["top", "bottom"]}>
+        <Heading>Your tags</Heading>
+        <Trouble what={loadTrouble} onRetry={() => setAttempt((n) => n + 1)} />
+        <Button kind="quiet" label="Back to your profile" onPress={() => router.back()} />
+      </AppScreen>
+    );
+  }
 
   if (!picked) {
     return (
