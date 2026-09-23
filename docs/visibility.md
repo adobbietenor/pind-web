@@ -91,6 +91,9 @@ whom.
   written once — the A26 tick, or A2 through a trigger — never changed or removed by
   them, and **readable by nobody else, including people who can see them** (P102). It
   is kept off the `people` row because V1 lets anyone who can see you read that row;
+- **be open to meeting only once they may meet** (`private.may_meet`, M3.2, P105–P109):
+  not anonymous, a `people_private` row, a photo — the A26 tick is intent until A27 is
+  done. Turning it off is never refused;
 - **under 19 at A27, remove themselves completely** (`remove_me_under_19()`, anonymous
   sessions only, on themselves): the person, their pins, the record and the anonymous
   auth user (P103, P104);
