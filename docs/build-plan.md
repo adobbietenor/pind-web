@@ -410,6 +410,7 @@ any of it.
 - Gender is asked once and appears on no profile, not even your own.
 - Delete account removes the auth user, the pins and the photo; export downloads a JSON of your data.
 - Signing out and back in restores the profile on the other platform.
+- **A2's photo path is walked on both platforms, not one** (Alex, M3.1): choose, upload and check on the web **and** in an installed build, and a failed upload removed and A2 finished without a photo on each. The web picker hands over a Blob that carries its type; the native one does not, so the upload that worked all weekend on the web failed on the first TestFlight build with "mime type text/plain is not supported" — and left A2 with no way forward. Only an installed build could have shown it.
 
 12–18 h
 

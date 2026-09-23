@@ -2598,7 +2598,7 @@ because Apple can revoke a sign-in method whose button breaks its terms.
 - **The marks share one centre line**: the G at Google's padding, Apple's Medium file
   inset to match.
 - **Look 1, "matched":** Apple white; Google in its own dark theme. **Look 2,
-  "outline":** both black (#000 — the Apple file's own background is #000, so the fill
+  "outline" — picked by Alex on the phone, and the only one kept:** both black (#000 — the Apple file's own background is #000, so the fill
   is exactly black rather than our near-black), both with Google's #8E918F stroke,
   both titles white. Apple's HIG steers its *system* black button off dark
   backgrounds; a custom black button with a stroked bezel is its stated allowance.
@@ -2610,3 +2610,33 @@ because Apple can revoke a sign-in method whose button breaks its terms.
   and a text-only "Continue with Google" is exactly what the guidelines steer away from.
 - In the app, Apple stays **Apple's own system button** (white or black to match),
   framed in the same stroke; only the web draws Apple's button by hand.
+
+### The photo's type is its bytes', and A2 is never a dead end (Alex, M3.1, from TestFlight)
+
+**Found by installing the first TestFlight build:** "We could not upload your photo —
+mime type text/plain is not supported", and then no way to clear the photo or carry on.
+The web path had worked all weekend.
+
+**The type, one layer below where it looked.** The app checked the picker's label
+(`asset.mimeType`, or **"image/jpeg" when there was none** — a guard that assumed the
+answer to the question it existed to ask), then uploaded `fetch(file://).blob()`.
+Handed a Blob, storage-js sends multipart form data and **drops the `contentType`
+option entirely**; the part takes the Blob's own type. The web's Blob carries one; React
+Native's does not, and Supabase recorded text/plain. So the checked type was never the
+sent type, and the HEIC refusal was reading a label rather than the file.
+
+**Fixed at the source, not by accepting another type:** the type is read from the
+file's first bytes (`sniffImageType`), refused there if the check cannot read it (HEIC
+by its `ftyp` brand), and **those same bytes go up as an ArrayBuffer**, which is the
+path where storage-js sends `contentType` as the request's own header. No label is
+consulted. `packages/shared/src/image.ts`; I01 reproduces the drop against the real
+storage-js, I02 proves the header the app now sends.
+
+**The dead end.** The photo stayed chosen with no Remove, and every Continue retried
+the same upload. The photo is optional on A2 (Q2), so **no photo state blocks Continue,
+and every state with a photo offers Remove**; a failed upload is marked failed, says
+how to get out, and removing it lets Continue save the profile without one.
+`packages/shared/src/a2photo.ts`, which the screen renders from; A01–A04.
+
+**Recorded in M3.1's acceptance:** A2's photo path is walked on both platforms. The two
+pickers differ in exactly the way that mattered, and only an installed build shows it.

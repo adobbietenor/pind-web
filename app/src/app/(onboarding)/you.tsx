@@ -14,12 +14,23 @@
 // The photo is optional *here* and required to be seen: a person with no photo is on
 // no list, and a person whose photo was refused is on the list without one (V6). That
 // difference is why the states have their own sentences.
+//
+// **And this screen is never a dead end** (Alex, M3.1, from TestFlight): a photo can
+// always be removed, and no photo state blocks Continue. The states and the rule live
+// in `@pind/shared` (a2photo.ts), where tests/unit/a2photo.test.ts walks a failed
+// upload through to a saved profile.
 import { useRouter } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
+  type A2Photo,
   ageOn,
+  canContinue,
+  photoActions,
+  removePhoto,
+  savePlan,
+  uploadFailed,
   colors as palette,
   GENDER_WHY,
   isOldEnough,
@@ -61,7 +72,7 @@ export default function You() {
   const [year, setYear] = useState("");
   const [gender, setGender] = useState<Gender | null>(null);
   const [womenOnly, setWomenOnly] = useState(false);
-  const [photo, setPhoto] = useState<Picked | null>(null);
+  const [photo, setPhoto] = useState<A2Photo<Picked>>({ state: "none" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Described | null>(null);
 
@@ -100,13 +111,13 @@ export default function You() {
   // meeting people at a gathering (A27, Q2 revised) — never to pin, and never to have
   // a profile. Blocking here would move a rule to the wrong screen and stop somebody
   // finishing a profile they are entitled to.
-  const complete = firstName.trim().length > 0 && isOldEnough(age) && gender !== null;
+  const complete = canContinue({ firstName, oldEnough: isOldEnough(age), gender });
 
   const choosePhoto = async () => {
     setError(null);
     try {
       const picked = await pickPhoto();
-      if (picked) setPhoto(picked);
+      if (picked) setPhoto({ state: "chosen", picked });
     } catch (err) {
       // A PhotoError is already a sentence written for the person — HEIC, too big,
       // permission refused — so it is passed through rather than re-described.
@@ -130,8 +141,20 @@ export default function You() {
         return;
       }
 
-      doing = "upload your photo";
-      const photoPath = photo ? await uploadPhoto(authUserId, photo) : null;
+      // A failed upload stops here with the photo marked failed and removable; the
+      // rest of the profile is untouched, so removing it and tapping Continue again
+      // finishes the screen without one.
+      let photoPath: string | null = null;
+      if (savePlan(photo).includes("upload") && photo.state !== "none") {
+        try {
+          photoPath = await uploadPhoto(authUserId, photo.picked);
+        } catch (err) {
+          const next = uploadFailed(photo, err instanceof Error ? err.message : String(err));
+          setPhoto(next);
+          if (next.state === "failed") setError({ says: next.says });
+          return;
+        }
+      }
 
       // The link path may already have made this row at a pin (A26), under the same
       // auth user. Insert or update, never upsert: `auth_user_id` is insert-only, so
@@ -289,9 +312,35 @@ export default function You() {
           <Body muted>{PHOTO_WHEN}</Body>
         </View>
         <View style={styles.photoRow}>
-          {photo ? <Image source={{ uri: photo.uri }} style={styles.preview} /> : <View style={[styles.preview, styles.previewEmpty]} />}
-          <View style={{ flex: 1 }}>
-            <Button kind="quiet" label={photo ? "Choose another" : "Choose a photo"} onPress={choosePhoto} />
+          {photo.state !== "none" ? (
+            <Image
+              source={{ uri: photo.picked.uri }}
+              style={[styles.preview, photo.state === "failed" && { opacity: 0.4 }]}
+            />
+          ) : (
+            <View style={[styles.preview, styles.previewEmpty]} />
+          )}
+          <View style={{ flex: 1, gap: spacing.sm }}>
+            {photoActions(photo).map((action) =>
+              action === "remove" ? (
+                <Button
+                  key={action}
+                  kind="quiet"
+                  label="Remove photo"
+                  onPress={() => {
+                    setPhoto(removePhoto());
+                    setError(null);
+                  }}
+                />
+              ) : (
+                <Button
+                  key={action}
+                  kind="quiet"
+                  label={action === "choose" ? "Choose a photo" : "Choose another"}
+                  onPress={choosePhoto}
+                />
+              ),
+            )}
           </View>
         </View>
         <View style={{ marginBottom: spacing.lg }}>

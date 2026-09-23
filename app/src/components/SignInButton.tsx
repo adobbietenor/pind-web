@@ -14,16 +14,15 @@
 //     Google's left padding (12 of 40), and the Apple file is inset so the two marks
 //     share one centre line — Apple allows exactly that ("inset the logo… to align
 //     with other authentication logos").
-//   - Logo and title both black or both white on Apple (Apple's rule); the G is always
-//     full colour, on a dark or white fill only (Google's rule).
+//   - Logo and title both white on Apple (Apple's rule: both black or both white); the
+//     G is always full colour, on a dark fill (Google's rule).
 //
-// In the app, Apple is Apple's own system button (AppleAuthenticationButton), which
-// sizes its own title; this component draws the web's Apple button and Google's
-// everywhere.
+// In the app, Apple is Apple's own black system button (AppleAuthenticationButton),
+// which sizes its own title; this component draws the web's Apple button and
+// Google's everywhere.
 import { Image } from "expo-image";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 
-export type ButtonLook = "matched" | "outline";
 export type Provider = "apple" | "google";
 
 export const BUTTON_HEIGHT = 44;
@@ -40,49 +39,26 @@ const MARK_CENTRE = G_LEFT + G_SIZE / 2;
 const APPLE_W = (31 / 44) * INNER;
 const APPLE_LEFT = MARK_CENTRE - (15.5 / 44) * INNER;
 
-const APPLE_BLACK_LOGO = require("../../assets/signin/apple-logo-black-medium.svg");
+// Apple's white logo file (its own background is #000, which is why the fill is).
 const APPLE_WHITE_LOGO = require("../../assets/signin/apple-logo-white-medium.svg");
 const GOOGLE_G = require("../../assets/signin/google-g.png");
 
-// Google's dark theme, from its guidelines: fill #131314, stroke #8E918F, text #E3E3E3.
-const GOOGLE_STROKE = "#8E918F";
-
-interface Colours {
-  fill: string;
-  stroke: string;
-  title: string;
-  logo?: number;
-}
-
-export function lookFor(provider: Provider, look: ButtonLook): Colours {
-  if (provider === "apple") {
-    return look === "matched"
-      ? // Apple's white style, for dark backgrounds.
-        { fill: "#FFFFFF", stroke: "#FFFFFF", title: "#000000", logo: APPLE_BLACK_LOGO }
-      : // Apple's black, with a stroke to emphasise the bezel — both allowed on a
-        // custom button. The fill is true black because the logo file's own
-        // background is.
-        { fill: "#000000", stroke: GOOGLE_STROKE, title: "#FFFFFF", logo: APPLE_WHITE_LOGO };
-  }
-  return look === "matched"
-    ? { fill: "#131314", stroke: GOOGLE_STROKE, title: "#E3E3E3" }
-    : // Same stroke, black fill (a dark background, which the G allows) and a white
-      // title so the pair reads as one.
-      { fill: "#000000", stroke: GOOGLE_STROKE, title: "#FFFFFF" };
-}
+// **The outline pair** (Alex, M3.1, picked on the phone over a white Apple button
+// above Google's dark theme): both black, both stroked with Google's dark-theme stroke,
+// both titles white. Apple: a custom black button with a stroked bezel, logo and title
+// both white. Google: the full-colour G on a dark fill.
+export const PAIR = { fill: "#000000", stroke: "#8E918F", title: "#FFFFFF" } as const;
 
 export function SignInButton({
   provider,
-  look,
   onPress,
   busy,
 }: {
   provider: Provider;
-  look: ButtonLook;
   onPress: () => void;
   busy: boolean;
 }) {
-  const c = lookFor(provider, look);
+  const c = PAIR;
   const title = provider === "apple" ? "Continue with Apple" : "Continue with Google";
   return (
     <Pressable
@@ -98,7 +74,7 @@ export function SignInButton({
       ]}
     >
       {provider === "apple" ? (
-        <Image source={c.logo} style={[styles.apple]} contentFit="fill" accessible={false} />
+        <Image source={APPLE_WHITE_LOGO} style={styles.apple} contentFit="fill" accessible={false} />
       ) : (
         <Image source={GOOGLE_G} style={styles.g} contentFit="contain" accessible={false} />
       )}
@@ -113,10 +89,10 @@ export function SignInButton({
   );
 }
 
-// The native Apple button inside the same stroke, so the app's pair matches too.
-export function NativeAppleFrame({ look, children }: { look: ButtonLook; children: React.ReactNode }) {
-  const c = lookFor("apple", look);
-  return <View style={[styles.frame, { borderColor: c.stroke, backgroundColor: c.fill }]}>{children}</View>;
+// In the app, Apple's own black system button inside the same stroke, so the pair
+// matches there too.
+export function NativeAppleFrame({ children }: { children: React.ReactNode }) {
+  return <View style={[styles.frame, { borderColor: PAIR.stroke, backgroundColor: PAIR.fill }]}>{children}</View>;
 }
 
 const styles = StyleSheet.create({

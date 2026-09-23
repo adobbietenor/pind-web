@@ -7,7 +7,7 @@
 // Which methods appear is a platform fact, not a preference — see `signInMethods` in
 // @pind/shared. Apple is on the web too (Alex, M3.1): it was built and then never
 // rendered there, because the table still said "later".
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -22,7 +22,7 @@ import {
   spacing,
 } from "@pind/shared";
 import { Brand } from "@/components/Brand";
-import { BUTTON_HEIGHT, BUTTON_RADIUS, NativeAppleFrame, SignInButton, type ButtonLook } from "@/components/SignInButton";
+import { BUTTON_HEIGHT, BUTTON_RADIUS, NativeAppleFrame, SignInButton } from "@/components/SignInButton";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
 import { methodsFor, sendEmailCode, signInError, signInWithApple, signInWithGoogle, verifyEmailCode } from "@/lib/auth";
 import { track } from "@/lib/analytics";
@@ -30,10 +30,6 @@ import { track } from "@/lib/analytics";
 export default function SignIn() {
   const router = useRouter();
   const methods = methodsFor();
-  // Two looks for the pair, shown side by side on pind.social so Alex can pick on the
-  // phone: /sign-in and /sign-in?buttons=outline. The loser is deleted after the pick.
-  const { buttons } = useLocalSearchParams<{ buttons?: string }>();
-  const look: ButtonLook = buttons === "outline" ? "outline" : "matched";
   // The email path is two steps on one screen: ask, then confirm. A separate route
   // would put a back button between a person and a code they are holding in their
   // head.
@@ -82,22 +78,17 @@ export default function SignIn() {
             {Platform.OS === "web" ? (
               <SignInButton
                 provider="apple"
-                look={look}
                 busy={busy === "apple"}
                 // Like Google on the web: the page navigates to Apple and never comes
                 // back to this handler. The return lands on /you, which counts it.
                 onPress={() => attempt("apple", () => signInWithApple(`${window.location.origin}/you`))}
               />
             ) : (
-              // Apple's own button in the app, inside the pair's stroke.
-              <NativeAppleFrame look={look}>
+              // Apple's own black button in the app, inside the pair's stroke.
+              <NativeAppleFrame>
                 <AppleAuthentication.AppleAuthenticationButton
                   buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-                  buttonStyle={
-                    look === "outline"
-                      ? AppleAuthentication.AppleAuthenticationButtonStyle.BLACK
-                      : AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
-                  }
+                  buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
                   cornerRadius={BUTTON_RADIUS - 1}
                   style={{ height: BUTTON_HEIGHT - 2 }}
                   onPress={() => attempt("apple", signInWithApple, done("apple"))}
@@ -111,7 +102,6 @@ export default function SignIn() {
           <View style={{ marginBottom: spacing.sm }}>
             <SignInButton
               provider="google"
-              look={look}
               busy={busy === "google"}
               onPress={() =>
                 attempt(

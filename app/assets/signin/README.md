@@ -5,8 +5,7 @@ typed from memory, the same failure as the Canadian flag; these replaced it.
 
 | File | Source | Changed |
 |---|---|---|
-| `apple-logo-black-medium.svg` | Apple Design Resources, `Logo-Sign-in-with-Apple.dmg` → `Logo - SIWA - Left-aligned - Black - Medium.svg` | renamed only; byte-identical |
-| `apple-logo-white-medium.svg` | the same DMG → `Logo - SIWA - Left-aligned - White - Medium.svg` | renamed only; byte-identical |
+| `apple-logo-white-medium.svg` | Apple Design Resources, `Logo-Sign-in-with-Apple.dmg` → `Logo - SIWA - Left-aligned - White - Medium.svg` | renamed only; byte-identical |
 | `google-g.source.svg` | Google, `developers.google.com/static/identity/images/signin-assets.zip` → `Android + Web/SVG/Dark/Theme=Dark, Show text=No, Shape=Square, Platform=Android+Web.svg` | the two button-background paths removed and the viewBox set to the G's own 20×20 box; the G, its mask and gradient untouched |
 | `google-g.png` | `google-g.source.svg` rendered at 8× by headless Chrome on a transparent background | checked against Google's own `@4x` PNG of the same button: mean difference under 1/255 per channel |
 
