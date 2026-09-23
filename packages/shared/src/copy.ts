@@ -16,6 +16,19 @@ export const ONE_LINER = "See who's going, meet them there.";
 // the button is the commitment.
 export const PIN_IN = "Pin in — I'm going";
 
+// The other half of the same button (Alex, M3.1, after "Open" appeared on every crowd
+// page). **The button follows what you have done at THIS gathering, never what your
+// browser knows about you:**
+//
+//   not pinned      PIN_IN
+//   already pinned  SEE_WHO
+//
+// **"Open" never appears on the web.** It was there because a script relabelled the
+// button whenever localStorage held a Supabase session, on the assumption that a
+// signed-in person has the app. Signing in once on the web flipped every crowd page
+// at once — a session says somebody exists, not that they are coming to this.
+export const SEE_WHO = "See who’s going";
+
 // What it costs to walk in, said in one line. The rule that matters: **never say free
 // unless it is free**, and an unknown price is "pay at the door" rather than silence —
 // unknown is a different state from no cost, and the failure to avoid is somebody
@@ -63,3 +76,68 @@ export const HOUSE_RULES = [
 // and it is what says meetings happen somewhere public, before the event, with staff
 // and crowds around (H5, H10).
 export const CREWS_MEET = "Crews meet at a spot near the venue before doors.";
+
+// ---------------------------------------------------------------------------
+// Onboarding, store path (A1–A2). Final lines are marked; the rest is in the new
+// voice (an invitation, not a safety notice) and goes into the full pass with
+// Tatiana before the first real crowds (spec §5, "The voice").
+// ---------------------------------------------------------------------------
+
+// **Final, and verbatim on A1 only** (spec §5): "not a dating app" appears in this
+// one place in the whole product and nowhere else. Everywhere else uses crew
+// language.
+export const A1_POSITIONING = ["19+", "No location permission, ever", "Not a dating app"] as const;
+
+// Why a photo, asked once, where it is asked for (spec A2).
+//
+// **Rewritten when the rubric was** (Alex, M3.1). "Your crew looks for a face at a
+// patio table" was a promise the check no longer keeps: a photo needs no face at all
+// now, and nothing verifies that it is you. Copy that says a photo proves who you are
+// while the check approves cartoons is the product describing a different product.
+//
+// So it encourages a real photo without requiring one, and without claiming anything
+// the system enforces.
+export const PHOTO_WHY = "A photo of you makes it easier to find each other.";
+
+// **Nothing waits on the check** (Alex, M3.1). A photo shows from the moment it is
+// uploaded and the check can only remove, so there is no "checking…" state to tell
+// anyone about. **The owner is told one thing only: a rejection.** A possible-minor
+// flag is never mentioned to them — it is a note to Alex, not a verdict about them,
+// and saying so would tell anyone gaming the check exactly what trips it (the same
+// family as H9 keeping an auto-hide quiet from a reporter).
+export const PHOTO_REJECTED =
+  "That photo is not one we can use. You are still on the list without one — add a different photo any time.";
+
+// The owner's mirror of `private.can_see_photo` (V6): whether others who can see you
+// get your photo. **The database decides**; this exists so A21's preview says the
+// same thing, and P88 compares the two for every status so they cannot drift.
+export function photoShowsToOthers(status: string): boolean {
+  return status !== "rejected";
+}
+
+// Gender, asked once, shown to nobody — not even to you (D1, spec A2). The line
+// exists because a protected attribute asked for without a reason reads as nosy.
+export const GENDER_WHY = "Asked once, for women-only crews. It never appears on your profile.";
+
+// The 19+ stop is hard and has no soft fail (H8). The line is plain rather than
+// apologetic: there is nothing to negotiate and nothing to try again.
+export const UNDER_19 = "Pin'd is 19+. You will not be able to continue.";
+
+// The photo, asked at A2 and **required only at A27**, when somebody opts in to
+// meeting people at a gathering (Q2, revised). It is never required to pin, and never
+// required to have a profile — so A2 asks and does not block, and these two lines are
+// what make that legible instead of ambiguous.
+//
+// The label was "A photo of your face" (Alex, M3.1: "something warmer that still
+// makes clear it needs to be them"). It is how a stranger knows who they are looking
+// for, so it is not decoration — and it is not a security requirement either.
+// It was "A photo, so people know it’s you", which overclaimed for the same reason
+// PHOTO_WHY did: nothing checks that it is you.
+export const PHOTO_LABEL = "A photo";
+
+// When it is actually needed. Said plainly, because "optional" on its own invites
+// somebody to skip it and then hit a wall nobody warned them about.
+export const PHOTO_WHEN = "Add one now or later — you’ll need one before you can meet up with anyone.";
+
+// A1's own header, on the screen where the first name is asked.
+export const A2_HEADING = "A bit about you";

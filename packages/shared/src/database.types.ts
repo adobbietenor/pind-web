@@ -56,7 +56,10 @@ export type Database = {
           centre_lat: number | null
           centre_lng: number | null
           community_slots_weekly: number
+          community_weeks: number
           core_radius_km: number | null
+          country: string
+          country_code: string
           distance_penalty_max: number | null
           distance_penalty_per_km: number | null
           grow_median_pins: number
@@ -88,7 +91,10 @@ export type Database = {
           centre_lat?: number | null
           centre_lng?: number | null
           community_slots_weekly?: number
+          community_weeks?: number
           core_radius_km?: number | null
+          country?: string
+          country_code?: string
           distance_penalty_max?: number | null
           distance_penalty_per_km?: number | null
           grow_median_pins?: number
@@ -120,7 +126,10 @@ export type Database = {
           centre_lat?: number | null
           centre_lng?: number | null
           community_slots_weekly?: number
+          community_weeks?: number
           core_radius_km?: number | null
+          country?: string
+          country_code?: string
           distance_penalty_max?: number | null
           distance_penalty_per_km?: number | null
           grow_median_pins?: number
@@ -143,6 +152,107 @@ export type Database = {
           step_down?: number
           step_up?: number
           timezone?: string
+        }
+        Relationships: []
+      }
+      community_check_runs: {
+        Row: {
+          actor: string
+          ai_cost_usd: number
+          city: string
+          counts: Json
+          error: string | null
+          finished_at: string | null
+          id: number
+          started_at: string
+          status: string
+          trigger: string
+        }
+        Insert: {
+          actor: string
+          ai_cost_usd?: number
+          city: string
+          counts?: Json
+          error?: string | null
+          finished_at?: string | null
+          id?: never
+          started_at?: string
+          status?: string
+          trigger: string
+        }
+        Update: {
+          actor?: string
+          ai_cost_usd?: number
+          city?: string
+          counts?: Json
+          error?: string | null
+          finished_at?: string | null
+          id?: never
+          started_at?: string
+          status?: string
+          trigger?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "community_check_runs_city_fkey"
+            columns: ["city"]
+            isOneToOne: false
+            referencedRelation: "cities"
+            referencedColumns: ["slug"]
+          },
+        ]
+      }
+      community_series: {
+        Row: {
+          cadence_seen: string | null
+          confirmed_through: string | null
+          created_at: string
+          id: string
+          label: string
+          last_checked_at: string | null
+          last_confirmed_at: string | null
+          last_note: string | null
+          last_status: string | null
+          settled_at: string | null
+          settled_by: string | null
+          settled_note: string | null
+          strikes: number
+          unreadable_strikes: number
+          url: string
+        }
+        Insert: {
+          cadence_seen?: string | null
+          confirmed_through?: string | null
+          created_at?: string
+          id?: string
+          label: string
+          last_checked_at?: string | null
+          last_confirmed_at?: string | null
+          last_note?: string | null
+          last_status?: string | null
+          settled_at?: string | null
+          settled_by?: string | null
+          settled_note?: string | null
+          strikes?: number
+          unreadable_strikes?: number
+          url: string
+        }
+        Update: {
+          cadence_seen?: string | null
+          confirmed_through?: string | null
+          created_at?: string
+          id?: string
+          label?: string
+          last_checked_at?: string | null
+          last_confirmed_at?: string | null
+          last_note?: string | null
+          last_status?: string | null
+          settled_at?: string | null
+          settled_by?: string | null
+          settled_note?: string | null
+          strikes?: number
+          unreadable_strikes?: number
+          url?: string
         }
         Relationships: []
       }
@@ -869,6 +979,10 @@ export type Database = {
       }
       gatherings: {
         Row: {
+          blurb: string | null
+          blurb_at: string | null
+          blurb_source: string | null
+          blurb_why: string | null
           capacity: number | null
           category: Database["public"]["Enums"]["gathering_category"] | null
           created_at: string
@@ -885,6 +999,7 @@ export type Database = {
           name: string
           publish_mark: Database["public"]["Enums"]["publish_mark"] | null
           published_at: string | null
+          series_id: string | null
           signup_required: boolean
           signup_url: string | null
           slug: string | null
@@ -897,6 +1012,10 @@ export type Database = {
           withdrawn_at: string | null
         }
         Insert: {
+          blurb?: string | null
+          blurb_at?: string | null
+          blurb_source?: string | null
+          blurb_why?: string | null
           capacity?: number | null
           category?: Database["public"]["Enums"]["gathering_category"] | null
           created_at?: string
@@ -913,6 +1032,7 @@ export type Database = {
           name: string
           publish_mark?: Database["public"]["Enums"]["publish_mark"] | null
           published_at?: string | null
+          series_id?: string | null
           signup_required?: boolean
           signup_url?: string | null
           slug?: string | null
@@ -925,6 +1045,10 @@ export type Database = {
           withdrawn_at?: string | null
         }
         Update: {
+          blurb?: string | null
+          blurb_at?: string | null
+          blurb_source?: string | null
+          blurb_why?: string | null
           capacity?: number | null
           category?: Database["public"]["Enums"]["gathering_category"] | null
           created_at?: string
@@ -941,6 +1065,7 @@ export type Database = {
           name?: string
           publish_mark?: Database["public"]["Enums"]["publish_mark"] | null
           published_at?: string | null
+          series_id?: string | null
           signup_required?: boolean
           signup_url?: string | null
           slug?: string | null
@@ -958,6 +1083,13 @@ export type Database = {
             columns: ["merged_into_id"]
             isOneToOne: false
             referencedRelation: "gatherings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gatherings_series_id_fkey"
+            columns: ["series_id"]
+            isOneToOne: false
+            referencedRelation: "community_series"
             referencedColumns: ["id"]
           },
           {
@@ -1293,7 +1425,6 @@ export type Database = {
           first_name: string
           hidden_at: string | null
           id: string
-          instagram_handle: string | null
           is_seed: boolean
           last_initial: string | null
           neighbourhood: string | null
@@ -1307,7 +1438,6 @@ export type Database = {
           first_name: string
           hidden_at?: string | null
           id?: string
-          instagram_handle?: string | null
           is_seed?: boolean
           last_initial?: string | null
           neighbourhood?: string | null
@@ -1321,7 +1451,6 @@ export type Database = {
           first_name?: string
           hidden_at?: string | null
           id?: string
-          instagram_handle?: string | null
           is_seed?: boolean
           last_initial?: string | null
           neighbourhood?: string | null
@@ -1377,16 +1506,48 @@ export type Database = {
           },
         ]
       }
+      person_handles: {
+        Row: {
+          created_at: string
+          instagram: string
+          person_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          instagram: string
+          person_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          instagram?: string
+          person_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_handles_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       person_tags: {
         Row: {
+          on_list: boolean
           person_id: string
           tag: string
         }
         Insert: {
+          on_list?: boolean
           person_id: string
           tag: string
         }
         Update: {
+          on_list?: boolean
           person_id?: string
           tag?: string
         }
@@ -1404,6 +1565,56 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "tags"
             referencedColumns: ["slug"]
+          },
+        ]
+      }
+      photo_checks: {
+        Row: {
+          ai_cost_usd: number
+          at: string
+          duration_ms: number | null
+          error: string | null
+          id: number
+          model: string | null
+          outcome: string
+          person_id: string | null
+          photo_path: string
+          reason: string | null
+          source: string
+        }
+        Insert: {
+          ai_cost_usd?: number
+          at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: never
+          model?: string | null
+          outcome: string
+          person_id?: string | null
+          photo_path: string
+          reason?: string | null
+          source: string
+        }
+        Update: {
+          ai_cost_usd?: number
+          at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: never
+          model?: string | null
+          outcome?: string
+          person_id?: string | null
+          photo_path?: string
+          reason?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photo_checks_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -2095,6 +2306,7 @@ export type Database = {
         }
         Returns: string
       }
+      admin_categorise_gatherings: { Args: never; Returns: number }
       admin_confirm_venue: {
         Args: { p_actor: string; p_venue: string }
         Returns: undefined
@@ -2147,6 +2359,28 @@ export type Database = {
         Returns: undefined
       }
       admin_mint_slug: { Args: { p_gathering: string }; Returns: string }
+      admin_photo_states: {
+        Args: never
+        Returns: {
+          check_failing: number
+          never_checked: number
+          waiting_for_human: number
+        }[]
+      }
+      admin_photo_webhook_health: {
+        Args: never
+        Returns: {
+          last_at: string
+          last_body: string
+          last_error: string
+          last_status: number
+          secret_fingerprint: string
+          secret_padded: boolean
+          secret_set: boolean
+          url: string
+          waiting: number
+        }[]
+      }
       admin_publish_gathering: {
         Args: { p_actor: string; p_gathering: string }
         Returns: undefined
@@ -2178,6 +2412,20 @@ export type Database = {
         }
         Returns: number
       }
+      admin_record_photo_check: {
+        Args: {
+          p_cost?: number
+          p_duration_ms?: number
+          p_error?: string
+          p_model?: string
+          p_outcome: string
+          p_person: string
+          p_photo_path: string
+          p_reason?: string
+          p_source: string
+        }
+        Returns: Database["public"]["Enums"]["photo_status"]
+      }
       admin_record_promotion: {
         Args: {
           p_actor: string
@@ -2186,6 +2434,17 @@ export type Database = {
           p_note: string
         }
         Returns: string
+      }
+      admin_record_series_check: {
+        Args: {
+          p_cadence?: string
+          p_confirmed_through?: string
+          p_note?: string
+          p_outcome: string
+          p_series: string
+          p_status?: string
+        }
+        Returns: undefined
       }
       admin_reject_spot: {
         Args: { p_actor: string; p_suggestion: string }
@@ -2207,6 +2466,16 @@ export type Database = {
         Args: { p_actor: string; p_city: string; p_settings: Json }
         Returns: undefined
       }
+      admin_set_blurb: {
+        Args: {
+          p_actor: string
+          p_blurb: string
+          p_gathering: string
+          p_source: string
+          p_why: string
+        }
+        Returns: boolean
+      }
       admin_set_photo_status: {
         Args: {
           p_actor: string
@@ -2223,6 +2492,14 @@ export type Database = {
       admin_set_slug: {
         Args: { p_actor: string; p_gathering: string; p_slug: string }
         Returns: string
+      }
+      admin_settle_series: {
+        Args: { p_actor: string; p_note?: string; p_series: string }
+        Returns: undefined
+      }
+      admin_start_check_run: {
+        Args: { p_actor: string; p_city: string; p_trigger: string }
+        Returns: number
       }
       admin_start_import_run: {
         Args: {
@@ -2249,6 +2526,13 @@ export type Database = {
         Args: { p_actor: string; p_gathering: string }
         Returns: undefined
       }
+      admin_venue_map_keys: {
+        Args: never
+        Returns: {
+          coord_key: string
+          venue_id: string
+        }[]
+      }
       admin_watchdog_import: { Args: never; Returns: Json }
       admin_withdraw_gathering: {
         Args: {
@@ -2258,6 +2542,10 @@ export type Database = {
           p_reason: Database["public"]["Enums"]["withdraw_reason"]
         }
         Returns: undefined
+      }
+      chip_category: {
+        Args: { p_classification: string }
+        Returns: Database["public"]["Enums"]["gathering_category"]
       }
       effective_end: {
         Args: { g: Database["public"]["Tables"]["gatherings"]["Row"] }
@@ -2279,6 +2567,7 @@ export type Database = {
       public_gatherings: {
         Args: { p_from: string; p_to: string }
         Returns: {
+          blurb: string
           category: Database["public"]["Enums"]["gathering_category"]
           city_name: string
           city_timezone: string
@@ -2294,6 +2583,7 @@ export type Database = {
           slug: string
           source: Database["public"]["Enums"]["gathering_source"]
           starts_at: string
+          venue_id: string
           venue_name: string
         }[]
       }
@@ -2333,7 +2623,7 @@ export type Database = {
       join_request_status: "pending" | "approved" | "declined"
       message_kind: "system" | "user" | "arrival"
       outbound_kind: "threshold" | "survey"
-      photo_status: "pending" | "approved" | "rejected"
+      photo_status: "pending" | "approved" | "needs_review" | "rejected"
       publish_mark: "publish" | "never"
       publish_outcome: "published" | "skipped"
       report_reason: "uncomfortable" | "not_who_they_said" | "under_19" | "spam"
@@ -2498,7 +2788,7 @@ export const Constants = {
       join_request_status: ["pending", "approved", "declined"],
       message_kind: ["system", "user", "arrival"],
       outbound_kind: ["threshold", "survey"],
-      photo_status: ["pending", "approved", "rejected"],
+      photo_status: ["pending", "approved", "needs_review", "rejected"],
       publish_mark: ["publish", "never"],
       publish_outcome: ["published", "skipped"],
       report_reason: ["uncomfortable", "not_who_they_said", "under_19", "spam"],

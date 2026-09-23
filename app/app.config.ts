@@ -31,6 +31,10 @@ const config: ExpoConfig = {
   },
   plugins: [
     "expo-router",
+    // Google sign-in in the native app (Alex, M3.1). Supabase's OAuth flow needs an
+    // in-app browser session; this plugin is what closes it and hands the redirect
+    // back to the app through the `scheme` above.
+    "expo-web-browser",
     // Org and project slugs are not secret. The auth token for source-map upload is
     // SENTRY_AUTH_TOKEN, an EAS secret, never in the repo.
     ["@sentry/react-native/expo", { organization: "pind-9y", project: "pind-app" }],

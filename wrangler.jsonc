@@ -45,7 +45,12 @@
   // happens. Its own schedule, its own run row and its own lock — src/index.ts picks
   // the job by the expression that fired, and src/community/run.ts holds the matching
   // constant.
-  "triggers": { "crons": ["0 8 * * *", "0 13 * * *"] },
+  // M3.1 adds 09:00 UTC: the photos nothing has looked at. The webhook is the
+  // mechanism and the app's call after an upload is the net; this is what tries
+  // again when both missed, because counting what is missing without a way to act
+  // on it is half the M2.3 pattern. Its own cron for the usual reason — it must not
+  // delay the import and must not be skipped because the import stalled.
+  "triggers": { "crons": ["0 8 * * *", "0 * * * *", "0 13 * * *"] },
 
   // M2.2: Workers Logs, on and unsampled. Without it there is no invocation history
   // at all, which is why nobody could tell whether the cron fired on the two nights
@@ -61,7 +66,17 @@
 
   // Not secrets. The hard daily AI spend cap, US dollars per Toronto calendar day;
   // AI spot suggestions stay off until M1.3b ("on" to enable).
-  "vars": { "AI_DAILY_CAP_USD": "3", "AI_SPOT_SUGGESTIONS": "off" },
+  //
+  // APPLE_SECRET_EXPIRES is the day Apple's client secret lapses (M3.1). A date, not
+  // a secret: the secret is in Supabase's provider settings and never reaches the
+  // Worker. It is here because **nothing can ask** — Apple refuses an expired secret
+  // in the middle of a sign-in, and only on the web, since native iOS never uses it.
+  // Minted 21 Sept 2026, so it lapses 23 March 2027; the admin warns from six weeks
+  // out and the 09:00 cron sends one alert a day from then. **Updating this is half
+  // of rotating the secret** — the other half is pasting the new JWT into Supabase,
+  // and a new secret with a stale date here is worse than no date at all, because it
+  // warns about the wrong day with complete confidence.
+  "vars": { "AI_DAILY_CAP_USD": "3", "AI_SPOT_SUGGESTIONS": "off", "APPLE_SECRET_EXPIRES": "2027-03-23" },
 
   // M2.1: the two Poppins faces the OG image is rasterised with are imported as
   // bytes, not base64 (src/public/ogpng.ts). Nothing else in the Worker loads a font.
@@ -97,6 +112,9 @@
       "/robots.txt",
       "/favicon.svg",
       "/g/*",
+      "/photo-check",
+      "/account/*",
+      "/hooks/*",
       "/og/*",
       "/map/*",
       "/venue-map/*",

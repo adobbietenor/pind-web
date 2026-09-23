@@ -1,4 +1,4 @@
-# Visibility rules — Phase 1 M1.1, extended in M1.2, M1.3 and M2.1
+# Visibility rules — Phase 1 M1.1, extended in M1.2, M1.3, M2.1–M2.3 and M3.1
 
 The plain-English rules that the privileges, RLS policies, storage policies and
 database functions in `supabase/migrations/` implement. Agreed with Alex on
@@ -6,12 +6,15 @@ database functions in `supabase/migrations/` implement. Agreed with Alex on
 adversarial review — a fresh Claude Code session with no prior context, using
 `docs/m1.1-review-brief.md` — checks the SQL and the harness (`tests/policies`)
 against this file for leaks, and Alex gives this file their own read. Every rule has
-an ID (V1–V18), and §16 maps each rule to the SQL that enforces it and the harness
-cases (P01–P61) that prove it. M1.2 (admin) added V12, the draft/dismissed states in
+an ID (V1–V19), and §16 maps each rule to the SQL that enforces it and the harness
+cases (P01–P79) that prove it. M1.2 (admin) added V12, the draft/dismissed states in
 V11, and cases P38–P47. M1.3 (Ticketmaster import) added V13 (withdrawn, §12c), the
 importer's rights (§12d), three admin-only tables, and cases P48–P54. M2.1 (the public
 web layer) added **V18 — seed rows never reach the public** (§12f), the one door the
-public pages read through, the public slug, and cases P55–P61.
+public pages read through, the public slug, and cases P55–P61. M2.2 and M2.3 added
+P62–P66. M3.1 **enforced V17** (§12g), moving the Instagram handle off the `people`
+row, and added cases P67–P70, and rewrote **V6** for the automated photo check (§8) with cases
+P71–P73, and added **V19 — a person's tags** (§12h) with cases P74–P77, and extended **V9** so an export can read the reports you filed (P78–P79).
 
 Binding sources: `decisions.md` H3 (reciprocal reveal), H6 (honest counts), H7
 (women-only), H9 (block/report), H11 (visibility in the database), Q1, Q3, Q9, and
@@ -64,7 +67,8 @@ whom.
 | Unpublished gatherings and their spot options | — | — | — | all |
 | Public counts (§4) | numbers only | numbers only | numbers only | all |
 | Other people's pins | — | — | opted-in pins at G of people V1 allows | all |
-| Other people's first name, neighbourhood, Instagram handle | — | — | people V1 allows | all |
+| Other people's first name, neighbourhood, tags (V19) | — | — | people V1 allows | all |
+| Other people's Instagram handle (`person_handles`) | — | — | **crewmates and connections only — V1 is not enough (V17)** | all |
 | Other people's photo | — | — | people V1 allows, **approved photos only** (V6) | all |
 | Gender, women-only flag, birth year, age attestation (`people_private`) | — | own only | own only — **never anyone else's** | all |
 | Email / phone (`contact_points`) | — | own only | own only | all |
@@ -80,8 +84,9 @@ whom.
 - create, edit (`party_total`, `open_to_meeting`) and delete their own pins, on
   published gatherings only;
 - create and edit their own contact points;
-- edit their own first name, last initial, neighbourhood, Instagram handle, photo
-  path (own folder only), gender and women-only flag;
+- edit their own first name, last initial, neighbourhood, photo path (own folder
+  only), gender and women-only flag;
+- add, edit and remove their own Instagram handle (`person_handles`, V17);
 - upload, replace and delete photos in their own storage folder;
 - cast, change and remove their own spot vote (while pinned and opted in there);
 - submit their own survey response (published gatherings);
@@ -166,22 +171,56 @@ directions from one row.
   files live at `<auth user id>/<file name>`, and `people.photo_path` holds that
   name. **There is no public URL.**
 - A photo is readable only through a signed URL, and Storage only issues one when the
-  requester passes V1 for the photo's owner **and** the photo is `approved` **and**
-  it sits in its owner's own folder. The owner can always read their own photo,
-  whatever its status.
-- **Moderation (Test 0):** a person appears in the list **immediately** with name and
-  Instagram handle. Their photo shows only after admin approves it (the page shows a
-  placeholder until then). A rejected photo stays hidden and the person stays
-  visible without one. Changing the photo sends it back to `pending`. The
-  approve/reject control is built in the admin milestone; this rule and its tests
-  are here.
+  requester passes V1 for the photo's owner **and** the photo is **not `rejected`**
+  **and** it sits in its owner's own folder. The owner can always read their own
+  photo, whatever its status.
+- **Nothing waits on the check** (Alex, M3.1; migration
+  `20260923032603_m3_1_nothing_waits_on_the_check`). A photo shows from the moment it
+  is uploaded, to exactly the people V1 allows; the automated check runs afterwards
+  and **can only remove**. Before this, a photo showed only once `approved`, so every
+  pipeline failure meant *invisible, and nobody knows*; now it means *unchecked, and
+  counted*. **A photo state never hides the person**: a rejected photo leaves them
+  visible without one.
+
+  | State | What happened | What others see | What the owner is told |
+  |---|---|---|---|
+  | `pending` | uploaded, not checked yet | **the photo** | nothing |
+  | `approved` | the check (or Alex) passed it | the photo | nothing |
+  | `needs_review` | **a possible minor**, flagged for Alex | **the photo**, while it waits in his queue | **nothing, ever** — it is a note to Alex, not a verdict, and saying so would tell anyone gaming the check what trips it (the H9 family) |
+  | `rejected` | nudity, hate imagery or gore — by the check or by Alex | **no photo**; the person, without one | that the photo can't be used, and they may upload another |
+
+  - **The exposure this accepts:** a photo that will be rejected is visible to those
+    few people for the ~3 s the check takes — or, if the webhook is broken, until the
+    **hourly** sweep (`src/cron.ts`) catches it. P87 proves a rejection removes a
+    visible photo; P88 proves the app's preview rule (`photoShowsToOthers`) and this
+    one agree on every status.
+
+  - `ai:photo-check` moves `pending` to one of the other three. The admin moves any of
+    them to `approved` or `rejected` and **cannot** set `pending` or `needs_review` —
+    those are what a human was asked to resolve.
+  - **The check never decides age on its own** (H8). A possible minor is routed to
+    `needs_review`, never rejected. The 19+ rule stays with the attestation, the date
+    of birth, reports and admin review.
+  - Changing the photo sends it back to `pending` (trigger
+    `people_photo_change_resets_status`), and a check that comes back about a photo the
+    person has since replaced is **recorded and applies nothing** — the same
+    stale-photo rule the admin's own button follows.
+  - **A check that failed is not a state.** An error, a timeout, a missing key or an
+    image the model could not see leaves the photo at `pending` (visible) and writes a
+    `failed` row to `photo_checks`, so the
+    admin can count *waiting for a human*, *never checked* and *check failing* apart
+    (`admin_photo_states`). Unset is a different state from broken — the M2.3 map bug,
+    one layer down.
+  - `photo_checks` is service-key only, like every other operational record (V12), and
+    every attempt's cost lands in `admin_ai_spend_today` so the $3/day cap can see it.
 - **Signed URLs:** the Worker requests them with a 5-minute lifetime. The lifetime is
   chosen by whoever asks for the URL, so the database cannot enforce it: someone who
   is *allowed* to see a photo could mint a longer-lived link with their own session
   token. That is no worse than a screenshot, and it never gives access to a photo
   they could not already see.
-- Instagram handles get the V1 check (they sit on the `people` row). They are not
-  moderated.
+- Instagram handles are **not** part of V6 and no longer sit on the `people` row.
+  They live in `person_handles` behind V17 (§12e), which V1 does not satisfy. They
+  are not moderated.
 - A visitor can write only inside their own folder, and can point `photo_path` only
   into their own folder.
 
@@ -207,6 +246,15 @@ directions from one row.
 ## 11 · Reports and auto-hide — V9, V10
 
 - **V9 filing:** a signed-in person can file a report on a person V1 lets them see.
+- **V9 reading, added in M3.1 for "export my data" (Alex):** a reporter can read
+  **their own** reports, and the column grant lets them see four things — the id, what
+  kind of thing it was about, **their reason and the date**. Everything the moderator
+  touched stays shut: `status` (where `auto_hidden` would tell a reporter their report
+  hid someone, which is what H9 keeps quiet), `decision_note`, `reviewed_at`,
+  `is_safety`, the message snapshot, and the ids. A report is still unreadable by its
+  target, by any other person and by `anon`. It exists because the export is **read as
+  the person through RLS** rather than with the service key — walking around RLS is
+  how an export quietly becomes a wider query.
   They cannot read any report, including their own (Test 0). `is_safety` derives from
   the reason (a generated column); `status` cannot be set by the reporter. Crew and
   message reports arrive with the app.
@@ -310,12 +358,12 @@ withdrawn gathering — only raise a flag in `gathering_flags` — and never res
 draft Alex dismissed or merged (P52). Ticketmaster's ids, links and facts are deleted
 30 days after each gathering's effective end (`admin_purge_ticketmaster_data`, P53).
 
-## 12e · Pending rules — decided, not yet enforced
+## 12e · Instagram handles — V17 (Alex, revised build plan; **enforced in M3.1**)
 
-### V17 · Instagram handles (Alex, revised build plan; enforced in M3.1)
+### V17 · Instagram handles
 
 A person may add an Instagram handle to their profile. It is always optional, never
-required, and never a substitute for the face photo.
+required, and never a substitute for the photo.
 
 - **Who can see it:** only the person's **crewmates** (members of a crew they share),
   their **solo-plan partner**, and their **connections**.
@@ -323,12 +371,80 @@ required, and never a substitute for the face photo.
   & open to meeting" list (V1 alone is **not** enough), `anon`, and every public page
   and link preview. This protects H2 (no cold DMs) and solo's mutual-accept rule.
 - The owner can always read and edit their own handle.
-- **This is stricter than today's schema.** M1.1 put `instagram_handle` on the `people`
-  row, so today it is readable by anyone V1 allows (§3, §8). M3.1 must move it off the
-  `people` row (RLS hides rows, not columns) behind its own rule, with harness cases
-  proving both sides: a crewmate, a solo partner and a connection **can** read it; a
-  person who only shares the open list, a blocked person, a hidden person and `anon`
-  **cannot**.
+
+**As built (M3.1, `20260921004053_m3_1_instagram_handle_v17`).** M1.1 put
+`instagram_handle` on the `people` row, so until M3.1 it was readable by anyone V1
+allows — V17 was stricter than the schema for as long as it existed. RLS hides rows,
+not columns, so the handle moved to its own table, `public.person_handles`, with its
+own policies, for the same reason gender and birth year live in `people_private` (D1).
+
+- **Two branches, not three.** The rule names three readers, but a solo plan **is** a
+  crew (`kind = 'solo'`, M3.4), so a solo-plan partner is a crewmate and needs no rule
+  of its own. `private.can_see_handle` asks `private.share_crew` **or**
+  `private.are_connected`, and then that neither person is blocked by the other or
+  hidden by moderation. **M3.4 adds the `kind` column and the harness case that proves
+  the solo partner falls out of the crew branch.**
+- **A crew is a crew whatever its state** (Alex, M3.1): forming, spot set, live, done
+  and dissolved all count. **Leaving** is what ends the sight of a handle
+  (`crew_members.left_at`), not the crew's state. Rejected alternative: distinguishing
+  a crew that met from one that dissolved — rarer than it sounds, harder to state, and
+  harder for the M4.2 reviewer to audit. If it becomes a real problem it is split then,
+  with evidence.
+- **A crew hidden by moderation (`crews.hidden_at`) grants nothing**, on the same
+  footing as a hidden person. Moderation is not a crew state.
+- **V1 is deliberately not part of this rule.** Sharing the open list is not enough,
+  and, in the other direction, a crewmate is still a crewmate after the list at that
+  gathering has closed. A connection can read a handle with no gathering in common at
+  all — and that is proved not to make either of them visible to the other under V1.
+- The old Test 0 constraint "a photo **or** a handle" (`people_photo_or_instagram`)
+  went with the column. It was never right for the link path: a quick pin (A26) has
+  neither, and the app requires the photo separately (Q2).
+- Harness: **P67–P70**, both sides of each branch. P11 and P24 were inverted in the
+  same commit — both used to assert that the handle came back with the person's row.
+
+## 12h · A person's tags — V19 (Alex, M3.1)
+
+A person may carry up to ten tags from a fixed vocabulary, and marks at most three of
+them `on_list` — the three shown on the "going & open to meeting" row (spec A3;
+`packages/shared/src/tags.ts`). They are **conversation handles, never match
+criteria** — there is no matching anywhere in Pin'd.
+
+- **Your own tags are always yours** — read, add, remove, whenever.
+- **Someone else's tags are readable exactly when you can see that person at all.**
+  The same rule as their first name and neighbourhood, no wider and no narrower:
+  `private.can_see`. Both of you pinned and opted in at the same gathering, no block
+  in either direction, neither of you hidden, the list still open.
+- **Nobody else, ever:** not `anon`, not somebody who pinned without opting in, not a
+  blocked person in either direction, not a hidden person, and never on a public page
+  or in a link preview.
+- **The vocabulary itself is public reference data.** `public.tags` is thirty-two seeded
+  rows in four groups that say nothing about anyone, readable exactly like `neighbourhoods` and
+  writable by nobody but the service key.
+
+**Why this rides V1 rather than getting a stricter rule of its own, which V17 needed.**
+An Instagram handle is a way to contact someone off Pin'd, so it earned its own rule.
+A tag is a handle the person chose **in order to be read by the people on the list with
+them** — that is what it is for. So it travels with the first name, and it picks up the
+crew and connection branches for free when H3 adds them to `can_see_at`, the same
+saving as V17 having two branches instead of three.
+
+**At most ten, at most three on the list, and no minimum** (Alex, M3.1; the cap was
+three until `20260921130537_m3_1_tags_v2`). "At least 3" is what a *complete* profile
+means and A3 is what asks for it. A minimum in the database would make a pin
+impossible on the link path, where a profile is deliberately incomplete. A maximum is
+a different thing: without one, `person_tags` is a place to write thirty-two. Both caps
+are one constraint trigger, `person_tags_within_caps`, run on insert **and update**
+(because `on_list` is set by an update), rather than a screen, because a visitor's
+session token is theirs and the app is not a gate (§1).
+
+**`on_list` is not a visibility rule.** Every tag is readable by exactly the people
+V19 allows, and the profile shows them all; `on_list` only chooses which three the row
+shows. The owner may update `on_list` and nothing else (`person_tags_update_own`).
+
+**P04 was inverted in the same commit** — it asserted `tags` and `person_tags` were
+locked to every visitor, which was true until this rule existed.
+
+### Still pending — decided, not yet enforced
 
 V14 (solo), V15 (review-only gatherings) and V16 (anonymous people) are added with
 their milestones (M3.4, M5.1, M3.1–M3.2) and reviewed in M4.2.
@@ -521,15 +637,17 @@ is what lets the redirect work; nothing else about them is public.
 | Access | Tables |
 |---|---|
 | Public read (published only where it applies, and never a seed row — V18) | `venues`, `meeting_spots`, `gatherings`, `gathering_spots`, `gathering_slug_history`, `neighbourhoods`, `cities`; storage `venue-maps` (public URLs, no visitor writes) |
-| Rules above | `people`, `people_private`, `pins`, `pin_friends`, `contact_points`, `spot_votes`, `gathering_group_links`, `blocks`, `reports`, `survey_responses`, storage `photos` |
-| Service key only, permanently | `magic_links`, `outbound_messages`, `gathering_sources`, `gathering_triage`, `spot_suggestions`, `venue_aliases`, `venue_external_ids`, `moderation_log`, `import_runs`, `gathering_flags`, `gathering_withdrawals`; functions `admin_*` |
-| Locked until the app phases (no privileges, no policies) | `tags`, `person_tags`, `crews`, `crew_members`, `crew_proposals`, `crew_proposal_votes`, `crew_join_requests`, `crew_messages`, `confirmations`, `connections` |
+| Rules above | `people`, `people_private`, `person_handles`, `pins`, `pin_friends`, `contact_points`, `spot_votes`, `gathering_group_links`, `blocks`, `reports`, `survey_responses`, storage `photos` |
+| Service key only, permanently | `photo_checks`, `magic_links`, `outbound_messages`, `gathering_sources`, `gathering_triage`, `spot_suggestions`, `venue_aliases`, `venue_external_ids`, `moderation_log`, `import_runs`, `gathering_flags`, `gathering_withdrawals`; functions `admin_*` |
+| Public reference data | `tags` (the fixed vocabulary; read-only to visitors) |
+| Locked until the app phases (no privileges, no policies) | `crews`, `crew_members`, `crew_proposals`, `crew_proposal_votes`, `crew_join_requests`, `crew_messages`, `confirmations`, `connections` (read by V17's rule, never granted to a visitor directly) |
 
 ## 16 · Rule → SQL → proof
 
 Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1),
 `20260918154…_m1_2_` (M1.2), `20260918192…_m1_3_` (M1.3), `20260920003…_m2_1_` (M2.1),
-`20260920143…_m2_2_` (M2.2) and `20260920203410_m2_3_the_list` (M2.3).
+`20260920143…_m2_2_` (M2.2), `20260920203410_m2_3_the_list` (M2.3) and
+`20260921004053_m3_1_instagram_handle_v17` (M3.1).
 
 | Rule | Enforced by | Harness cases |
 |---|---|---|
@@ -538,10 +656,13 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | V3 gender mix | `public.gathering_counts` | P06 |
 | V4 blocks | `private.blocked_between` (inside V1); policies `blocks_*` | P14–P16 |
 | V5 women-only | `private.women_only_open`, `public.women_only_offer`; policies `group_links_*` | P17–P20 |
-| V6 photos | bucket `photos`; `private.can_see_photo`; storage policies `photos_*`; trigger `people_photo_change_resets_status`; `people_insert_self` / `people_update_self` folder check | P07, P07b, P21, P23–P26 |
+| V6 photos | bucket `photos`; `private.can_see_photo` (not `rejected`, since M3.1); storage policies `photos_*`; trigger `people_photo_change_resets_status`; `people_insert_self` / `people_update_self` folder check | P07, P07b, P21, P23–P26, P87, P88 |
+| V6 the automated check (M3.1) | `photo_status` gains `needs_review`; table `photo_checks`; `admin_record_photo_check`, `admin_photo_states`, `admin_set_photo_status`; trigger `people_photo_check_webhook` → `private.photo_check_webhook`; the harness skip `private.is_harness_user` (app_metadata, service key only) in the trigger and `admin_photos_waiting` | P71–P73, P82, P83 |
 | V7 +1s | column grant on `pin_friends`; policies `pin_friends_read_*` | P27, P28 |
 | V8 removing a pin | V1 and `public.spot_poll` read live pins | P21, P22 |
 | V9 filing reports | column grant on `reports`; policy `reports_insert_on_visible_person` | P33 |
+| V9 reading your own (M3.1) | column grant `(id, target_kind, reason, created_at)`; policy `reports_read_own_filed` | P78 |
+| Deleting an account (M3.1) | `people` cascades; `reports.reporter_id` / `crew_messages.author_id` on delete set null; `moderation_log` has no foreign keys; `POST /account/delete` on the Worker | P79 |
 | V10 auto-hide | trigger `reports_auto_hide` → `private.auto_hide_on_report` | P34–P36 |
 | V11 published | policies `gatherings_read_published`, `gathering_spots_read_published`; `private.is_published` in pin/survey inserts | P01, P02, P08, P38, P39 |
 | V11 publishing rules | trigger `gatherings_status_rules` → `private.gathering_status_rules`; `admin_publish_gathering`, `admin_merge_gatherings` | P42, P43 |
@@ -550,6 +671,8 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | V12 import data (M1.3) | `revoke all` on `import_runs`, `gathering_flags`, `gathering_withdrawals`; M1.3 `admin_*` executable by `service_role` only | P48 |
 | V13 withdrawn | `private.is_published`, `private.list_open`, `private.i_am_pinned_at`; policies `gatherings_read_published`, `gathering_spots_read_published`; `public.gathering_counts`; `admin_withdraw_gathering`, `admin_unwithdraw_gathering` | P49–P51 |
 | Importer rights | `admin_import_apply`, `admin_resolve_flag`, `admin_start_import_run`, `admin_purge_ticketmaster_data`, `admin_merge_venues`, `admin_confirm_venue` | P52–P54 |
+| V17 Instagram handles (M3.1) | table `public.person_handles`; `private.can_see_handle`, `private.share_crew`, `private.are_connected`, `private.is_hidden`; policies `person_handles_read_own`, `person_handles_read_visible`, `person_handles_*_own` | P67–P70, P11, P24 |
+| V19 a person's tags (M3.1) | policies `tags_read`, `person_tags_read_own`, `person_tags_read_visible`, `person_tags_*_own` (insert, delete, update of `on_list`); `private.can_see`; constraint trigger `person_tags_within_caps` → `private.person_tags_cap` (ten tags, three on the list) | P74–P77, P04 |
 | V18 seed rows | `venues.is_seed`, `gatherings.is_seed`, `people.is_seed`; triggers `gatherings_seed_follows_venue`, `venues_seed_spreads`; `private.is_published`, `private.list_open`, `private.is_open_at`, `private.is_seed_venue`; policies `gatherings_read_published`, `gathering_spots_read_published`, `venues_read`, `meeting_spots_read`; `public.gathering_counts` | P55–P58 |
 | The public web's one door | `public.public_gatherings`, `public.public_gathering` | P55, P59, P61, P65 |
 | The chip a Ticketmaster gathering wears (M2.3) | `public.chip_category`, `public.admin_categorise_gatherings` — both `service_role` only; written once, never over an existing value | P66 |

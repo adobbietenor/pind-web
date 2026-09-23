@@ -1,7 +1,8 @@
 // Photo approval queue, and reports + hidden people (H9, docs/visibility.md V6, V10).
 // Decisions go through admin_* database functions, which write the moderation log.
 import type { AdminHandler } from "./context";
-import { adminPage, back, e, here, must, postButton, str } from "./ui";
+import { adminPage, back, e, here, must, one, postButton, str } from "./ui";
+import { sweepPhotos } from "../photo/sweep";
 
 const PHOTOS = "photos";
 const REASONS: Record<string, string> = {
@@ -11,16 +12,51 @@ const REASONS: Record<string, string> = {
   spam: "spam",
 };
 
-// GET /admin/photos — pending photos, shown through 60-second signed links.
+// GET /admin/photos — the photo queue, shown through 60-second signed links.
+//
+// **Three states, never one number** (Alex, M3.1). A photo that is not visible is in
+// one of three situations and they want three different people acting on them:
+//
+//   waiting for a human   the check ran and could not tell      → decide it here
+//   never checked         nothing has looked at it yet          → why did nothing run?
+//   check failing         every attempt errored                 → fix the check
+//
+// The second and third look identical from the `people` row — both are `pending` —
+// which is exactly the M2.3 map bug: "never fetched" left no failure record, so it
+// was neither ready nor failing and read as fine. `photo_checks` is the record that
+// tells them apart, and `admin_photo_states()` is the only place that counts them.
+//
+// And a missing key says so **once, here, where photos are managed**, rather than as
+// one identical failure per photo.
 export const photoQueue: AdminHandler = async (request, ctx) => {
-  const people = await must(
-    ctx.db
-      .from("people")
-      .select("id, first_name, instagram_handle, photo_path, updated_at")
-      .eq("photo_status", "pending")
-      .not("photo_path", "is", null)
-      .order("updated_at"),
-  );
+  const [states, people] = await Promise.all([
+    must(ctx.db.rpc("admin_photo_states")),
+    must(
+      ctx.db
+        .from("people")
+        .select("id, first_name, photo_path, photo_status, updated_at, person_handles(instagram)")
+        .in("photo_status", ["needs_review", "pending"])
+        .not("photo_path", "is", null)
+        .order("photo_status")
+        .order("updated_at"),
+    ),
+  ]);
+  const count = one<any>(states) ?? { waiting_for_human: 0, never_checked: 0, check_failing: 0 };
+
+  // The latest attempt per photo: its reason when a human is being asked, its error
+  // when the check is what is broken.
+  const lastCheck = new Map<string, { outcome: string; reason: string | null; error: string | null }>();
+  if (people.length) {
+    const checks = await must(
+      ctx.db
+        .from("photo_checks")
+        .select("photo_path, outcome, reason, error, at")
+        .in("photo_path", people.map((p: any) => p.photo_path))
+        .order("at", { ascending: false }),
+    );
+    for (const c of checks as any[]) if (!lastCheck.has(c.photo_path)) lastCheck.set(c.photo_path, c);
+  }
+
   const signed = new Map<string, string>();
   if (people.length) {
     const { data } = await ctx.db.storage.from(PHOTOS).createSignedUrls(
@@ -34,16 +70,62 @@ export const photoQueue: AdminHandler = async (request, ctx) => {
     .map((p: any) => {
       const url = signed.get(p.photo_path);
       const fields = { photo_path: p.photo_path };
+      const last = lastCheck.get(p.photo_path);
+      // The two sentences that must never converge, plus the third that is not a
+      // decision at all.
+      const said =
+        p.photo_status === "needs_review"
+          ? `<span class="bad">flagged for you — visible meanwhile</span>${last?.reason ? ` — ${e(last.reason)}` : ""}`
+          : last
+            ? `<span class="bad">the check is failing — visible, unchecked</span>${last.error ? ` — ${e(last.error)}` : ""}`
+            : `<span class="muted">not checked yet — visible</span>`;
       return `<tr><td>${url ? `<img class="photo" src="${e(url)}" alt="">` : `<span class="bad">file missing</span>`}</td>
-<td>${e(p.first_name)}<br><span class="muted">${e(p.instagram_handle ?? "")}</span></td>
+<td>${e(p.first_name)}<br><span class="muted">${e(one<any>(p.person_handles)?.instagram ?? "")}</span><br>${said}</td>
 <td>${postButton(`/admin/photos/${p.id}`, "Approve", backTo, { fields: { ...fields, status: "approved" } })}
 ${postButton(`/admin/photos/${p.id}`, "Reject", backTo, { cls: "danger", fields: { ...fields, status: "rejected" } })}</td></tr>`;
     })
     .join("");
-  const body = `<p class="muted">People appear in lists straight away with their name and handle; their photo shows only once approved.
+
+  const keyMissing = !ctx.env.ANTHROPIC_API_KEY?.trim()
+    ? `<p class="bad"><strong>ANTHROPIC_API_KEY is not set</strong>, so no photo is being checked at all — every upload is visible and unchecked (nothing waits on the check).
+Set it with <code>npx wrangler secret put ANTHROPIC_API_KEY</code>.</p>`
+    : "";
+  const hookMissing = !ctx.env.PHOTO_WEBHOOK_SECRET?.trim()
+    ? `<p class="bad"><strong>PHOTO_WEBHOOK_SECRET is not set</strong>, so the database webhook is refused and photos are checked only when the app asks — the net without the mechanism.</p>`
+    : "";
+
+  // **Counting what is missing without a way to act on it is half the pattern.** The
+  // hourly sweep is the other half; this is the same pass, for the moment
+  // somebody is looking at the queue and does not want to wait until tomorrow.
+  const sweepNow =
+    count.never_checked + count.check_failing > 0
+      ? ` ${postButton("/admin/photos/sweep", `Check the ${count.never_checked + count.check_failing} nothing has decided`, here(request), { cls: "plain" })}`
+      : "";
+
+  const body = `${keyMissing}${hookMissing}
+<p><strong>${count.waiting_for_human}</strong> waiting for a human ·
+<strong>${count.never_checked}</strong> never checked ·
+<strong>${count.check_failing}</strong> with a failing check</p>
+<p class="muted">Three different situations, deliberately counted apart. <em>Waiting for a human</em> is the automated check saying it could not tell — decide it below.
+<em>Never checked</em> means nothing has looked yet, which is a question about the webhook, not about the photo.
+<em>A failing check</em> is an operational fault and wants fixing rather than clearing.${sweepNow}</p>
+<p class="muted">An hourly pass picks up anything the webhook and the app both missed. Nothing waits on it: an unchecked photo is visible, and the check can only remove. <strong>If it ever finds much, the webhook is what is broken</strong> — the Configuration panel says whether it is reaching the Worker. A retry that quietly papers over a broken mechanism is how M2.1's map fallback became the mechanism.</p>
+<p class="muted">People appear in lists straight away with their name; their photo shows only once approved.
 A rejected photo stays hidden and the person stays visible without one. Links on this page expire after 60 seconds: reload if images stop loading.</p>
 <table><tr><th>Photo</th><th>Person</th><th></th></tr>${rows || `<tr><td colspan="3">Nothing to review.</td></tr>`}</table>`;
-  return adminPage(request, ctx.email, `Photo queue (${people.length})`, body);
+  return adminPage(request, ctx.email, `Photo queue (${count.waiting_for_human})`, body);
+};
+
+// POST /admin/photos/sweep — the nightly pass, now, because the person looking at
+// the queue is the person who wants it run.
+export const sweepNow: AdminHandler = async (request, ctx) => {
+  const form = await request.formData();
+  try {
+    const outcome = await sweepPhotos(ctx.env, { db: ctx.db });
+    return back(form, { ok: outcome.message });
+  } catch (err) {
+    return back(form, { err: err instanceof Error ? err.message : "The sweep failed" });
+  }
 };
 
 // POST /admin/photos/:id — applies only if the photo is still the one shown.
@@ -79,7 +161,7 @@ export const reportQueue: AdminHandler = async (request, ctx) => {
     ...reports.flatMap((r: any) => [r.target_person_id, r.reporter_id].filter(Boolean)),
   ]);
   const people = ids.size
-    ? await must(db.from("people").select("id, first_name, instagram_handle, hidden_at").in("id", [...ids]))
+    ? await must(db.from("people").select("id, first_name, hidden_at, person_handles(instagram)").in("id", [...ids]))
     : [];
   const byId = new Map<string, any>(people.map((p: any) => [p.id, p]));
   const pinCounts = new Map<string, number>();
@@ -106,7 +188,7 @@ export const reportQueue: AdminHandler = async (request, ctx) => {
     const actions = p.hidden_at
       ? actionForm(personId, "unhide", "Unhide") + " " + (theirs.length ? actionForm(personId, "keep-hidden", "Keep hidden", "danger") : "")
       : actionForm(personId, "hide", "Hide now", "danger") + " " + actionForm(personId, "dismiss-reports", "Dismiss reports", "plain");
-    return `<tr><td><strong>${e(p.first_name ?? "?")}</strong> <span class="muted">${e(p.instagram_handle ?? "")}</span><br>
+    return `<tr><td><strong>${e(p.first_name ?? "?")}</strong> <span class="muted">${e(one<any>(p.person_handles)?.instagram ?? "")}</span><br>
 ${p.hidden_at ? `<span class="bad">hidden since ${e(p.hidden_at.slice(0, 16).replace("T", " "))} UTC</span>` : "visible"} · pins: ${pinCounts.get(personId) ?? 0}
 <ul>${list || `<li class="muted">No open reports (reviewed earlier).</li>`}</ul></td><td>${actions}</td></tr>`;
   };

@@ -1,0 +1,16 @@
+[
+  { "file": "headshot-01.jpg", "expect": "approved", "note": "clear solo face; another person visible in the background" },
+  { "file": "headshot-02.jpg", "expect": "approved", "note": "outdoor evening, holding a glass" },
+  { "file": "headshot-03.jpg", "expect": "approved", "note": "clear solo face, daylight" },
+  { "file": "headshot-04.jpg", "expect": "approved", "note": "clear solo face, greenery behind" },
+  { "file": "headshot-05.jpg", "expect": "approved", "note": "looking away from the camera" },
+  { "file": "headshot-06.jpg", "expect": "approved", "note": "turned away, looking back over the shoulder" },
+  { "file": "headshot-07.jpg", "expect": "approved", "note": "formal, plain background" },
+  { "file": "headshot-08.jpg", "expect": "approved", "note": "crowd visible behind at a stadium" },
+  { "file": "headshot-09.jpg", "expect": "approved", "note": "black and white" },
+  { "file": "headshot-10.jpg", "expect": "approved", "note": "dark background, another person partly in frame" },
+  { "file": "headshot-11.jpg", "expect": "approved", "note": "indoor, casual" },
+  { "file": "cartoon.jpg", "expect": "approved", "note": "flat illustrated portrait, not a photograph" },
+  { "file": "no-face-landscape.jpg", "expect": "approved", "note": "no person anywhere in frame" },
+  { "file": "screenshot-phone-ui.jpg", "expect": "approved", "note": "screen capture with a status bar, no face" }
+]

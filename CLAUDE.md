@@ -90,6 +90,12 @@ own cron, not inside the nightly import.
 - **Never** run ad-hoc DDL against the database. **Never** change schema in the
   Supabase dashboard. A schema I cannot reproduce from this repo is a broken repo.
 - Apply with `npx supabase db push` to **staging only**. Never touch production.
+- **Never run `npx supabase config push`.** `supabase/config.toml` is `supabase init`'s
+  local template, not the hosted settings: pushing it would set pind-staging's site URL
+  to `127.0.0.1`, replace the redirect allow-list, switch Apple off and more, and a
+  non-interactive run proceeds without asking. To see what the hosted auth config
+  actually holds, use the read-only **`npx supabase config diff`** — it is how P86's
+  "manual linking is disabled" was settled in M3.1 when the dashboard said otherwise.
 - RLS is enabled on every table. Visibility is decided by policies in the database,
   never by filtering in Worker or app code (H11).
 - The `service_role` key is used only by the Worker and Edge Functions, never by the
@@ -136,6 +142,14 @@ own cron, not inside the nightly import.
 - Why it matters: the empty M2.0 shell surfaced three real bugs — keys missing from
   the web bundle, PostHog events never flushing, wrong device-registration steps.
   Each would otherwise have surfaced during the M3.6 dogfood walk.
+- **Build when a milestone is ready to walk, not when a fix lands** (Alex, M3.1). An
+  EAS build is about 40 minutes, and one proposed after every fix piles up unopened
+  until nobody remembers what it was for. The web is the same code and deploys in
+  seconds, so **fixes are walked on the web as they are deployed**. Native-only things —
+  the photo picker, HEIC, native sign-in, anything offline or device-specific — are
+  **batched and walked once, on one build at the end of the milestone**. Do not propose
+  a build in between; say when the milestone has reached the point where one is worth
+  it, and keep a running list of what that build must walk.
 
 ## Dependencies
 
@@ -204,6 +218,117 @@ publishing), the fallback stays as a net, and **the admin counts what is still
 missing**. "Never fetched" leaves no failure record at all, so it is the state nothing
 notices unless something counts it — unset is a different state from broken, one layer
 down.
+
+## An instrument that is wrong in a way that looks like a finding
+
+The worst failure is not a check that breaks. It is a check that **answers
+confidently and wrongly**, because nothing about it looks like a fault — it sends
+someone to fix a thing that is not broken, and it keeps sending them.
+
+M3.1: the admin panel built to answer "do the two halves of the webhook secret
+match?" fingerprinted the Worker's value **trimmed** and the database's value
+**untrimmed**. The secret was stored with a newline round it, so the same secret
+produced two different fingerprints, and the panel reported the difference between
+**its own two rulers** as a difference between the secrets. Alex set both halves to
+one value three times and was told three times that he had not. The instrument never
+failed. It just was not measuring the same thing on both sides.
+
+**So: when two values are compared, both sides are normalised identically, at the
+point of comparison — and the comparison is tested with a pair that differs only in
+whitespace.** That test is three lines and would have caught this in seconds. It
+applies to any equality that crosses a boundary: two fingerprints, two cache keys, two
+slugs, an email typed twice, a header against a secret.
+
+Two things that make this failure mode hard to see from inside, both worth knowing:
+
+- **It hides a real fault while impersonating it.** Underneath the false reading there
+  *was* a genuine bug — the trigger sent the untrimmed secret as an HTTP header, and a
+  header value cannot hold a newline, so it was mangled in transit. The Worker's "these
+  do not match" was honest about what arrived and silent about what was stored. A wrong
+  instrument pointing at roughly the right place is the hardest thing to disbelieve.
+- **Normalise at the point of comparison, not before storing.** The whitespace was left
+  in the stored secret on purpose, and the panel now says it is there. Silently
+  cleaning a value on the way in destroys the evidence that something upstream is
+  adding it.
+
+**When a setting is in dispute, read it from the thing that enforces it, not the thing
+that displays it.** M3.1: the dashboard showed "Allow manual linking" on, Alex had a
+screenshot of it and was certain he had set it, and P86 kept failing. Two reads that
+did not trust the page settled it — the auth server's own reply (`404
+manual_linking_disabled`, from a guard that reads exactly that flag) and the stored
+config through `npx supabase config diff` — and both said off: switched, never saved.
+It cost three round trips. **A dashboard is an instrument too**, and the same shape
+will recur with any provider or dashboard setting the repo cannot see: ask the server
+that refuses, or the API that stores it, before asking anyone to toggle anything again.
+
+## A guard that never ran looks exactly like a guard that passed
+
+The sibling of the rule above, and the harder one to catch. An instrument that
+measures the wrong thing at least *says* something wrong. **A guard that never fires
+says nothing at all** — and so does a guard that correctly found nothing to stop.
+The safe path and the broken path report the same thing.
+
+M3.1: `admin_rescore_photo` exists so that re-judging photos after a rubric change
+**never overrules a person**. Its guard looked up the last decision with
+`like 'photo\_%'` — one backslash too many, a literal backslash in a
+standard-conforming string, matching nothing. Every photo looked undecided. The first
+real run overwrote four photos Alex had rejected by hand minutes earlier and signed
+them `ai:photo-check`. Nothing errored. No count moved. Every line of output said
+"now approved", which is exactly what it would have said if the guard had worked.
+
+**So a rule whose job is to refuse something is proved by a test that makes it
+refuse — never by an absence of complaints.** The test has to put the forbidden thing
+in front of the guard and insist it is turned away. `P81` is the shape: a human
+decision, then a rescore, then an assertion that the status did not move.
+
+Two things that follow, both cheap and both easy to skip:
+
+- **Check the boundary from both sides.** A cap proved only by the thing it allows is
+  a cap nobody has seen work. P77 asserts the eleventh tag is refused *and* that
+  removing one makes room again.
+- **Watch for a guard nothing can even load.** The tag picker's "that's ten" refusal
+  lived inside a React Native component, so `node --test` could not reach it and
+  nothing proved it fired — a refusal that exists *specifically* so a tap never
+  silently does nothing, with nothing checking that it speaks. It moved to
+  `packages/shared` for the same reason `ageOn` did: **a rule is not a component
+  detail just because a component is the only thing that calls it.**
+- **Audit by reading the tests, not by remembering them.** Asked which guards lacked a
+  firing test, I named the publisher's capacity floor — and it has four, including
+  both sides of the boundary. Confidently wrong about my own coverage is the same
+  failure as the instrument above, pointed inward.
+- **A test that reads the source must prove its own pattern matches something real.**
+  An empty result is what a pattern that matches nothing returns, so it passes by
+  finding nothing. M3.1: S20's regex was mangled on the way into the file and matched
+  nothing while reporting a pass; it now asserts it can see a real `.message` read in
+  `errors.ts` before it trusts "no screen reads one". The guard rule, pointed at the
+  tests themselves.
+
+## A test of a rule proves nothing about a screen that does not call it
+
+The third sibling. A guard that never ran says nothing; **a rule that was tested and
+then not used says "passed"** — about a function nobody asked.
+
+M3.1: the tag limits moved into `packages/shared` precisely so they could be tested,
+and T01–T09 proved them. Both tag screens then gated Continue on an expression of
+their own — `picked.length > 0 && !enoughPicked(picked)` — whose "none is fine"
+exception no test ever saw, so Continue worked with no tags while the suite was green.
+The eleventh-tap refusal was produced exactly as T03 said, and shown above all 32
+chips, off-screen from the tap. Alex walked into both on the phone.
+
+**So: a rule extracted into shared code is not in force until every caller uses it,
+and the test that proves it must be one that fails when a caller goes its own way.**
+`tests/unit/screens.test.ts` is the shape: it reads the route files and fails if a tag
+screen gates on anything but `tagsCanContinue`, if the sign-in screen checks the
+platform instead of `methodsFor()`, or if a screen draws its own frame instead of
+`AppScreen`. Run against the old code, each one failed on exactly the fault walked.
+
+- **Where a rule has two copies across a boundary, compare them** — normalised the same
+  way, per the instrument rule. P88 checks the app's `photoShowsToOthers` against the
+  database's `can_see_photo` for every status; I09 checks the types the app uploads
+  against the types the Worker's check can read; C04 checks `wrangler.jsonc`'s crons
+  against the ones the code routes.
+- **"Seen" is part of a refusal.** A sentence rendered where the person is not looking
+  is a tap that silently does nothing. Put the message where the tap was.
 
 ## Measure what the phone does, not what the server sent
 

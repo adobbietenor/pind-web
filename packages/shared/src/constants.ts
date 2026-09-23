@@ -72,3 +72,24 @@ export type TabValue = (typeof TABS)[number]["value"];
 export const tabForSource = (source: string): TabValue => (source === "ticketmaster" ? "events" : "community");
 
 export const tabLabel = (value: TabValue): string => TABS.find((t) => t.value === value)!.label;
+
+// The email sign-in code (A1, A27).
+//
+// **This number lives in two places and only one of them is this repo.** It must equal
+// Supabase's **Authentication → Sign In / Providers → Email → Email OTP Length**. They
+// started out disagreeing — Supabase sent 8, the screen accepted 6 — so a correct code
+// could not be entered at all, and the screen simply refused it without saying why.
+// Somebody looking at a valid code in their inbox concludes they mistyped it.
+//
+// The shape is FOLD_THRESHOLD's: a constant that one side of a boundary owns and the
+// other has to match. It cannot be enforced from here, so instead the screen **says
+// both numbers** when what it is given is the wrong length, which turns an invisible
+// mismatch into a sentence naming the setting that is wrong.
+export const EMAIL_CODE_LENGTH = 6;
+
+// What to say when the code in somebody's hand is not the length we expect. Naming
+// both numbers is the point: "that code is 8 digits, we expected 6" tells whoever
+// reads it — the person, or us during a walk — exactly which setting disagrees.
+export function codeLengthMismatch(given: number, expected = EMAIL_CODE_LENGTH): string {
+  return `That code is ${given} digits and we expected ${expected}. Paste the whole thing — if it really is ${given} digits, tell us, because the setting is wrong at our end.`;
+}

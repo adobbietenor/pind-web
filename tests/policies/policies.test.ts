@@ -13,7 +13,7 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEnv } from "./env.ts";
-import { ACTOR, BUCKET, MAPS, PNG, buildWorld, handleFor, newClient, sweep, type Member, type World } from "./world.ts";
+import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, markHarness, newClient, sweep, type Member, type World } from "./world.ts";
 
 interface Result {
   data: any;
@@ -142,16 +142,19 @@ describe("Public data — V2, V11", () => {
       await noAccess(w.anon, t);
     }
     await denied(w.anon.from("pins").insert({ gathering_id: w.G, person_id: id("Ava") }), "42501");
-    await denied(w.anon.from("people").insert({ first_name: "Anon", instagram_handle: handleFor(w.run, "anon") }), "42501");
+    await denied(w.anon.from("people").insert({ first_name: "Anon" }), "42501");
     await denied(w.anon.rpc("women_only_offer", { p_gathering: w.G }));
     await denied(w.anon.rpc("spot_poll", { p_gathering: w.G }));
   });
 
   it("P04 a signed-in user CANNOT read or write any locked app table", async () => {
     const ava = c(M("Ava"));
+    // `tags` and `person_tags` left this list in M3.1: the vocabulary is public
+    // reference data like `neighbourhoods`, and a person's own tags are theirs.
+    // P74–P77 are the cases that replaced them.
     for (const t of [
       "crews", "crew_members", "crew_proposals", "crew_proposal_votes", "crew_join_requests",
-      "crew_messages", "confirmations", "connections", "tags", "person_tags", "magic_links", "outbound_messages",
+      "crew_messages", "confirmations", "connections", "magic_links", "outbound_messages",
     ]) {
       await noAccess(ava, t);
     }
@@ -200,13 +203,14 @@ describe("Own rows — V1 writes", () => {
     assert.equal(error, null, error?.message);
     assert.ok(data.user?.is_anonymous, "session is anonymous");
     const authId = data.user!.id;
+    await markHarness(w.service, authId);
     const path = `${authId}/newt.png`;
 
     await ok(client.storage.from(BUCKET).upload(path, PNG, { contentType: "image/png" }), "upload own photo");
     const person = await ok(
       client
         .from("people")
-        .insert({ auth_user_id: authId, first_name: "Newt", instagram_handle: handleFor(w.run, "newt"), photo_path: path })
+        .insert({ auth_user_id: authId, first_name: "Newt", photo_path: path })
         .select("id, photo_status")
         .single(),
       "insert own person",
@@ -219,10 +223,10 @@ describe("Own rows — V1 writes", () => {
 
     // Not for anyone else.
     await denied(
-      client.from("people").insert({ auth_user_id: M("Ava").authId, first_name: "Fake", instagram_handle: handleFor(w.run, "fake") }),
+      client.from("people").insert({ auth_user_id: M("Ava").authId, first_name: "Fake" }),
       "42501",
     );
-    await denied(client.from("people").insert({ auth_user_id: authId, first_name: "Twice", instagram_handle: handleFor(w.run, "twice") }));
+    await denied(client.from("people").insert({ auth_user_id: authId, first_name: "Twice" }));
     await denied(client.from("pins").insert({ gathering_id: w.H, person_id: id("Ava") }), "42501");
     await denied(client.from("people_private").insert({ person_id: id("Hope"), gender: "woman" }), "42501");
     await denied(client.from("contact_points").insert({ person_id: id("Ava"), kind: "sms", value: "+15555550100" }), "42501");
@@ -231,7 +235,7 @@ describe("Own rows — V1 writes", () => {
     await denied(client.from("people").update({ photo_status: "approved" }).eq("id", person.id), "42501");
     await denied(client.from("people").update({ hidden_at: new Date().toISOString() }).eq("id", person.id), "42501");
     await denied(
-      client.from("people").insert({ first_name: "Hid", instagram_handle: handleFor(w.run, "hid"), hidden_at: new Date().toISOString() }),
+      client.from("people").insert({ first_name: "Hid", hidden_at: new Date().toISOString() }),
       "42501",
     );
     // A photo path outside their own folder.
@@ -273,13 +277,15 @@ describe("Own rows — V1 writes", () => {
 });
 
 describe("Reciprocal reveal — V1", () => {
-  it("P11 Ava CAN see Ben's name, neighbourhood, handle and pin at G / Cal (not opted in) CANNOT see Ava or Ben", async () => {
+  it("P11 Ava CAN see Ben's name, neighbourhood and pin at G — but NOT his handle (V17) / Cal (not opted in) CANNOT see Ava or Ben", async () => {
     const ava = c(M("Ava"));
-    const ben = await rows(ava.from("people").select("first_name, neighbourhood, instagram_handle").eq("id", id("Ben")));
+    const ben = await rows(ava.from("people").select("first_name, neighbourhood").eq("id", id("Ben")));
     assert.equal(ben.length, 1);
     assert.equal(ben[0].first_name, "Ben");
     assert.equal(ben[0].neighbourhood, "king-west");
-    assert.equal(ben[0].instagram_handle, handleFor(w.run, "Ben"));
+    // Until M3.1 the handle was a column on this row and came back with it. The open
+    // list is not enough for a handle (V17); P67 is the case that proves it.
+    assert.equal(await rows(ava.from("person_handles").select("instagram").eq("person_id", id("Ben"))).then((r) => r.length), 0);
     assert.equal(await seesPins(ava, "Ben", w.G), 1);
 
     const cal = c(M("Cal"));
@@ -406,18 +412,30 @@ describe("Removing a pin — V8", () => {
 });
 
 describe("Photos — V6", () => {
-  it("P23 Ava CAN get Dee's approved photo / CANNOT get Eve's pending photo / Eve CAN get her own pending photo", async () => {
+  // **Inverted in M3.1, "nothing waits on the check" (Alex):** a photo nobody has
+  // checked yet is visible to whoever can see its owner. It used to be hidden until
+  // approved, so every pipeline failure meant "invisible, and nobody knows".
+  it("P23 Ava CAN get Dee's approved photo / CAN get Eve's pending photo — nothing waits on the check / Eve CAN get her own / Cal, who cannot see Eve, still CANNOT", async () => {
     await canSign(c(M("Ava")), M("Dee").photoPath);
     assert.equal(await seesPeople(c(M("Ava")), "Eve"), 1, "Eve herself is visible");
-    await cannotSign(c(M("Ava")), M("Eve").photoPath);
+    assert.equal(
+      (await serviceRow("people", "id", M("Eve").personId, "photo_status")).photo_status,
+      "pending",
+      "Eve's photo is not pending, so this case proves nothing",
+    );
+    await canSign(c(M("Ava")), M("Eve").photoPath);
     await canSign(c(M("Eve")), M("Eve").photoPath);
+    // The other side: visibility is still V1's. Somebody who cannot see Eve gets nothing.
+    assert.equal(await seesPeople(c(M("Cal")), "Eve"), 0, "Cal can see Eve, so this half proves nothing");
+    await cannotSign(c(M("Cal")), M("Eve").photoPath);
   });
 
-  it("P24 Ava CANNOT get Rex's rejected photo / CAN still see Rex with his handle", async () => {
+  it("P24 Ava CANNOT get Rex's rejected photo / CAN still see Rex himself, without a photo and without a handle", async () => {
     await cannotSign(c(M("Ava")), M("Rex").photoPath);
-    const rex = await rows(c(M("Ava")).from("people").select("instagram_handle").eq("id", id("Rex")));
-    assert.equal(rex.length, 1);
-    assert.equal(rex[0].instagram_handle, handleFor(w.run, "Rex"));
+    const rex = await rows(c(M("Ava")).from("people").select("first_name, photo_status").eq("id", id("Rex")));
+    assert.equal(rex.length, 1, "a rejected photo must never hide the person (V6)");
+    assert.equal(rex[0].photo_status, "rejected");
+    assert.equal(await rows(c(M("Ava")).from("person_handles").select("instagram").eq("person_id", id("Rex"))).then((r) => r.length), 0);
   });
 
   it("P25 guessing the URL: Cal and anon CANNOT get Ava's photo by its exact path / the public URL returns nothing", async () => {
@@ -827,20 +845,24 @@ describe("Moderation actions — V6, V8, V10 after admin review", () => {
     assert.ok((await admin("admin_dismiss_reports", { p_person: id("Ivy1") })).error, "dismissed reports on a hidden person");
   });
 
-  it("P46 approving Eve's photo lets Ava get it; a stale photo path is REFUSED / rejecting hides it again", async () => {
+  // Reworked in M3.1 ("nothing waits on the check"): approving no longer reveals a
+  // photo — it was visible already. Rejecting is the only thing that hides one.
+  it("P46 a stale photo path is REFUSED / approving keeps Eve's photo visible / rejecting hides it / approving again brings it back", async () => {
     const eve = M("Eve");
-    await cannotSign(c(M("Ava")), eve.photoPath);
+    await canSign(c(M("Ava")), eve.photoPath);
     const stale = await admin("admin_set_photo_status", {
       p_person: eve.personId,
       p_photo_path: `${eve.authId}/old.png`,
       p_status: "approved",
     });
     assert.ok(stale.error, "approved a photo the admin never saw");
-    await cannotSign(c(M("Ava")), eve.photoPath);
     await ok(admin("admin_set_photo_status", { p_person: eve.personId, p_photo_path: eve.photoPath, p_status: "approved" }));
     await canSign(c(M("Ava")), eve.photoPath);
     await ok(admin("admin_set_photo_status", { p_person: eve.personId, p_photo_path: eve.photoPath, p_status: "rejected" }));
     await cannotSign(c(M("Ava")), eve.photoPath);
+    await canSign(c(eve), eve.photoPath);
+    await ok(admin("admin_set_photo_status", { p_person: eve.personId, p_photo_path: eve.photoPath, p_status: "approved" }));
+    await canSign(c(M("Ava")), eve.photoPath);
   });
 
   it("P47 admin deletes Nia's pin at G: Ava CANNOT see Nia or her pin / Nia's person row stays / the deletion is logged", async () => {
@@ -1136,6 +1158,7 @@ describe("Seed rows never reach the public — V18 (Alex, M2.1)", () => {
     seedSession = newClient(w.env, w.env.publishableKey);
     const signIn = await seedSession.auth.signInAnonymously({ options: { data: { harness: "pindhx" } } });
     assert.equal(signIn.error, null, signIn.error?.message);
+    await markHarness(w.service, signIn.data.user!.id);
     seedPerson = (
       await ok(
         w.service
@@ -1143,7 +1166,6 @@ describe("Seed rows never reach the public — V18 (Alex, M2.1)", () => {
           .insert({
             auth_user_id: signIn.data.user!.id,
             first_name: "Seeda",
-            instagram_handle: handleFor(w.run, "seeda"),
             neighbourhood: "king-west",
             is_seed: true,
           })
@@ -1151,6 +1173,8 @@ describe("Seed rows never reach the public — V18 (Alex, M2.1)", () => {
           .single(),
       )
     ).id;
+    // The handle is also this person's sweep tag (V17 moved both).
+    await ok(w.service.from("person_handles").insert({ person_id: seedPerson, instagram: handleFor(w.run, "seeda") }));
     await ok(w.service.from("people_private").insert({ person_id: seedPerson, gender: "woman", birth_year: 1995 }));
   });
 
@@ -1595,5 +1619,866 @@ describe("The public door's shape — the keys its readers need", () => {
     await denied(w.anon.rpc("chip_category", { p_classification: "Music / Rock" }), "42501");
     await denied(w.anon.rpc("admin_categorise_gatherings"), "42501");
     await denied(c(w.m.Dev).rpc("admin_categorise_gatherings"), "42501");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// V17 — the Instagram handle (Alex, M3.1). Two branches: a crewmate, or a
+// connection. A solo-plan partner is a crewmate (`kind = 'solo'`, M3.4), so it
+// needs no branch of its own; M3.4 adds the column and the case that proves it.
+//
+// Crews and connections have no screens yet (M3.3, M3.4), so these rows are made
+// with the service key. That is honest for this rule: V17 asks who shares a crew
+// and who is connected, and never whether anybody is pinned.
+// ---------------------------------------------------------------------------
+
+describe("Instagram handles — V17 (Alex, M3.1)", () => {
+  const handleSeen = async (viewer: SupabaseClient, target: string): Promise<string | null> => {
+    const r = await rows(viewer.from("person_handles").select("instagram").eq("person_id", id(target)));
+    return r.length === 0 ? null : r[0].instagram;
+  };
+
+  // A crew at `gathering` with these people in it. Returns the crew id.
+  const crewOf = async (gathering: string, names: string[]): Promise<string> => {
+    const crew = await ok(
+      w.service.from("crews").insert({ gathering_id: gathering }).select("id").single(),
+      "make a crew",
+    );
+    for (const name of names) {
+      await ok(
+        w.service.from("crew_members").insert({ crew_id: crew.id, gathering_id: gathering, person_id: id(name) }),
+        `put ${name} in the crew`,
+      );
+    }
+    return crew.id;
+  };
+
+  it("P67 the open list is NOT enough: Ava CAN see Ben at G but CANNOT read his handle / each CAN read and edit their own / anon has no access at all", async () => {
+    const ava = c(M("Ava"));
+    const ben = c(M("Ben"));
+    assert.equal(await seesPeople(ava, "Ben"), 1, "Ava can see Ben — this case is only meaningful if she can");
+
+    assert.equal(await handleSeen(ava, "Ben"), null, "the open list leaked a handle");
+    assert.equal(await handleSeen(ben, "Ava"), null, "the open list leaked a handle");
+
+    // Their own, always — read and write.
+    assert.equal(await handleSeen(ava, "Ava"), handleFor(w.run, "Ava"));
+    await ok(ava.from("person_handles").update({ instagram: handleFor(w.run, "Ava") }).eq("person_id", id("Ava")), "edit own");
+    // Never anyone else's. An update or delete the policy refuses matches no row
+    // rather than raising, so the proof is that nothing changed.
+    const edited = await rows(ava.from("person_handles").update({ instagram: "stolen" }).eq("person_id", id("Ben")).select("person_id"));
+    assert.equal(edited.length, 0, "Ava edited Ben's handle");
+    const removed = await rows(ava.from("person_handles").delete().eq("person_id", id("Ben")).select("person_id"));
+    assert.equal(removed.length, 0, "Ava deleted Ben's handle");
+    await denied(ava.from("person_handles").insert({ person_id: id("Cal"), instagram: "planted" }), "42501");
+    assert.equal(
+      (await serviceRow("person_handles", "person_id", id("Ben"), "instagram")).instagram,
+      handleFor(w.run, "Ben"),
+      "Ben's handle was changed by someone else",
+    );
+
+    await noAccess(w.anon, "person_handles");
+  });
+
+  it("P68 a crewmate CAN read it / leaving the crew ends it", async () => {
+    const ava = c(M("Ava"));
+    const ben = c(M("Ben"));
+    const crew = await crewOf(w.G, ["Ava", "Ben"]);
+
+    assert.equal(await handleSeen(ava, "Ben"), handleFor(w.run, "Ben"));
+    assert.equal(await handleSeen(ben, "Ava"), handleFor(w.run, "Ava"));
+
+    // Leaving is what ends it — not the crew's state (Alex, M3.1: a crew is a crew
+    // whatever its state, forming through dissolved).
+    await ok(
+      w.service.from("crew_members").update({ left_at: new Date().toISOString() }).eq("crew_id", crew).eq("person_id", id("Ben")),
+      "Ben leaves",
+    );
+    assert.equal(await handleSeen(ava, "Ben"), null, "a departed crewmate's handle stayed readable");
+    assert.equal(await handleSeen(ben, "Ava"), null, "someone who left kept reading handles");
+
+    // A dissolved crew still counts (Alex, M3.1): Ben is back in, the crew dissolves,
+    // and the handle is still there. The state never decides this; leaving does.
+    await ok(
+      w.service.from("crew_members").update({ left_at: null }).eq("crew_id", crew).eq("person_id", id("Ben")),
+      "Ben rejoins",
+    );
+    await ok(
+      w.service.from("crews").update({ state: "dissolved", dissolved_at: new Date().toISOString() }).eq("id", crew),
+      "dissolve it",
+    );
+    assert.equal(await handleSeen(ava, "Ben"), handleFor(w.run, "Ben"), "a dissolved crew should still count");
+  });
+
+  it("P69 a connection CAN read it even with no gathering in common / it does not make them visible under V1", async () => {
+    const ava = c(M("Ava"));
+    const cal = c(M("Cal"));
+    // Cal is pinned at G but not opted in, so V1 denies both of them, in both
+    // directions (P12). The connection branch is independent of V1 by design.
+    assert.equal(await seesPeople(ava, "Cal"), 0);
+    assert.equal(await seesPeople(cal, "Ava"), 0);
+
+    const pair = [id("Ava"), id("Cal")].sort();
+    await ok(w.service.from("connections").insert({ person_a: pair[0], person_b: pair[1] }), "connect them");
+
+    assert.equal(await handleSeen(ava, "Cal"), handleFor(w.run, "Cal"));
+    assert.equal(await handleSeen(cal, "Ava"), handleFor(w.run, "Ava"));
+    // And nothing else moved: they still cannot see each other's rows.
+    assert.equal(await seesPeople(ava, "Cal"), 0, "the connection branch changed V1");
+    assert.equal(await seesPeople(cal, "Ava"), 0, "the connection branch changed V1");
+  });
+
+  it("P70 a pending join request is not a crewmate / a block and a moderation hide both override the crew branch", async () => {
+    const crew = await crewOf(w.G, ["Dee"]);
+    await ok(w.service.from("crew_join_requests").insert({ crew_id: crew, person_id: id("Hana") }), "Hana asks to join");
+    assert.equal(await handleSeen(c(M("Hana")), "Dee"), null, "a pending requester read a member's handle");
+    assert.equal(await handleSeen(c(M("Dee")), "Hana"), null, "a member read a pending requester's handle");
+
+    // Gus blocked Hal in P14. Being in a crew together does not undo a block (V4).
+    await crewOf(w.H, ["Gus", "Hal"]);
+    assert.equal(await handleSeen(c(M("Gus")), "Hal"), null, "a block did not stop a handle");
+    assert.equal(await handleSeen(c(M("Hal")), "Gus"), null, "a block did not stop a handle");
+
+    // Ivy1 is hidden by moderation (P45). Hidden works in both directions.
+    await crewOf(w.C4, ["Ava", "Ivy1"]);
+    assert.equal(await handleSeen(c(M("Ava")), "Ivy1"), null, "a hidden person's handle was readable");
+    assert.equal(await handleSeen(c(M("Ivy1")), "Ava"), null, "a hidden person read a handle");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// V6 rewritten — the automated photo check (Alex, M3.1). Three outcomes, and the
+// two that hide a photo are not the same state: "we could not tell" waits for a
+// human, "we refused it" is a decision. Neither ever hides the PERSON.
+// ---------------------------------------------------------------------------
+
+describe("The photo check — V6 (Alex, M3.1)", () => {
+  // Inverted in M3.1 ("nothing waits on the check"): a possible minor is a note to
+  // Alex, not a verdict, so the photo stays visible while it waits in his queue.
+  it("P71 a photo flagged for a human stays visible / its owner still sees it / the person stays visible", async () => {
+    const eve = M("Eve");
+    await ok(w.service.from("people").update({ photo_status: "needs_review" }).eq("id", eve.personId), "needs review");
+    await canSign(c(M("Ava")), eve.photoPath);
+    await canSign(c(eve), eve.photoPath);
+    // The person is never hidden by any photo state (V6). That is the whole point of
+    // a rejected photo leaving someone visible without one.
+    assert.equal(await seesPeople(c(M("Ava")), "Eve"), 1, "a photo state hid the person");
+    await ok(w.service.from("people").update({ photo_status: "approved" }).eq("id", eve.personId), "restore");
+    await canSign(c(M("Ava")), eve.photoPath);
+  });
+
+  it("P72 the check's own record is the service key's alone / nobody else can record a check, read one, or ask for the counts", async () => {
+    await noAccess(w.anon, "photo_checks");
+    await noAccess(c(M("Ava")), "photo_checks");
+    await denied(w.anon.rpc("admin_photo_states"), "42501");
+    await denied(c(M("Ava")).rpc("admin_photo_states"), "42501");
+    for (const client of [w.anon, c(M("Ava"))]) {
+      await denied(
+        client.rpc("admin_record_photo_check", {
+          p_person: id("Ava"),
+          p_photo_path: M("Ava").photoPath,
+          p_outcome: "approved",
+          p_source: "app",
+        }),
+        "42501",
+      );
+    }
+    // And the admin function still refuses to leave a photo undecided — "needs_review"
+    // is what the human was asked to resolve, not an answer they may give back.
+    await denied(
+      w.service.rpc("admin_set_photo_status", {
+        p_person: id("Eve"),
+        p_photo_path: M("Eve").photoPath,
+        p_status: "needs_review",
+        p_actor: ACTOR,
+      }),
+    );
+  });
+
+  it("P73 a failed check decides nothing, leaves a record, and is counted apart from a photo nothing has looked at", async () => {
+    const rex = M("Rex");
+    const before = await ok(w.service.rpc("admin_photo_states"), "counts before");
+    // A check that errored: recorded, and the photo does not move.
+    const applied = await ok(
+      w.service.rpc("admin_record_photo_check", {
+        p_person: rex.personId,
+        p_photo_path: rex.photoPath,
+        p_outcome: "failed",
+        p_source: "webhook",
+        p_error: "the call stopped early",
+        p_cost: "0.020000",
+      }),
+      "record a failure",
+    );
+    assert.equal(applied, null, "a failed check moved the photo");
+    assert.equal((await serviceRow("people", "id", rex.personId, "photo_status")).photo_status, "rejected");
+
+    // Its cost still counts against the day, because it was still billed. A job whose
+    // spend is invisible to the cap turns a hard cap into a suggestion (M2.3).
+    const spend = await ok(w.service.rpc("admin_ai_spend_today", { p_city: "toronto" }), "spend");
+    assert.ok(Number(spend) >= 0.02, `the failed check's $0.02 is missing from the day (${spend})`);
+
+    // And a check about a photo the person has already replaced is recorded and moves
+    // nothing — the stale-photo rule, the same one the admin's own button follows.
+    const stale = await ok(
+      w.service.rpc("admin_record_photo_check", {
+        p_person: rex.personId,
+        p_photo_path: `${rex.authId}/gone.png`,
+        p_outcome: "approved",
+        p_source: "webhook",
+      }),
+      "record a stale check",
+    );
+    assert.equal(stale, null, "a check about a replaced photo decided something");
+    assert.ok(Array.isArray(before), "admin_photo_states returns a row");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// V19 — a person's three tags (Alex, M3.1). They ride V1 rather than inventing a
+// stricter rule: a tag is a conversation handle chosen in order to be read by the
+// people on the list with you, so it travels with the first name.
+// ---------------------------------------------------------------------------
+
+describe("Tags — V19 (Alex, M3.1)", () => {
+  const tagsSeen = (viewer: SupabaseClient, target: string) =>
+    rows(viewer.from("person_tags").select("tag").eq("person_id", id(target)));
+
+  it("P74 the vocabulary is public and read-only / anon CAN read the fifteen tags and CANNOT write one", async () => {
+    const all = await rows(w.anon.from("tags").select("slug"));
+    assert.ok(all.length >= 15, `expected the seeded vocabulary, got ${all.length}`);
+    assert.ok(
+      all.some((t: any) => t.slug === "not-drinking"),
+      "the seed is missing",
+    );
+    await denied(w.anon.from("tags").insert({ slug: "made-up", name: "made up", sort_order: 99 }), "42501");
+    await denied(c(M("Ava")).from("tags").insert({ slug: "made-up", name: "made up", sort_order: 99 }), "42501");
+    // A person's tags are never anon's, vocabulary or not.
+    await noAccess(w.anon, "person_tags");
+  });
+
+  it("P75 Ava CAN read Ben's tags, because she can see Ben / Cal CANNOT, because he cannot", async () => {
+    await ok(
+      w.service.from("person_tags").insert([
+        { person_id: id("Ben"), tag: "usually-go-alone" },
+        { person_id: id("Ben"), tag: "not-drinking" },
+        { person_id: id("Ben"), tag: "here-for-the-support-act" },
+      ]),
+      "Ben picks three",
+    );
+    assert.equal(await seesPeople(c(M("Ava")), "Ben"), 1, "this case only means something if Ava can see Ben");
+    assert.equal((await tagsSeen(c(M("Ava")), "Ben")).length, 3);
+    // Cal is pinned but not opted in, so V1 denies him the person — and the tags with
+    // them, at the same door rather than a second one.
+    assert.equal(await seesPeople(c(M("Cal")), "Ben"), 0);
+    assert.equal((await tagsSeen(c(M("Cal")), "Ben")).length, 0);
+  });
+
+  it("P76 a blocked person and a hidden person CANNOT read them, in both directions / the owner always CAN", async () => {
+    // Gus blocked Hal in P14; Ivy1 is hidden by moderation (P45).
+    await ok(w.service.from("person_tags").insert({ person_id: id("Hal"), tag: "up-for-whatever" }), "Hal picks one");
+    await ok(w.service.from("person_tags").insert({ person_id: id("Ivy1"), tag: "up-for-whatever" }), "Ivy1 picks one");
+    assert.equal((await tagsSeen(c(M("Gus")), "Hal")).length, 0, "a block did not stop tags");
+    assert.equal((await tagsSeen(c(M("Hal")), "Gus")).length, 0, "a block did not stop tags");
+    assert.equal((await tagsSeen(c(M("Ava")), "Ivy1")).length, 0, "a hidden person's tags were readable");
+    // Their own, whatever anyone else can see.
+    assert.equal((await tagsSeen(c(M("Hal")), "Hal")).length, 1);
+    assert.equal((await tagsSeen(c(M("Ivy1")), "Ivy1")).length, 1);
+  });
+
+  it("P77 a person writes only their own, at most TEN, three of them on the list, and both caps are the database's not the screen's", async () => {
+    const ava = c(M("Ava"));
+    // Ten is the cap (Alex, after the A3 walk; it was three until the list grew to
+    // 32). "At least three" stays a rule on the screen, because the link path pins
+    // with none and a database minimum would make a pin impossible.
+    const ten = [
+      "chatty", "will-talk-to-anyone", "good-listener", "dont-mind-the-quiet", "takes-a-minute-to-warm-up",
+      "happy-to-explain", "the-hype-person", "knows-all-the-good-spots", "up-for-whatever", "always-slightly-late",
+    ];
+    for (const tag of ten) {
+      await ok(ava.from("person_tags").insert({ person_id: id("Ava"), tag }), `pick ${tag}`);
+    }
+    // The ELEVENTH is refused by the database, not by a form. P77 asserted a fourth
+    // until the rules changed; inverted rather than deleted, so the cap moving is
+    // visible in the history.
+    await denied(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "not-drinking" }));
+    // Removing one makes room again: this is a cap, not a quota spent once.
+    await ok(ava.from("person_tags").delete().eq("person_id", id("Ava")).eq("tag", "chatty"), "remove one");
+    await ok(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "not-drinking" }), "and add another");
+
+    // Three of them show on the list, and that cap is the database's too. It is not
+    // a visibility rule: every tag is readable by anyone V19 allows either way.
+    for (const tag of ten.slice(1, 4)) {
+      await ok(ava.from("person_tags").update({ on_list: true }).eq("person_id", id("Ava")).eq("tag", tag), `feature ${tag}`);
+    }
+    await denied(ava.from("person_tags").update({ on_list: true }).eq("person_id", id("Ava")).eq("tag", "not-drinking"));
+
+    // Never anyone else's, in either verb.
+    await denied(ava.from("person_tags").insert({ person_id: id("Ben"), tag: "up-for-whatever" }), "42501");
+    const removed = await rows(ava.from("person_tags").delete().eq("person_id", id("Ben")).select("tag"));
+    assert.equal(removed.length, 0, "Ava deleted Ben's tags");
+    assert.equal((await tagsSeen(c(M("Ava")), "Ben")).length, 3, "Ben's three are untouched");
+
+    // And a slug that is not in the vocabulary is not a tag.
+    await denied(ava.from("person_tags").insert({ person_id: id("Ava"), tag: "invented-slug" }));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A23's two halves — the export reads as you, and delete takes the right things
+// (Alex, M3.1). V9 is extended, not loosened: a reporter reads their own reason
+// and date and nothing the moderator wrote.
+// ---------------------------------------------------------------------------
+
+describe("Export and delete — A23 (Alex, M3.1)", () => {
+  it("P78 a reporter CAN read their own reason and date / CANNOT read the outcome / nobody else CAN read it at all", async () => {
+    // Ava filed on Ivy1 and Ivy2 earlier in this run (P34, P35), so these are real
+    // rows rather than ones this case arranged for itself.
+    const ava = c(M("Ava"));
+    const mine = await rows(ava.from("reports").select("id, target_kind, reason, created_at"));
+    assert.ok(mine.length >= 2, `a reporter cannot read the reports they filed (${mine.length})`);
+    assert.ok(mine.every((r: any) => r.reason && r.created_at && r.target_kind === "person"));
+
+    // The moderator's half stays shut, and it is the column grant that shuts it:
+    // `auto_hidden` would tell a reporter their report hid someone (H9).
+    for (const column of ["status", "decision_note", "reviewed_at", "is_safety", "reported_content_snapshot", "reporter_id", "target_person_id"]) {
+      await denied(ava.from("reports").select(column), "42501");
+    }
+    // Not the target's, not a stranger's, not anon's. Ivy2 was reported by Ava and
+    // by Dev, and reads nothing at all.
+    assert.equal((await rows(c(M("Ivy2")).from("reports").select("id, reason"))).length, 0, "the target read a report about them");
+    // Dee has filed nothing all run, which is what makes her the bystander here —
+    // Ben filed one in P35, so he would be reading his own and proving nothing.
+    assert.equal((await rows(c(M("Dee")).from("reports").select("id, reason"))).length, 0, "a bystander read someone's report");
+    await noAccess(w.anon, "reports");
+  });
+
+  it("P79 deleting a person takes what is keyed to them and leaves what outlives them", async () => {
+    // A person of this case's own, so nothing else in the world depends on them.
+    const authId = (await ok(
+      w.service.auth.admin.createUser({ email: `${PREFIX}-gone-${w.run}@example.com`, email_confirm: true, app_metadata: { pind_harness: true } }),
+      "make a user",
+    )).user.id;
+    const person = await ok(
+      w.service.from("people").insert({ auth_user_id: authId, first_name: "Gone" }).select("id").single(),
+      "make a person",
+    );
+    await ok(w.service.from("person_handles").insert({ person_id: person.id, instagram: handleFor(w.run, "gone") }), "handle");
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1994 }), "private");
+    await ok(w.service.from("person_tags").insert({ person_id: person.id, tag: "up-for-whatever" }), "a tag");
+    await ok(w.service.from("pins").insert({ gathering_id: w.G, person_id: person.id, open_to_meeting: true }), "a pin");
+    await ok(
+      w.service.from("reports").insert({ reporter_id: person.id, target_kind: "person", target_person_id: id("Ava"), reason: "spam" }),
+      "a report they filed",
+    );
+    await ok(
+      w.service.from("moderation_log").insert({ actor: ACTOR, action: "account_deleted", person_id: person.id }),
+      "the log row the delete writes first",
+    );
+
+    await ok(w.service.from("people").delete().eq("id", person.id), "delete the person");
+
+    // Gone, by cascade.
+    for (const table of ["person_handles", "people_private", "person_tags"]) {
+      assert.equal((await rows(w.service.from(table).select("person_id").eq("person_id", person.id))).length, 0, `${table} survived`);
+    }
+    assert.equal((await rows(w.service.from("pins").select("id").eq("person_id", person.id))).length, 0, "a pin survived");
+
+    // Kept, with the person reference nulled — a safety record must not disappear
+    // because somebody deleted an account.
+    const report = await rows(w.service.from("reports").select("id, reporter_id, reason").eq("target_person_id", id("Ava")).eq("reason", "spam"));
+    assert.ok(report.some((r: any) => r.reporter_id === null), "the report they filed was deleted with them");
+
+    // And the log, which has no foreign keys precisely so it outlives the row.
+    const log = await rows(w.service.from("moderation_log").select("action").eq("person_id", person.id));
+    assert.ok(log.some((l: any) => l.action === "account_deleted"), "the deletion left no record");
+
+    await w.service.auth.admin.deleteUser(authId);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The sequence the app actually performs — P80 (M3.1).
+//
+// **Why this case exists.** Every policy A2 touches had a passing test, and A2 still
+// could not save a profile. The harness proved that a person MAY write their own
+// rows; it never performed the writes IN THE ORDER AND SHAPE the screen performs
+// them, so an `upsert` against a table deliberately granted INSERT on five columns
+// and UPDATE on two went unnoticed — Postgres checks the DO UPDATE clause's
+// privileges statically, so the first insert of a brand-new person was refused for
+// an update branch that would never run.
+//
+// So this is not another policy case. It is the screen's sequence, run as a real
+// signed-in person: the thing `tests/unit/door.test.ts` does for public reads, done
+// for the first-run writes.
+// ---------------------------------------------------------------------------
+
+describe("A person sets themselves up — the app's own sequence (M3.1)", () => {
+  it("P80 sign in, create the person, the private row, a neighbourhood, three tags and a handle — twice, because the second time is the update path", async () => {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signedIn = await client.auth.signInAnonymously({ options: { data: { harness: PREFIX } } });
+    assert.equal(signedIn.error, null, signedIn.error?.message);
+    const authId = signedIn.data.user!.id;
+    await markHarness(w.service, authId);
+
+    // --- A2, first run: no rows exist yet.
+    const person = await ok(
+      client.from("people").insert({ auth_user_id: authId, first_name: "Setup" }).select("id").single(),
+      "A2 creates the person",
+    );
+    await ok(
+      client.from("people_private").insert({
+        person_id: person.id,
+        gender: "man",
+        include_in_women_only: false,
+        birth_year: 1995,
+        age_attested_at: new Date().toISOString(),
+      }),
+      "A2 writes the private row",
+    );
+
+    // --- A3.
+    await ok(client.from("people").update({ neighbourhood: "king-west" }).eq("id", person.id), "A3 saves a neighbourhood");
+    await ok(
+      client.from("person_tags").insert(
+        ["new-in-town", "not-drinking", "up-for-whatever"].map((tag) => ({ person_id: person.id, tag })),
+      ),
+      "A3 saves three tags",
+    );
+
+    // --- A21.
+    await ok(
+      client.from("person_handles").insert({ person_id: person.id, instagram: handleFor(w.run, "setup") }),
+      "A21 adds a handle",
+    );
+
+    // --- Coming back and changing what CAN be changed. This half is what the upsert
+    // was standing in for, and it has to work through the narrower update grants.
+    await ok(client.from("people").update({ first_name: "Setup2" }).eq("id", person.id), "edit the name");
+    await ok(
+      client.from("people_private").update({ gender: "woman", include_in_women_only: false }).eq("person_id", person.id),
+      "change gender",
+    );
+    await ok(
+      client.from("person_handles").update({ instagram: handleFor(w.run, "setup2") }).eq("person_id", person.id),
+      "change the handle",
+    );
+    await ok(client.from("person_tags").delete().eq("person_id", person.id), "clear the tags");
+    await ok(
+      client.from("person_tags").insert([{ person_id: person.id, tag: "chatty" }]),
+      "and pick again",
+    );
+
+    // --- And the two things the grants deliberately refuse, so the narrowness that
+    // caused the bug is also the thing being protected.
+    // Refused outright rather than quietly matching no rows: a column with no UPDATE
+    // grant is a privilege error, which is the stronger of the two behaviours and the
+    // one worth pinning down.
+    await denied(client.from("people_private").update({ birth_year: 2010 }).eq("person_id", person.id), "42501");
+    assert.equal(
+      (await serviceRow("people_private", "person_id", person.id, "birth_year")).birth_year,
+      1995,
+      "the birth year moved",
+    );
+    await denied(client.from("people").update({ photo_status: "approved" }).eq("id", person.id), "42501");
+
+    await ok(client.from("person_handles").delete().eq("person_id", person.id), "remove the handle");
+    await w.service.from("people").delete().eq("id", person.id);
+    await w.service.auth.admin.deleteUser(authId);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A rescore never overrules a person — P81 (M3.1).
+//
+// **This case exists because the guard silently did not work.** It was written
+// `like 'photo\_%'` with one backslash too many, which in a standard-conforming
+// string matches a literal backslash and therefore nothing at all — so every photo
+// looked undecided and the first real rescore overwrote four decisions Alex had made
+// by hand minutes earlier.
+//
+// It went unnoticed because **a guard that passes and a guard that never ran look
+// identical from outside**: both report "now approved". So the rule gets a case that
+// puts a human decision in front of a rescore and insists the status does not move.
+// A safety rule with no test proving it fires is a comment.
+// ---------------------------------------------------------------------------
+
+describe("Re-judging after a rubric change — P81 (M3.1)", () => {
+  it("P81 a rescore records its verdict always, moves a photo the check itself decided, and refuses to move one a person decided", async () => {
+    const eve = M("Eve");
+    const path = eve.photoPath!;
+
+    // 1. A photo whose last decision was the check's own: the rescore may move it.
+    await ok(w.service.from("people").update({ photo_status: "pending" }).eq("id", eve.personId), "back to pending");
+    await ok(
+      w.service.rpc("admin_record_photo_check", {
+        p_person: eve.personId,
+        p_photo_path: path,
+        p_outcome: "needs_review",
+        p_source: "webhook",
+        p_reason: "the old rubric held it",
+      }),
+      "the check decides",
+    );
+    const moved = await ok(
+      w.service.rpc("admin_rescore_photo", {
+        p_person: eve.personId,
+        p_photo_path: path,
+        p_outcome: "approved",
+        p_reason: "the new rubric approves it",
+        p_only_if_ai: true,
+      }),
+      "rescore after the check",
+    );
+    assert.match(String(moved), /now approved/, `a check's own verdict should be re-judgeable (${moved})`);
+    assert.equal((await serviceRow("people", "id", eve.personId, "photo_status")).photo_status, "approved");
+
+    // 2. Now a person decides. A later rescore must not undo it.
+    await ok(
+      w.service.rpc("admin_set_photo_status", {
+        p_person: eve.personId,
+        p_photo_path: path,
+        p_status: "rejected",
+        p_actor: ACTOR,
+      }),
+      "a human decides",
+    );
+    const held = await ok(
+      w.service.rpc("admin_rescore_photo", {
+        p_person: eve.personId,
+        p_photo_path: path,
+        p_outcome: "approved",
+        p_reason: "the rubric would approve it",
+        p_only_if_ai: true,
+      }),
+      "rescore after a human",
+    );
+    assert.match(String(held), /left alone/, `a rescore overruled a person (${held})`);
+    assert.equal(
+      (await serviceRow("people", "id", eve.personId, "photo_status")).photo_status,
+      "rejected",
+      "a rescore moved a photo a person had decided",
+    );
+
+    // 3. And it is still recorded, because the verdict is evidence even when it is
+    // not applied — otherwise a rubric change leaves no trace of what it would have
+    // done to the photos it was not allowed to touch.
+    const recorded = await rows(
+      w.service.from("photo_checks").select("outcome, source").eq("person_id", eve.personId).eq("source", "rescore"),
+    );
+    assert.equal(recorded.length, 2, "a refused rescore recorded nothing");
+
+    // Leave Eve as the rest of the run expects her.
+    await ok(
+      w.service.rpc("admin_set_photo_status", {
+        p_person: eve.personId,
+        p_photo_path: path,
+        p_status: "approved",
+        p_actor: ACTOR,
+      }),
+      "restore",
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The live photo check never judges the harness's people — P82, P83 (M3.1).
+//
+// **Why this exists:** the webhook approved Eve's "pending" photo mid-run, and P23/P46
+// then asserted against a world that had moved (and every run spent money). The
+// skip is a refusal, so it is proved by making it refuse: a marked person's pending
+// photo is still pending after the check would long since have answered (it takes
+// about three seconds), and the sweep's list leaves them out — and includes them the
+// moment the marker goes, so the exclusion is the marker and not an accident.
+// ---------------------------------------------------------------------------
+
+describe("The harness is invisible to the live photo check — P82, P83 (M3.1)", () => {
+  it("P82 a marked person's pending photo is never checked / the sweep skips them, and takes them once unmarked", async () => {
+    const authId = (await ok(
+      w.service.auth.admin.createUser({
+        email: `${PREFIX}-skip-${w.run}@example.com`,
+        email_confirm: true,
+        app_metadata: { pind_harness: true },
+      }),
+      "make a marked user",
+    )).user.id;
+    const path = `${authId}/skip.png`;
+    let personId: string | null = null;
+    try {
+      await ok(w.service.storage.from(BUCKET).upload(path, PNG, { contentType: "image/png" }), "upload");
+      personId = (await ok(
+        w.service.from("people").insert({ auth_user_id: authId, first_name: "Skip", photo_path: path }).select("id").single(),
+        "insert a pending photo",
+      )).id as string;
+
+      // Twelve seconds: four times what the check took end to end.
+      await new Promise((r) => setTimeout(r, 12_000));
+      assert.equal(
+        (await serviceRow("people", "id", personId, "photo_status")).photo_status,
+        "pending",
+        "the live check judged a harness user's photo",
+      );
+      assert.equal(
+        (await rows(w.service.from("photo_checks").select("id").eq("person_id", personId))).length,
+        0,
+        "a check was recorded for a harness user",
+      );
+
+      const waiting = async () =>
+        ((await ok(w.service.rpc("admin_photos_waiting", { p_limit: 100000 }))) as { id: string }[]).map((r) => r.id);
+      assert.ok(!(await waiting()).includes(personId), "the sweep would check a harness user");
+
+      // The other side: the same row, unmarked, IS what the sweep takes. (Changing
+      // app_metadata touches no `people` row, so no webhook fires and nothing is spent.)
+      await ok(w.service.auth.admin.updateUserById(authId, { app_metadata: { pind_harness: false } }), "unmark");
+      assert.ok((await waiting()).includes(personId), "the sweep skipped an ordinary pending photo");
+    } finally {
+      await w.service.auth.admin.updateUserById(authId, { app_metadata: { pind_harness: true } });
+      if (personId) await w.service.from("people").delete().eq("id", personId);
+      await w.service.storage.from(BUCKET).remove([path]);
+      await w.service.auth.admin.deleteUser(authId);
+    }
+  });
+
+  it("P83 a person cannot mark themselves to skip the check", async () => {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signedIn = await client.auth.signInAnonymously();
+    assert.equal(signedIn.error, null, signedIn.error?.message);
+    const authId = signedIn.data.user!.id;
+    try {
+      // Everything a session can write about itself.
+      await client.auth.updateUser({ data: { pind_harness: true } });
+      const user = (await ok(w.service.auth.admin.getUserById(authId), "read the user")).user;
+      assert.notEqual(user.app_metadata?.pind_harness, true, "a session set its own harness marker");
+      assert.equal(user.user_metadata?.pind_harness, true, "the attempt did not even land where a session can write");
+    } finally {
+      await w.service.auth.admin.deleteUser(authId);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Anonymous → permanent, with the pin surviving — P84, P85, P86 (M3.1, for M3.2).
+//
+// **The step the build plan names as most likely to slip**, and the one the whole
+// quick-pin funnel rests on: A26 pins as an anonymous user, A27 makes that SAME user
+// permanent. If the id changes, or the pin does not come with it, every quick pin is
+// lost at the moment somebody says they would like to meet. `linkEmail()` existed and
+// nothing called it; nothing proved any of this (Alex, M3.1).
+//
+// What a harness can prove, and what it cannot: it proves the id is stable through
+// the conversion and that the person, the pin, the party size and the opt-in survive
+// and stay readable under the new token (P84); that the app's own call is accepted
+// for an anonymous session and changes nothing while the code is outstanding (P85);
+// and whether OAuth linking is switched on at all (P86). **It cannot read the
+// six-digit code from an inbox**, so `verifyOtp({ type: "email_change" })` itself is
+// walked on a device in M3.2.
+// ---------------------------------------------------------------------------
+
+describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.2)", () => {
+  // A26, done the way the screen will: an anonymous session makes its own person
+  // and its own pin, opted in, bringing a friend.
+  async function quickPin(label: string) {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signedIn = await client.auth.signInAnonymously();
+    assert.equal(signedIn.error, null, signedIn.error?.message);
+    const authId = signedIn.data.user!.id;
+    await markHarness(w.service, authId);
+    assert.equal(signedIn.data.user!.is_anonymous, true);
+    const person = await ok(
+      client.from("people").insert({ auth_user_id: authId, first_name: label }).select("id").single(),
+      "A26 makes the person",
+    );
+    const pin = await ok(
+      client
+        .from("pins")
+        .insert({ gathering_id: w.G, person_id: person.id, open_to_meeting: true, party_total: 2 })
+        .select("id")
+        .single(),
+      "A26 pins",
+    );
+    return { client, authId, personId: person.id as string, pinId: pin.id as string };
+  }
+
+  async function stillMine(client: SupabaseClient, authId: string, personId: string, pinId: string) {
+    const me = await ok(client.auth.getUser(), "read my user");
+    assert.equal(me.user.id, authId, "the user id changed");
+    const person = await rows(client.from("people").select("id, auth_user_id").eq("id", personId));
+    assert.equal(person.length, 1, "the person is no longer readable as mine");
+    assert.equal(person[0].auth_user_id, authId);
+    const pin = await rows(client.from("pins").select("id, open_to_meeting, party_total").eq("id", pinId));
+    assert.equal(pin.length, 1, "the pin did not survive");
+    assert.equal(pin[0].open_to_meeting, true, "the opt-in did not survive");
+    assert.equal(pin[0].party_total, 2, "the party size did not survive");
+    // And it is still the person's to change — the write half of RLS, not only reads.
+    await ok(client.from("pins").update({ party_total: 3 }).eq("id", pinId), "edit my pin after the link");
+  }
+
+  it("P84 an anonymous pinner made permanent keeps the same id, and the person, the pin, the party size and the opt-in come with it", async () => {
+    const q = await quickPin("Link");
+    try {
+      // The conversion itself, as the email code will do it once verified: the same
+      // auth user gains a confirmed email.
+      await ok(
+        w.service.auth.admin.updateUserById(q.authId, { email: `${PREFIX}-link-${w.run}@example.com`, email_confirm: true }),
+        "make the user permanent",
+      );
+      const refreshed = await q.client.auth.refreshSession();
+      assert.equal(refreshed.error, null, refreshed.error?.message);
+      assert.equal(refreshed.data.user?.id, q.authId, "a new user came back from the link");
+      assert.equal(refreshed.data.user?.is_anonymous, false, "the user is still anonymous after the link");
+      const claims = JSON.parse(Buffer.from(refreshed.data.session!.access_token.split(".")[1]!, "base64url").toString());
+      assert.equal(claims.sub, q.authId, "the new token is for a different user");
+      assert.equal(claims.is_anonymous, false, "the new token still says anonymous");
+      await stillMine(q.client, q.authId, q.personId, q.pinId);
+    } finally {
+      await w.service.from("pins").delete().eq("id", q.pinId);
+      await w.service.from("people").delete().eq("id", q.personId);
+      await w.service.auth.admin.deleteUser(q.authId);
+    }
+  });
+
+  it("P85 the app's own call — updateUser({ email }) from an anonymous session — is accepted, and nothing moves while the code is outstanding", async () => {
+    const q = await quickPin("Asks");
+    try {
+      // Resend's test inbox: accepts and discards, and costs the domain nothing.
+      const address = `delivered+${PREFIX}-${w.run}@resend.dev`;
+      const asked = await q.client.auth.updateUser({ email: address });
+      assert.equal(asked.error, null, `an anonymous session could not ask to link an email: ${asked.error?.message}`);
+      assert.equal(asked.data.user?.id, q.authId);
+      const user = (await ok(w.service.auth.admin.getUserById(q.authId), "read the user")).user;
+      assert.equal(user.new_email ?? (user as { email_change?: string }).email_change, address, "no change of email is pending");
+      assert.equal(user.is_anonymous, true, "the user became permanent before the code was entered");
+      await stillMine(q.client, q.authId, q.personId, q.pinId);
+    } finally {
+      await w.service.from("pins").delete().eq("id", q.pinId);
+      await w.service.from("people").delete().eq("id", q.personId);
+      await w.service.auth.admin.deleteUser(q.authId);
+    }
+  });
+
+  it("P86 linking Google or Apple to an anonymous user is switched on (Supabase: Allow manual linking)", async () => {
+    const q = await quickPin("Oauth");
+    try {
+      for (const provider of ["google", "apple"] as const) {
+        const { data, error } = await q.client.auth.linkIdentity({
+          provider,
+          options: { skipBrowserRedirect: true, redirectTo: "https://pind.social/you" },
+        });
+        assert.equal(error, null, `${provider}: ${error?.message} — is "Allow manual linking" on in Supabase Auth?`);
+        assert.ok(data?.url, `${provider}: no sign-in page to send the person to`);
+      }
+    } finally {
+      await w.service.from("pins").delete().eq("id", q.pinId);
+      await w.service.from("people").delete().eq("id", q.personId);
+      await w.service.auth.admin.deleteUser(q.authId);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Nothing waits on the check — P87 (Alex, M3.1).
+//
+// A photo is visible from the moment it lands, and the check can only remove. The
+// refusal that matters now is the check's own: a `rejected` verdict must take a
+// visible photo away, and a `needs_review` verdict must not.
+// ---------------------------------------------------------------------------
+
+describe("Nothing waits on the check — P87 (M3.1)", () => {
+  it("P87 an unchecked photo is visible / the check flagging it for a human leaves it visible / the check rejecting it removes it, from everyone but its owner", async () => {
+    const eve = M("Eve");
+    const check = (outcome: string) =>
+      ok(
+        w.service.rpc("admin_record_photo_check", {
+          p_person: eve.personId,
+          p_photo_path: eve.photoPath,
+          p_outcome: outcome,
+          p_source: "webhook",
+          p_reason: `P87 ${outcome}`,
+        }),
+        `record ${outcome}`,
+      );
+    try {
+      await ok(w.service.from("people").update({ photo_status: "pending" }).eq("id", eve.personId), "unchecked");
+      await canSign(c(M("Ava")), eve.photoPath);
+
+      await check("needs_review");
+      assert.equal((await serviceRow("people", "id", eve.personId, "photo_status")).photo_status, "needs_review");
+      await canSign(c(M("Ava")), eve.photoPath);
+
+      await ok(w.service.from("people").update({ photo_status: "pending" }).eq("id", eve.personId), "unchecked again");
+      await check("rejected");
+      assert.equal((await serviceRow("people", "id", eve.personId, "photo_status")).photo_status, "rejected", "the check's rejection did not land");
+      await cannotSign(c(M("Ava")), eve.photoPath);
+      await canSign(c(eve), eve.photoPath);
+      assert.equal(await seesPeople(c(M("Ava")), "Eve"), 1, "a rejected photo hid the person");
+    } finally {
+      await w.service.from("people").update({ photo_status: "approved" }).eq("id", eve.personId);
+    }
+  });
+
+  // **Two copies of one rule, compared** (CLAUDE.md, "an instrument that is wrong"):
+  // the database's `can_see_photo` and the app's `photoShowsToOthers`, which A21's
+  // preview uses to tell a person what others see. For every status, both must agree.
+  it("P88 the app's preview rule and the database's agree on every photo status", async () => {
+    const { photoShowsToOthers } = await import("../../packages/shared/src/copy.ts");
+    const eve = M("Eve");
+    try {
+      for (const status of ["pending", "approved", "needs_review", "rejected"]) {
+        await ok(w.service.from("people").update({ photo_status: status }).eq("id", eve.personId), status);
+        const { data } = await sign(c(M("Ava")), eve.photoPath);
+        assert.equal(!!data?.signedUrl, photoShowsToOthers(status), `${status}: the database and the preview disagree`);
+      }
+    } finally {
+      await w.service.from("people").update({ photo_status: "approved" }).eq("id", eve.personId);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Changing or removing your photo after A2 — P89 (Alex, M3.1 walk).
+//
+// The app's own writes, in the screen's order, as the person: upload a new file into
+// your folder, point your profile at it, delete the old file; then take the photo off
+// altogether. The screen existed nowhere until the walk found a bad photo could not be
+// changed, so its writes get a case the way A2's did (P80).
+// ---------------------------------------------------------------------------
+
+describe("Changing or removing a photo — P89 (M3.1)", () => {
+  it("P89 a person CAN replace their photo, delete the old file and clear the photo / the old file is really gone", async () => {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signedIn = await client.auth.signInAnonymously();
+    assert.equal(signedIn.error, null, signedIn.error?.message);
+    const authId = signedIn.data.user!.id;
+    await markHarness(w.service, authId);
+    const first = `${authId}/first.png`;
+    const second = `${authId}/second.png`;
+    let personId: string | null = null;
+    try {
+      await ok(client.storage.from(BUCKET).upload(first, PNG, { contentType: "image/png" }), "upload the first");
+      personId = (await ok(
+        client.from("people").insert({ auth_user_id: authId, first_name: "Swap", photo_path: first }).select("id").single(),
+        "A2 with a photo",
+      )).id as string;
+
+      // Change photo: upload, point the profile at it, delete the old file.
+      await ok(client.storage.from(BUCKET).upload(second, PNG, { contentType: "image/png" }), "upload the second");
+      await ok(client.from("people").update({ photo_path: second }).eq("id", personId), "point at the second");
+      await ok(client.storage.from(BUCKET).remove([first]), "delete the old file");
+      const listed = await ok(client.storage.from(BUCKET).list(authId), "list my folder");
+      assert.deepEqual(
+        (listed as { name: string }[]).map((f) => f.name).sort(),
+        ["second.png"],
+        "the replaced file is still stored",
+      );
+
+      // Remove photo: the profile no longer has one.
+      await ok(client.from("people").update({ photo_path: null }).eq("id", personId), "clear the photo");
+      assert.equal((await serviceRow("people", "id", personId, "photo_path")).photo_path, null);
+    } finally {
+      if (personId) await w.service.from("people").delete().eq("id", personId);
+      await w.service.storage.from(BUCKET).remove([first, second]);
+      await w.service.auth.admin.deleteUser(authId);
+    }
   });
 });

@@ -20,7 +20,22 @@ export function supabase(): SupabaseClient<Database> {
       storage: Platform.OS === "web" ? undefined : secureStorage,
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: false,
+      // **On the web this must be true, and it was false until M3.1.** An OAuth
+      // sign-in hands the session back IN THE RETURN URL — Google goes to Supabase,
+      // Supabase redirects to pind.social/you carrying the code — and with this off
+      // the client ignored it, so a person came back from Google with no session and
+      // the next screen told them it had expired. It had never existed.
+      //
+      // It was set false in M2.0, correctly: nothing redirected back then. It became
+      // wrong the moment there was an OAuth flow, and nothing connected the two.
+      //
+      // In the native app it stays off, because there is no page to come back to:
+      // `signInWithGoogle` opens a browser session and exchanges the code itself.
+      detectSessionInUrl: Platform.OS === "web",
+      // Stated rather than inherited. The native path calls exchangeCodeForSession,
+      // which only works under PKCE, and a default that changes underneath us would
+      // break it silently.
+      flowType: "pkce",
     },
   });
   if (Platform.OS !== "web") {

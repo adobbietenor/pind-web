@@ -31,8 +31,14 @@ export function initAnalytics(): void {
   console.info("PostHog enabled");
 }
 
-export type AnalyticsEvent = "app_open";
+// The funnel events, named here so the set is a list rather than whatever a screen
+// happened to type. M3.1 adds the store path's two steps.
+export type AnalyticsEvent = "app_open" | "sign_in" | "profile_created";
 
-export function track(event: AnalyticsEvent): void {
-  posthog?.capture(event);
+// Properties are counts and flags only — never a name, an email, a photo path or a
+// person id. PostHog runs with autocapture off, IP discarded and $geoip_disable on
+// every event (decisions Part 5, "Analytics, as built"), and this is the other half
+// of that promise: nothing identifying is put in deliberately either.
+export function track(event: AnalyticsEvent, properties?: Record<string, string | number | boolean>): void {
+  posthog?.capture(event, properties);
 }

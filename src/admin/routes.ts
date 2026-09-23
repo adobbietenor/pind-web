@@ -66,6 +66,7 @@ const ROUTES: [string, AdminHandler][] = [
   ["POST /admin/venues/:id/merge", i.mergeVenue],
   ["POST /admin/venues/:id/suggest", i.suggestSpotsNow],
   ["GET /admin/photos", m.photoQueue],
+  ["POST /admin/photos/sweep", m.sweepNow],
   ["POST /admin/photos/:id", m.decidePhoto],
   ["GET /admin/reports", m.reportQueue],
   ["POST /admin/people/:id/unhide", m.unhidePerson],

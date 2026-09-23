@@ -7,7 +7,7 @@ import { categoryLabel, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, T
 import type { Env } from "../env";
 import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
 import { markSvg } from "./brand";
-import { crowd, crowds, type Counts, type Crowd, type Crowd2, type Spot } from "./data";
+import { city, crowd, crowds, type Counts, type Crowd, type Crowd2, type Spot } from "./data";
 import { DOT, escape, header, notice, page } from "./layout";
 import {
   addDays,
@@ -132,6 +132,10 @@ const READ_WEEKS = 2;
 // browser in under a second (CLAUDE.md, "Keep the Worker lean").
 export async function w1(request: Request, env: Env, tab: TabValue): Promise<Response> {
   const url = new URL(request.url);
+  // The label above the list, from the `cities` row (M3.1). W1 serves both tabs, so
+  // Events and Community get it together; a crowd page does not, because it is
+  // already about one place.
+  const place = await city(env);
   const now = new Date();
   const win = windowFor(now, DEFAULT_TZ, url.searchParams.get("from"));
 
@@ -175,7 +179,7 @@ export async function w1(request: Request, env: Env, tab: TabValue): Promise<Res
     : emptyWeek(tab, other, otherCount, win);
 
   return page(
-    `${header()}
+    `${header(place)}
 <h1>${escape(tab === "community" ? "Community this week" : "This week’s crowds")}</h1>
 <p class="lede">${escape(ONE_LINER)}</p>
 ${tabs(tab, win)}
@@ -391,12 +395,25 @@ ${spotList(door, tz, map.kind, zoom)}
       image: `${origin}/og/${g.slug}.png`,
       head: `<link rel="alternate" type="text/calendar" href="/g/${escape(g.slug)}.ics">`,
       footer: W2_FOOTER(g.slug),
-      // If this browser already has a session, the button says Open instead. The
-      // page is complete without this; JavaScript only relabels one element.
-      // Two small things, neither of which the page needs. If this browser already
-      // has a session the button says Open; and on an iPhone the walking-directions
-      // links point at Apple Maps instead of Google. With JavaScript off, the button
-      // still works and the links still open Google Maps on every platform.
+      // One small thing the page does not need: on an iPhone the walking-directions
+      // links point at Apple Maps instead of Google. With JavaScript off the links
+      // still open Google Maps on every platform.
+      //
+      // **What used to be here, and why it is gone** (Alex, M3.1): a script relabelled
+      // the button to "Open" whenever localStorage held a Supabase session, on the
+      // assumption that a signed-in person has the app. Signing in once on the web
+      // flipped the button on *every* crowd page at once. **A session says somebody
+      // exists; it does not say they are coming to this.** The button follows what
+      // they have done at this gathering, and until the web can pin (A26, M3.2)
+      // nobody has done anything here, so it says PIN_IN and nothing relabels it.
+      //
+      // **Why the swap cannot simply ask the database instead.** Two rules rule it
+      // out, and both are load-bearing: a fetch to supabase.co from a public page
+      // breaks the own-origin rule (measured in M2.1 — 911 ms against 133 ms, paid
+      // per host), and a cookie the Worker could read at render time would make the
+      // page vary by cookie and lose its edge cache. So when A26 lands, the pin
+      // writes a same-origin marker and this script reads it — no network, no
+      // cookie, no cache change. Written up in build-plan §8 M3.2.
       script:
         // A map dot opens its card without leaving a history entry behind. Tapping
         // three dots used to leave three, so "back" appeared to do nothing — it was
@@ -408,9 +425,6 @@ ${spotList(door, tz, map.kind, zoom)}
         `var t=document.getElementById(this.getAttribute("href").slice(1));if(!t)return;` +
         `e.preventDefault();var l=document.querySelector(".spot.lit");if(l)l.className="spot";` +
         `t.className="spot lit";t.scrollIntoView({behavior:"smooth",block:"center"})});}catch(e){}` +
-        `try{for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);` +
-        `if(k&&k.indexOf("sb-")===0&&k.indexOf("-auth-token")>0){` +
-        `document.getElementById("cta").textContent="Open";break}}}catch(e){}` +
         `try{if(/iPad|iPhone|iPod/.test(navigator.platform)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)){` +
         `var a=document.querySelectorAll('a[href*="google.com/maps/dir"]');` +
         `for(var j=0;j<a.length;j++){var d=new URL(a[j].href).searchParams.get("destination");` +

@@ -49,13 +49,24 @@ an unnamed +1, and a +1 occupies a seat: a member with a +1 takes 2 of the 8.
 the organiser and undercounts real groups.
 
 ### Q2 — Photo policy, web vs app
-**Call** (Alex, revised build plan; replaces Test 0's "photo **or** Instagram
-handle"): the face photo is **required to opt in to meeting** (A27 on the link path, A2
-on the store path), **never to pin** — a pin buys a count, which needs no face; opting
-in buys visibility, which does. Crews look for faces at a patio table. There is no
-Instagram alternative: a handle is an optional profile extra, never a substitute for
-the photo (Part 5, "Instagram handle"). The check is automated (Part 5, "Automated
-photo moderation").
+**Call, as it stands** (Alex, M3.1): a photo is **required to opt in to meeting** (A27
+on the link path, A2 on the store path), **never to pin** — a pin buys a count, which
+needs no photo; opting in buys visibility, which does. **The photo need not be a
+face:** the check approves anything that is not nudity, hate imagery or gore, and sends
+only a possible minor to a human (Part 5, "The photo check holds almost nothing now").
+The screen encourages one — "A photo of you makes it easier to find each other" — and
+does not demand it. There is no Instagram alternative: a handle is an optional profile
+extra, never a substitute for the photo (Part 5, "Instagram handle"). The check is
+automated (Part 5, "Automated photo moderation").
+
+**Superseded wording** (Alex, revised build plan; replaced Test 0's "photo **or**
+Instagram handle"), kept so the history is readable: *"the face photo is required to
+opt in to meeting … opting in buys visibility, which does [need a face]. Crews look for
+faces at a patio table."* **Superseded in M3.1** because it describes the old photo
+rule: once a cartoon, a pet or a landscape is approved, "a face at a patio table" is a
+promise the product does not keep, and a binding call that says otherwise is a stale
+rule waiting to be walked against (as the M3.1 acceptance line nearly was). What
+survives unchanged: required to opt in, never to pin, no Instagram substitute.
 **Alternative:** require photos everywhere from day one. Safer-feeling list, worse funnel.
 
 ### Q3 — Gender mix at tiny counts
@@ -155,7 +166,7 @@ school, sexual orientation. Tags are optional on the link path and nudged later
 (Alex, revised build plan); "exactly 3" defines a complete profile.
 
 Collected only if the person chooses to add it: an **Instagram handle** — optional,
-never required, never a substitute for the face photo, and visible only to crewmates,
+never required, never a substitute for the photo, and visible only to crewmates,
 a solo-plan partner and connections (Part 5, "Instagram handle").
 
 Collected with a stated purpose: **self-declared gender** (woman / man / nonbinary /
@@ -474,16 +485,17 @@ change). Where the plan has more detail, the plan is the reference.
   nudged later; "exactly 3 tags" defines a complete profile, never a gate before a pin.
 - **Instagram handle** (Alex, revised build plan — Alex's own change to the plan, which
   had dropped it). A person may add an Instagram handle to their profile. It is
-  **always optional**, never required, and **never a substitute for the face photo**.
+  **always optional**, never required, and **never a substitute for the photo**.
   **Who can see it:** only that person's **crewmates**, their **solo-plan partner** and
   their **connections**. Never on the open "going & open to meeting" list, never on any
   public page, never in link previews — this protects H2 (no cold DMs) and solo's
   mutual-accept rule. Enforced in the database like every other visibility rule, with
   harness cases proving both who can and who cannot see it, when the profile is built
   (**M3.1**; `docs/visibility.md` V17, pending).
-- **Sign in with Apple on the web: later** (Alex, revised build plan). The email code
-  and Google come first on the web. In the app, Apple is offered alongside Google
-  (Apple's rule).
+- **Sign in with Apple on the web** (Alex, revised build plan: "later"; **reversed in
+  M3.1** — see "Apple was built for the web and never rendered there"). Apple, Google
+  and the email code are offered on the web and in the app alike. In the app Apple
+  is required alongside Google (Apple's rule).
 - **Android after iOS, from the same code** (Alex, revised build plan). The web build
   serves Android users until then. Register the Play account under the corporation.
 - **Analytics and crashes** (Alex, revised build plan). **PostHog** for in-app funnel
@@ -2066,3 +2078,768 @@ occurrences to 31 December**, three and a half months out.
   - **Revisit when there are real pins.** Today every gathering has zero, so the page
     would be an empty list ordered by nothing — and it would be the first page in the
     product whose emptiness is a statement about the product rather than about the week.
+
+### Decided in Phase 3 M3.1
+
+- **V17: a crew is a crew whatever its state** (Alex, M3.1). Forming, spot set, live,
+  done and dissolved all let crewmates read each other's Instagram handle. **Leaving
+  is what ends it** (`crew_members.left_at`), not the crew's state. The alternative —
+  a crew that met keeps it, a crew that dissolved does not — was considered and
+  rejected: "the rule gets harder to state and harder for the M4.2 reviewer to audit,
+  for a case that's rare. And a dissolved crew still had people in a thread together,
+  which isn't nothing. If a real problem shows up, split it then with evidence."
+- **V17 has two branches, not three** (Alex, M3.1, accepting the recommendation). The
+  spec names crewmates, a solo-plan partner and connections, but a solo plan **is** a
+  crew (`kind = 'solo'`, M3.4), so the solo partner falls out of the crew branch and
+  needs no rule of its own. M3.4 adds the column and the harness case that proves it.
+- **A pending join request is not a crewmate** (Alex, M3.1). The handle appears only
+  once a member has approved you.
+- **A photo that fails its check is a fourth state, and it is recorded** (Alex, M3.1).
+  A check that errored, timed out or never ran is **not** "needs a human" and **not**
+  "waiting": it leaves `photo_status` at `pending` and writes a failure row to
+  `photo_checks`, and the admin counts *waiting for a human*, *never successfully
+  checked* and *check failing* separately. Leaving it at pending with no record is the
+  M2.3 map bug exactly — unset is a different state from broken. The check's spend
+  joins `admin_ai_spend_today` in the same migration that creates the table, so the
+  $3/day cap can see it from the first call.
+- **A deleted person's messages stay in the thread** (Alex, M3.1), rendered as "someone
+  who left". "Removing a departed member's lines rewrites a conversation other people
+  are still reading."
+- **Export includes the reports you filed** (Alex, M3.1) — your reason and the date,
+  never the moderation outcome, "which isn't mine". The export is read **as you**
+  through RLS, never with the service key, so it cannot over-return.
+- **The tag list is fifteen, and short is the safe error** (Alex, M3.1). The M2.0 draft
+  of twenty was replaced: four of its tags meant nothing outside a ticketed arena, ten
+  of twenty were sports or music, and the community third of the product had one slug
+  between it. The replacement is four groups of ways-of-being — New here, Company, What
+  I'm like, Bring me into — so the same three tags say something at an arena, at a gig
+  and at a 9am run. Seeded by `20260921010024_m3_1_seed_tags`; the list and its
+  reasoning are `packages/shared/src/tags.ts`.
+  - **The length was set by an asymmetry in the schema, not by taste.**
+    `person_tags.tag references tags (slug) on delete restrict`, so **adding a tag
+    later is an insert and removing one anybody has picked is a data migration.** The
+    two directions are not symmetric, so the list is deliberately short. Rewording
+    stays free forever either way: the slug is the identifier, the name is copy.
+  - **The vibe chips own the night; the tags own the person** (Alex). Anything about
+    when you arrive, how long you stay or what you drink belongs to the crew (spec §3,
+    "Crew vibe"), not to a person's profile. The draft collided with those nine chips
+    in seven places, two of them word for word, and they render inches apart on A10.
+    "Always slightly late" survives the rule because early is a plan a crew can make
+    and late is a confession only a person can make.
+  - **A tag that names the gathering it is read at is dead.** Tags are read only inside
+    one gathering, so "sport" at a hockey game is true of nineteen thousand people.
+    Taste survives as a handle ("here for the support act"), never as a category —
+    which is also what keeps a person's tags from being mistaken for W1's filter chips.
+  - **Cut for saying nothing:** "here to meet people", because every person whose
+    profile can be read has `open_to_meeting = true` (V1 requires it of both parties),
+    so it was true of 100% of the people who could ever see it; and "easy company", as
+    unfalsifiable.
+  - **Cut for leaking past a gate: "better one-on-one"** (Alex: "the one I'd have got
+    wrong"). A tag has no visibility control, but solo does — A28 forces a choice
+    between "everyone who opted in" and "women only" with no default, and A29 allows
+    only preset lines until a mutual accept, specifically so nobody can make a standing
+    1-on-1 approach. A tag reading as a solo signal is a standing approach, on the
+    profile, visible to people who never opted into solo at all.
+  - **`not-drinking` is the load-bearing tag** — the only one that changes what a crew
+    does (where it meets) rather than describing someone. Worth knowing when the list
+    is next revisited.
+  - **"Up for whatever" is kept knowingly** (Alex): the marginal tag, but "the list is
+    now short enough to carry one loose tag, and it's the only thing left that someone
+    unsure of themselves can pick without claiming a trait."
+  - **Three from one group stays possible, and A3 makes it visible** rather than
+    costing a slug: the picker shows the four groups as four labelled rows, not one
+    pool, so a nervous first-timer spending all three tags on "I'm new" is a choice
+    rather than an accident.
+- **Two colour tokens, measured** (Alex, M3.1, on the W1 card's count-and-invitation
+  line). `colors.textTint` **#EFE8F6** — a near-white carrying a trace of the brand
+  hue, at the same lightness as the plain near-white it replaced (L* 92.9 against
+  92.8), on the brand's hue (309° against 313°), at about an eighth of its chroma.
+  15.13:1 on the card surface. `colors.accentText` **#A874DB** — the lightest purple
+  that is still purple and still passes AA as text on dark (5.33:1 on the card, 5.82:1
+  on the page), against `accent` #582883's 1.76:1, which fails outright as text.
+  **Neither is ever a link colour**: links on the public pages are lilac #c9a6ee, and a
+  different purple inside a card that is itself a link reads as a link within a link.
+  Held in reserve rather than shipped (Alex): purple on the count alone, with
+  "· see who's going" staying near-white — the better next step if the tint is not
+  enough on the phone.
+
+### "Add an event" — filed, not built (Alex, M3.1)
+
+A public form where someone submits a gathering. **Nothing is built yet**; this is the
+note so it is not designed from scratch later, and so the two rules below are not
+rediscovered as opinions.
+
+**It supersedes "Suggest a gathering is a mailto link. Nothing is stored." (Part 5).**
+
+**Two rules, both Alex's, both hard:**
+
+1. **Nothing publishes without Alex's approval.** A submission is a draft like any
+   other and takes the same journey: published, dismissed, or merged into a duplicate.
+2. **Nothing can be submitted less than 24 hours before it starts.** A gathering that
+   starts tonight cannot be added tonight.
+
+**The approval gate deliberately inverts "automate by default"** (Part 5, "Automate by
+default": *wherever possible, AI does the work and Alex removes what is wrong*). For
+this one path the order is reversed, and the reason is what a submission is rather than
+how much work it is: **it is the first place a stranger writes text that other people
+read.** Everything user-generated in Pin'd so far is confined — a first name, a photo
+behind an automated check, messages inside a crew that only its members can open. A
+submitted gathering is **public text on a public page**: it goes into W1's list, a
+crowd page, an OG preview cached at post time, and a Reddit thread. So it is the
+obvious vector for someone promoting something that is not a gathering, and the gate is
+a gate rather than a queue drained when there is time. **A queue that is usually empty
+looks exactly like a gate until the week it isn't.**
+
+**Two questions Alex has left open, to answer when it is built:**
+
+- **Can a submitter create a venue that does not already exist?** That is how invented
+  addresses reach a map. Ours is not a generic map: it is drawn from the venue's
+  coordinates, and its meeting spots are curated by hand (H5), so an invented venue
+  produces a picture of a place that is not there, with no spots and nothing to check
+  it against.
+- **Can they submit a recurring series, or only a single date?** The series machinery
+  exists (M2.3: cadence, the eight-week generator cap, the weekly liveness check), so
+  the answer is not "we cannot" — it is whether one submission should be allowed to
+  create many rows.
+
+**Four more things to have thought about before it is designed** (Claude, M3.1, filed
+with the rest so they are cheap now rather than expensive later):
+
+- **The 24-hour floor wants a ceiling too.** The import looks 8 weeks ahead and M2.3
+  found that "a horizon a year out is not evidence". A submission dated next August is
+  a different kind of problem from one dated tonight, and only one of them has a rule.
+- **Scoring is not moderation, and this is why approval cannot just be the existing
+  rubric with a human on the end of it** (Alex, M3.1: "make sure that's on the
+  record"). The AI rubric scores drafts 0–100 on *would a crowd form here* — crowd
+  size, audience age, people going alone, somewhere to meet, shared identity. That is
+  a **ranking** question, and its failure mode is a dull gathering published above a
+  good one. "Is this a gathering at all, or an advert, a scam, a rally, or somebody's
+  contact details typed into a `name` field" is a **safety** question, and its failure
+  mode is a stranger's text on a public page with our name on it. Different questions,
+  different failure modes, and a high score is no evidence at all about the second —
+  a well-written advert for a timeshare scores well on every line of the rubric. So
+  the submission check is its own check, with its own three outcomes and its own
+  uncertain state meaning *a human looks*, exactly like the photo check's. Running one
+  rubric and reading it as an answer to both is the M2.2 venue-cap shape again: a
+  status computed against the wrong fact reads as correct while being wrong.
+- **A submission needs a person attached, or there is nothing to rate-limit or block.**
+  The link path makes anonymous users, which is fine for a pin and is not fine for a
+  write that strangers read. Rate limiting is the practical defence and it needs an
+  identity to count against.
+- **Approval must happen before a slug is minted**, which the existing publish flow
+  already does — worth keeping deliberately, because a slug is what a link preview and
+  Cloudflare's cache key are built from, and both outlive the row.
+
+**Where it goes:** most naturally alongside **M4.4** (community sourcing), since a
+submitted gathering is community sourcing through a different door — but its gate is
+the opposite of M4.4's auto-publishing, and that difference is the point, not an
+inconsistency to iron out.
+
+### Decided in Phase 3 M3.1 — later
+
+- **V19: a person's tags ride V1** (Alex, M3.1). Reading somebody's three tags is
+  allowed exactly when you can see that person at all — the same rule as their first
+  name and neighbourhood, `private.can_see`, no wider and no narrower. Unlike V17, it
+  needed no rule of its own: an Instagram handle is a way to contact someone off
+  Pin'd, while **a tag is a handle the person chose in order to be read by the people
+  on the list with them**, which is what it is for. It picks up the crew and
+  connection branches free when H3 adds them, the same saving as V17's two branches.
+  **At most 10 in the database, at most 3 of them on the list, at least 3 asked for by
+  A3** (Alex, M3.1; the cap was 3 until the tag list was redone at 32 tags): a minimum
+  in the database would make a pin impossible on the link path, where a profile is
+  deliberately incomplete. `docs/visibility.md` V19 (§12h); harness P74–P77, and P04 inverted.
+- **expo-web-browser and expo-auth-session are added to the native module list**
+  (Alex, M3.1), joining apple-authentication, image-picker, image, notifications and
+  secure-store. **The reasoning, so it is not re-argued:** Google is the most common
+  sign-in on Android and on the web, and Supabase's OAuth flow cannot work in the
+  native app without an in-app browser session — so dropping it in the app would make
+  the platforms diverge for no good reason. Pinned like everything else:
+  `expo-web-browser` 57.0.3, `expo-auth-session` 57.0.12, and `expo-web-browser` is
+  added to the Expo config's plugins so the redirect comes back through the app's own
+  scheme.
+- **A 401 says which 401 it is** (Claude, M3.1, after the webhook walk). The
+  photo-check webhook's refusal now answers `missing` (no header arrived — the trigger
+  or pg_net) or `mismatch` (a header arrived and was wrong — the two halves of the
+  secret). Both halves are compared by a **fingerprint** — the first ten hex
+  characters of each one's SHA-256 — shown side by side on the admin's Configuration
+  panel, so a secret set correctly on one side and mistyped on the other can be
+  diagnosed without either value being revealed. **"Unset is a different state from
+  broken" needed a third sibling: set on both sides and different.** Until that line
+  existed, nobody — not Alex, not the Worker, not the database — could tell those two
+  apart, and all of them presented as "the photo is still pending".
+
+### Custom SMTP is required, not optional (Alex, M3.1)
+
+Supabase's **built-in email cannot be used for sign-in**, and the reason is worth
+writing down because it looks like a preference and is not.
+
+- **It is the only way to send a code at all.** Supabase refuses to let you edit the
+  email templates until custom SMTP is configured, and the default Magic Link template
+  sends a **link**. Pin'd sends a **six-digit code** (Part 5, "Identity": no magic
+  links, no session cookie), so without custom SMTP the third sign-in method — the only
+  one that needs no developer console, and the one the web path leans on — **did not
+  work at all**.
+- **The built-in sender is capped at a few messages an hour**, which is invisible
+  while one person tests and would have bitten on the first real crowd, at exactly the
+  moment a queue of people are trying to sign in at once.
+
+**As configured** (Alex, 21 Sept 2026): Resend SMTP, `smtp.resend.com`, sender
+**auth@pind.social**, with **its own API key named `supabase-auth`** rather than
+reusing the alerts key. The Magic Link template carries `{{ .Token }}`, and a
+six-digit code was confirmed arriving on a phone from `pind.social/sign-in`.
+
+**Why a separate key rather than one Resend key for everything.** The two paths fail
+differently and are rotated for different reasons. An alerts key that is rotated or
+revoked costs us a monitoring gap; **a sign-in key that is revoked means nobody can
+get in**, and the two should not be able to take each other down. It also keeps the
+blast radius of a leak to one of them.
+
+**The blind spot this creates, stated rather than discovered later.** We now have a
+**hard dependency for sign-in that our own health page cannot see**. The admin's
+Configuration panel asks Resend whether the sending domain is verified — that check
+uses `RESEND_API_KEY`, ours, and covers `pind.social`, which both senders share. It
+does **not** and cannot check the `supabase-auth` key, which lives in Supabase's SMTP
+settings and never reaches the Worker. So a revoked or expired auth key presents as
+*people quietly not receiving codes*, with nothing anywhere saying why.
+
+What would actually detect it is a real sign-in attempt. That is a delivery-monitoring
+problem and it belongs with **M3.5**, which builds the notification queue, its retries
+and its failure records; the auth email should get the same treatment then rather than
+a one-off check bolted on here. Until then it is a known gap, not an unknown one.
+
+### Sign in with Apple: the secret is a JWT, and it lapses (Alex, M3.1)
+
+- **Supabase's "Secret Key" field wants a JWT, not the `.p8`.** Apple's client secret
+  is a short-lived ES256 JWT *signed with* the `.p8`: `iss` the Team ID, `sub` the
+  **Services ID** (`social.pind.web` — not the bundle identifier), `aud`
+  `https://appleid.apple.com`, `kid` the Key ID. `scripts/apple-client-secret.ts`
+  mints it locally. **The `.p8` never enters the repo, a chat or a web tool**, and the
+  script refuses to read a key from inside the repository — a private key one
+  `git add -A` from being published is a different risk from one that is not.
+  - One detail that is load-bearing rather than trivia: **ES256 in a JWS is the raw
+    r‖s signature, not DER.** Node signs EC as DER by default and Apple answers
+    `invalid_client` with nothing saying why, so `dsaEncoding: "ieee-p1363"` is the
+    difference between working and an evening. Proved before use against a throwaway
+    key: 64-byte signature, verifies, correct claims.
+- **Apple caps the secret at six months, and when it lapses the break is partial.**
+  **Web** Apple sign-in stops; **native iOS keeps working**, because the native flow
+  verifies an identity token and never uses this secret. So the half that still works
+  hides the half that stopped — easier to miss, not harder (Alex).
+- **Nothing can detect it by asking.** The secret lives in Supabase's provider
+  settings and never reaches the Worker, and Apple only refuses it in the middle of
+  somebody's sign-in. So the expiry is **recorded** where it is minted — the script
+  prints the line — in `APPLE_SECRET_EXPIRES` (a date, not a secret), and watched two
+  ways: the admin's Configuration panel shows it, and the 09:00 cron sends one alert a
+  day from six weeks out. **Unrecorded is its own state and is also worth an alert**,
+  because it is the state in which the warning does not exist.
+- **The staging Services ID points at the staging App ID.** `social.pind.web` was
+  created with `social.pind.app.staging` as its primary, because `social.pind.app` is
+  not registered until M4.3. Changing it, and minting a fresh secret, is in M4.3's
+  scope and acceptance — and the acceptance says it out loud, because testing the app
+  would prove nothing: native sign-in works either way.
+
+### Sign-in email: which templates, and why a link is not a code (Alex, M3.1)
+
+**A link works on the device that opened it and fails the moment somebody reads the
+email on their laptop** (Alex, M3.1, after the walk). That is the whole argument for
+the six-digit code, and it is also why the problem hid: testing by tapping the link on
+the same phone exercises the one case where a link behaves like a code. Part 5
+("Identity") already said no magic links; this is what it costs when the template does
+not obey.
+
+**Every Supabase template that can deliver a Pin'd sign-in**, and which flow reaches it:
+
+| Template | When it is sent | Ours? |
+|---|---|---|
+| **Confirm signup** | the first time an address is seen (`signInWithOtp` with `shouldCreateUser`) | **yes** — A1, every new person |
+| **Magic Link** | an address that already exists signs in again | **yes** — A1, every returning person |
+| **Change Email Address** | `updateUser({ email })` | **yes** — A27, anonymous becoming permanent |
+| Invite user | only the admin invite API | no — never called |
+| Reset password | only a password flow | no — there is no password path anywhere |
+| Reauthentication | only `auth.reauthenticate()` | no — never called |
+
+All three of ours carry `{{ .Token }}` and the subject "Your Pin'd code" (Alex, 21 Sept
+2026). **The first one is the one that hid the bug**, because a brand-new address never
+touches the Magic Link template at all.
+
+**Two things A27 must get right, recorded here so M3.2 does not rediscover them:**
+
+- **The email-change code verifies with a different type.** `{{ .Token }}` is the right
+  variable, but the code it carries is verified with
+  `verifyOtp({ type: "email_change" })`, **not** `type: "email"`. The wrong type fails
+  with a message about an invalid token, which reads like the person mistyped it.
+- **"Secure email change" sends two codes when there is an old address to protect.**
+  For the link path there is none — an anonymous user has no email — so one code
+  arrives. Somebody later *changing* their email gets two, and a screen that asks for
+  one will look broken.
+
+### The email's own domain has a reputation, and it starts at nothing (M3.1)
+
+Delivered to Gmail, junked by Outlook on the first send. The DNS, read on 21 Sept 2026:
+
+- **SPF** — the root is `v=spf1 include:_spf.mx.cloudflare.net ~all`, which is
+  Cloudflare Email Routing and **does not authorise Resend**. That is fine *as long as*
+  Resend keeps using `send.pind.social` as the envelope sender, which has its own
+  `v=spf1 ip4:…` record. **If a send ever goes out with an envelope domain of
+  `pind.social` itself, SPF fails** — worth knowing, because it would look like a
+  reputation problem and would not be one.
+- **DKIM** — `resend._domainkey.pind.social` is present and signs as `pind.social`, so
+  it aligns with the `From:` header.
+- **DMARC** — `v=DMARC1; p=none;` and nothing else. Present, aligned, and **giving away
+  the two things that help most**: no `rua`, so no reports and therefore no evidence;
+  and `p=none`, which Microsoft reads as a domain with no policy.
+
+**What to change, in order:** add `rua` so failures become visible at all; run a week
+and read the reports; then move to `p=quarantine` once alignment is proven clean.
+Jumping straight to a policy without reports is how a domain silently stops delivering
+its own sign-in codes.
+
+### The flag came out (Alex, M3.1)
+
+The city label on W1 is **"Toronto, Canada" as text**, top centre and quiet, and it
+carried a small Canadian flag for about an hour. **It is gone, and it is not coming
+back as a drawing.**
+
+- **A national flag is the one thing on the page that cannot be approximately right.**
+  It was drawn by hand, rendered, and looked at — which caught that it was recognisable
+  and did not catch that it was wrong, because "looks like the Canadian flag" and "is
+  the Canadian flag" are different tests and only the first one can be passed by
+  eye. Checking my own work against my own memory is not a check.
+- **We would rather have none than a wrong one**, and the label reads correctly without
+  it: the country's name is what carries the meaning.
+- **If a flag returns, it comes from an official source file** — a real SVG, committed
+  and served from our own origin — never a path typed out by hand. The own-origin rule
+  and the no-emoji reason both still hold (🇨🇦 renders as the letters "CA" on Windows);
+  what changed is where the artwork may come from.
+
+### The crowd-page button follows the pin, not the session (Alex, M3.1)
+
+Every crowd page's button said **"Open"** after Alex signed in during the M3.1 walk. A
+script from M2.1 relabelled it whenever `localStorage` held a Supabase session, on the
+assumption that a signed-in person has the app.
+
+**A session says somebody exists. It does not say they are coming to this.** The
+assumption was true enough in M2.1, when the only way to have a session was to have
+used the product, and it stopped being true the moment the web could sign in.
+
+- **not pinned → "Pin in — I'm going"; already pinned → "See who's going".** The
+  button follows what the person has done **at that gathering**.
+- **"Open" appears nowhere on the web.**
+- Checked rather than assumed: the assumption lived in exactly one place, W2's `#cta`.
+  W1's cards, the weekly pager and W3's share card are plain links and never looked at
+  a session.
+- **The second state arrives with A26** (M3.2), because until the web can pin, nobody
+  has done anything at any gathering. The swap is removed rather than left inert: on a
+  page with a byte budget, dead JavaScript is not free.
+- **How it will work, decided now so M3.2 does not have to rediscover it:** the pin
+  writes a **same-origin marker** and the script reads it. Asking the database from the
+  page would break the own-origin rule (M2.1 measured 911 ms against 133 ms, paid per
+  host), and a cookie the Worker could read at render time would make W2 vary by cookie
+  and lose its edge cache.
+
+### Tag slugs are generic, tag words are city-specific (Alex, M3.1)
+
+`new-to-toronto` and `toronto-born-and-raised` became **`new-in-town`** and
+**`born-and-raised`**, keeping the displayed words "new to Toronto" and "Toronto born
+and raised".
+
+**The slug is the contract and the name is copy** — so Vancouver gets the right words
+in an ordinary commit rather than a data migration, which is the whole point of the
+city being a row on `cities`. Done the same day the city became a row, and while it was
+still nearly free: `person_tags` held three rows, **one of them `new-to-toronto`**, so
+it was a real move of real data rather than a rename of something nobody had picked.
+Three rows is a move; three thousand is a maintenance window.
+
+### The photo check holds almost nothing now (Alex, M3.1)
+
+**The first real photo through the check was held.** A professional wedding photo —
+Alex, clearly the subject, friends behind him — came back `needs_review`: *"Multiple
+faces in frame, though one is prominent, ambiguity about which person is the profile
+subject."* That is an ordinary photo, and **a check that holds ordinary photos turns
+Alex into the bottleneck for every new person.**
+
+**Measured when the rubric changed:** the check had reached **23 verdicts and every
+single one was `needs_review`**. It had never approved anything in its life. Two of
+the 23 were real photographs; the other 21 were test images so small the model
+reported receiving no image at all — which is worth separating, because it means the
+rate was part rubric and part degenerate input, and only the first part was the
+problem being fixed.
+
+**The rubric now:**
+
+| | |
+|---|---|
+| **rejected** | nudity or sexual content · hate symbols or racist imagery · gore or graphic violence. **Only those.** |
+| **needs a human** | only when the person might be under 19. H8 stands: the check never decides age, it only flags. |
+| **approved** | everything else, without exception — group photos, a subject with people behind, cartoons, avatars, no face at all, a landscape, a pet. If somebody wants a funny picture, that is their call. |
+
+**Swimwear and shirtless photos are approved**: they are not nudity, and treating them
+as such is part of what made the check hold ordinary photos. The labelled set moves
+that case from rejected to approved.
+
+**The copy changed with it, because the promise changed.** "A photo, so people know
+it's you" and "your crew looks for a face at a patio table" both overclaimed the
+moment a photo needed no face and nothing verified that it was you — copy that says a
+photo proves who you are while the check approves cartoons describes a different
+product. It is now "A photo" and **"A photo of you makes it easier to find each
+other"**: encouragement, not a requirement, and still followed by the line saying one
+is needed before meeting anybody.
+
+**Re-judged, per the rule the comedy rubric set** (a rubric change ships with the
+re-score of whatever it has already judged, run twice):
+
+- every photo that exists, twice, with the new wording;
+- **the wedding photo is approved**, and the reason names the thing that used to hold
+  it: *"Wedding photo of clearly adult groom with groomsmen; no nudity, hate imagery
+  or age concerns"*;
+- **the needs_review rate went from 100% — 23 of 23 verdicts — to 0 of 11**;
+- **runs 1 and 2 disagreed on 0 of 11.** That is the noise floor, and it is much
+  flatter than the comedy rubric's, which moved individual rows by 5 to 15 points. A
+  rubric with three narrow refusals and one narrow hold has far less to be uncertain
+  about than one scoring a crowd out of 100;
+- $0.055 for the whole exercise.
+
+**The n is small and the rate is not yet a rate.** One real photograph and ten seeded
+placeholders is not a measurement of how the check behaves on real photos; it is a
+measurement that the change does what it says on what exists. The labelled set is
+still owed, and it now exists mainly to catch the check **drifting back** to holding
+ordinary photos.
+
+### A guard that never ran looks exactly like a guard that passed (M3.1)
+
+`admin_rescore_photo` exists so a re-judge **never overrules a person**: it moves a
+photo's status only when the last decision on it came from `ai:photo-check`. The first
+real `--write` **overwrote four photos Alex had rejected by hand minutes earlier**, and
+attributed the change to the check.
+
+The cause was one character. The guard found the last decision with
+`like 'photo\\_%'` — a doubled backslash, which in a standard-conforming string is a
+**literal backslash** and matched nothing, so every photo looked undecided. They were
+seed rows, so no real person was affected, and that is luck rather than design.
+
+**Why it went unnoticed is the part worth keeping: a guard that correctly finds
+nothing to stop and a guard that never ran report the same thing.** Both say "now
+approved". There is no failure to see, no error, no count that moves — the safe path
+and the broken path are the same path.
+
+So the fix ships with **P81**, which puts a human decision in front of a rescore and
+insists the status does not move, and proves the other half too: a verdict the check
+itself made *is* re-judgeable, and a refused rescore is still **recorded**, because
+what a rubric change would have done to the photos it was not allowed to touch is
+evidence.
+
+**A safety rule with no test proving it fires is a comment.** That is the general form,
+and it belongs beside the instrument rule: one is about a check that measures the
+wrong thing, this is about a check that measures nothing.
+
+### Apple was built for the web and never rendered there (Alex, M3.1)
+
+**Found after the web walk passed:** `pind.social/sign-in` offered Google and the email
+code, and no Apple. Everything behind the button existed — the Services ID
+`social.pind.web`, the client secret minted from the `.p8`, `APPLE_SECRET_EXPIRES` and
+its 09:00 watch — and a probe had confirmed Apple's 302. **The probe proved the path
+existed, not that anyone could reach it.**
+
+**Why:** two gates, both deliberate, both from the plan's "Sign in with Apple on the
+web: later". `methodsFor()` returned `["google", "email"]` on the web, and the screen
+rendered Apple only when `Platform.OS === "ios"`, because Apple's native button does
+not exist on the web. The decision was overtaken by the work — the Services ID was
+built for the web — and nobody reversed it where it was written, so the code kept
+obeying it.
+
+**Decided:** A1 is three methods everywhere. The web draws Apple's white button by hand
+(logo inlined, own origin) and uses `signInWithOAuth({ provider: "apple" })` with a
+return to `/you`, the same shape as Google's.
+
+**The table moved to `packages/shared` (`signInMethods`)** for the reason the tag caps
+did: `lib/auth.ts` imports React Native, so `node --test` could not load it and nothing
+proved what it said. S01–S03 now say it.
+
+**The general form, the third time in M3.1** (after the photo line in the acceptance
+list and "exactly 3 tags" in spec A3): **a decision that changes a rule is not done
+until the rule is edited where it is written** — in the spec, the acceptance list and
+the code that obeys it. A stale rule does not look stale; it looks like the plan.
+
+### Apple and Google as one pair — what each brand allows (Alex, M3.1)
+
+Alex, after Apple reached the web: a white Apple button over a black Google one "look
+like two different products stacked". Two looks were built to pick from on the phone,
+both inside both brands' published rules — **read from the rules, not remembered**,
+because Apple can revoke a sign-in method whose button breaks its terms.
+
+**Apple** (HIG, "Sign in with Apple", custom buttons):
+- Styles: white (for dark backgrounds), white with outline (light backgrounds only),
+  black (light backgrounds). A **custom** button may change the font, weight and size,
+  the corner radius, and add "a stroke to emphasize the button bezel"; the overall
+  colour **stays black or white**; logo and title are **both black or both white**.
+- Titles only "Sign in / Sign up / Continue with Apple". Logo-and-text buttons are
+  rectangular (a corner radius is fine).
+- **Logo only from Apple Design Resources; never a custom Apple logo.** Its file's
+  height matches the button's; never cropped; no added vertical padding. It may be
+  inset to align with other providers' logos.
+- The title is **43% of the button's height, "regardless of the font you choose"**.
+  Minimum 140 × 30. **No smaller than any other sign-in button.**
+
+**Google** (Sign in with Google branding guidelines):
+- Themes: light (#FFFFFF, stroke #747775, text #1F1F1F), **dark (#131314, stroke
+  #8E918F, text #E3E3E3)**, neutral (#F2F2F2). Google Sans Medium 14/20 in a 40-high
+  button. Rectangular or pill.
+- **The G is always the standard full-colour gradient G**, never monochrome, never
+  redrawn or outdated, on a light, dark or neutral fill only. Padding 12 / 10 / 12.
+- "Continue with Google" is allowed. At least as prominent as other third-party
+  buttons.
+
+**Where they meet, and the calls made:**
+- **One geometry:** 44 high, 1 px stroke, radius 12, the title 18 px (43% of the 42
+  inside the stroke) in the **system font**. Apple's proportion is stated as a rule;
+  Google's 35% is a spec of its own button. **Deviations from Google's letter, both
+  deliberate:** the system font rather than Google Sans (a web font would cost load
+  time and a dependency), and a white title rather than #E3E3E3 in the outline look.
+- **The marks share one centre line**: the G at Google's padding, Apple's Medium file
+  inset to match.
+- **Look 1, "matched":** Apple white; Google in its own dark theme. **Look 2,
+  "outline" — picked by Alex on the phone, and the only one kept:** both black (#000 — the Apple file's own background is #000, so the fill
+  is exactly black rather than our near-black), both with Google's #8E918F stroke,
+  both titles white. Apple's HIG steers its *system* black button off dark
+  backgrounds; a custom black button with a stroked bezel is its stated allowance.
+- **The files are the brands' own**, unmodified except where `app/assets/signin/README.md`
+  says: the Apple Medium logos byte-identical from `Logo-Sign-in-with-Apple.dmg`; the G
+  from Google's `signin-assets.zip`, with only the button behind it removed, rendered
+  to PNG and compared against Google's own PNG of it.
+- **The old Google button broke Google's rules and nobody had noticed**: no G at all,
+  and a text-only "Continue with Google" is exactly what the guidelines steer away from.
+- In the app, Apple stays **Apple's own system button** (white or black to match),
+  framed in the same stroke; only the web draws Apple's button by hand.
+
+### The photo's type is its bytes', and A2 is never a dead end (Alex, M3.1, from TestFlight)
+
+**Found by installing the first TestFlight build:** "We could not upload your photo —
+mime type text/plain is not supported", and then no way to clear the photo or carry on.
+The web path had worked all weekend.
+
+**The type, one layer below where it looked.** The app checked the picker's label
+(`asset.mimeType`, or **"image/jpeg" when there was none** — a guard that assumed the
+answer to the question it existed to ask), then uploaded `fetch(file://).blob()`.
+Handed a Blob, storage-js sends multipart form data and **drops the `contentType`
+option entirely**; the part takes the Blob's own type. The web's Blob carries one; React
+Native's does not, and Supabase recorded text/plain. So the checked type was never the
+sent type, and the HEIC refusal was reading a label rather than the file.
+
+**Fixed at the source, not by accepting another type:** the type is read from the
+file's first bytes (`sniffImageType`), refused there if the check cannot read it (HEIC
+by its `ftyp` brand), and **those same bytes go up as an ArrayBuffer**, which is the
+path where storage-js sends `contentType` as the request's own header. No label is
+consulted. `packages/shared/src/image.ts`; I01 reproduces the drop against the real
+storage-js, I02 proves the header the app now sends.
+
+**The dead end.** The photo stayed chosen with no Remove, and every Continue retried
+the same upload. The photo is optional on A2 (Q2), so **no photo state blocks Continue,
+and every state with a photo offers Remove**; a failed upload is marked failed, says
+how to get out, and removing it lets Continue save the profile without one.
+`packages/shared/src/a2photo.ts`, which the screen renders from; A01–A04.
+
+**Recorded in M3.1's acceptance:** A2's photo path is walked on both platforms. The two
+pickers differ in exactly the way that mattered, and only an installed build shows it.
+
+### The harness, an unreadable photo, an empty eval, and the link proved (Alex, M3.1)
+
+- **The live check no longer judges the harness's people.** `test:policies` went red
+  (P23, P46): the webhook approved Eve's "pending" photo mid-run. Every harness user is
+  now marked in `app_metadata.pind_harness` — writable only by the service key — and
+  both the trigger and the 09:00 sweep (`admin_photos_waiting`) skip them. A skipped
+  photo stays pending, which is hidden, so the skip can only keep a photo unseen.
+  **P82 was run against the old trigger first and failed on exactly "the live check
+  judged a harness user's photo"**, then passed after the migration; it also proves the
+  sweep takes the same row once unmarked. P83: a session cannot mark itself.
+  *My own instrument error on the way:* `npm run test:policies | tail` reported
+  `tail`'s exit code, 0, over a run that had failed. The run is now read from its own
+  exit code.
+- **An unreadable photo is a failed check, not an approval.** "No image at all" is not
+  "no face". The model has a fourth answer, `unreadable`, which is not a verdict: it
+  is recorded as `failed` with the model's reason (H02b).
+- **The eval refuses to score what is not there.** An empty set printed "agreed on 0 of
+  0" and exited clean; a missing file was a quiet skip that the totals still counted.
+  The set is now checked whole before any call (empty, missing, duplicate, unreadable,
+  unknown outcome — every problem listed), and a run where any photo got no verdict
+  exits 1 after printing its numbers (E01–E06).
+- **Anonymous → permanent, proved as far as a harness can** (for M3.2). P84: an
+  anonymous pinner made permanent keeps the same user id, and the person, the pin, the
+  party size and the opt-in survive and stay editable under the refreshed token. P85:
+  the app's own `updateUser({ email })` from an anonymous session is accepted and
+  moves nothing while the code is outstanding. P86: `linkIdentity` for Google and Apple
+  — **red until "Allow manual linking" is switched on in Supabase Auth**, which is
+  exactly what it is there to say. Not provable here: entering the code
+  (`verifyOtp({ type: "email_change" })`), which needs an inbox, and the OAuth round
+  trip, which needs a browser — both walked in M3.2.
+
+### The second TestFlight walk: five faults, and why the tests missed the tag ones (Alex, M3.1)
+
+- **Tag limits.** Continue worked with no tags, and the eleventh tap looked like nothing.
+  **The tests passed because they proved functions the screens did not use.** Both
+  tag screens gated on their own expression, `picked.length > 0 && !enoughPicked(picked)`
+  — a "none is fine" exception T09 never saw. The eleventh-tap sentence *was* produced
+  (T03), and shown in a notice above all 32 chips, off-screen from the tap. Fixed: one
+  rule, `tagsCanContinue` (three to ten; leaving with none is "Skip for now"), with a
+  sentence under a disabled Continue; a message on the tap that reaches ten; the
+  picker shows its own note under the group that was tapped. **And the gap itself is
+  now tested:** `tests/unit/screens.test.ts` reads the route files and fails if a tag
+  screen gates on anything but `tagsCanContinue` — run against the old screens it
+  failed on exactly this. The general form: **a test of a rule proves nothing about a
+  screen that does not call it.**
+- **The keyboard and the missing Profile header — one cause.** Every screen drew its
+  own frame; Profile forgot the header, and no scroll view knew about the keyboard. Now
+  one shell, `AppScreen` (header first, `automaticallyAdjustKeyboardInsets`, taps land
+  with the keyboard up), and S11/S12 fail the build if a route draws its own
+  SafeAreaView or ScrollView. Both failed against the old screens.
+- **The app's Apple button.** Not a deliberate change of mine in the sense Alex saw: the
+  app used Apple's **system** button, which centres its logo and scales it with the
+  button's height. When the pair went from 52 to 44 high (deliberate: Apple's default
+  height and the 43% title rule), the system logo shrank with it, and it could never
+  sit on the web's centre line. The app now draws the same custom button as the web,
+  with Apple's own logo file — the HIG's stated allowance for aligning logos across
+  providers.
+- **Cross-platform restore.** Not identity: **every sign-in landed on A2, and A2 showed
+  a blank form to a person who already had a profile.** A2 now asks first; somebody who
+  finished it goes home (A05), a link-path pinner arrives with their name filled (A06).
+- **"That code has expired" with no code in play.** Any message containing "invalid"
+  became that sentence — including a stale session. Now the sentence depends on the
+  step, only entering a code can say a code expired, and a stale session is cleared
+  locally and named as what it is (S05–S07).
+
+### Nothing waits on the photo check (Alex, M3.1)
+
+**A photo shows from the moment it is uploaded, to exactly the people who can see its
+owner (V1), unless it is `rejected`. The check runs afterwards and can only remove.**
+The industry pattern is Meetup's and Discord's — post, then moderate by background
+scanning and reports — not Hinge's.
+
+**Why:** before, a photo showed only once `approved`, so every pipeline failure — a
+broken webhook, an unset key, a model that errored, a flag waiting on Alex — meant
+**"invisible, and nobody knows"**. Now it means **"unchecked, and counted"**. Nobody is
+ever stuck invisible because a pipeline broke.
+
+**The check stays, narrowly:** nudity, hate imagery and gore rejected; a possible minor
+flagged to Alex. It is built, it is half a cent and 2.9 seconds, and a product with
+user photos and in-person meetings should not have no automated scan at all — App
+Review looks for one under 1.2.
+
+- `needs_review` is **"visible, flagged for Alex"**; `pending` means "not checked yet",
+  no longer a hiding state. `can_see_photo` asks `<> 'rejected'` instead of
+  `= 'approved'` (migration `…_m3_1_nothing_waits_on_the_check`). P23, P46 and P71 were
+  inverted and **run red against the old rule first**; P87 proves a rejection removes a
+  visible photo and a flag does not; P88 proves the app's preview rule and the
+  database's agree on every status.
+- **The owner is never told about a possible-minor flag.** Two reasons: it tells anyone
+  gaming the check exactly what trips it, and the flag is a note to Alex rather than a
+  verdict about them — the same family as H9 keeping an auto-hide quiet from a
+  reporter. A21 tells the owner one thing only: a rejection. There is no "checking"
+  state to show.
+- **The sweep is hourly** (Alex): free when nothing is waiting, and it caps the worst
+  case — a photo that will be rejected, visible while the webhook is broken — at an
+  hour rather than a day. The credential watch still runs once a day, on the 09:00 run.
+  **The scheduled handler had a trap:** any cron it did not recognise fell through to
+  the Ticketmaster import, so the new hourly string was one typo from running the
+  import every hour. Routing is now `jobsFor` in `src/cron.ts`, where an unknown cron
+  runs nothing (C03), and C04 compares `wrangler.jsonc`'s triggers with the code's.
+- A22 no longer checks `photo_status === "approved"` itself — a second copy of the rule
+  that went stale the day this changed. The database decides, alone (H11).
+
+### Six photos — considered, not built (Alex, M3.1)
+
+Alex asked what up to six photos would cost. **About 9–12 hours**:
+- **Schema and V6, ~5 h:** photos move to their own table (person, path, position 1–6,
+  status), a cap of six, `can_see_photo` per object against it, the storage policies
+  and every photo case in the harness (P07, P07b, P21, P23–P26, P46, P71–P73, P81, P82,
+  P87, P88) rewritten.
+- **The check, ~1.5 h:** the webhook, the sweep, the admin queue and the rescore guard
+  become per photo.
+- **The app, ~3–4 h:** A2 stays one photo; A21 adds, removes and reorders up to six, and
+  its preview shows them; A22 swipes through them; export includes them all. The list
+  and a crew card show the first photo only.
+
+**Not now, and not for the cost** (Alex): six is Hinge's number, and A21 says *no
+followers, no grids, no bio*. A profile with six photos is a different product — the
+one H2 exists to avoid. **Revisit after the first real crowds**, when it is known
+whether one photo is actually the problem.
+
+**Priced three ways** (Alex asked what it costs if only the first photo is checked):
+
+| Version | What is built | Hours |
+|---|---|---|
+| **A. Every photo checked** | the photo table, V6 and storage policies per photo, every photo case rewritten, and the webhook, sweep, admin queue and rescore per photo; the app | **9–12** |
+| **B. Only the first checked** | the first photo stays on `people.photo_path` with its whole pipeline untouched; the extras in their own table, visible exactly when their owner is; their harness cases; the app | **6–8** |
+| **C. Extras through the same check** | B, plus a trigger on the extras, verdicts recorded by path, a rejection removing that one image — no new states, no new queue | **8–11** |
+
+The cost is mostly **not the check**: it is the app (A21 add, remove and reorder, the preview, A22 swiping, export — about 3–4 h in every version) and visibility for a new kind of stored object (about 2–3 h). The check is 0 h in B, about 2 in C, about 2.5 in A. **The two things that decide it:**
+- **B is a hole in the only automated scan we have.** Pass a clean first photo and put anything behind it; with nothing waiting on the check it is visible from upload; and at App Review "we scan photos" (1.2) would be false for five in six of them.
+- **C's upper hour is the possible-minor question.** A flag found on an extra is about the *person*, and the check never decides age (H8), so it must still reach Alex's queue under the person's name — removing the image is only the easy half.
+
+Any version is milestone-sized, not a small thing.
+
+### A bio is a V17 bypass, and so is any free text a stranger can read (Alex, M3.1)
+
+Asked whether profiles are thin for lack of photos or for lack of anything to read, the
+cheaper answers were priced, and two are refused **by rule, not by taste**:
+
+- **An "about you" line — no.** Not because A21 says "no bio", but because **free text
+  a stranger can read is a way round V17**: "insta @foo" in a bio puts a contact handle
+  on the open "going & open to meeting" list, which is exactly the cold-DM path H2 and
+  V17 exist to close. **The general rule: any free-text field a stranger can read is a
+  V17 bypass unless it is filtered** — for handles, phone numbers and links — and the
+  filter is part of the field's cost, not an afterthought.
+- **Making the Instagram handle prominent at the deciding moment — no.** That moment is
+  the list and A22, before any crew, and V17 allows the handle only to crewmates, a
+  1-on-1 partner and connections. Showing it there reverses V17 rather than styling
+  something. On the crew card, where it is allowed, prominence is an M3.3 design call.
+- **Which gatherings someone has been to — no.** A stranger seeing a pattern of where
+  somebody goes is new visibility, against Part 4. **A count** is fine, and is in.
+- **What is in**, in M3.2's A22 (build-plan §8): the shared context, all the tags grouped,
+  and the gathering count — 2–3 h inside work happening anyway. The "showed up" badge
+  follows with M3.3's confirmations (about 0.5 h to show), and is zero for everyone
+  until crews have met, so it helps later rather than at launch.
+
+### P86: what refused, found without the dashboard (M3.1)
+
+Alex's screenshot showed **Allow manual linking** on for PIND-staging, and P86 still
+failed. Diagnosed from the server's side rather than by toggling again:
+
+- `linkIdentity` calls `GET /auth/v1/user/identities/authorize` with the session's
+  token. The reply, for Google and for Apple alike, was **`404` with
+  `error_code: manual_linking_disabled`** from GoTrue v2.197.0 — and in GoTrue that
+  code comes from one guard that reads one thing, the server's
+  `security_manual_linking_enabled`. So the message was not misleading and the test was
+  calling the right thing.
+- **`npx supabase config diff`** (read-only, through the Management API) lists every
+  hosted auth field that differs from `config.toml`. The repo's file says
+  `enable_manual_linking = false`, and the diff does **not** list it — so the stored
+  hosted value is `false` too. Two independent reads agree: off.
+- So the dashboard's toggle state was not what the project held. Alex toggled it off,
+  on and **saved**; then `config diff` listed `enable_manual_linking` as hosted `true`
+  against the repo's `false`, and P86 passed. The screenshot had proved what the page
+  showed, not what was stored — the same one-layer-down gap as a server response
+  against a phone.
+- **It cost three round trips, and Alex was certain it was done.** The same shape will
+  recur with any provider or dashboard setting that is not visible from the repo: the
+  page shows a state, the person who set it remembers setting it, and only the thing
+  that enforces it knows. So the rule went into CLAUDE.md beside the instrument rule:
+  **when a setting is in dispute, read it from the thing that enforces it, not the
+  thing that displays it.**
+
+The diff also shows `sms.twilio.enabled: true` on the hosted project. **Nobody set
+that:** it is the default showing in Supabase's unused SMS-provider dropdown, and the
+auth server's public settings report `phone: false`, so no SMS method is enabled and
+there is nothing to turn off. It is not the stack rule ("no SMS, no Twilio") being
+broken. Worth knowing only because "Twilio is set as the SMS provider" reads like a
+configuration somebody made.
+
+### A photo can be changed after A2 (Alex, M3.1 walk)
+
+Found on the phone: Remove and Choose another existed during A2 and vanished after it,
+so somebody with a bad photo was stuck with it — a bug, because "nothing waits on the
+check" assumes a photo is easy to swap. **Profile → Change photo** (`/photo`), beside
+Edit tags: the same picker and the same states as A2 (`startEdit` … `editPlan` in
+`@pind/shared`, A07–A10), plus the photo already on the profile. Remove discards a new
+pick first and only then takes the current photo off; a failed upload is marked, says
+how to get out, and leaves the old photo in place. Saving deletes the replaced file
+from the person's folder — a replaced photo is not kept. P89 proves the person's own
+writes: upload, repoint, delete the old file, clear.

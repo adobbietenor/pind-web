@@ -14,6 +14,7 @@
 
 import { colors } from "@pind/shared";
 import { markSvg, wordmarkSvg } from "./brand";
+import type { City } from "./data";
 import { escape } from "./escape.ts";
 
 export { escape };
@@ -23,7 +24,7 @@ const CSS = `
 :root{
   --bg:${colors.background};--surface:${colors.surface};--border:${colors.border};
   --text:${colors.text};--muted:${colors.textMuted};--accent:${colors.accent};
-  --accent-lift:#6d3aa0;
+  --accent-lift:#6d3aa0;--text-tint:${colors.textTint};
 }
 html{-webkit-text-size-adjust:100%}
 body{
@@ -36,10 +37,23 @@ a{color:#c9a6ee;text-underline-offset:2px}
 a:hover{color:#fff}
 
 /* Header: the mark at one end, the wordmark at the other, and nothing else competing
-   with either. The anchor is the whole row, so the tap target spans the header. */
-.top{padding:22px 0 8px}
+   with either. The anchor is the whole row, so the tap target spans the header.
+
+   The city sits between them, absolutely centred and OUTSIDE the anchor: inside it,
+   the label would become part of the link's accessible name and tapping the city
+   would navigate home. pointer-events:none keeps the tap target the whole row
+   anyway, so the header gained a label without losing the thing that made it easy to
+   hit. Centred on the page rather than between the two logos, so it does not shift
+   when the wordmark does. */
+.top{padding:22px 0 8px;position:relative}
 .top a{display:flex;align-items:center;justify-content:space-between;color:var(--text);line-height:0}
 .top svg{display:block}
+.city{
+  position:absolute;left:50%;top:calc(50% + 7px);transform:translate(-50%,-50%);
+  pointer-events:none;
+  font-size:.76rem;color:var(--muted);white-space:nowrap;letter-spacing:.01em;
+}
+
 
 h1{font-size:1.75rem;line-height:1.2;letter-spacing:-.015em;margin:14px 0 6px;font-weight:650}
 h2{font-size:.8rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin:30px 0 10px;font-weight:600}
@@ -102,7 +116,10 @@ a.card:hover{border-color:#453f52;background:#1c1922}
 .card .name{font-size:1.06rem;font-weight:620;line-height:1.3;margin:3px 0 2px;letter-spacing:-.01em}
 .card .where{font-size:.9rem;color:var(--muted)}
 .card .what{font-size:.9rem;color:#b9b3c4;margin-top:5px;line-height:1.4}
-.card .tally{font-size:.88rem;margin-top:9px;color:#d7d2df}
+.card .tally{font-size:.88rem;margin-top:9px;color:var(--text-tint);font-weight:600}
+/* The separator is not part of the emphasis: bolding it thickens the row without
+   making anything easier to read. */
+.card .tally .dot{font-weight:400}
 .dot{color:#5b5566;padding:0 6px}
 .tag{
   display:inline-block;font-size:.68rem;letter-spacing:.07em;text-transform:uppercase;
@@ -268,8 +285,13 @@ export const DOT = `<span class="dot">·</span>`;
 // one link to home with one accessible name rather than two adjacent links to the same
 // place; both pieces of artwork are decorative inside it. The composed lockup is still
 // what the OG image uses, where it has a whole card to sit in the middle of.
-export function header(): string {
-  return `<div class="top"><a href="/" aria-label="Pin&#39;d">${markSvg(24)}${wordmarkSvg(19, null)}</a></div>`;
+// The city label is W1's and the Community tab's only (Alex, M3.1): a crowd page is
+// already about one place, and repeating the city above a venue's name says nothing.
+export function header(place?: City | null): string {
+  const label = place
+    ? `<span class="city">${escape(place.name)}, ${escape(place.country)}</span>`
+    : "";
+  return `<div class="top"><a href="/" aria-label="Pin&#39;d">${markSvg(24)}${wordmarkSvg(19, null)}</a>${label}</div>`;
 }
 
 // Every M2.1 page is noindex and unlinked until the privacy policy lands in M4.1

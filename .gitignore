@@ -16,3 +16,9 @@ app/ios/
 app/android/
 app/expo-env.d.ts
 app/dist/
+
+# The labelled photo set for the photo check (M3.1): real faces, never committed.
+# Only labels.json and README.md are tracked.
+tests/photos/*
+!tests/photos/labels.json
+!tests/photos/README.md
