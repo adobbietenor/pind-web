@@ -3017,3 +3017,33 @@ address forwarded to Alex by Email Routing. `p=quarantine` waits a week of repor
 - **The divergence guard is written first** (Alex): A26's fields, copy and validation in
   `packages/shared/src/quickpin.ts`; `tests/unit/quickpin.test.ts` fails if either A26
   writes its own, and proves its own pattern matches something real (the S20 rule).
+
+### A steer on emphasis: the app is the product, the web is the on-ramp (Alex, M3.2, 23 Sept 2026)
+
+- **The steer.** Most design attention goes to the app — how it looks, feels and
+  flows. The web has to work well and look right, enough to get people in and to
+  publish the app, without disproportionate effort there.
+- **Two things it does not break** (Alex):
+  1. **W1, W2 and A26 keep real design attention.** They are where a stranger meets
+     Pin'd; a rough page loses the people being funnelled to the app. "Working" is not
+     enough for those three. Everything after the pin is where the app gets the
+     attention.
+  2. **The first real crowds still run on the web with email, TestFlight as an extra**
+     ("First crowds on the web, plus email", revised build plan) — a Reddit visitor
+     will not install an app to pin in. Not overturned.
+- **How the two fit, stated rather than worked around.** They only fit because the app
+  and the web after the pin are **one Expo codebase**: A27, the list, crews, the
+  thread, "I'm here" and the morning after are the same screens on an iPhone and in
+  mobile Safari. So "the app gets the attention" means **the Expo screens are designed
+  and judged on the iPhone app first**, and **every after-pin screen is also checked
+  once in iPhone Safari**, because during the first crowds that is where most people
+  will meet it. Native-only touches (haptics, sheets, gestures) must degrade to
+  something that still reads right on the web. If "the app" ever meant native-only
+  work the web does not get, it would contradict the web-first crowds, and that would
+  be a decision to take, not a drift.
+- **What it changes in the sequence: nothing reordered.** M3.3's shape stands; its
+  acceptance is walked on the iPhone app first and each screen once in iPhone Safari
+  (it already names "two phones and a laptop"). The "get the app" nudge at crews-open
+  (M3.2) becomes the web's hand-off to the product and gets design attention for that
+  reason. M3.5's email mirror of the five notifications is what web-only crowd members
+  live on, and stays. M3.6's dogfood includes at least one person on the web only.

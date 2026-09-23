@@ -224,6 +224,16 @@ response for the URL. **Any new public route goes into `run_worker_first` in
 a browser — never trusting the router.** The same applies to a route you delete: the
 path keeps answering 200 with the app.
 
+**A new route can be shadowed for a minute after the deploy that adds it** (M3.2, a
+live instance, not a one-off). `/privacy` had been requested before it existed —
+Google's consent-screen publish is the likely caller — so the edge held the app's
+`index.html` for that URL. Right after the deploy that added the route, `/privacy`
+still answered **200 with the app** while `/terms` was correct; `?x=1` got the real
+page, and the stale copy expired inside its 60-second window. Anyone checking
+immediately sees a pass that isn't one. **So check a new route twice, a minute apart,
+and compare the body, not only the status** — a 200 is exactly what the wrong answer
+returns.
+
 ## A visitor is never the thing that does the work
 
 **No page may depend on a stranger's first view to produce what the next view needs.**
