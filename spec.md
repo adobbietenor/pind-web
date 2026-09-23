@@ -643,7 +643,7 @@ working. Hours are Alex's, agent-assisted.
 | M2.2 | Auto-publishing v1 — fixed target (§8) | **Done** — merged as `ec9d74d` | 4–6 |
 | M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | **Done** — merged as `M2.3` | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
-| M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | **Done** — merged to `main` on 23 Sept 2026 | 12–16 |
+| M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | **Done** — merged as `737bdb4` | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel, universal links (A5–A9, A19, A26, A27) | Not started | 12–18 |
 | M3.3 | Crews, the thread, the night, the morning after (A10–A17, A20, "Put me in a crew") | Not started | 20–28 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
@@ -963,7 +963,7 @@ the current pace, raise the hours or shrink the phase.
       finished in 48 hours, but M2.2's pg_cron watchdog covers the import only, and
       generalising it is a refactor rather than a copy.
 
-- **Phase 3 M3.1 complete** (branch `phase3/m3.1-identity`, merged to `main` on
+- **Phase 3 M3.1 complete** (branch `phase3/m3.1-identity`, merged as `737bdb4` on
   23 Sept 2026): identity and profile. 40 commits, 20 migrations; `test:policies`
   91/91, `test:unit` 305/305. What the repo cannot show — every dashboard and console
   setting — is in `docs/configuration.md`, which M4.3 rebuilds for production.
