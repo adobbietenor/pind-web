@@ -32,6 +32,7 @@ import {
   savePlan,
   uploadFailed,
   colors as palette,
+  GENDER_CHOICES,
   GENDER_WHY,
   isOldEnough,
   PHOTO_LABEL,
@@ -54,12 +55,8 @@ import { supabase } from "@/lib/supabase";
 
 type Gender = "woman" | "man" | "nonbinary" | "undisclosed";
 
-const GENDERS = [
-  { value: "woman", name: "Woman" },
-  { value: "man", name: "Man" },
-  { value: "nonbinary", name: "Nonbinary" },
-  { value: "undisclosed", name: "Prefer not to say" },
-] as const;
+// One list, shared with A27 (M3.2).
+const GENDERS = GENDER_CHOICES;
 
 export default function You() {
   const router = useRouter();

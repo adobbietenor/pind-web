@@ -144,3 +144,13 @@ export const PHOTO_WHEN = "Add one now or later — you’ll need one before you
 
 // A1's own header, on the screen where the first name is asked.
 export const A2_HEADING = "A bit about you";
+
+// The gender question's answers (D1; V3: "Prefer not to say" is always offered). One
+// list for A2 and A27 (M3.2) — it lived inside A2's screen until A27 needed it too.
+export const GENDER_CHOICES = [
+  { value: "woman", name: "Woman" },
+  { value: "man", name: "Man" },
+  { value: "nonbinary", name: "Nonbinary" },
+  { value: "undisclosed", name: "Prefer not to say" },
+] as const;
+export type GenderChoice = (typeof GENDER_CHOICES)[number]["value"];
