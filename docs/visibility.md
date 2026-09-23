@@ -71,6 +71,7 @@ whom.
 | Other people's Instagram handle (`person_handles`) | — | — | **crewmates and connections only — V1 is not enough (V17)** | all |
 | Other people's photo | — | — | people V1 allows, **approved photos only** (V6) | all |
 | Gender, women-only flag, birth year, age attestation (`people_private`) | — | own only | own only — **never anyone else's** | all |
+| 19+ record (`age_attestations`, M3.2) | — | own only | own only — **never anyone else's** | all |
 | Email / phone (`contact_points`) | — | own only | own only | all |
 | +1s (`pin_friends`) | — | own pin's | + claimed +1s of hosts V1 allows (V7) | all |
 | Spot poll | — | — | vote counts at G; own vote | all |
@@ -86,6 +87,13 @@ whom.
   end; delete never does** (M3.2, `private.pinning_open`; P37b inverted, P90, P91) —
   open during the gathering, shut after, and taking yourself off a list is always
   possible;
+- **a pin also requires their own 19+ record** (`age_attestations`, M3.2, P100–P101):
+  written once — the A26 tick, or A2 through a trigger — never changed or removed by
+  them, and **readable by nobody else, including people who can see them** (P102). It
+  is kept off the `people` row because V1 lets anyone who can see you read that row;
+- **under 19 at A27, remove themselves completely** (`remove_me_under_19()`, anonymous
+  sessions only, on themselves): the person, their pins, the record and the anonymous
+  auth user (P103, P104);
 - create and edit their own contact points;
 - edit their own first name, last initial, neighbourhood, photo path (own folder
   only), gender and women-only flag;

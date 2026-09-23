@@ -2427,6 +2427,7 @@ describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.
       client.from("people").insert({ auth_user_id: authId, first_name: label }).select("id").single(),
       "A26 makes the person",
     );
+    await ok(client.from("age_attestations").insert({ person_id: person.id, source: "a26" }), "A26 records the 19+ tick");
     const pin = await ok(
       client
         .from("pins")
@@ -2618,5 +2619,96 @@ describe("Changing or removing a photo — P89 (M3.1)", () => {
       await w.service.storage.from(BUCKET).remove([first, second]);
       await w.service.auth.admin.deleteUser(authId);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — the 19+ attestation, and under 19 at A27 (Alex, M3.2; H8)
+// ---------------------------------------------------------------------------
+
+describe("A pin needs the 19+ tick, recorded where nobody else can read it (M3.2)", () => {
+  async function anonPerson(label: string) {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signedIn = await client.auth.signInAnonymously();
+    assert.equal(signedIn.error, null, signedIn.error?.message);
+    const authId = signedIn.data.user!.id;
+    await markHarness(w.service, authId);
+    const person = await ok(
+      client.from("people").insert({ auth_user_id: authId, first_name: label }).select("id").single(),
+      "the person",
+    );
+    return { client, authId, personId: person.id as string };
+  }
+
+  async function cleanUp(q: { authId: string; personId: string }) {
+    await w.service.from("people").delete().eq("id", q.personId);
+    await w.service.auth.admin.deleteUser(q.authId);
+  }
+
+  it("P100 without the 19+ record a pin is REFUSED — a token calling the API directly cannot skip the tick", async () => {
+    const q = await anonPerson("NoTick");
+    try {
+      await denied(
+        q.client.from("pins").insert({ gathering_id: w.G, person_id: q.personId, party_total: 1, open_to_meeting: false }),
+        "42501",
+      );
+    } finally {
+      await cleanUp(q);
+    }
+  });
+
+  it("P101 with the record the same pin WORKS; everyone who finished A2 already has one", async () => {
+    const q = await anonPerson("Ticked");
+    try {
+      await ok(q.client.from("age_attestations").insert({ person_id: q.personId, source: "a26" }), "tick");
+      await ok(
+        q.client.from("pins").insert({ gathering_id: w.G, person_id: q.personId, party_total: 1, open_to_meeting: false }),
+        "pin after the tick",
+      );
+      // A2's people were backfilled and the trigger keeps doing it: Ava finished A2.
+      const ava = await rows(w.service.from("age_attestations").select("source").eq("person_id", id("Ava")));
+      assert.deepEqual(ava.map((r) => r.source), ["a2"], "an A2 person has no attestation");
+    } finally {
+      await cleanUp(q);
+    }
+  });
+
+  it("P102 the record is the owner's alone: nobody else can read it, even someone who can see them; the owner cannot change, remove or forge it", async () => {
+    // Ava and Eve can see each other at G (V1). Neither may read the other's record.
+    assert.equal((await rows(c(M("Ava")).from("people").select("id").eq("id", id("Eve")))).length, 1, "the world is wrong: Ava cannot see Eve");
+    assert.equal((await rows(c(M("Ava")).from("age_attestations").select("person_id").eq("person_id", id("Eve")))).length, 0, "Ava read Eve's attestation");
+    assert.equal((await rows(c(M("Ava")).from("age_attestations").select("person_id").eq("person_id", id("Ava")))).length, 1, "Ava cannot read her own");
+    await noAccess(w.anon, "age_attestations");
+
+    const changed = await c(M("Ava")).from("age_attestations").update({ source: "a26" }).eq("person_id", id("Ava")).select("person_id");
+    assert.ok(changed.error || (changed.data?.length ?? 0) === 0, "Ava changed her attestation");
+    const removed = await c(M("Ava")).from("age_attestations").delete().eq("person_id", id("Ava")).select("person_id");
+    assert.ok(removed.error || (removed.data?.length ?? 0) === 0, "Ava removed her attestation");
+    await denied(c(M("Ava")).from("age_attestations").insert({ person_id: id("Ben"), source: "a26" }), "42501");
+  });
+
+  it("P103 under 19 at A27 removes them COMPLETELY — the pin, the person, the record and the anonymous auth user — and the count drops", async () => {
+    const q = await anonPerson("Under");
+    await ok(q.client.from("age_attestations").insert({ person_id: q.personId, source: "a26" }), "tick");
+    await ok(q.client.from("pins").insert({ gathering_id: w.G, person_id: q.personId, party_total: 2, open_to_meeting: false }), "pin");
+    const before = (await counts(w.anon, w.G)).pinned;
+
+    await ok(q.client.rpc("remove_me_under_19"), "remove me");
+
+    assert.equal((await rows(w.service.from("pins").select("id").eq("person_id", q.personId))).length, 0, "the pin survived");
+    assert.equal((await rows(w.service.from("people").select("id").eq("id", q.personId))).length, 0, "the person survived");
+    assert.equal((await rows(w.service.from("age_attestations").select("person_id").eq("person_id", q.personId))).length, 0, "the 19+ record survived");
+    const user = await w.service.auth.admin.getUserById(q.authId);
+    assert.ok(user.error || !user.data.user, "the anonymous auth user survived");
+    assert.equal((await counts(w.anon, w.G)).pinned, before - 2, "the count did not drop by the party");
+  });
+
+  it("P104 only an anonymous session can use it, and only on itself — a permanent account and a stranger cannot", async () => {
+    const before = await rows(w.service.from("people").select("id").eq("id", id("Ava")));
+    const r = await c(M("Ava")).rpc("remove_me_under_19");
+    assert.ok(r.error, "a permanent account removed itself through the under-19 path");
+    assert.equal((await rows(w.service.from("people").select("id").eq("id", id("Ava")))).length, before.length, "Ava was removed");
+    const a = await w.anon.rpc("remove_me_under_19");
+    assert.ok(a.error, "a visitor with no session ran it");
   });
 });

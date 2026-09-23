@@ -14,6 +14,32 @@ export type Database = {
   }
   public: {
     Tables: {
+      age_attestations: {
+        Row: {
+          attested_at: string
+          person_id: string
+          source: string
+        }
+        Insert: {
+          attested_at?: string
+          person_id: string
+          source: string
+        }
+        Update: {
+          attested_at?: string
+          person_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "age_attestations_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blocks: {
         Row: {
           blocked_id: string
@@ -2626,6 +2652,7 @@ export type Database = {
           venue_name: string
         }[]
       }
+      remove_me_under_19: { Args: never; Returns: undefined }
       spot_poll: {
         Args: { p_gathering: string }
         Returns: {
