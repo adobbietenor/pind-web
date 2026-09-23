@@ -2917,3 +2917,43 @@ address forwarded to Alex by Email Routing. `p=quarantine` waits a week of repor
   anything: a Google account that is not Alex's signs in on pind.social without "Access
   blocked".
 - **Associated Domains is on for `social.pind.app.staging`** (Alex, 23 Sept).
+
+### Decided in Phase 3 M3.2 — the ruler, the privacy facts, data location (Alex, 23 Sept 2026)
+
+- **"Under a second" is not Lighthouse's number.** On Lighthouse's mobile profile
+  (simulated mid-range phone, slow 4G) even W2 — the page that already feels instant —
+  is fully shown at about **2.2 s**; a ruler the instant page fails is a broken ruler.
+  **The rule: A26 is ready to type into no slower than W2 is fully shown under the
+  same profile (~2.2 s), and Alex confirms by eye with one cold load on a phone on
+  mobile data.** Day-one measure, before any A26 work: A26 score 67, main content
+  6.3 s, usable 6.8 s, 950 KB in 15 requests (789 KB of it the whole app's JavaScript,
+  142 KB two Poppins weights); W2 score 98, 2.2 s, 79 KB in 5. Cuts, in this order:
+  A26's own code only on that route, the system font there, analytics after first
+  paint.
+- **PostHog goes through pind.social** (a Worker path), so A26 talks to nobody but us
+  — the own-origin rule.
+- **Testers may also pin at the seed gathering** — the walk needs it. Same conditions:
+  the admin sets the list with the service key, nobody adds themselves, nothing
+  changes on any public page.
+- **The privacy policy's facts.** Operator **Tenor Investments Inc., Surrey, British
+  Columbia, Canada** (the mailing address comes from Alex; **no placeholder is ever
+  published**). **Privacy Officer: Alex**, at **privacy@pind.social** (Alex adds it to
+  Email Routing). **British Columbia law governs the terms.** The policy addresses
+  **BC's PIPA as well as federal PIPEDA**, and says which fact each statement rests on:
+  the company is in Surrey, the product operates in Toronto.
+- **A rejected photo's image is deleted immediately; its check record is kept 12
+  months**, like reports. Deleting the image is the point; the record proves a decision
+  was made.
+- **Where the data is — read, not inferred.** pind-staging is **`ca-central-1`
+  (Montreal)**, from the Supabase Management API (`projects list`), so nothing moves.
+  Sentry: the **US** region (the DSN sends to `ingest.us.sentry.io`). PostHog: **US**,
+  Alex's choice. Anthropic: stored at rest in the **US** (the only workspace geo it
+  offers); **where a photo check is processed depends on `inference_geo`**, which the
+  code does not set, so it follows the workspace default — "global", any geography,
+  unless the workspace was pinned to US. Resend: not yet read. **A policy naming the
+  wrong country is worse than a vague one**; it states where data is, not where we
+  would like it.
+- **`pind-prod` is created in `ca-central-1` — a hard requirement, written into M4.3's
+  scope** so it cannot be missed when the project is created. The region cannot be
+  changed on an existing project; a wrong one means a new project and every
+  dashboard setting in `docs/configuration.md` redone.
