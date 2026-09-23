@@ -3,7 +3,7 @@
 // Run with `npm run test:unit`.
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { ESTIMATE_PER_PHOTO, parseVerdict, PHOTO_SYSTEM } from "../../src/photo/ai.ts";
+import { ESTIMATE_PER_PHOTO, parseUnreadable, parseVerdict, PHOTO_SCHEMA, PHOTO_SYSTEM } from "../../src/photo/ai.ts";
 import { mediaTypeOf } from "../../src/photo/check.ts";
 import { compare, fingerprint, type WebhookHealth } from "../../src/admin/secretmatch.ts";
 
@@ -29,6 +29,17 @@ describe("Reading the verdict — an answer that is not a verdict decides nothin
     assert.equal(parseVerdict(JSON.stringify({ reason: "no outcome" })), null);
     assert.equal(parseVerdict("null"), null);
     assert.equal(parseVerdict("[]"), null);
+  });
+
+  it("H02b an image the check could not see is never a verdict — it is a failed check (Alex, M3.1)", () => {
+    // The harness's 1-pixel PNGs were approved with reasons beginning "No image…".
+    const answer = JSON.stringify({ outcome: "unreadable", reason: "No image visible, a single white pixel." });
+    assert.equal(parseVerdict(answer), null, "an unreadable image was turned into a decision");
+    assert.equal(parseUnreadable(answer), "No image visible, a single white pixel.");
+    assert.equal(parseUnreadable(JSON.stringify({ outcome: "approve", reason: "Landscape." })), null);
+    assert.ok((PHOTO_SCHEMA.properties.outcome.enum as readonly string[]).includes("unreadable"));
+    // And "no face" stays an approval: the rubric says so in the same breath.
+    assert.match(PHOTO_SYSTEM, /This is not "no\s+face"/);
   });
 
   it("H03 a missing or oversized reason never blocks a verdict", () => {

@@ -42,17 +42,12 @@ import { createClient } from "@supabase/supabase-js";
 import { judge } from "../src/photo/check.ts";
 import { mediaTypeOf } from "../src/photo/check.ts";
 import { PHOTO_MODEL, type Outcome } from "../src/photo/ai.ts";
+import { problemsWithSet, runIsComplete, type Label } from "../src/photo/evalset.ts";
 
 const args = process.argv.slice(2);
 const write = args.includes("--write");
 const runsWanted = Number(args[args.indexOf("--runs") + 1]) || 2;
 const DIR = join(process.cwd(), "tests", "photos");
-
-interface Label {
-  file: string;
-  expect: Outcome;
-  note?: string;
-}
 
 const ANSWERS: Outcome[] = ["approved", "needs_review", "rejected"];
 const SHORT: Record<Outcome, string> = { approved: "approve", needs_review: "review", rejected: "reject" };
@@ -73,11 +68,18 @@ async function labels(): Promise<Label[]> {
       `tests/photos/labels.json is missing. The folder is gitignored and Alex supplies the photos; it currently holds ${there.length} file(s).`,
     );
   }
-  const parsed = JSON.parse(raw) as Label[];
-  for (const l of parsed) {
-    if (!ANSWERS.includes(l.expect)) throw new Error(`${l.file}: "${l.expect}" is not an outcome`);
+  const parsed: unknown = JSON.parse(raw);
+  // **Checked whole, before a single call** (Alex, M3.1): an empty set once printed
+  // "agreed on 0 of 0" and exited clean. Every gap is listed, and the run stops.
+  const present = new Set(await readdir(DIR).catch(() => [] as string[]));
+  const problems = problemsWithSet(parsed, present);
+  if (problems.length) {
+    throw new Error(
+      `The labelled set is not whole, so nothing was scored:\n  ${problems.join("\n  ")}\n` +
+        `A run that found nothing must not look like a run that passed.`,
+    );
   }
-  return parsed;
+  return parsed as Label[];
 }
 
 async function main() {
@@ -99,21 +101,9 @@ async function main() {
   for (let run = 0; run < runsWanted; run++) {
     const outcomes = new Map<string, string>();
     for (const label of set) {
-      // A label naming a file that is not there is a skip with a sentence, not a
-      // crash: labels.json is hand-edited, and losing a whole run to one typo is the
-      // kind of friction that stops a measurement being taken at all.
-      let bytes: Buffer;
-      try {
-        bytes = await readFile(join(DIR, label.file));
-      } catch {
-        console.log(`  ${label.file}: not in tests/photos — skipped`);
-        continue;
-      }
-      const mediaType = mediaTypeOf(label.file, undefined);
-      if (!mediaType) {
-        console.log(`  ${label.file}: not an image the API reads — skipped`);
-        continue;
-      }
+      // Every file was checked present and readable before the first call.
+      const bytes = await readFile(join(DIR, label.file));
+      const mediaType = mediaTypeOf(label.file, undefined)!;
       const result = await judge(apiKey, { data: bytes.toString("base64"), mediaType });
       spend += result.cost;
       outcomes.set(label.file, result.verdict?.outcome ?? "failed");
@@ -167,6 +157,15 @@ async function main() {
   }
   console.log(`\nAI spend: $${spend.toFixed(4)} over ${runsWanted} runs — $${(spend / runsWanted / set.length).toFixed(4)} a photo.`);
   if (!write) console.log("Dry run: none of it was recorded. Re-run with --write to put it where the daily cap can see it.");
+
+  // A run where a photo got no verdict has not scored the set: the totals above are
+  // over fewer photos than they claim. The numbers are printed first so the spend is
+  // not wasted, and then the run fails.
+  const incomplete = seen.flatMap((outcomes, i) => runIsComplete(set, outcomes).map((p) => `run ${i + 1}: ${p}`));
+  if (incomplete.length) {
+    console.error(`\nNOT A COMPLETE SCORE — ${incomplete.length} answer(s) missing:\n  ${incomplete.join("\n  ")}`);
+    process.exit(1);
+  }
 }
 
 main().catch((err) => {

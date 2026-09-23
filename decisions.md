@@ -2640,3 +2640,34 @@ how to get out, and removing it lets Continue save the profile without one.
 
 **Recorded in M3.1's acceptance:** A2's photo path is walked on both platforms. The two
 pickers differ in exactly the way that mattered, and only an installed build shows it.
+
+### The harness, an unreadable photo, an empty eval, and the link proved (Alex, M3.1)
+
+- **The live check no longer judges the harness's people.** `test:policies` went red
+  (P23, P46): the webhook approved Eve's "pending" photo mid-run. Every harness user is
+  now marked in `app_metadata.pind_harness` — writable only by the service key — and
+  both the trigger and the 09:00 sweep (`admin_photos_waiting`) skip them. A skipped
+  photo stays pending, which is hidden, so the skip can only keep a photo unseen.
+  **P82 was run against the old trigger first and failed on exactly "the live check
+  judged a harness user's photo"**, then passed after the migration; it also proves the
+  sweep takes the same row once unmarked. P83: a session cannot mark itself.
+  *My own instrument error on the way:* `npm run test:policies | tail` reported
+  `tail`'s exit code, 0, over a run that had failed. The run is now read from its own
+  exit code.
+- **An unreadable photo is a failed check, not an approval.** "No image at all" is not
+  "no face". The model has a fourth answer, `unreadable`, which is not a verdict: it
+  is recorded as `failed` with the model's reason (H02b).
+- **The eval refuses to score what is not there.** An empty set printed "agreed on 0 of
+  0" and exited clean; a missing file was a quiet skip that the totals still counted.
+  The set is now checked whole before any call (empty, missing, duplicate, unreadable,
+  unknown outcome — every problem listed), and a run where any photo got no verdict
+  exits 1 after printing its numbers (E01–E06).
+- **Anonymous → permanent, proved as far as a harness can** (for M3.2). P84: an
+  anonymous pinner made permanent keeps the same user id, and the person, the pin, the
+  party size and the opt-in survive and stay editable under the refreshed token. P85:
+  the app's own `updateUser({ email })` from an anonymous session is accepted and
+  moves nothing while the code is outstanding. P86: `linkIdentity` for Google and Apple
+  — **red until "Allow manual linking" is switched on in Supabase Auth**, which is
+  exactly what it is there to say. Not provable here: entering the code
+  (`verifyOtp({ type: "email_change" })`), which needs an inbox, and the OAuth round
+  trip, which needs a browser — both walked in M3.2.

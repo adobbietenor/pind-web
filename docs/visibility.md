@@ -649,7 +649,7 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | V4 blocks | `private.blocked_between` (inside V1); policies `blocks_*` | P14–P16 |
 | V5 women-only | `private.women_only_open`, `public.women_only_offer`; policies `group_links_*` | P17–P20 |
 | V6 photos | bucket `photos`; `private.can_see_photo`; storage policies `photos_*`; trigger `people_photo_change_resets_status`; `people_insert_self` / `people_update_self` folder check | P07, P07b, P21, P23–P26 |
-| V6 the automated check (M3.1) | `photo_status` gains `needs_review`; table `photo_checks`; `admin_record_photo_check`, `admin_photo_states`, `admin_set_photo_status`; trigger `people_photo_check_webhook` → `private.photo_check_webhook` | P71–P73 |
+| V6 the automated check (M3.1) | `photo_status` gains `needs_review`; table `photo_checks`; `admin_record_photo_check`, `admin_photo_states`, `admin_set_photo_status`; trigger `people_photo_check_webhook` → `private.photo_check_webhook`; the harness skip `private.is_harness_user` (app_metadata, service key only) in the trigger and `admin_photos_waiting` | P71–P73, P82, P83 |
 | V7 +1s | column grant on `pin_friends`; policies `pin_friends_read_*` | P27, P28 |
 | V8 removing a pin | V1 and `public.spot_poll` read live pins | P21, P22 |
 | V9 filing reports | column grant on `reports`; policy `reports_insert_on_visible_person` | P33 |

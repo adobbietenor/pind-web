@@ -170,6 +170,15 @@ export async function sweep(service: SupabaseClient): Promise<void> {
 const DAY = 24 * 60 * 60 * 1000;
 const inDays = (d: number) => new Date(Date.now() + d * DAY).toISOString();
 
+// **Every harness user is marked through the service key** (M3.1), so the live photo
+// check — the webhook and the 09:00 sweep — never judges them. Without it the check
+// approved Eve's "pending" photo mid-run and P23/P46 asserted against a world that had
+// moved. `app_metadata` is writable only by the service key, which is the point.
+export async function markHarness(service: SupabaseClient, authId: string): Promise<void> {
+  const { error } = await service.auth.admin.updateUserById(authId, { app_metadata: { pind_harness: true } });
+  if (error) throw new Error(`mark ${authId} as a harness user: ${error.message}`);
+}
+
 // A signed-in person: an auth user with a session, plus their people rows made by
 // the service key (the self-service insert path is exercised by Newt in the tests).
 async function signedIn(
@@ -181,11 +190,17 @@ async function signedIn(
   if (opts.anonymous) {
     const { data, error } = await client.auth.signInAnonymously({ options: { data: { harness: PREFIX } } });
     if (error || !data.user) throw new Error(`anonymous sign-in for ${name}: ${error?.message}`);
+    await markHarness(w.service, data.user.id);
     return { client, authId: data.user.id };
   }
   const email = `${PREFIX}-${w.run}-${name.toLowerCase()}@example.com`;
   const password = randomUUID();
-  const created = await w.service.auth.admin.createUser({ email, password, email_confirm: true });
+  const created = await w.service.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    app_metadata: { pind_harness: true },
+  });
   if (created.error || !created.data.user) throw new Error(`create user ${name}: ${created.error?.message}`);
   const { error } = await client.auth.signInWithPassword({ email, password });
   if (error) throw new Error(`sign in ${name}: ${error.message}`);

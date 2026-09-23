@@ -20,6 +20,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { canSpend, costUsd } from "../import/ai.ts";
 import {
   ESTIMATE_PER_PHOTO,
+  parseUnreadable,
   parseVerdict,
   PHOTO_CALL_MS,
   PHOTO_MODEL,
@@ -104,9 +105,15 @@ export async function judge(
     }
     const text = res.content.map((b) => (b.type === "text" ? b.text : "")).join("");
     const verdict = parseVerdict(text);
-    return verdict
-      ? { verdict, cost, durationMs }
-      : { verdict: null, cost, durationMs, error: "the answer was not a verdict" };
+    if (verdict) return { verdict, cost, durationMs };
+    // Nothing to see is a failed check, never an approval (Alex, M3.1).
+    const unseen = parseUnreadable(text);
+    return {
+      verdict: null,
+      cost,
+      durationMs,
+      error: unseen ? `the check could not see an image: ${unseen}` : "the answer was not a verdict",
+    };
   } catch (err) {
     // An aborted call is billed and its usage never arrives, so it is counted at the
     // estimate rather than at nothing (M1.3b's cost blind spot).

@@ -41,16 +41,11 @@ export interface SweepOutcome {
   message: string;
 }
 
-// Pending, with a photo, and nothing has successfully decided it. Ordered oldest
-// first, because the person who has been invisible longest is the one waiting.
+// Pending, with a photo, and nothing has successfully decided it, oldest first — and
+// never the policy harness's people, which is why the database answers it: the
+// harness marker lives in auth.users, where only it can read (M3.1).
 async function waiting(db: SupabaseClient, limit: number) {
-  const { data, error } = await db
-    .from("people")
-    .select("id, photo_path, updated_at")
-    .eq("photo_status", "pending")
-    .not("photo_path", "is", null)
-    .order("updated_at", { ascending: true })
-    .limit(limit);
+  const { data, error } = await db.rpc("admin_photos_waiting", { p_limit: limit });
   if (error) throw new Error(error.message);
   return (data ?? []) as { id: string; photo_path: string }[];
 }

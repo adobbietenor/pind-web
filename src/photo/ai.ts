@@ -82,6 +82,11 @@ not exhaustive:
   and are approved**
 - anything odd, funny, unflattering or strange
 
+**unreadable** — only when there is no picture for you to look at: the image is blank,
+a single flat colour, corrupt, or too small to make anything out. This is not "no
+face" — a landscape, a pet or an object is a picture, and is approved. Use unreadable
+only when you could not see anything to judge.
+
 **The bar for reject is harm, not quality, and the bar for needs_review is age and
 nothing else.** If you find yourself reaching for needs_review because you cannot
 tell who the subject is, or whether it is really them, or whether it is a real
@@ -92,12 +97,27 @@ Give one reason of under twenty words, written for the moderator reading the que
 export const PHOTO_SCHEMA = {
   type: "object",
   properties: {
-    outcome: { type: "string", enum: ["approve", "reject", "needs_review"] },
+    outcome: { type: "string", enum: ["approve", "reject", "needs_review", "unreadable"] },
     reason: { type: "string" },
   },
   required: ["outcome", "reason"],
   additionalProperties: false,
 } as const;
+
+// **"No image at all" is not "no face"** (Alex, M3.1). The harness's 1-pixel PNGs came
+// back approved with reasons beginning "No image…": the check reported a verdict it
+// never reached. So the model has a fourth answer, `unreadable`, and it is **not a
+// verdict** — parseVerdict returns null for it, and check.ts records the attempt as
+// `failed` with the model's reason, which the admin counts.
+export function parseUnreadable(text: string): string | null {
+  try {
+    const parsed = JSON.parse(text) as { outcome?: unknown; reason?: unknown };
+    if (parsed?.outcome !== "unreadable") return null;
+    return typeof parsed.reason === "string" && parsed.reason ? parsed.reason.slice(0, 200) : "no reason given";
+  } catch {
+    return null;
+  }
+}
 
 // The model answers in its own vocabulary; the database has its own. One place
 // translates, and an answer that is neither is not a verdict.

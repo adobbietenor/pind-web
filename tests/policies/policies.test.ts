@@ -13,7 +13,7 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEnv } from "./env.ts";
-import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, newClient, sweep, type Member, type World } from "./world.ts";
+import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, markHarness, newClient, sweep, type Member, type World } from "./world.ts";
 
 interface Result {
   data: any;
@@ -203,6 +203,7 @@ describe("Own rows — V1 writes", () => {
     assert.equal(error, null, error?.message);
     assert.ok(data.user?.is_anonymous, "session is anonymous");
     const authId = data.user!.id;
+    await markHarness(w.service, authId);
     const path = `${authId}/newt.png`;
 
     await ok(client.storage.from(BUCKET).upload(path, PNG, { contentType: "image/png" }), "upload own photo");
@@ -1142,6 +1143,7 @@ describe("Seed rows never reach the public — V18 (Alex, M2.1)", () => {
     seedSession = newClient(w.env, w.env.publishableKey);
     const signIn = await seedSession.auth.signInAnonymously({ options: { data: { harness: "pindhx" } } });
     assert.equal(signIn.error, null, signIn.error?.message);
+    await markHarness(w.service, signIn.data.user!.id);
     seedPerson = (
       await ok(
         w.service
@@ -1939,7 +1941,7 @@ describe("Export and delete — A23 (Alex, M3.1)", () => {
   it("P79 deleting a person takes what is keyed to them and leaves what outlives them", async () => {
     // A person of this case's own, so nothing else in the world depends on them.
     const authId = (await ok(
-      w.service.auth.admin.createUser({ email: `${PREFIX}-gone-${w.run}@example.com`, email_confirm: true }),
+      w.service.auth.admin.createUser({ email: `${PREFIX}-gone-${w.run}@example.com`, email_confirm: true, app_metadata: { pind_harness: true } }),
       "make a user",
     )).user.id;
     const person = await ok(
@@ -2002,6 +2004,7 @@ describe("A person sets themselves up — the app's own sequence (M3.1)", () => 
     const signedIn = await client.auth.signInAnonymously({ options: { data: { harness: PREFIX } } });
     assert.equal(signedIn.error, null, signedIn.error?.message);
     const authId = signedIn.data.user!.id;
+    await markHarness(w.service, authId);
 
     // --- A2, first run: no rows exist yet.
     const person = await ok(
@@ -2160,5 +2163,200 @@ describe("Re-judging after a rubric change — P81 (M3.1)", () => {
       }),
       "restore",
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The live photo check never judges the harness's people — P82, P83 (M3.1).
+//
+// **Why this exists:** the webhook approved Eve's "pending" photo mid-run, and P23/P46
+// then asserted against a world that had moved (and every run spent money). The
+// skip is a refusal, so it is proved by making it refuse: a marked person's pending
+// photo is still pending after the check would long since have answered (it takes
+// about three seconds), and the sweep's list leaves them out — and includes them the
+// moment the marker goes, so the exclusion is the marker and not an accident.
+// ---------------------------------------------------------------------------
+
+describe("The harness is invisible to the live photo check — P82, P83 (M3.1)", () => {
+  it("P82 a marked person's pending photo is never checked / the sweep skips them, and takes them once unmarked", async () => {
+    const authId = (await ok(
+      w.service.auth.admin.createUser({
+        email: `${PREFIX}-skip-${w.run}@example.com`,
+        email_confirm: true,
+        app_metadata: { pind_harness: true },
+      }),
+      "make a marked user",
+    )).user.id;
+    const path = `${authId}/skip.png`;
+    let personId: string | null = null;
+    try {
+      await ok(w.service.storage.from(BUCKET).upload(path, PNG, { contentType: "image/png" }), "upload");
+      personId = (await ok(
+        w.service.from("people").insert({ auth_user_id: authId, first_name: "Skip", photo_path: path }).select("id").single(),
+        "insert a pending photo",
+      )).id as string;
+
+      // Twelve seconds: four times what the check took end to end.
+      await new Promise((r) => setTimeout(r, 12_000));
+      assert.equal(
+        (await serviceRow("people", "id", personId, "photo_status")).photo_status,
+        "pending",
+        "the live check judged a harness user's photo",
+      );
+      assert.equal(
+        (await rows(w.service.from("photo_checks").select("id").eq("person_id", personId))).length,
+        0,
+        "a check was recorded for a harness user",
+      );
+
+      const waiting = async () =>
+        ((await ok(w.service.rpc("admin_photos_waiting", { p_limit: 100000 }))) as { id: string }[]).map((r) => r.id);
+      assert.ok(!(await waiting()).includes(personId), "the sweep would check a harness user");
+
+      // The other side: the same row, unmarked, IS what the sweep takes. (Changing
+      // app_metadata touches no `people` row, so no webhook fires and nothing is spent.)
+      await ok(w.service.auth.admin.updateUserById(authId, { app_metadata: { pind_harness: false } }), "unmark");
+      assert.ok((await waiting()).includes(personId), "the sweep skipped an ordinary pending photo");
+    } finally {
+      await w.service.auth.admin.updateUserById(authId, { app_metadata: { pind_harness: true } });
+      if (personId) await w.service.from("people").delete().eq("id", personId);
+      await w.service.storage.from(BUCKET).remove([path]);
+      await w.service.auth.admin.deleteUser(authId);
+    }
+  });
+
+  it("P83 a person cannot mark themselves to skip the check", async () => {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signedIn = await client.auth.signInAnonymously();
+    assert.equal(signedIn.error, null, signedIn.error?.message);
+    const authId = signedIn.data.user!.id;
+    try {
+      // Everything a session can write about itself.
+      await client.auth.updateUser({ data: { pind_harness: true } });
+      const user = (await ok(w.service.auth.admin.getUserById(authId), "read the user")).user;
+      assert.notEqual(user.app_metadata?.pind_harness, true, "a session set its own harness marker");
+      assert.equal(user.user_metadata?.pind_harness, true, "the attempt did not even land where a session can write");
+    } finally {
+      await w.service.auth.admin.deleteUser(authId);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Anonymous → permanent, with the pin surviving — P84, P85, P86 (M3.1, for M3.2).
+//
+// **The step the build plan names as most likely to slip**, and the one the whole
+// quick-pin funnel rests on: A26 pins as an anonymous user, A27 makes that SAME user
+// permanent. If the id changes, or the pin does not come with it, every quick pin is
+// lost at the moment somebody says they would like to meet. `linkEmail()` existed and
+// nothing called it; nothing proved any of this (Alex, M3.1).
+//
+// What a harness can prove, and what it cannot: it proves the id is stable through
+// the conversion and that the person, the pin, the party size and the opt-in survive
+// and stay readable under the new token (P84); that the app's own call is accepted
+// for an anonymous session and changes nothing while the code is outstanding (P85);
+// and whether OAuth linking is switched on at all (P86). **It cannot read the
+// six-digit code from an inbox**, so `verifyOtp({ type: "email_change" })` itself is
+// walked on a device in M3.2.
+// ---------------------------------------------------------------------------
+
+describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.2)", () => {
+  // A26, done the way the screen will: an anonymous session makes its own person
+  // and its own pin, opted in, bringing a friend.
+  async function quickPin(label: string) {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signedIn = await client.auth.signInAnonymously();
+    assert.equal(signedIn.error, null, signedIn.error?.message);
+    const authId = signedIn.data.user!.id;
+    await markHarness(w.service, authId);
+    assert.equal(signedIn.data.user!.is_anonymous, true);
+    const person = await ok(
+      client.from("people").insert({ auth_user_id: authId, first_name: label }).select("id").single(),
+      "A26 makes the person",
+    );
+    const pin = await ok(
+      client
+        .from("pins")
+        .insert({ gathering_id: w.G, person_id: person.id, open_to_meeting: true, party_total: 2 })
+        .select("id")
+        .single(),
+      "A26 pins",
+    );
+    return { client, authId, personId: person.id as string, pinId: pin.id as string };
+  }
+
+  async function stillMine(client: SupabaseClient, authId: string, personId: string, pinId: string) {
+    const me = await ok(client.auth.getUser(), "read my user");
+    assert.equal(me.user.id, authId, "the user id changed");
+    const person = await rows(client.from("people").select("id, auth_user_id").eq("id", personId));
+    assert.equal(person.length, 1, "the person is no longer readable as mine");
+    assert.equal(person[0].auth_user_id, authId);
+    const pin = await rows(client.from("pins").select("id, open_to_meeting, party_total").eq("id", pinId));
+    assert.equal(pin.length, 1, "the pin did not survive");
+    assert.equal(pin[0].open_to_meeting, true, "the opt-in did not survive");
+    assert.equal(pin[0].party_total, 2, "the party size did not survive");
+    // And it is still the person's to change — the write half of RLS, not only reads.
+    await ok(client.from("pins").update({ party_total: 3 }).eq("id", pinId), "edit my pin after the link");
+  }
+
+  it("P84 an anonymous pinner made permanent keeps the same id, and the person, the pin, the party size and the opt-in come with it", async () => {
+    const q = await quickPin("Link");
+    try {
+      // The conversion itself, as the email code will do it once verified: the same
+      // auth user gains a confirmed email.
+      await ok(
+        w.service.auth.admin.updateUserById(q.authId, { email: `${PREFIX}-link-${w.run}@example.com`, email_confirm: true }),
+        "make the user permanent",
+      );
+      const refreshed = await q.client.auth.refreshSession();
+      assert.equal(refreshed.error, null, refreshed.error?.message);
+      assert.equal(refreshed.data.user?.id, q.authId, "a new user came back from the link");
+      assert.equal(refreshed.data.user?.is_anonymous, false, "the user is still anonymous after the link");
+      const claims = JSON.parse(Buffer.from(refreshed.data.session!.access_token.split(".")[1]!, "base64url").toString());
+      assert.equal(claims.sub, q.authId, "the new token is for a different user");
+      assert.equal(claims.is_anonymous, false, "the new token still says anonymous");
+      await stillMine(q.client, q.authId, q.personId, q.pinId);
+    } finally {
+      await w.service.from("pins").delete().eq("id", q.pinId);
+      await w.service.from("people").delete().eq("id", q.personId);
+      await w.service.auth.admin.deleteUser(q.authId);
+    }
+  });
+
+  it("P85 the app's own call — updateUser({ email }) from an anonymous session — is accepted, and nothing moves while the code is outstanding", async () => {
+    const q = await quickPin("Asks");
+    try {
+      // Resend's test inbox: accepts and discards, and costs the domain nothing.
+      const address = `delivered+${PREFIX}-${w.run}@resend.dev`;
+      const asked = await q.client.auth.updateUser({ email: address });
+      assert.equal(asked.error, null, `an anonymous session could not ask to link an email: ${asked.error?.message}`);
+      assert.equal(asked.data.user?.id, q.authId);
+      const user = (await ok(w.service.auth.admin.getUserById(q.authId), "read the user")).user;
+      assert.equal(user.new_email ?? (user as { email_change?: string }).email_change, address, "no change of email is pending");
+      assert.equal(user.is_anonymous, true, "the user became permanent before the code was entered");
+      await stillMine(q.client, q.authId, q.personId, q.pinId);
+    } finally {
+      await w.service.from("pins").delete().eq("id", q.pinId);
+      await w.service.from("people").delete().eq("id", q.personId);
+      await w.service.auth.admin.deleteUser(q.authId);
+    }
+  });
+
+  it("P86 linking Google or Apple to an anonymous user is switched on (Supabase: Allow manual linking)", async () => {
+    const q = await quickPin("Oauth");
+    try {
+      for (const provider of ["google", "apple"] as const) {
+        const { data, error } = await q.client.auth.linkIdentity({
+          provider,
+          options: { skipBrowserRedirect: true, redirectTo: "https://pind.social/you" },
+        });
+        assert.equal(error, null, `${provider}: ${error?.message} — is "Allow manual linking" on in Supabase Auth?`);
+        assert.ok(data?.url, `${provider}: no sign-in page to send the person to`);
+      }
+    } finally {
+      await w.service.from("pins").delete().eq("id", q.pinId);
+      await w.service.from("people").delete().eq("id", q.personId);
+      await w.service.auth.admin.deleteUser(q.authId);
+    }
   });
 });
