@@ -8,6 +8,7 @@ export * from "./copy";
 export * from "./image";
 export * from "./neighbourhoods";
 export * from "./policy";
+export * from "./quickpin";
 export * from "./said";
 export * from "./session";
 export * from "./signin";
