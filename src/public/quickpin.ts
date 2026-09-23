@@ -156,6 +156,25 @@ function formPage(env: Env, door: Crowd2, state: FormState, status = 200): Respo
   });
 }
 
+// The app's entry script, read from the app's own index.html so a deploy never leaves
+// the preload pointing at an old file (memoised per isolate; a deploy starts new
+// ones). After the pin the next page is the app's, and it is about four seconds of
+// JavaScript on a phone — the confirmation page starts that download while the
+// person reads "You're in", so the next tap does not land on a loading screen at the
+// moment they committed (Alex, M3.2).
+let appEntryPath: string | null | undefined;
+async function appEntry(env: Env, origin: string): Promise<string | null> {
+  if (appEntryPath !== undefined) return appEntryPath;
+  try {
+    const res = await env.ASSETS?.fetch(new Request(`${origin}/index.html`));
+    const html = res ? await res.text() : "";
+    appEntryPath = /src="(\/_expo\/static\/js\/web\/entry-[a-f0-9]+\.js)"/.exec(html)?.[1] ?? null;
+  } catch {
+    appEntryPath = null;
+  }
+  return appEntryPath;
+}
+
 const isClosed = (door: Crowd2) => Date.now() >= Date.parse(door.gathering.effective_end);
 
 async function openDoor(env: Env, slug: string): Promise<Crowd2 | Response> {
@@ -264,10 +283,11 @@ export async function quickPinSubmit(request: Request, env: Env, slug: string): 
   ).catch(() => null);
   const row = (counts as { pinned: number; open_to_meeting: number }[] | null)?.[0];
 
+  const entry = await appEntry(env, new URL(request.url).origin);
   const cookie = await seal(sessionSecret(env), { userId: tokens.userId, refreshToken: tokens.refreshToken, issuedAt: Date.now() });
   const res = page(done(door, already, row), {
     title: `${QUICKPIN_COPY.pinned} · ${door.gathering.name} · Pin'd`,
-    head: `<style>${FORM_CSS}</style>`,
+    head: `<style>${FORM_CSS}</style>${entry ? `<link rel="prefetch" href="${escape(entry)}" as="script">` : ""}`,
     // A same-origin marker W2's button reads to say SEE_WHO instead of PIN_IN (M3.2,
     // decided in M3.1: no network, no cookie, no cache change on W2).
     script: `try{localStorage.setItem(${JSON.stringify(`pind.pinned.${door.gathering.slug}`)},"1")}catch(e){}`,

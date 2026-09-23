@@ -484,8 +484,14 @@ Reached from W2's button at `/g/<slug>/pin`. One screen, no account, no photo:
 - Checkbox: "I'd like to meet up with others going" (unticked)
 - Checkbox: "I'm 19 or older" (H8 attestation; the date-of-birth hard stop comes at A27)
 → pinned, as a Supabase anonymous user; the pin is a real row under RLS. About 30
-seconds. Then: "You're #14 pinned", the threshold with progress ("4 of 5 opted in · 1
-to go"), share this page, add to calendar, edit my pin, remove my pin.
+seconds. Then, at once (Alex, M3.2): **"You're in"**, the count ("3 going so far" — never
+"You're #3 pinned", which read as a rank and was wrong for a party), the threshold with
+progress ("1 of 5 open to meeting · 4 to go"), and **one primary button into the app**
+— "Next: a few details so people can find you" if they ticked "meet up" (A27), "See
+who's going" if they did not (A9) — with the app already loading behind the page, so
+the tap never lands on a loading screen at the moment of commitment. Below it: change
+or remove my pin, share this page, add to calendar. Without JavaScript the
+confirmation is the landing and says how to come back.
 
 ### A27 — Opt in *(link path; new)*
 Only for someone who ticked "meet up" (or turns it on later). One screen more:
@@ -567,7 +573,9 @@ the web build must be the complete product.
 - One-liner: "See who's going, meet them there."
 - Primary action: **"Pin in — I've got a ticket"**. For gatherings with `is_free = true`:
   **"Pin in — I'm going"** (Alex, Phase 1 M1.2).
-- Threshold explanation: "Crews open when 5 people opt in."
+- Threshold explanation: "Crews form once 5 people are open to meeting." (Alex, M3.2:
+  one word for the second number everywhere, "open to meeting" — it read "opt in" here
+  and "opted in" on A26. "Form" so the sentence does not say "open" twice.)
 - The three house rules, verbatim, on every crowd surface (see W2), and under them
   "Crews meet at a spot near the venue before doors." Rewritten by Alex after the M2.1
   walk: **the safety property each line describes is unchanged, only how it is said.**

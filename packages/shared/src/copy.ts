@@ -60,7 +60,10 @@ export function entryLine(g: {
 // counts as a quiet fact; W2 is headed "Who else is going?" and the pinned page will
 // lead with "Find your crew" (A9/A10). A card on W1 that is short of five says nothing
 // about five at all.
-export const THRESHOLD_EXPLANATION = "Crews open when 5 people opt in.";
+// One word for the second number everywhere: "open to meeting" (Alex, M3.2 — it read
+// "opt in" here and "opted in" on A26, two words for one idea). "Form", not "open", so
+// the sentence does not say "open" twice.
+export const THRESHOLD_EXPLANATION = "Crews form once 5 people are open to meeting.";
 
 // Verbatim, on every crowd surface (spec W2). Rewritten by Alex after the M2.1
 // on-device walk: the safety property each line describes is unchanged, only how it

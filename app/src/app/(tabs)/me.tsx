@@ -168,7 +168,7 @@ export default function Profile() {
         <View style={styles.counts}>
           <View style={styles.count}>
             <Text style={styles.countNumber}>{me.gatherings}</Text>
-            <Text style={styles.countLabel}>pinned</Text>
+            <Text style={styles.countLabel}>gatherings</Text>
           </View>
           <View style={styles.count}>
             <Text style={styles.countNumber}>{me.crewsMet}</Text>

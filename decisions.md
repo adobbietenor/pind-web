@@ -3089,7 +3089,7 @@ or solo."* Where the two meet and where they do not:
 - **Starting a crew waits for five people open to meeting** (M3.3 acceptance: "Below 5
   opt-ins 'start a crew' is locked with the reason"). Below five, the page leads with
   the people (M2.2's reframing) and 1-on-1 (M3.4) is the thing you can do now.
-- **Where a person lands, by branch** (proposed, Alex to confirm):
+- **Where a person lands, by branch** (Alex, M3.2 — decided):
   - ticked "meet up" → A27 (date of birth, gender, photo, a way to sign in) → the
     safety sheet → **the pinned crowd page (A9/A10)**;
   - did not tick → **the pinned crowd page (A9)** directly: counts, "Open to meeting"
@@ -3098,3 +3098,28 @@ or solo."* Where the two meet and where they do not:
   #N pinned", the progress line, change or remove, share, add to calendar. Nothing after
   it exists yet — A27, A8, A9 are M3.2 work still to build; A10's crews and "Put me in
   a crew" are M3.3; 1-on-1 (A28, A29) is M3.4.
+
+- **The landing, decided** (Alex, M3.2): an instant **"You're in"** confirmation on the
+  Worker, with **one primary button** into the app and the app's script already
+  loading behind it (`<link rel="prefetch">` of the app's current entry, read from its
+  own index.html). A four-second loading screen at the exact moment someone commits is
+  the worst place in the flow to put one. The primary button lands with A9 and A27 —
+  it is not wired to screens that do not exist yet.
+- **The counts in plain English** (Alex, M3.2 — "readable by someone who has never used
+  this, before internally consistent"):
+  - the second number is **"open to meeting"** everywhere; the threshold sentence is now
+    "Crews form once 5 people are open to meeting.";
+  - the first number is **"going"** where it is a count: W2's box ("3 going"), A26's
+    confirmation ("3 going so far"), and "You're in" instead of "You're pinned";
+  - the profile's count of gatherings you have pinned to reads **"gatherings"**, not
+    "pinned";
+  - "pin in" / "pinned in" stays as the verb, because it names the button a person has
+    just pressed;
+  - **not changed, for Alex:** W1's card reads "3 pinned · see who's going" (M2.3's three
+    states, Alex's). With "going" it would say "3 going · see who's going" — the word
+    twice. It stays until Alex picks its wording.
+- **The who's-going page for someone pinned but not open to meeting is the most
+  important empty state in the product** (Alex, M3.2): they have committed, they are on
+  the page, and they see counts and no faces. It must read as **one step away, not a
+  locked door** — its copy and the toggle's prominence are a named M3.2 acceptance item,
+  not whatever wording it happens to get.

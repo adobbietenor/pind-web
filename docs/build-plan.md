@@ -448,6 +448,15 @@ any of it.
 - Two test people opted in each see the other's first name and, once approved, photo; a third who pinned without opting in sees nobody and is not seen.
 - The locked state reads "3 of 5 · 2 to go" with three test opt-ins.
 - A blocked pair (set in the admin for the test) cannot see each other's pins in the list.
+- **The who's-going page for someone pinned but not open to meeting reads as one step
+  away, not a locked door** (Alex, M3.2 — the most important empty state in the
+  product). The counts are there and nobody's face is; the page says why in one plain
+  line, and **"Open to meeting" is the most prominent thing on it**, one tap from A27.
+  Its copy is agreed with Alex before the screen is called done.
+- **After the pin, one primary button into the app**, and the app already loading
+  behind the confirmation: "Next: a few details so people can find you" (ticked "meet
+  up" → A27) or "See who's going" (→ A9). Measured: the tap does not land on a loading
+  screen.
 - With the app installed, the same iMessage link opens the app on that crowd page; without it, Safari.
 - Remove my pin drops the count; edit changes party size and opt-in; My Events shows the pinned gathering.
 - **Carried from M3.1's walk** (Alex: they need a fresh account, and A26 makes them constantly): **the email-code field with the keyboard up** — what you type stays visible — and **a field near the bottom of a screen** stays clear of the keyboard. Both rest on `AppScreen` (S11/S12 fail the build if a screen draws its own frame), which is why they did not hold M3.1's merge.

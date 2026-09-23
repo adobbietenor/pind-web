@@ -83,7 +83,7 @@ ${draftBanner()}
 <h2>How long we keep things</h2>
 <ul>
 <li><strong>Pins</strong> — deleted 30 days after the gathering. We keep only the totals (how many went), with nobody&#39;s name.</li>
-<li><strong>If you pinned in but never opted in</strong>, your anonymous account is deleted with your last pin, 30 days after the gathering.</li>
+<li><strong>If you pinned in but never said you would like to meet</strong>, your anonymous account is deleted with your last pin, 30 days after the gathering.</li>
 <li><strong>Crew messages</strong> — read-only 24 hours after the gathering, deleted 30 days after it.</li>
 <li><strong>Your date of birth</strong> — only the year is ever kept.</li>
 <li><strong>A rejected photo</strong> — deleted at once; the record of the check, 12 months.</li>

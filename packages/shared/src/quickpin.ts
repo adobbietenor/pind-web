@@ -52,16 +52,21 @@ export const QUICKPIN_COPY = {
   needParty: "Say who's coming.",
   needGroupSize: `How many of you? A number from 2 to ${PARTY_MAX}.`,
   needNineteen: "Pin'd is 19+. Tick the box if you're 19 or older.",
-  // After the pin (spec A26: "You're #14 pinned", the threshold with progress, share,
-  // add to calendar, edit, remove).
-  pinned: "You're pinned",
-  alreadyPinned: "You were already pinned — we've updated it",
+  // After the pin: the confirmation, the count and progress, one primary button, then
+  // change or remove, share, add to calendar (spec A26, as changed in M3.2).
+  // "You're in", not "You're pinned": plain English for someone who has never used
+  // this (Alex, M3.2).
+  pinned: "You're in",
+  alreadyPinned: "You were already in — we've updated it",
   share: "Share this crowd",
   addToCalendar: "Add to calendar",
   editOrRemove: "Change or remove my pin",
+  // The one primary button after the pin (Alex, M3.2): into the app, which the page has
+  // already started loading. Ticked "meet up" goes to the details; otherwise the list.
+  nextDetails: "Next: a few details so people can find you",
   // The no-JavaScript case (Alex, M3.2): never a silent dead end.
   noScript:
-    "You're pinned. To change or remove it later, open this page again in this browser with JavaScript switched on — your pin is kept for you here.",
+    "You're in. To change or remove it later, open this page again in this browser with JavaScript switched on — your pin is kept for you here.",
   closed: "Pinning has closed — this one has finished.",
   // Editing a pin already there (the app's A26; the Worker's page links to it).
   save: "Save my pin",
@@ -71,10 +76,13 @@ export const QUICKPIN_COPY = {
   tryAgain: "That didn't go through. Try again in a moment.",
 } as const;
 
-// "#14 pinned" and the threshold with progress ("4 of 5 opted in · 1 to go").
-export const quickPinPlace = (pinned: number) => `You're #${pinned} pinned`;
+// The count and the threshold with progress (Alex, M3.2). **Not "You're #3 pinned"**:
+// it read as a rank, and it was wrong when you brought people — the number counts
+// bodies, your friends included. "Going" is the plain word for that number, the one
+// W2's box uses; "open to meeting" is the only word for the second.
+export const quickPinPlace = (going: number) => `${going} going so far`;
 export const quickPinProgress = (open: number, threshold: number) =>
-  open >= threshold ? "Crews are open" : `${open} of ${threshold} opted in · ${threshold - open} to go`;
+  open >= threshold ? "Crews are forming" : `${open} of ${threshold} open to meeting · ${threshold - open} to go`;
 
 export type QuickPinInput = Partial<Record<QuickPinField, string | undefined>>;
 

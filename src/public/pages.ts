@@ -467,7 +467,7 @@ function tallies(c: Counts): string {
   const crews = crewLine(c);
   return `<h2 class="asks">Who else is going?</h2>
 <div class="tallies">
-<div class="tally-box"><b>${c.pinned}</b><span>pinned</span></div>
+<div class="tally-box"><b>${c.pinned}</b><span>going</span></div>
 <div class="tally-box"><b>${c.open_to_meeting}</b><span>open to meeting</span></div>
 </div>
 ${mix ? `<p class="mix">${escape(mix)}</p>` : ""}
