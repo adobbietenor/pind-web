@@ -109,6 +109,8 @@
       "/admin",
       "/admin/*",
       "/about",
+      "/privacy",
+      "/terms",
       "/robots.txt",
       "/favicon.svg",
       "/g/*",

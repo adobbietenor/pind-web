@@ -12,6 +12,7 @@ import { appSiteAssociation, ogImage } from "./og";
 import { pngResponse, rasterise } from "./ogpng";
 import { ensureVenueMap, venueMapImage, venueMapUpload } from "./mapserve";
 import { about, favicon, ics, robots, w1, w2, w3 } from "./pages";
+import { privacy, terms } from "./policy";
 
 // Anything that is not one of ours is the app's (M2.0).
 function toApp(request: Request, env: Env): Promise<Response> {
@@ -40,6 +41,9 @@ export async function publicRoutes(request: Request, env: Env, ctx?: ExecutionCo
   if (pathname === "/") return w1(request, env, "events");
   if (pathname === "/community") return w1(request, env, "community");
   if (pathname === "/about") return about();
+  // Drafts, at exactly the URLs the Google consent screen links to (M3.2).
+  if (pathname === "/privacy") return privacy();
+  if (pathname === "/terms") return terms();
   if (pathname === "/robots.txt") return robots();
   if (pathname === "/favicon.svg") return favicon();
   if (pathname === "/.well-known/apple-app-site-association") return appSiteAssociation();

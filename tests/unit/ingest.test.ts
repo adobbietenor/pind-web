@@ -50,5 +50,7 @@ describe("The /ingest proxy", () => {
     const list = JSON.parse(config.slice(from, config.indexOf("]", from) + 1).replace(/,\s*]/, "]"));
     assert.ok(Array.isArray(list) && list.includes("/g/*"), "could not read run_worker_first (the check found nothing)");
     assert.ok(list.includes("/ingest/*") && list.includes("/ingest"), "the /ingest route is not in run_worker_first");
+    // The policy pages Google links to (M3.2): a missing entry would answer them with the app.
+    assert.ok(list.includes("/privacy") && list.includes("/terms"), "/privacy or /terms is not in run_worker_first");
   });
 });
