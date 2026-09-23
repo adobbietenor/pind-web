@@ -243,6 +243,16 @@ Two things that make this failure mode hard to see from inside, both worth knowi
   cleaning a value on the way in destroys the evidence that something upstream is
   adding it.
 
+**When a setting is in dispute, read it from the thing that enforces it, not the thing
+that displays it.** M3.1: the dashboard showed "Allow manual linking" on, Alex had a
+screenshot of it and was certain he had set it, and P86 kept failing. Two reads that
+did not trust the page settled it — the auth server's own reply (`404
+manual_linking_disabled`, from a guard that reads exactly that flag) and the stored
+config through `npx supabase config diff` — and both said off: switched, never saved.
+It cost three round trips. **A dashboard is an instrument too**, and the same shape
+will recur with any provider or dashboard setting the repo cannot see: ask the server
+that refuses, or the API that stores it, before asking anyone to toggle anything again.
+
 ## A guard that never ran looks exactly like a guard that passed
 
 The sibling of the rule above, and the harder one to catch. An instrument that

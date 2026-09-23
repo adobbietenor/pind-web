@@ -2813,11 +2813,21 @@ failed. Diagnosed from the server's side rather than by toggling again:
   hosted auth field that differs from `config.toml`. The repo's file says
   `enable_manual_linking = false`, and the diff does **not** list it — so the stored
   hosted value is `false` too. Two independent reads agree: off.
-- So the dashboard's toggle state is not what the project holds — most likely switched
-  and never saved. The screenshot proved what the page showed, not what was stored:
-  the same one-layer-down gap as a server response against a phone.
+- So the dashboard's toggle state was not what the project held. Alex toggled it off,
+  on and **saved**; then `config diff` listed `enable_manual_linking` as hosted `true`
+  against the repo's `false`, and P86 passed. The screenshot had proved what the page
+  showed, not what was stored — the same one-layer-down gap as a server response
+  against a phone.
+- **It cost three round trips, and Alex was certain it was done.** The same shape will
+  recur with any provider or dashboard setting that is not visible from the repo: the
+  page shows a state, the person who set it remembers setting it, and only the thing
+  that enforces it knows. So the rule went into CLAUDE.md beside the instrument rule:
+  **when a setting is in dispute, read it from the thing that enforces it, not the
+  thing that displays it.**
 
-The diff also showed `sms.twilio.enabled: true` on the hosted project. **No SMS path is
-live** — the auth server's public settings report `phone: false` — so it is a provider
-selection with the phone method off, not a way in; recorded because "no SMS, no
-Twilio" is a stack rule and the setting is visible.
+The diff also shows `sms.twilio.enabled: true` on the hosted project. **Nobody set
+that:** it is the default showing in Supabase's unused SMS-provider dropdown, and the
+auth server's public settings report `phone: false`, so no SMS method is enabled and
+there is nothing to turn off. It is not the stack rule ("no SMS, no Twilio") being
+broken. Worth knowing only because "Twilio is set as the SMS provider" reads like a
+configuration somebody made.
