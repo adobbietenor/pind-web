@@ -647,6 +647,7 @@ any of it.
 
 #### M4.5 · Metrics, and the adaptive publishing loop switched on
 
+- **Retention, beside the snapshots it depends on** (Alex, M3.2 — it belonged to no milestone): pins deleted 30 days after the effective end, anonymous people with their last pin, and spec §6's deferred cascades (a deleted gathering keeps its pins' after-event answers; a deleted person does not take crewmates' confirmations). The snapshot runs first; a harness case proves a pin past 30 days is gone and its gathering's `gathering_stats` row is not.
 - The views and the `gathering_stats` snapshots from §7; PostHog funnel events; the admin Metrics page (per gathering, per week, crews vs solo, seeded vs unseeded, the after-event answer).
 - `adaptive = on` with the settings from §6; the weekly decision logged with its inputs; a freeze switch.
 
@@ -737,6 +738,7 @@ Everything below is a gate. Items that only applied to the WhatsApp Test 0 are g
 
 - Privacy policy and terms published, covering Ticketmaster data, photo checks, gender, solo mode, retention
 - Ticketmaster data purged 30 days after effective end (job proven on staging); no revenue from their data
+- Pins and anonymous users deleted 30 days after the effective end, after the `gathering_stats` snapshot (job proven on staging — built in M4.5)
 - The lawyer hour on terms and the "we organise nothing" language; incorporation at least started, with the accounts to move to the entity listed
 
 ### Visibility review

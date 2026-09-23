@@ -2957,3 +2957,17 @@ address forwarded to Alex by Email Routing. `p=quarantine` waits a week of repor
   scope** so it cannot be missed when the project is created. The region cannot be
   changed on an existing project; a wrong one means a new project and every
   dashboard setting in `docs/configuration.md` redone.
+- **Photo checks are pinned to US inference** (Alex, M3.2): `inference_geo: "us"` on
+  every photo-check request (`photoRequest`, R01), counted at 1.1x so the daily cap
+  measures what is billed (R02). Confirmed by one live call whose response reported
+  `inference_geo: "us"`. The import vetting sends no personal data and is left global.
+- **Retention placement** (Alex, M3.2): M3.2 builds the rejected photo's immediate
+  deletion and the 12-month purge of check records. **M4.5 owns deleting pins and
+  anonymous users at 30 days and the deferred cascade fixes**, beside the
+  `gathering_stats` snapshots they depend on. "Pin and anonymous-user deletion proven
+  on staging" joins the first-real-crowds list. The draft policy states the 30-day
+  rule as the rule — it is what will happen, and the only pin on staging is Alex's.
+- **Mailing address** for the policy: Tenor Investments Inc., 2562 136th Street,
+  Surrey, BC V4P 1S4, Canada. `privacy@pind.social` forwards to Alex.
+- **The draft says so at the top**: a draft, not reviewed by a lawyer, replaced at
+  M4.1 — so nobody mistakes it for a settled document.
