@@ -1300,6 +1300,108 @@ describe("Seed rows never reach the public — V18 (Alex, M2.1)", () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — the testers list, a V18 change (Alex, M3.2; on M4.2's review list)
+// ---------------------------------------------------------------------------
+
+describe("Testers see the seed gathering while signed in — and nothing else moves (V18, M3.2)", () => {
+  let avaUser = "";
+  const setTester = (on: boolean) =>
+    w.service.rpc("admin_set_tester", { p_auth_user: avaUser, p_on: on, p_actor: ACTOR, p_note: "harness" });
+
+  before(async () => {
+    avaUser = (await c(M("Ava")).auth.getUser()).data.user!.id;
+    // The seed person from V18's block, opted in at the SEED gathering too.
+    await ok(w.service.from("pins").insert({ gathering_id: seedG, person_id: seedPerson, open_to_meeting: true, party_total: 1 }));
+    await ok(setTester(true));
+  });
+
+  after(async () => {
+    await ok(setTester(false));
+    await ok(w.service.from("pins").delete().eq("gathering_id", seedG));
+  });
+
+  it("P92 a tester CAN read the seed gathering, its venue, spots and options / a signed-in non-tester and anon CANNOT", async () => {
+    const ava = c(M("Ava"));
+    assert.equal(await readable(ava, seedG), true, "the tester could not read the seed gathering");
+    assert.equal((await rows(ava.from("venues").select("id").eq("id", seedVenue))).length, 1, "tester: seed venue");
+    assert.equal((await rows(ava.from("meeting_spots").select("id").eq("venue_id", seedVenue))).length, 1, "tester: seed spots");
+    for (const client of [w.anon, c(M("Ben"))]) {
+      assert.equal(await readable(client, seedG), false, "a non-tester read the seed gathering");
+      assert.equal((await rows(client.from("venues").select("id").eq("id", seedVenue))).length, 0, "non-tester: seed venue");
+    }
+  });
+
+  it("P93 a tester CAN pin at the seed gathering and remove it / a non-tester CANNOT pin there", async () => {
+    await denied(
+      c(M("Ben")).from("pins").insert({ gathering_id: seedG, person_id: id("Ben"), party_total: 1, open_to_meeting: false }),
+      "42501",
+    );
+    const pin = await ok(
+      c(M("Ava")).from("pins").insert({ gathering_id: seedG, person_id: id("Ava"), party_total: 1, open_to_meeting: true }).select("id").single(),
+    );
+    assert.ok(pin.id, "the tester could not pin at the seed gathering");
+  });
+
+  it("P94 a tester opted in at the seed gathering CAN see the seed person opted in there / the seed person stays invisible to non-testers", async () => {
+    const ava = c(M("Ava"));
+    assert.equal((await rows(ava.from("people").select("id").eq("id", seedPerson))).length, 1, "the tester could not see the seed person");
+    assert.equal(
+      (await rows(ava.from("pins").select("id").eq("person_id", seedPerson).eq("gathering_id", seedG))).length,
+      1,
+      "the tester could not see the seed person's pin",
+    );
+    assert.equal((await rows(c(M("Ben")).from("people").select("id").eq("id", seedPerson))).length, 0, "a non-tester saw the seed person");
+  });
+
+  it("P95 a tester gets the seed gathering's counts, seed people counted / anon and a non-tester get no row", async () => {
+    const row = await counts(c(M("Ava")), seedG);
+    assert.equal(row.open_to_meeting, 2, "the tester's counts should hold Ava and the seed person");
+    for (const client of [w.anon, c(M("Ben"))]) {
+      assert.equal((await rows(client.rpc("gathering_counts", { gathering_ids: [seedG] }))).length, 0, "a non-tester got seed counts");
+    }
+  });
+
+  it("P96 no public page changes: the public doors, asked WITH a tester's session, return no seed row", async () => {
+    const ava = c(M("Ava"));
+    assert.equal((await publicList(ava)).includes(seedGSlug), false, "a tester's week list included the seed gathering");
+    assert.equal((await publicDoor(ava, seedGSlug)).status, "gone", "a tester opened the seed crowd page");
+  });
+
+  it("P97 nobody can add themselves: the list is service-key only, unreadable to visitors", async () => {
+    const ben = c(M("Ben"));
+    const benUser = (await ben.auth.getUser()).data.user!.id;
+    for (const client of [ben, c(M("Ava")), w.anon]) {
+      const add = await client.rpc("admin_set_tester", { p_auth_user: benUser, p_on: true, p_actor: "self", p_note: null });
+      assert.ok(add.error, "a visitor ran admin_set_tester");
+      const list = await client.rpc("admin_testers");
+      assert.ok(list.error, "a visitor read the testers list");
+    }
+    assert.equal(await readable(ben, seedG), false, "Ben became a tester");
+  });
+
+  it("P98 at a REAL gathering a tester sees no seed person, and counts do not move (the seed rule holds there)", async () => {
+    // The seed person is pinned and opted in at G (V18's P56); Ava is opted in at G.
+    const ava = c(M("Ava"));
+    assert.equal(
+      (await rows(ava.from("pins").select("id").eq("person_id", seedPerson).eq("gathering_id", w.G))).length,
+      0,
+      "a tester saw a seed person's pin at a real gathering",
+    );
+    assert.deepEqual(await counts(ava, w.G), await counts(w.anon, w.G), "a tester's counts at a real gathering differ from anon's");
+  });
+
+  it("P99 taking a tester off the list takes the sight away at once — both sides of the flag", async () => {
+    await ok(setTester(false));
+    const ava = c(M("Ava"));
+    assert.equal(await readable(ava, seedG), false, "the seed gathering stayed visible after the flag came off");
+    assert.equal((await rows(ava.from("people").select("id").eq("id", seedPerson))).length, 0, "the seed person stayed visible");
+    await ok(setTester(true));
+    assert.equal(await readable(ava, seedG), true, "putting the flag back did not restore sight");
+  });
+});
+
+
 describe("The public web layer reads through one door — M2.1 (W1–W4)", () => {
   it("P59 publishing mints a public URL / a gathering without one is on no public list and has no public page", async () => {
     // The world's published gatherings were inserted straight through the service

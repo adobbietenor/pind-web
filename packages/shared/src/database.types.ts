@@ -2513,6 +2513,15 @@ export type Database = {
         Args: { p_actor: string; p_gathering: string; p_slug: string }
         Returns: string
       }
+      admin_set_tester: {
+        Args: {
+          p_actor: string
+          p_auth_user: string
+          p_note?: string
+          p_on: boolean
+        }
+        Returns: undefined
+      }
       admin_settle_series: {
         Args: { p_actor: string; p_note?: string; p_series: string }
         Returns: undefined
@@ -2529,6 +2538,16 @@ export type Database = {
           p_trigger: string
         }
         Returns: number
+      }
+      admin_testers: {
+        Args: never
+        Returns: {
+          added_at: string
+          added_by: string
+          auth_user_id: string
+          email: string
+          note: string
+        }[]
       }
       admin_top_up_spot_poll: {
         Args: { p_gathering: string }

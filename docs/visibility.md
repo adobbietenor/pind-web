@@ -14,7 +14,7 @@ web layer) added **V18 — seed rows never reach the public** (§12f), the one d
 public pages read through, the public slug, and cases P55–P61. M2.2 and M2.3 added
 P62–P66. M3.1 **enforced V17** (§12g), moving the Instagram handle off the `people`
 row, and added cases P67–P70, and rewrote **V6** for the automated photo check (§8) with cases
-P71–P73, and added **V19 — a person's tags** (§12h) with cases P74–P77, and extended **V9** so an export can read the reports you filed (P78–P79).
+P71–P73, and added **V19 — a person's tags** (§12h) with cases P74–P77, and extended **V9** so an export can read the reports you filed (P78–P79). M3.2 closed pinning at the effective end (P37b inverted, P90–P91) and added **the testers exception to V18** (§12f, P92–P99).
 
 Binding sources: `decisions.md` H3 (reciprocal reveal), H6 (honest counts), H7
 (women-only), H9 (block/report), H11 (visibility in the database), Q1, Q3, Q9, and
@@ -609,6 +609,27 @@ Alex can change it by hand in the admin (`admin_set_slug`), and then:
 Retired slugs are readable by `anon` for the gatherings whose rows are readable, which
 is what lets the redirect work; nothing else about them is public.
 
+### The testers exception (Alex, M3.2 — on M4.2's review list)
+
+The rule above made walking a list with test people impossible: a seed person is
+invisible to every signed-in reader, including the person walking the list. So a short
+list of **real accounts** (`private.testers`, written only by `admin_set_tester` with the
+service key) may, **while signed in**:
+
+- read the seed gathering, its seed venue, spots and options (P92);
+- pin there, edit and remove that pin (P93);
+- see the seed people opted in **at that seed gathering**, under the usual reciprocal
+  and block rules (P94), and its counts with them in (P95).
+
+**Nothing else moves.** A seed person stays invisible to a tester at any real gathering,
+and a tester's counts there equal anon's (P98). Nobody can add themselves or read the
+list (P97). Taking the flag off takes the sight away at once (P99). **No public page
+changes**: `i_am_tester()` is false without a session and the Worker reads public pages
+with none — and, because a door must not depend on who is asking, **both public doors
+now carry `not is_seed` themselves** (P96). `public_gatherings` had been borrowing it
+from the row policy; P96 caught that on its first run, and migration 20260923133210
+fixed it.
+
 ---
 
 ## 13 · Spot poll
@@ -676,7 +697,7 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | Importer rights | `admin_import_apply`, `admin_resolve_flag`, `admin_start_import_run`, `admin_purge_ticketmaster_data`, `admin_merge_venues`, `admin_confirm_venue` | P52–P54 |
 | V17 Instagram handles (M3.1) | table `public.person_handles`; `private.can_see_handle`, `private.share_crew`, `private.are_connected`, `private.is_hidden`; policies `person_handles_read_own`, `person_handles_read_visible`, `person_handles_*_own` | P67–P70, P11, P24 |
 | V19 a person's tags (M3.1) | policies `tags_read`, `person_tags_read_own`, `person_tags_read_visible`, `person_tags_*_own` (insert, delete, update of `on_list`); `private.can_see`; constraint trigger `person_tags_within_caps` → `private.person_tags_cap` (ten tags, three on the list) | P74–P77, P04 |
-| V18 seed rows | `venues.is_seed`, `gatherings.is_seed`, `people.is_seed`; triggers `gatherings_seed_follows_venue`, `venues_seed_spreads`; `private.is_published`, `private.list_open`, `private.is_open_at`, `private.is_seed_venue`; policies `gatherings_read_published`, `gathering_spots_read_published`, `venues_read`, `meeting_spots_read`; `public.gathering_counts` | P55–P58 |
+| V18 seed rows | `venues.is_seed`, `gatherings.is_seed`, `people.is_seed`; triggers `gatherings_seed_follows_venue`, `venues_seed_spreads`; `private.is_published`, `private.list_open`, `private.is_open_at`, `private.is_seed_venue`; policies `gatherings_read_published`, `gathering_spots_read_published`, `venues_read`, `meeting_spots_read`; `public.gathering_counts`; testers: `private.testers`, `private.i_am_tester`, `public.admin_set_tester` | P55–P58; testers P92–P99 |
 | The public web's one door | `public.public_gatherings`, `public.public_gathering` | P55, P59, P61, P65 |
 | The chip a Ticketmaster gathering wears (M2.3) | `public.chip_category`, `public.admin_categorise_gatherings` — both `service_role` only; written once, never over an existing value | P66 |
 | The public slug and its 301 | `gatherings.slug`, `gathering_slug_history`, trigger `gatherings_slug_history`; `admin_mint_slug`, `admin_set_slug`, `admin_publish_gathering` | P59, P60 |
