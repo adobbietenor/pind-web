@@ -15,10 +15,8 @@ export function Trouble({ what, onRetry, busy }: { what: Described; onRetry?: ()
   const router = useRouter();
   return (
     <View style={{ marginBottom: spacing.md }}>
-      <Notice tone="stop">
-        {what.says}
-        {what.detail ? `\n${what.detail}` : ""}
-      </Notice>
+      {/* Only the sentence: technical detail goes to Sentry, never the screen. */}
+      <Notice tone="stop">{what.says}</Notice>
       {what.wayOut === "sign-in" ? (
         <Button kind="quiet" label="Sign in again" onPress={() => router.replace("/sign-in")} />
       ) : what.wayOut === "retry" && onRetry ? (

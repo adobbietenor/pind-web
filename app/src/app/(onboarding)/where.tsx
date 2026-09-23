@@ -20,7 +20,7 @@
 import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { colors as palette, fonts, NEIGHBOURHOODS, radius, spacing, TAGS_MINIMUM, TAGS_NEED_MORE } from "@pind/shared";
+import { colors as palette, fonts, NEIGHBOURHOODS, radius, Said, spacing, TAGS_MINIMUM, TAGS_NEED_MORE } from "@pind/shared";
 import { TagPicker, tagsCanContinue, type Picked } from "@/components/TagPicker";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
@@ -49,7 +49,7 @@ export default function Where() {
         const { data: me, error: meError } = await db.from("people").select("id").eq("auth_user_id", authUserId).maybeSingle();
         if (meError) throw meError;
         // Signed in, but A2 never saved: the true sentence, not "expired".
-        if (!me) throw new Error("your profile from the last screen is not saved yet. Go back a step and tap Continue again");
+        if (!me) throw new Said("Your profile from the last screen is not saved yet. Go back a step and tap Continue again.");
         if (hood) {
           const { error: saveError } = await db.from("people").update({ neighbourhood: hood }).eq("id", me.id);
           if (saveError) throw saveError;

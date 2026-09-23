@@ -32,14 +32,17 @@ import {
   spacing,
   startEdit,
   uploadFailed,
+  uploadReason,
+  Said,
   type PhotoEdit,
 } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
-import { PhotoError, askForCheck, pickPhoto, uploadPhoto, type Picked } from "@/lib/photo";
+import { askForCheck, pickPhoto, uploadPhoto, type Picked } from "@/lib/photo";
 import { loadMe, photoUrl } from "@/lib/profile";
+import { report } from "@/lib/sentry";
 import { myAuthId } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 
@@ -60,7 +63,7 @@ export default function ChangePhoto() {
       const authId = await myAuthId();
       const loaded = await loadMe();
       if (!live) return;
-      if (!loaded) throw new Error("There is no profile on this account yet.");
+      if (!loaded) throw new Said("There is no profile on this account yet.");
       setMe({ id: loaded.id, authId });
       setEdit(startEdit(loaded.photoPath));
       if (loaded.photoPath) setCurrentUrl(await photoUrl(loaded.photoPath).catch(() => null));
@@ -94,7 +97,7 @@ export default function ChangePhoto() {
       const picked = await pickPhoto();
       if (picked) setEdit(editChoose(edit, picked));
     } catch (err) {
-      setError(err instanceof PhotoError ? { says: err.message } : failed("open that photo", err));
+      setError(failed("open that photo", err));
     }
   };
 
@@ -110,7 +113,9 @@ export default function ChangePhoto() {
         try {
           next = await uploadPhoto(me.authId, edit.pick.picked);
         } catch (err) {
-          const marked = uploadFailed(edit.pick, err instanceof Error ? err.message : String(err));
+          // In words, never the error's own text (it printed a hostname, M3.1).
+          report(err, "upload your photo");
+          const marked = uploadFailed(edit.pick, uploadReason(err));
           setEdit({ ...edit, pick: marked });
           // Its way out is on the screen already: Remove photo, or Choose another.
           if (marked.state === "failed") setError({ says: marked.says });

@@ -12,6 +12,8 @@
 //   android  Google and the email code. Android follows iOS (decisions Part 5); there
 //            is no native Apple button there, and listing one would be a row that
 //            renders nothing.
+import { isUnreachable } from "./session.ts";
+
 export type SignInMethod = "apple" | "google" | "email";
 
 export function signInMethods(platform: string): SignInMethod[] {
@@ -34,6 +36,11 @@ export const SIGNIN_STALE = "Your last sign-in had lapsed on this device. Try ag
 export const SIGNIN_BAD_EMAIL = "That email address doesn't look right.";
 export const SIGNIN_TOO_MANY = "Too many tries. Give it a minute.";
 export const SIGNIN_NOT_ON = "That way in is not switched on yet. Try the email code.";
+// Anything unrecognised. It used to be the provider's own text, which could carry a
+// hostname or an internal code (said.ts); that text goes to Sentry instead.
+// Not signed in yet, so not the session sentence ("you have not been signed out").
+export const SIGNIN_UNREACHABLE = "Pin'd could not be reached. Check your connection and try again.";
+export const SIGNIN_FAILED = "That did not work. Try again, or use another way in.";
 
 // A leftover session this device can no longer refresh. The screen clears it locally
 // so the next attempt starts clean.
@@ -43,10 +50,11 @@ export function isStaleSession(message: string): boolean {
 
 export function signInSays(step: SignInStep, message: string): string {
   if (/canceled|cancelled|ERR_REQUEST_CANCELED/i.test(message)) return "";
+  if (isUnreachable({ message })) return SIGNIN_UNREACHABLE;
   if (isStaleSession(message)) return SIGNIN_STALE;
   if (/rate limit|too many/i.test(message)) return SIGNIN_TOO_MANY;
   if (/provider is not enabled/i.test(message)) return SIGNIN_NOT_ON;
   if (step === "verify" && /expired|invalid/i.test(message)) return SIGNIN_CODE_BAD;
   if (step === "send" && /email/i.test(message) && /invalid/i.test(message)) return SIGNIN_BAD_EMAIL;
-  return message || "That did not work. Try again.";
+  return SIGNIN_FAILED;
 }

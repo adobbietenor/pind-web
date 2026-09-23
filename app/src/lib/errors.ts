@@ -10,61 +10,62 @@
 // The rule this follows is the one the session bug earned: **a message that names the
 // wrong cause is worse than one that names none**, because it sends somebody to fix
 // the wrong thing. So: say which step failed, in words, and keep the technical detail
-// rather than swallowing it — during a walk that detail is the whole diagnosis.
-
-import { isUnreachable, SESSION_UNREACHABLE, sessionSays, sessionWayOut } from "@pind/shared";
+// rather than swallowing it — in Sentry, not on the screen.
+//
+// **And only sentences we wrote reach the screen** (Alex, M3.1, the web photo walk: a
+// failure printed "load failed (mxuajvlrkggrqpntekqt.supabase.co)"). The raw message
+// and code used to ride along as `detail`; they now go to Sentry (`report`), and the
+// screen gets our sentence for the cause, or one plain line (`@pind/shared`, said.ts).
+import { isUnreachable, Said, SESSION_UNREACHABLE, sessionSays, sessionWayOut, WENT_WRONG } from "@pind/shared";
+import { report } from "./sentry";
 import { SessionProblem } from "./session";
 
 export interface Described {
   says: string;
-  detail?: string;
   // The exit the sentence promises (Alex, M3.1: a screen that says "go and sign in"
   // and has no button to do it is a dead end). `Trouble` renders it.
   wayOut?: "sign-in" | "retry";
 }
 
-// Postgres codes we can say something true and useful about. Anything else keeps its
-// own message, which is better than a guess.
+// Postgres codes we can say something true and useful about, in words. The code itself
+// never reaches the screen.
 const CODES: Record<string, string> = {
   "42501": "Pin'd was not allowed to write that",
   "23505": "that already exists",
   "23503": "something it points at is missing",
-  "23514": "the database refused the value as invalid",
+  "23514": "that value was not accepted",
   "22001": "one of those is too long",
-  PGRST116: "nothing came back when exactly one row was expected",
 };
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 
-export function describe(err: unknown): Described {
-  if (typeof err === "string") return { says: err };
+export function describe(err: unknown, doing = "unnamed step"): Described {
   // Already classified — out, unreachable or unsure — by the shared rule.
-  if (err instanceof SessionProblem) return { says: sessionSays(err.read), wayOut: sessionWayOut(err.read) };
+  if (err instanceof SessionProblem) {
+    if (err.read.state === "unsure") report(new Error(err.read.message), `${doing}: read the session`);
+    return { says: sessionSays(err.read), wayOut: sessionWayOut(err.read) };
+  }
   // The same rule the session read uses, so "could not be reached" means one thing.
   if (isUnreachable(err)) return { says: SESSION_UNREACHABLE, wayOut: "retry" };
+  // A sentence written for a person (PhotoError is one) — the only text shown as is.
+  if (err instanceof Said) return { says: err.message };
 
-  if (isRecord(err)) {
-    const message = typeof err.message === "string" ? err.message : "";
-    const code = typeof err.code === "string" ? err.code : undefined;
-
-    if (code && CODES[code]) {
-      return { says: CODES[code], detail: `${message}${code ? ` (${code})` : ""}` };
-    }
-    if (message) return { says: message, detail: code ? `(${code})` : undefined };
-  }
-  return { says: "something went wrong" };
+  report(err, doing);
+  const code = isRecord(err) && typeof err.code === "string" ? err.code : undefined;
+  return { says: code && CODES[code] ? CODES[code] : WENT_WRONG };
 }
 
 // "We could not save your date of birth and gender — Pin'd was not allowed to write
-// that." plus the raw detail underneath. A session or connection sentence is already
-// whole, and stands on its own rather than being folded into "We could not …".
+// that." A session, connection or `Said` sentence is already whole, and stands on its
+// own rather than being folded into "We could not …".
 export function failed(what: string, err: unknown): Described {
-  const d = describe(err);
+  if (err instanceof Said) return { says: err.message };
+  const d = describe(err, what);
   if (d.wayOut) return d;
-  return { says: `We could not ${what} — ${d.says}.`, detail: d.detail };
+  return { says: `We could not ${what} — ${d.says}.` };
 }
 
 // One line, for a place that has room for only one.
 export function oneLine(d: Described): string {
-  return d.detail ? `${d.says} ${d.detail}` : d.says;
+  return d.says;
 }

@@ -40,13 +40,15 @@ import {
   radius,
   spacing,
   UNDER_19,
+  uploadReason,
 } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Choice, Field, Heading, Notice } from "@/components/ui";
 import { track } from "@/lib/analytics";
 import { failed, type Described } from "@/lib/errors";
-import { PhotoError, askForCheck, pickPhoto, uploadPhoto, type Picked } from "@/lib/photo";
+import { askForCheck, pickPhoto, uploadPhoto, type Picked } from "@/lib/photo";
+import { report } from "@/lib/sentry";
 import { myAuthId } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 
@@ -164,7 +166,7 @@ export default function You() {
     } catch (err) {
       // A PhotoError is already a sentence written for the person — HEIC, too big,
       // permission refused — so it is passed through rather than re-described.
-      setError(err instanceof PhotoError ? { says: err.message } : failed("open that photo", err));
+      setError(failed("open that photo", err));
     }
   };
 
@@ -190,7 +192,10 @@ export default function You() {
         try {
           photoPath = await uploadPhoto(authUserId, photo.picked);
         } catch (err) {
-          const next = uploadFailed(photo, err instanceof Error ? err.message : String(err));
+          // The reason in words, never the error's own text — that printed a hostname
+          // (M3.1). The raw error goes to Sentry.
+          report(err, "upload your photo");
+          const next = uploadFailed(photo, uploadReason(err));
           setPhoto(next);
           if (next.state === "failed") setError({ says: next.says });
           return;

@@ -5,7 +5,7 @@
 // So "what others see" on the preview is not a re-implementation of the rules: it is
 // the same columns the same policies would hand someone else, described honestly.
 
-import { readSession } from "@pind/shared";
+import { readSession, Said } from "@pind/shared";
 import { SessionProblem, whoAmI } from "./session";
 import { supabase } from "./supabase";
 
@@ -86,7 +86,7 @@ export async function saveInstagram(personId: string, handle: string): Promise<v
     return;
   }
   if (!/^[A-Za-z0-9._]{1,30}$/.test(value)) {
-    throw new Error("An Instagram handle is letters, numbers, dots and underscores.");
+    throw new Said("An Instagram handle is letters, numbers, dots and underscores.");
   }
   // **Not an upsert**, for the same reason as `people_private` (A2): `person_handles`
   // grants INSERT on both columns and UPDATE on `instagram` alone, so an
@@ -118,7 +118,7 @@ export async function exportMyData(): Promise<Record<string, unknown>> {
     .eq("auth_user_id", read.userId)
     .maybeSingle();
   if (personError) throw personError;
-  if (!person) throw new Error("There is nothing here to export yet.");
+  if (!person) throw new Said("There is nothing here to export yet.");
 
   const [priv, handle, tags, pins, contacts, votes, surveys, blocks, crews, messages, reports] = await Promise.all([
     db.from("people_private").select("*").eq("person_id", person.id),
@@ -170,9 +170,11 @@ export async function deleteAccount(): Promise<void> {
     method: "POST",
     headers: { authorization: `Bearer ${token}` },
   });
+  // The Worker's own message can carry a database error; it goes to Sentry through
+  // `describe`, and the person reads "something went wrong on our side".
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as { error?: string };
-    throw new Error(body.error ?? "That did not work. Try again.");
+    throw Object.assign(new Error(body.error ?? `account delete ${response.status}`), { status: response.status });
   }
   await db.auth.signOut();
 }

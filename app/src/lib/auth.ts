@@ -17,7 +17,8 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
-import { isStaleSession, signInMethods, signInSays, type SignInMethod, type SignInStep } from "@pind/shared";
+import { isStaleSession, SIGNIN_FAILED, signInMethods, signInSays, type SignInMethod, type SignInStep } from "@pind/shared";
+import { report } from "./sentry";
 import { supabase } from "./supabase";
 
 export type Method = SignInMethod;
@@ -132,5 +133,9 @@ export async function isPermanent(): Promise<boolean> {
 export function signInError(step: SignInStep, err: unknown): string {
   const message = err instanceof Error ? err.message : String(err ?? "");
   if (isStaleSession(message)) void supabase().auth.signOut({ scope: "local" });
-  return signInSays(step, message);
+  const says = signInSays(step, message);
+  // Unrecognised: the person reads a plain line, and the provider's own text — which
+  // can carry a hostname or a code — goes to Sentry.
+  if (says === SIGNIN_FAILED) report(err, `sign in (${step})`);
+  return says;
 }

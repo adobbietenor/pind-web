@@ -20,7 +20,7 @@
 
 import * as ImagePicker from "expo-image-picker";
 import { Platform } from "react-native";
-import { decodeBase64, judgePhotoBytes, photoUpload, type ReadableType } from "@pind/shared";
+import { decodeBase64, judgePhotoBytes, photoUpload, Said, type ReadableType } from "@pind/shared";
 import { supabase } from "./supabase";
 
 // The Worker and the web export share one host (decisions Part 5, "Web build
@@ -35,7 +35,10 @@ export interface Picked {
   contentType: ReadableType;
 }
 
-export class PhotoError extends Error {}
+// Every PhotoError is a sentence written for the person (HEIC, too big, permission),
+// so it is a `Said` and is shown as it is. A failed upload is NOT one: its raw error
+// is thrown as it came, and the screen turns it into words with `uploadReason`.
+export class PhotoError extends Said {}
 
 // Square, re-encoded, and not enormous. `quality` is the JPEG quality the crop is
 // written at; 0.8 is well inside the 5 MB bucket limit for any phone camera.
@@ -73,7 +76,7 @@ export async function uploadPhoto(authUserId: string, picked: Picked): Promise<s
     contentType: upload.contentType,
     upsert: false,
   });
-  if (error) throw new PhotoError(error.message);
+  if (error) throw error;
   return upload.path;
 }
 

@@ -9,7 +9,7 @@
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, StyleSheet, View } from "react-native";
-import { colors as palette, spacing, TAGS_MINIMUM, TAGS_NEED_MORE } from "@pind/shared";
+import { colors as palette, Said, spacing, TAGS_MINIMUM, TAGS_NEED_MORE } from "@pind/shared";
 import { TagPicker, tagsCanContinue, type Picked } from "@/components/TagPicker";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
@@ -34,7 +34,7 @@ export default function EditTags() {
     setLoadTrouble(null);
     (async () => {
       const me = await loadMe();
-      if (!me) throw new Error("There is no profile on this account yet.");
+      if (!me) throw new Said("There is no profile on this account yet.");
       const tags = await loadTags(me.id);
       if (!live) return;
       setPersonId(me.id);

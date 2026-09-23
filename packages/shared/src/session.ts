@@ -18,7 +18,7 @@
 //     error nobody recognises is "unsure" with its own message — never "out".
 //
 // The sentences are here too, and each one has a way out attached where it is shown
-// (`SessionTrouble` in the app): out → Sign in; unreachable and unsure → Try again.
+// (`Trouble` in the app): out → Sign in; unreachable and unsure → Try again.
 
 export type SessionRead =
   | { state: "in"; userId: string }
@@ -63,13 +63,13 @@ export function readSession(session: { user: { id: string } } | null | undefined
 export const SESSION_OUT = "You are signed out on this device. Sign in again to carry on.";
 export const SESSION_UNREACHABLE =
   "Pin'd could not be reached. Check your connection and try again — you have not been signed out, and nothing here was lost.";
-export const SESSION_UNSURE = (message: string) =>
-  `We could not check your sign-in just now${message ? ` (${message})` : ""}. Try again in a moment.`;
+// The message stays on the read for Sentry, never in the sentence (said.ts).
+export const SESSION_UNSURE = "We could not check your sign-in just now. Try again in a moment.";
 
 export function sessionSays(read: Exclude<SessionRead, { state: "in" }>): string {
   if (read.state === "out") return SESSION_OUT;
   if (read.state === "unreachable") return SESSION_UNREACHABLE;
-  return SESSION_UNSURE(read.message);
+  return SESSION_UNSURE;
 }
 
 // The way out each sentence promises. A screen that says "sign in again" and offers

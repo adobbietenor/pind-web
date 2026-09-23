@@ -107,6 +107,26 @@ describe("Nothing reads offline as signed out, and every sentence carries its ex
     assert.match(trouble.source, /wayOut === "retry" && onRetry \?[\s\S]*label="Try again"/);
   });
 
+  it("S20 no screen shows an error's own text — only sentences we wrote (M3.1: a hostname reached the screen)", () => {
+    // Reading `.message` is allowed only where it is classified (errors.ts, the sign-in
+    // classifier) or sent to Sentry — never where it could be rendered.
+    const allowed = /lib[\\/](errors|sentry|auth)\.ts$/;
+    const reads = all
+      .filter((f) => !allowed.test(f.path))
+      .filter((f) => /\b(err|error|e|cause|reason)\??\.message\b|\b(what|d|err|error)\.detail\b/.test(code(f.source)))
+      .map((f) => f.path);
+    // The guard must be able to fire: errors.ts reads err.message, and the pattern sees it.
+    const errorsFile = all.find((f) => /lib[\\/]errors\.ts$/.test(f.path));
+    assert.ok(errorsFile && /\berr\.message\b/.test(code(errorsFile.source)), "S20 cannot see a .message read");
+    assert.deepEqual(reads, [], "describe it with failed()/describe(), or throw a Said");
+  });
+
+  it("S21 a failed upload is described by uploadReason, never by the error's text", () => {
+    const calls = all.flatMap((f) => [...code(f.source).matchAll(/uploadFailed\(([^;]*?)\);/g)].map((m) => ({ path: f.path, args: m[1] })));
+    assert.ok(calls.length >= 2, `found ${calls.length}: A2 and Change photo both mark a failed upload`);
+    for (const c of calls) assert.match(c.args, /uploadReason\(err\)\s*$/, `${c.path}: ${c.args}`);
+  });
+
   it("S19 no screen prints a described failure by hand — so none can drop its exit (the old A2 shape)", () => {
     const own = screens.filter((s) => /\{\s*\w+\.says\s*\}/.test(s.source)).map((s) => s.path);
     assert.deepEqual(own, [], "render a Described through <Trouble>");

@@ -2,6 +2,10 @@
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
     "strict": true,
+    // @pind/shared modules import each other as "./x.ts" so node --test can load
+    // them unbundled (M3.1); the root and tests configs already allow it.
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
     "paths": { "@/*": ["./src/*"] }
   },
   "include": ["**/*.ts", "**/*.tsx", ".expo/types/**/*.ts", "expo-env.d.ts"],

@@ -14,7 +14,7 @@
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { ALL_TAGS, colors as palette, fonts, isUnreachable, NEIGHBOURHOODS, PHOTO_REJECTED, photoShowsToOthers, radius, spacing } from "@pind/shared";
+import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, PHOTO_REJECTED, photoShowsToOthers, radius, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
@@ -98,8 +98,9 @@ export default function Profile() {
       setMe({ ...me, instagram: handle.trim().replace(/^@/, "") || null });
       setEditing(false);
     } catch (err) {
-      // A bad handle is our own sentence; a network failure is not, and gets the shared one.
-      setError(err instanceof Error && !isUnreachable(err) ? err.message : oneLine(failed("save your handle", err)));
+      // A bad handle is our own sentence (a `Said`) and shows as it is; anything else
+      // is described, never printed raw.
+      setError(oneLine(failed("save your handle", err)));
     }
   };
 
