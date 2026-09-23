@@ -116,6 +116,7 @@
       "/g/*",
       "/photo-check",
       "/account/*",
+      "/session/*",
       "/hooks/*",
       "/og/*",
       "/map/*",

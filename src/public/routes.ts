@@ -13,6 +13,7 @@ import { pngResponse, rasterise } from "./ogpng";
 import { ensureVenueMap, venueMapImage, venueMapUpload } from "./mapserve";
 import { about, favicon, ics, robots, w1, w2, w3 } from "./pages";
 import { privacy, terms } from "./policy";
+import { quickPinPage } from "./quickpin";
 
 // Anything that is not one of ours is the app's (M2.0).
 function toApp(request: Request, env: Env): Promise<Response> {

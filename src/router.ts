@@ -3,6 +3,7 @@ import type { Env } from "./env";
 import { page } from "./html";
 import { deleteAccount } from "./account/routes";
 import { photoCheckForMe, photoWebhook } from "./photo/routes";
+import { claimSession, quickPinSubmit } from "./public/quickpin";
 import { publicRoutes } from "./public/routes";
 import { health } from "./routes/health";
 import { ingest } from "./routes/ingest";
@@ -40,6 +41,10 @@ export async function route(request: Request, env: Env, ctx?: ExecutionContext):
   // PostHog through our own origin (M3.2): any method, anything under /ingest.
   const analytics = await ingest(request);
   if (analytics) return analytics;
+
+  // A26’s form posts to its own URL (M3.2).
+  const pinPost = request.method === "POST" ? /^\/g\/([a-z0-9]+(?:-[a-z0-9]+)*)\/pin\/?$/.exec(pathname) : null;
+  if (pinPost) return quickPinSubmit(request, env, pinPost[1]!);
 
   const handler = routes[`${request.method} ${pathname}`];
   if (handler) return handler(request, env);

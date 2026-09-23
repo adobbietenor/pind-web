@@ -52,7 +52,29 @@ export const QUICKPIN_COPY = {
   needParty: "Say who's coming.",
   needGroupSize: `How many of you? A number from 2 to ${PARTY_MAX}.`,
   needNineteen: "Pin'd is 19+. Tick the box if you're 19 or older.",
+  // After the pin (spec A26: "You're #14 pinned", the threshold with progress, share,
+  // add to calendar, edit, remove).
+  pinned: "You're pinned",
+  alreadyPinned: "You were already pinned — we've updated it",
+  share: "Share this crowd",
+  addToCalendar: "Add to calendar",
+  editOrRemove: "Change or remove my pin",
+  // The no-JavaScript case (Alex, M3.2): never a silent dead end.
+  noScript:
+    "You're pinned. To change or remove it later, open this page again in this browser with JavaScript switched on — your pin is kept for you here.",
+  closed: "Pinning has closed — this one has finished.",
+  // Editing a pin already there (the app's A26; the Worker's page links to it).
+  save: "Save my pin",
+  remove: "Remove my pin",
+  removed: "Your pin is removed. The count has gone down by your party.",
+  closedCanRemove: "This one has finished, so your pin can't be changed — but you can still remove it.",
+  tryAgain: "That didn't go through. Try again in a moment.",
 } as const;
+
+// "#14 pinned" and the threshold with progress ("4 of 5 opted in · 1 to go").
+export const quickPinPlace = (pinned: number) => `You're #${pinned} pinned`;
+export const quickPinProgress = (open: number, threshold: number) =>
+  open >= threshold ? "Crews are open" : `${open} of ${threshold} opted in · ${threshold - open} to go`;
 
 export type QuickPinInput = Partial<Record<QuickPinField, string | undefined>>;
 
@@ -97,4 +119,74 @@ export function supabaseStorageKey(supabaseUrl: string): string {
   // The hostname without `URL`, which the shared package's own config does not assume.
   const host = supabaseUrl.replace(/^[a-z]+:\/\//i, "").split(/[/:?#]/)[0] ?? "";
   return `sb-${host.split(".")[0]}-auth-token`;
+}
+
+// ---------------------------------------------------------------------------
+// The write, once: person → 19+ record → pin (or update the pin already there).
+//
+// Both A26s run this with a client signed in AS the visitor — the Worker with the
+// visitor's own token and the publishable key, the app with its session — so RLS
+// decides every step exactly the same way (H11). It was about to be written twice;
+// Q04 now fails if either screen writes its own.
+// ---------------------------------------------------------------------------
+
+// The slice of a supabase-js client this needs, so the shared package does not depend
+// on supabase-js itself.
+type Result<T> = PromiseLike<{ data: T; error: { message?: string } | null }>;
+interface Query {
+  select(columns: string): Query;
+  insert(row: Record<string, unknown>): Query;
+  update(row: Record<string, unknown>): Query;
+  upsert(row: Record<string, unknown>, options: { onConflict: string; ignoreDuplicates: boolean }): Query;
+  eq(column: string, value: string): Query;
+  maybeSingle(): Result<unknown>;
+  single(): Result<unknown>;
+  then: Result<unknown>["then"];
+}
+export interface QuickPinDb {
+  from(table: string): Query;
+}
+
+async function step<T>(q: PromiseLike<{ data: T; error: { message?: string } | null }>, what: string): Promise<T> {
+  const { data, error } = await q;
+  if (error) throw Object.assign(new Error(`${what}: ${error.message ?? "failed"}`), { cause: error });
+  return data;
+}
+
+export async function writeQuickPin(
+  db: QuickPinDb,
+  authUserId: string,
+  gatheringId: string,
+  value: { firstName: string; partyTotal: number; openToMeeting: boolean },
+): Promise<{ personId: string; already: boolean }> {
+  const mine = (await step(db.from("people").select("id").eq("auth_user_id", authUserId).maybeSingle(), "read my person")) as {
+    id: string;
+  } | null;
+  let personId = mine?.id;
+  if (personId) {
+    await step(db.from("people").update({ first_name: value.firstName }).eq("id", personId), "update my name");
+  } else {
+    const made = (await step(
+      db.from("people").insert({ auth_user_id: authUserId, first_name: value.firstName }).select("id").single(),
+      "make my person",
+    )) as { id: string };
+    personId = made.id;
+  }
+  // The 19+ tick, once (P100: no pin without it). ON CONFLICT DO NOTHING needs only the
+  // insert grant.
+  await step(
+    db.from("age_attestations").upsert({ person_id: personId, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }),
+    "record 19+",
+  );
+  const pin = { party_total: value.partyTotal, open_to_meeting: value.openToMeeting };
+  const existing = (await step(
+    db.from("pins").select("id").eq("person_id", personId).eq("gathering_id", gatheringId).maybeSingle(),
+    "read my pin",
+  )) as { id: string } | null;
+  if (existing) {
+    await step(db.from("pins").update(pin).eq("id", existing.id), "update my pin");
+    return { personId, already: true };
+  }
+  await step(db.from("pins").insert({ gathering_id: gatheringId, person_id: personId, ...pin }), "pin");
+  return { personId, already: false };
 }

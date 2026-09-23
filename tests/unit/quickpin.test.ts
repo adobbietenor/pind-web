@@ -21,7 +21,7 @@ import {
 } from "../../packages/shared/src/quickpin.ts";
 
 const WORKER_A26 = "src/public/quickpin.ts";
-const EXPO_A26 = "app/src/app/g/[slug]/pin.tsx";
+const EXPO_A26 = "app/src/app/pin/[slug].tsx";
 const code = (source: string) => source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
 
 // Every sentence and label the screens show, flattened.
@@ -105,6 +105,11 @@ describe("Neither A26 writes its own fields, copy or validation (the divergence 
       const source = readFileSync(path, "utf8");
       const body = code(source);
       assert.match(body, /readQuickPin\(/, "it does not validate with readQuickPin");
+      // The write sequence is shared too — person, 19+ record, pin — so neither screen
+      // can reorder it or skip the record.
+      assert.match(body, /writeQuickPin\(/, "it writes the pin its own way instead of writeQuickPin");
+      assert.doesNotMatch(body, /from\(["']pins["']\)\s*\.insert/, "it inserts a pin itself");
+      assert.doesNotMatch(body, /from\(["']age_attestations["']\)/, "it records the 19+ tick itself");
       assert.match(body, /QUICKPIN_COPY\./, "it does not take its words from QUICKPIN_COPY");
       assert.match(body, /QUICKPIN_FIELDS\./, "it does not name its fields from QUICKPIN_FIELDS");
       assert.match(body, /PARTY_CHOICES/, "it does not build who's-coming from PARTY_CHOICES");
