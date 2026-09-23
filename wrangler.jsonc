@@ -76,7 +76,10 @@
   // of rotating the secret** — the other half is pasting the new JWT into Supabase,
   // and a new secret with a stale date here is worse than no date at all, because it
   // warns about the wrong day with complete confidence.
-  "vars": { "AI_DAILY_CAP_USD": "3", "AI_SPOT_SUGGESTIONS": "off", "APPLE_SECRET_EXPIRES": "2027-03-23" },
+  // QUICKPIN_FORWARD_IP (M3.2): the quick pin forwards the visitor's IP to Supabase's
+  // per-IP limit (Sb-Forwarded-For, secret key, for the one sign-in call only). Needs
+  // IP Address Forwarding on in the project (Alex, 23 Sept); "off" shares one limit.
+  "vars": { "AI_DAILY_CAP_USD": "3", "AI_SPOT_SUGGESTIONS": "off", "APPLE_SECRET_EXPIRES": "2027-03-23", "QUICKPIN_FORWARD_IP": "on" },
 
   // M2.1: the two Poppins faces the OG image is rasterised with are imported as
   // bytes, not base64 (src/public/ogpng.ts). Nothing else in the Worker loads a font.
