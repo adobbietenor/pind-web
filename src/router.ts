@@ -5,6 +5,7 @@ import { deleteAccount } from "./account/routes";
 import { photoCheckForMe, photoWebhook } from "./photo/routes";
 import { publicRoutes } from "./public/routes";
 import { health } from "./routes/health";
+import { ingest } from "./routes/ingest";
 
 export type Handler = (request: Request, env: Env) => Promise<Response>;
 
@@ -35,6 +36,10 @@ export async function route(request: Request, env: Env, ctx?: ExecutionContext):
   // Admin (M1.2): behind Cloudflare Access, and every request re-checks the Access
   // token in the Worker. See src/admin/routes.ts.
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return admin(request, env);
+
+  // PostHog through our own origin (M3.2): any method, anything under /ingest.
+  const analytics = await ingest(request);
+  if (analytics) return analytics;
 
   const handler = routes[`${request.method} ${pathname}`];
   if (handler) return handler(request, env);

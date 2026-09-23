@@ -118,7 +118,9 @@
       "/og/*",
       "/map/*",
       "/venue-map/*",
-      "/.well-known/*"
+      "/.well-known/*",
+      "/ingest",
+      "/ingest/*"
     ]
   }
 

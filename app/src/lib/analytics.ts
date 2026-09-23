@@ -13,6 +13,14 @@ const webStorage = {
   setItem: (key: string, value: string) => globalThis.localStorage?.setItem(key, value),
 };
 
+// **On the web, our own origin** (M3.2): the Worker forwards /ingest to PostHog, so a
+// public page like A26 talks to nobody but pind.social (the own-origin rule). The app
+// on a phone is not a page anyone pastes into Reddit and keeps the direct host.
+function analyticsHost(): string {
+  if (Platform.OS === "web" && typeof window !== "undefined") return `${window.location.origin}/ingest`;
+  return process.env.EXPO_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
+}
+
 export function initAnalytics(): void {
   const key = process.env.EXPO_PUBLIC_POSTHOG_KEY;
   if (!key) {
@@ -20,7 +28,7 @@ export function initAnalytics(): void {
     return;
   }
   posthog = new PostHog(key, {
-    host: process.env.EXPO_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com",
+    host: analyticsHost(),
     customStorage: Platform.OS === "web" ? webStorage : undefined,
     captureAppLifecycleEvents: false,
     // Send each event at once. The default batches for 10 seconds, and a tab
