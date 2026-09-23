@@ -3059,3 +3059,42 @@ address forwarded to Alex by Email Routing. `p=quarantine` waits a week of repor
     been imported and never wired — green typecheck, green tests, green deploy, and
     the live page served the app's index.html with a 200. `tests/unit/wiring.test.ts`
     (W01–W03) now fails on exactly that class, and proved it against the broken commit.
+
+### Considered and rejected: a +1 counts as open to meeting when their host is (Alex, M3.2)
+
+- **No.** A +1 has no face, no name, and has not agreed to anything. Counting them as
+  open to meeting would make the crowd page promise five people who want to meet when
+  it is really two people and three friends — a dishonest count (H6). And a person can
+  say their friends are coming; they cannot say their friends want to be introduced to
+  strangers. That is the reciprocal reveal (H3) applied to the count.
+- **The real thing underneath is already handled** (Q1): a member's +1 takes a seat in
+  a crew, shown as "+1 friend", so a group arriving is visible where it matters without
+  anyone being counted as something they did not choose. `open_to_meeting` counts
+  people, never +1s (visibility §4); `pinned` counts bodies.
+- Do not revisit without a new reason: the reasoning above is the whole of it.
+
+### After the pin: where a person lands (Alex, M3.2 — written down before M3.3)
+
+Alex's flow: **pin → the who's-going page → browse who's there → start a crew or go
+1-on-1.** The plan's link path (build-plan §2) already reads: *"Crowd page (Worker) →
+Pin in → Opt in (only if ticked): DOB, gender, photo, contact → one safety sheet → crews
+or solo."* Where the two meet and where they do not:
+
+- **Browsing who's there needs opting in, by H3**: "You see a person's name and photo
+  only once you have pinned in AND opted in to meeting at the same gathering." So a
+  person who pinned without ticking "meet up" lands on the who's-going page and sees
+  **the counts and nobody's face** — with the way in (the "Open to meeting" toggle,
+  which leads to A27). Not a contradiction of the flow; the flow's "browse" step is the
+  opted-in branch, and the page must say so rather than look empty.
+- **Starting a crew waits for five people open to meeting** (M3.3 acceptance: "Below 5
+  opt-ins 'start a crew' is locked with the reason"). Below five, the page leads with
+  the people (M2.2's reframing) and 1-on-1 (M3.4) is the thing you can do now.
+- **Where a person lands, by branch** (proposed, Alex to confirm):
+  - ticked "meet up" → A27 (date of birth, gender, photo, a way to sign in) → the
+    safety sheet → **the pinned crowd page (A9/A10)**;
+  - did not tick → **the pinned crowd page (A9)** directly: counts, "Open to meeting"
+    toggle, nobody's face until they turn it on.
+- **Today** A26 on the web lands on the Worker's result page, which stops there: "You're
+  #N pinned", the progress line, change or remove, share, add to calendar. Nothing after
+  it exists yet — A27, A8, A9 are M3.2 work still to build; A10's crews and "Put me in
+  a crew" are M3.3; 1-on-1 (A28, A29) is M3.4.
