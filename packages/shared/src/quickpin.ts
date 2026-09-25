@@ -64,9 +64,10 @@ export const QUICKPIN_COPY = {
   // The one primary button after the pin (Alex, M3.2): into the app, which the page has
   // already started loading. Ticked "meet up" goes to the details; otherwise the list.
   nextDetails: "Next: a few details so people can find you",
-  // Said to someone who ticked "meet up" and has not finished A27: the tick is intent,
-  // not yet a place on the list (M3.2).
-  optInNext: "You'd like to meet people — one more step: a photo, your date of birth and a way to sign in. Until then you're counted as going, not as open to meeting.",
+  // Said to someone who ticked "meet up" and has not finished A27: what the next step is
+  // FOR, never a list of what it asks — they find that out when they get there (Alex,
+  // M3.2 walk: "a list of demands before I've decided anything").
+  optInNext: "If you'd like to meet people here, set up a quick profile so others can see who you are.",
   // The no-JavaScript case (Alex, M3.2): never a silent dead end.
   noScript:
     "You're in. To change or remove it later, open this page again in this browser with JavaScript switched on — your pin is kept for you here.",
@@ -75,6 +76,7 @@ export const QUICKPIN_COPY = {
   save: "Save my pin",
   remove: "Remove my pin",
   removed: "Your pin is removed. The count has gone down by your party.",
+  backToCrowd: "Back to the crowd",
   closedCanRemove: "This one has finished, so your pin can't be changed — but you can still remove it.",
   tryAgain: "That didn't go through. Try again in a moment.",
 } as const;
@@ -84,6 +86,11 @@ export const QUICKPIN_COPY = {
 // bodies, your friends included. "Going" is the plain word for that number, the one
 // W2's box uses; "open to meeting" is the only word for the second.
 // The counts themselves read through `countLine` (copy.ts), one wording everywhere.
+
+// The same-origin marker a pin leaves in the browser, which W2's script reads to turn
+// PIN_IN into SEE_WHO (decided M3.1, build-plan §8 M3.2: no network, no cookie, no cache
+// change on W2). Written by both A26s, cleared when the pin is removed; one key, here.
+export const pinnedMarker = (slug: string) => `pind.pinned.${slug}`;
 
 export type QuickPinInput = Partial<Record<QuickPinField, string | undefined>>;
 

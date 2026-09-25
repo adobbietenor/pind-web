@@ -118,3 +118,33 @@ describe("Neither A26 writes its own fields, copy or validation (the divergence 
     });
   }
 });
+
+// After the pin, the one primary button (spec A26, M3.2). The app's confirmation shipped
+// without it — "Change or remove" and "Share" and nothing else — and Alex, having just
+// ticked "meet up", was stuck on the walk. The Worker's confirmation had it; the two
+// had drifted on exactly the thing the page is for. Each is read for the branch itself.
+const PRIMARY_BRANCH = {
+  [EXPO_A26]: /needsOptIn \? \([\s\S]{0,300}?router\.push\(`\/opt-in\/\$\{[\s\S]{0,300}?\) : \([\s\S]{0,300}?router\.push\(`\/crowd\/\$\{/,
+  [WORKER_A26]: /needsOptIn \?[\s\S]{0,300}?<a class="cta" href="\/opt-in\/\$\{[\s\S]{0,300}?` : `<a class="cta" href="\/crowd\/\$\{/,
+} as Record<string, RegExp>;
+
+describe("After the pin, the primary button", () => {
+  for (const [file, branch] of Object.entries(PRIMARY_BRANCH)) {
+    it(`Q05 ${file}: ticked "meet up" → A27, otherwise → A9`, () => {
+      assert.match(code(readFileSync(file, "utf8")), branch, "the confirmation has no primary button into A27 / A9");
+    });
+  }
+
+  it("Q06 the pinned marker has one key: both A26s write it, the app clears it, W2 reads it", () => {
+    const literal = /pind\.pinned/;
+    for (const file of [WORKER_A26, EXPO_A26, "src/public/pages.ts"]) {
+      const src = code(readFileSync(file, "utf8"));
+      assert.doesNotMatch(src, literal, `${file} spells the marker key itself`);
+      assert.match(src, /pinnedMarker\(/, `${file} does not use pinnedMarker`);
+    }
+    const app = code(readFileSync(EXPO_A26, "utf8"));
+    assert.match(app, /markPinned\([^)]*, true\)/, "the app's A26 never writes the marker");
+    assert.match(app, /markPinned\([^)]*, false\)/, "removing a pin leaves W2 saying \"See who's going\"");
+    assert.match(code(readFileSync("src/public/pages.ts", "utf8")), /getElementById\("cta"\)[\s\S]{0,120}SEE_WHO/, "W2 never swaps its button");
+  });
+});

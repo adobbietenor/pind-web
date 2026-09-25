@@ -29,6 +29,7 @@ import {
   QUICKPIN_FIELDS,
   countLine,
   SEE_WHOS_GOING,
+  pinnedMarker,
   readQuickPin,
   supabaseStorageKey,
   THRESHOLD,
@@ -292,7 +293,7 @@ export async function quickPinSubmit(request: Request, env: Env, slug: string): 
     head: `<style>${FORM_CSS}</style>${entry ? `<link rel="prefetch" href="${escape(entry)}" as="script">` : ""}`,
     // A same-origin marker W2's button reads to say SEE_WHO instead of PIN_IN (M3.2,
     // decided in M3.1: no network, no cookie, no cache change on W2).
-    script: `try{localStorage.setItem(${JSON.stringify(`pind.pinned.${door.gathering.slug}`)},"1")}catch(e){}`,
+    script: `try{localStorage.setItem(${JSON.stringify(pinnedMarker(door.gathering.slug))},"1")}catch(e){}`,
     cache: "private, no-store",
     footer: `<a href="/">this week&#39;s crowds</a>${DOT}<a href="/privacy">privacy</a>${DOT}19+`,
   });

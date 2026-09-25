@@ -11,9 +11,9 @@
 // path. `g/[slug]/pin.tsx` sends a universal link that lands there on to here.
 //
 // After the effective end a pin can be removed but not changed (decisions, M3.2).
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Linking, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, View } from "react-native";
 import {
   colors as palette,
   PARTY_CHOICES,
@@ -21,7 +21,9 @@ import {
   QUICKPIN_FIELDS,
   countLine,
   effectiveEnd,
+  pinnedMarker,
   readQuickPin,
+  SEE_WHOS_GOING,
   spacing,
   THRESHOLD,
   writeQuickPin,
@@ -50,6 +52,18 @@ interface Gathering {
 }
 
 type Stage = "loading" | "form" | "done" | "removed";
+
+// W2 reads this marker to say "See who's going" instead of "Pin in" (pinnedMarker). On
+// the web this screen shares W2's origin, so it keeps the marker true both ways.
+function markPinned(slug: string, pinned: boolean) {
+  if (Platform.OS !== "web") return;
+  try {
+    if (pinned) localStorage.setItem(pinnedMarker(slug), "1");
+    else localStorage.removeItem(pinnedMarker(slug));
+  } catch {
+    // Storage off: W2 keeps saying "Pin in", which still leads here.
+  }
+}
 
 export default function QuickPin() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
@@ -158,6 +172,7 @@ export default function QuickPin() {
       const who = await whoAmI();
       const userId = who.state === "in" ? who.userId : who.state === "out" ? await ensureAnonymousUser() : await myAuthId();
       const written = await writeQuickPin(supabase() as unknown as QuickPinDb, userId, gathering.id, read.value);
+      markPinned(gathering.slug, true);
       setResult({ already: written.already, needsOptIn: written.needsOptIn, ...(await counts(gathering.id)) });
       setStage("done");
     } catch (err) {
@@ -175,6 +190,7 @@ export default function QuickPin() {
       const { error } = await supabase().from("pins").delete().eq("id", pinId);
       if (error) throw error;
       setPinId(null);
+      if (gathering) markPinned(gathering.slug, false);
       setStage("removed");
     } catch (err) {
       setTrouble(failed("remove your pin", err));
@@ -201,6 +217,11 @@ export default function QuickPin() {
         <View style={{ marginTop: spacing.lg }}>
           <Body>{QUICKPIN_COPY.removed}</Body>
         </View>
+        {gathering ? (
+          <View style={{ marginTop: spacing.lg }}>
+            <Button kind="quiet" label={QUICKPIN_COPY.backToCrowd} onPress={() => router.replace(`/crowd/${gathering.slug}`)} />
+          </View>
+        ) : null}
       </AppScreen>
     );
   }
@@ -215,6 +236,15 @@ export default function QuickPin() {
             <Body>{QUICKPIN_COPY.optInNext}</Body>
           </View>
         ) : null}
+        {/* The one primary button (spec A26, M3.2), the same branch as the Worker's
+            confirmation: ticked "meet up" → A27; otherwise → A9. */}
+        <View style={{ marginTop: spacing.lg }}>
+          {result.needsOptIn ? (
+            <Button label={QUICKPIN_COPY.nextDetails} onPress={() => router.push(`/opt-in/${gathering.slug}`)} />
+          ) : (
+            <Button label={SEE_WHOS_GOING} onPress={() => router.push(`/crowd/${gathering.slug}`)} />
+          )}
+        </View>
         {result.pinned !== undefined ? (
           <View style={{ marginTop: spacing.lg, gap: spacing.xs }}>
             <Heading>{countLine(result.pinned, result.open ?? 0, THRESHOLD).line}</Heading>
@@ -226,6 +256,7 @@ export default function QuickPin() {
         <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
           <Button kind="quiet" label={QUICKPIN_COPY.editOrRemove} onPress={() => void load().catch(() => undefined)} />
           <Button kind="quiet" label={QUICKPIN_COPY.share} onPress={() => void Linking.openURL(`${SITE}/g/${gathering.slug}`)} />
+          <Button kind="quiet" label={QUICKPIN_COPY.addToCalendar} onPress={() => void Linking.openURL(`${SITE}/g/${gathering.slug}.ics`)} />
         </View>
       </AppScreen>
     );

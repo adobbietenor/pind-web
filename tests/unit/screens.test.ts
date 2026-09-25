@@ -156,4 +156,44 @@ describe("The web app claims a handed-over session before any screen renders (M3
     assert.match(layout, /claimOnce\(\)\.finally\(\(\) => setClaimed\(true\)\)/, "the layout does not await the claim");
     assert.match(layout, /if \(!fontsLoaded \|\| !claimed\) return/, "the layout renders screens before the claim lands");
   });
+
+  it("S24 every in-app link lands on a route that exists", () => {
+    // Alex, M3.2 walk: "anything you deliberately left unwired waiting for a screen that
+    // now exists — I'd rather you found them all now". The other half of the same fault
+    // is a tap wired to a screen that does NOT exist: on the web that is Expo's "Unmatched
+    // route" page, a dead end. So every literal navigation target in app/src must name a
+    // route file. Checked against its own planted cases first.
+    const routes = routeFiles(ROUTES).map((path) =>
+        path
+          .slice(ROUTES.length)
+          .replace(/\\/g, "/")
+          .replace(/\.tsx$/, "")
+          .replace(/\/\([^/]+\)/g, "")
+          .replace(/\/index$/, "") || "/",
+      );
+    const toPattern = (route: string) => new RegExp(`^${route.replace(/\[[^\]]+\]/g, "[^/]+")}$`);
+    const patterns = [...new Set(routes)].map(toPattern);
+    const targets = (source: string) =>
+      [...source.matchAll(/(?:router\.(?:push|replace)\(|href=\{?)\s*[`"](\/[^`"?#]*)/g)].map((m) =>
+        m[1]!.replace(/\$\{[^}]+\}/g, "x").replace(/\/$/, "") || "/",
+      );
+    const lands = (t: string) => patterns.some((p) => p.test(t));
+
+    // The check's own cases: one that lands, one that does not.
+    assert.deepEqual(targets('router.push(`/crowd/${slug}`); <Redirect href="/nowhere/at-all" />'), ["/crowd/x", "/nowhere/at-all"]);
+    assert.ok(lands("/crowd/x") && !lands("/nowhere/at-all"), "the route matcher does not tell a real route from a missing one");
+
+    // Wired ahead of its screen ON PURPOSE, each named, each for Alex to decide — and each
+    // asserted still missing, so the day its screen lands this list must shrink.
+    const PENDING: Record<string, string> = {
+      "/person/x/report": "A24, report and block (M3.5) — A22's ⋯ (H9)",
+    };
+    // Every .tsx under app/src: screens, and the components that navigate (Trouble).
+    const all = routeFiles(join(process.cwd(), "app", "src"));
+    const found = [...new Set(all)].flatMap((path) => targets(readFileSync(path, "utf8")).map((t) => ({ t, path: path.slice(process.cwd().length + 1) })));
+    assert.ok(found.length >= 15, `only ${found.length} navigation targets found — the extractor is not reading the screens`);
+    const dead = found.filter(({ t }) => !lands(t) && !(t in PENDING)).map(({ t, path }) => `${path} → ${t}`);
+    assert.deepEqual(dead, [], "these taps go to a screen that does not exist");
+    for (const t of Object.keys(PENDING)) assert.ok(!lands(t), `${t} exists now — wire it and drop it from PENDING`);
+  });
 });
