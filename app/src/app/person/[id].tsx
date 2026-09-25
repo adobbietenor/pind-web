@@ -1,6 +1,14 @@
-// A22 — someone else's profile. **A shell in M3.1** (build-plan §8): the list that
-// leads here is M3.2, and the shared context, crews and connections it will show are
-// M3.3. What is real now is the shape, and the four absences that are the design.
+// A22 — someone else's profile (M3.2, built properly; the shell was M3.1).
+//
+// **It answers "nothing to read"** (Alex, M3.1) without a bio, a handle leak or a grid:
+//   * **the shared context** — "You're both going to Leafs vs Bruins": the gatherings
+//     where the database lets you see each other, which is exactly the pins of theirs
+//     it returns to you (V1, scoped to the gathering). Crews and connections join this
+//     in M3.3;
+//   * **all their tags, grouped** as the vocabulary groups them — not only the three on
+//     the list. V19: readable exactly when you can see the person at all;
+//   * their gathering count is the third piece, and waits on Alex's approval of the
+//     rule that exposes it (a count, never which gatherings).
 //
 // **Visible only reciprocally.** Nothing here filters: the screen asks the database
 // for the person and renders what comes back. If the policies say no, there is no row
@@ -24,9 +32,13 @@ import { Body, Heading } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
 const tagName = (slug: string) => ALL_TAGS.find((t) => t.slug === slug)?.name ?? slug;
+const groupOf = (slug: string) => ALL_TAGS.find((t) => t.slug === slug)?.group ?? "";
+// The groups in the vocabulary's own order.
+const TAG_GROUPS = [...new Set(ALL_TAGS.map((t) => t.group))];
 const hoodName = (slug: string | null) => NEIGHBOURHOODS.find((n) => n.slug === slug)?.name ?? null;
 
 interface Them {
+  shared: { slug: string; name: string }[];
   firstName: string;
   neighbourhood: string | null;
   photoUrl: string | null;
@@ -51,9 +63,12 @@ export default function Person() {
       if (!live) return;
       if (!person) return setThem(null);
 
-      const [handle, tags] = await Promise.all([
+      const [handle, tags, theirPins] = await Promise.all([
         db.from("person_handles").select("instagram").eq("person_id", id).maybeSingle(),
         db.from("person_tags").select("tag").eq("person_id", id),
+        // The shared context: their pins the database shows you are exactly the
+        // gatherings where you can see each other. Nothing is filtered here.
+        db.from("pins").select("gatherings(slug, name, starts_at)").eq("person_id", id),
       ]);
       // **The database decides, alone** (H11). Storage issues a signed URL only when
       // `can_see_photo` allows it — a rejected or invisible photo simply has no URL.
@@ -65,7 +80,13 @@ export default function Person() {
         url = signed.data?.signedUrl ?? null;
       }
       if (!live) return;
+      const shared = (theirPins.data ?? [])
+        .map((p) => (p as unknown as { gatherings: { slug: string; name: string; starts_at: string } | null }).gatherings)
+        .filter((g): g is { slug: string; name: string; starts_at: string } => !!g)
+        .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+        .map((g) => ({ slug: g.slug, name: g.name }));
       setThem({
+        shared,
         firstName: person.first_name,
         neighbourhood: person.neighbourhood,
         photoUrl: url,
@@ -114,15 +135,30 @@ export default function Person() {
           </View>
         </View>
 
-        {them.tags.length ? (
-          <View style={styles.chips}>
-            {them.tags.map((t) => (
-              <View key={t} style={styles.chip}>
-                <Text style={styles.chipLabel}>{tagName(t)}</Text>
-              </View>
-            ))}
+        {them.shared.length ? (
+          <View style={styles.context}>
+            <Text style={styles.contextLine}>
+              {`You're both going to ${them.shared.map((g) => g.name).join(" and ")}`}
+            </Text>
           </View>
         ) : null}
+
+        {/* All their tags, in the vocabulary's own groups (V19). */}
+        {TAG_GROUPS.map((group) => {
+          const mine = them.tags.filter((t) => groupOf(t) === group);
+          return mine.length ? (
+            <View key={group} style={{ marginBottom: spacing.sm }}>
+              <Text style={styles.sectionName}>{group}</Text>
+              <View style={styles.chips}>
+                {mine.map((t) => (
+                  <View key={t} style={styles.chip}>
+                    <Text style={styles.chipLabel}>{tagName(t)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null;
+        })}
 
         {them.instagram ? (
           <View style={styles.card}>
@@ -159,6 +195,8 @@ const styles = StyleSheet.create({
   chipLabel: { fontSize: 14, color: palette.text },
   card: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md },
   sectionName: { fontFamily: fonts.headline, fontSize: 14, color: palette.textMuted, marginBottom: spacing.xs },
+  context: { marginBottom: spacing.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderLeftWidth: 3, borderLeftColor: palette.accent },
+  contextLine: { fontSize: 16, color: palette.text },
   more: { alignSelf: "flex-start", paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   moreLabel: { fontSize: 22, color: palette.textMuted },
 });
