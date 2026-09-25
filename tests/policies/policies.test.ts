@@ -2991,3 +2991,54 @@ describe("The client's copy of effective_end matches the database's (M3.2)", () 
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — a person's gathering count for A22: a number, never which (Alex)
+// ---------------------------------------------------------------------------
+
+describe("A person's gathering count — readable as widely as their first name, written only by the nightly job (M3.2)", () => {
+  it("P119 the person reads their own count; someone who can see them reads it too", async () => {
+    const own = await rows(c(M("Ava")).from("people").select("gatherings_count").eq("id", id("Ava")));
+    assert.equal(own.length, 1, "Ava cannot read her own count");
+    assert.equal(typeof own[0].gatherings_count, "number");
+    const seen = await rows(c(M("Ava")).from("people").select("gatherings_count").eq("id", id("Eve")));
+    assert.equal(seen.length, 1, "someone who can see Eve could not read her count");
+  });
+
+  it("P120 someone who cannot see them gets nothing — no count, no row", async () => {
+    // Ben is not open at G with Pam; P-cases above establish Pam sees nobody at G.
+    assert.equal((await rows(c(M("Pam")).from("people").select("gatherings_count").eq("id", id("Ava")))).length, 0, "Pam read Ava's count");
+    await noAccess(w.anon, "people");
+  });
+
+  it("P121 nobody signed in can write a count, their own included", async () => {
+    await denied(c(M("Ava")).from("people").update({ gatherings_count: 999 }).eq("id", id("Ava")), "42501");
+  });
+
+  it("P122 the job counts each ENDED gathering once — not an upcoming one, and never twice", async () => {
+    const ended = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} Counted`, starts_at: inDays(-2), venue_id: w.venue, published_at: new Date().toISOString() })
+        .select("id")
+        .single(),
+    );
+    const upcoming = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} Not Yet`, starts_at: inDays(4), venue_id: w.venue, published_at: new Date().toISOString() })
+        .select("id")
+        .single(),
+    );
+    const before = (await serviceRow("people", "id", id("Dev"), "gatherings_count")).gatherings_count as number;
+    await ok(w.service.from("pins").insert([
+      { gathering_id: ended.id, person_id: id("Dev"), party_total: 1, open_to_meeting: false },
+      { gathering_id: upcoming.id, person_id: id("Dev"), party_total: 1, open_to_meeting: false },
+    ]));
+    await ok(w.service.rpc("admin_count_ended_gatherings"));
+    await ok(w.service.rpc("admin_count_ended_gatherings"));
+    const after = (await serviceRow("people", "id", id("Dev"), "gatherings_count")).gatherings_count as number;
+    assert.equal(after, before + 1, "the ended gathering was not counted exactly once, or the upcoming one was counted");
+    assert.ok((await c(M("Ava")).rpc("admin_count_ended_gatherings")).error, "a visitor ran the counting job");
+  });
+});

@@ -163,6 +163,9 @@ export type GenderChoice = (typeof GENDER_CHOICES)[number]["value"];
 export const SEE_WHOS_GOING = "See who's going";
 
 export function countLine(going: number, open: number, threshold: number): { line: string; crews: string | null } {
+  // Nobody at all: a bare zero reads as dead rather than early (M2.3), so it invites
+  // (Alex, M3.2).
+  if (going === 0) return { line: "Nobody’s pinned yet — be the first", crews: null };
   const line = open === 0 ? `${going} going · nobody open to meeting yet` : `${going} going · ${open} open to meeting`;
   const short = threshold - open;
   const crews = open > 0 && short > 0 && short <= 2 ? `${short} more and crews form` : null;

@@ -7,8 +7,8 @@
 //     in M3.3;
 //   * **all their tags, grouped** as the vocabulary groups them — not only the three on
 //     the list. V19: readable exactly when you can see the person at all;
-//   * their gathering count is the third piece, and waits on Alex's approval of the
-//     rule that exposes it (a count, never which gatherings).
+//   * **how many gatherings they have been to — a number, never which ones** (Alex):
+//     `people.gatherings_count`, readable exactly as their first name is (P119–P122).
 //
 // **Visible only reciprocally.** Nothing here filters: the screen asks the database
 // for the person and renders what comes back. If the policies say no, there is no row
@@ -39,6 +39,7 @@ const hoodName = (slug: string | null) => NEIGHBOURHOODS.find((n) => n.slug === 
 
 interface Them {
   shared: { slug: string; name: string }[];
+  gatherings: number;
   firstName: string;
   neighbourhood: string | null;
   photoUrl: string | null;
@@ -57,7 +58,7 @@ export default function Person() {
       const db = supabase();
       const { data: person } = await db
         .from("people")
-        .select("first_name, neighbourhood, photo_path")
+        .select("first_name, neighbourhood, photo_path, gatherings_count")
         .eq("id", id)
         .maybeSingle();
       if (!live) return;
@@ -87,6 +88,7 @@ export default function Person() {
         .map((g) => ({ slug: g.slug, name: g.name }));
       setThem({
         shared,
+        gatherings: person.gatherings_count ?? 0,
         firstName: person.first_name,
         neighbourhood: person.neighbourhood,
         photoUrl: url,
@@ -132,6 +134,10 @@ export default function Person() {
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{them.firstName}</Text>
             {hoodName(them.neighbourhood) ? <Text style={styles.hood}>{hoodName(them.neighbourhood)}</Text> : null}
+            {/* A number, never which gatherings (Alex, M3.2). */}
+            <Text style={styles.hood}>
+              {them.gatherings === 0 ? "New to Pin'd" : `${them.gatherings} gathering${them.gatherings === 1 ? "" : "s"} on Pin'd`}
+            </Text>
           </View>
         </View>
 

@@ -1011,6 +1011,7 @@ export type Database = {
           blurb_why: string | null
           capacity: number | null
           category: Database["public"]["Enums"]["gathering_category"] | null
+          counted_at: string | null
           created_at: string
           dismissed_at: string | null
           door_price_cents: number | null
@@ -1044,6 +1045,7 @@ export type Database = {
           blurb_why?: string | null
           capacity?: number | null
           category?: Database["public"]["Enums"]["gathering_category"] | null
+          counted_at?: string | null
           created_at?: string
           dismissed_at?: string | null
           door_price_cents?: number | null
@@ -1077,6 +1079,7 @@ export type Database = {
           blurb_why?: string | null
           capacity?: number | null
           category?: Database["public"]["Enums"]["gathering_category"] | null
+          counted_at?: string | null
           created_at?: string
           dismissed_at?: string | null
           door_price_cents?: number | null
@@ -1449,6 +1452,7 @@ export type Database = {
           auth_user_id: string | null
           created_at: string
           first_name: string
+          gatherings_count: number
           hidden_at: string | null
           id: string
           is_seed: boolean
@@ -1462,6 +1466,7 @@ export type Database = {
           auth_user_id?: string | null
           created_at?: string
           first_name: string
+          gatherings_count?: number
           hidden_at?: string | null
           id?: string
           is_seed?: boolean
@@ -1475,6 +1480,7 @@ export type Database = {
           auth_user_id?: string | null
           created_at?: string
           first_name?: string
+          gatherings_count?: number
           hidden_at?: string | null
           id?: string
           is_seed?: boolean
@@ -2366,6 +2372,7 @@ export type Database = {
         Args: { p_actor: string; p_venue: string }
         Returns: undefined
       }
+      admin_count_ended_gatherings: { Args: never; Returns: number }
       admin_create_series: {
         Args: {
           p_actor: string

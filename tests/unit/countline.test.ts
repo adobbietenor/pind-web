@@ -4,6 +4,9 @@ import assert from "node:assert/strict";
 import { countLine } from "../../packages/shared/src/copy.ts";
 
 describe("countLine — one wording for the counts everywhere", () => {
+  it("C09 nobody going at all: an invitation, never a bare zero (M2.3)", () => {
+    assert.deepEqual(countLine(0, 0, 5), { line: "Nobody’s pinned yet — be the first", crews: null });
+  });
   it("C10 nobody open: says so, because that is where someone could be first", () => {
     assert.deepEqual(countLine(23, 0, 5), { line: "23 going · nobody open to meeting yet", crews: null });
   });
