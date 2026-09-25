@@ -38,6 +38,11 @@ There is no separate `pind-app` repo. `app/` and `packages/shared/` arrived in M
   - `npm run web --workspace app` — the dev server in a browser
 - Shared DB types: `npm run gen:types --workspace packages/shared` after every
   migration (reads pind-staging).
+- **One person across pages** (M3.2): `npm run check:one-person -- <slug>` drives real
+  headless Chrome through quick pin → the app’s claim → quick pin again, and fails
+  unless it is one person (`--break` must find two). Run it after any deploy that
+  touches A26, `/session/claim` or the app’s session handling; no unit test can reach
+  the page script it depends on.
 - EAS, from `app/`: `npx eas-cli@24.7.0 build --profile <development|internal|production>
   --platform ios`. Profiles in `app/eas.json`; `APP_VARIANT` picks the staging or
   production bundle ID.

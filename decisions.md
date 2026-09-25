@@ -3185,3 +3185,18 @@ or solo."* Where the two meet and where they do not:
   guard is a test that pins, claims, pins again and proves it is one person, not two.
 - **The standard for moving someone's data between accounts** (Alex, on the merge):
   proven live against a real sign-in code, with every check made to fire.
+- **The repeat pins, reproduced — and not the path we expected** (M3.2, 25 Sept). In
+  real headless Chrome (one profile): quick pin → the app claims the session → quick
+  pin again **redirects to the app's A26 and stays one person**. The hypothesis (a pin
+  after the claim cleared the cookie) was wrong. The evidence points to **two browsers
+  on one phone** — Alex's session log shows Chrome (CriOS) and Safari on 23 Sept — and
+  separate browsers have separate storage, so a pin from the other one is, as far as
+  anything can tell, a stranger. **The merge joins them** when that person reaches A27
+  with the same email. **The cookie is not changed**: marking a claim instead of
+  clearing it would re-identify a browser after the person signed out, which would be
+  wrong.
+- **The guard, kept:** `npm run check:one-person -- <slug>` drives real Chrome through
+  pin → claim → pin and fails unless it is one person; `--break` clears storage before
+  the second pin and must find two, which proves it can fail. It needs a browser, so it
+  is a script run after any deploy that touches A26, the claim or the app's session
+  handling — not a unit test.
