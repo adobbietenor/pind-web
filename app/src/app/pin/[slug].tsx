@@ -231,8 +231,16 @@ export default function QuickPin() {
       <AppScreen>
         <Heading>{result.already ? QUICKPIN_COPY.alreadyPinned : QUICKPIN_COPY.pinned}</Heading>
         <Body muted>{where}</Body>
+        {result.pinned !== undefined ? (
+          <View style={{ marginTop: spacing.lg, gap: spacing.xs }}>
+            <Heading>{countLine(result.pinned, result.open ?? 0, THRESHOLD).line}</Heading>
+            {countLine(result.pinned, result.open ?? 0, THRESHOLD).crews ? (
+              <Body muted>{countLine(result.pinned, result.open ?? 0, THRESHOLD).crews}</Body>
+            ) : null}
+          </View>
+        ) : null}
         {result.needsOptIn ? (
-          <View style={{ marginTop: spacing.md }}>
+          <View style={{ marginTop: spacing.lg }}>
             <Body>{QUICKPIN_COPY.optInNext}</Body>
           </View>
         ) : null}
@@ -245,15 +253,7 @@ export default function QuickPin() {
             <Button label={SEE_WHOS_GOING} onPress={() => router.push(`/crowd/${gathering.slug}`)} />
           )}
         </View>
-        {result.pinned !== undefined ? (
-          <View style={{ marginTop: spacing.lg, gap: spacing.xs }}>
-            <Heading>{countLine(result.pinned, result.open ?? 0, THRESHOLD).line}</Heading>
-            {countLine(result.pinned, result.open ?? 0, THRESHOLD).crews ? (
-              <Body muted>{countLine(result.pinned, result.open ?? 0, THRESHOLD).crews}</Body>
-            ) : null}
-          </View>
-        ) : null}
-        <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+        <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
           <Button kind="quiet" label={QUICKPIN_COPY.editOrRemove} onPress={() => void load().catch(() => undefined)} />
           <Button kind="quiet" label={QUICKPIN_COPY.share} onPress={() => void Linking.openURL(`${SITE}/g/${gathering.slug}`)} />
           <Button kind="quiet" label={QUICKPIN_COPY.addToCalendar} onPress={() => void Linking.openURL(`${SITE}/g/${gathering.slug}.ics`)} />
