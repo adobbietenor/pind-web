@@ -132,3 +132,17 @@ describe("Nothing reads offline as signed out, and every sentence carries its ex
     assert.deepEqual(own, [], "render a Described through <Trouble>");
   });
 });
+
+describe("App screens read gatherings through RLS, never the public door (M3.2)", () => {
+  it("S22 no app screen calls public_gathering(s) — a tester could never reach the test crowd through it", () => {
+    // The public door never shows a seed row to anyone, signed in or not (V18). App
+    // screens read `gatherings` under RLS instead, where the testers exception applies.
+    // Found on the way to Alex's walk: the app's A26 still used the door, and the walk
+    // would have stopped at "Pin in" with "That crowd is not on Pin'd."
+    assert.ok(screens.length >= 10, "found almost no screens (the check found nothing)");
+    const planted = `await db.rpc("public_gathering", { p_slug: slug })`;
+    assert.match(planted, /rpc\(["']public_gatherings?["']/, "the pattern cannot see a door call");
+    const own = screens.filter((s) => /rpc\(["']public_gatherings?["']/.test(s.source)).map((s) => s.path);
+    assert.deepEqual(own, [], "these screens read the public door");
+  });
+});

@@ -42,6 +42,8 @@ const ROUTES: [string, AdminHandler][] = [
   ["POST /admin/testers", testers.addTester],
   ["POST /admin/testers/:id/remove", testers.removeTester],
   ["POST /admin/test-crowd", testers.rebuildTestCrowd],
+  ["POST /admin/testers/anonymous-session", testers.startAnonymousTester],
+  ["POST /admin/testers/anonymous/:id/clear", testers.clearAnonymousTester],
   ["GET /admin/community", community.communityPage],
   ["POST /admin/community/check", community.runCheckNow],
   ["POST /admin/community/:id/settle", community.settleSeries],

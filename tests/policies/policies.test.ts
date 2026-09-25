@@ -3042,3 +3042,60 @@ describe("A person's gathering count — readable as widely as their first name,
     assert.ok((await c(M("Ava")).rpc("admin_count_ended_gatherings")).error, "a visitor ran the counting job");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — anonymous tester sessions: only ever anonymous, visible, clearable,
+// service key only (Alex's conditions)
+// ---------------------------------------------------------------------------
+
+describe("Anonymous tester sessions (M3.2)", () => {
+  async function anon() {
+    const client = newClient(w.env, w.env.publishableKey);
+    const s = await client.auth.signInAnonymously();
+    assert.equal(s.error, null, s.error?.message);
+    return { client, authId: s.data.user!.id };
+  }
+
+  it("P123 only an ANONYMOUS user can be made an anonymous tester — a permanent account is refused and left untouched", async () => {
+    const a = await anon();
+    try {
+      await ok(w.service.rpc("admin_add_anonymous_tester", { p_user: a.authId, p_actor: ACTOR }));
+      const g = await rows(a.client.from("gatherings").select("id").eq("is_seed", true).limit(1));
+      assert.equal(g.length, 1, "the anonymous tester cannot see a seed gathering");
+      const avaUser = (await c(M("Ava")).auth.getUser()).data.user!.id;
+      assert.ok((await w.service.rpc("admin_add_anonymous_tester", { p_user: avaUser, p_actor: ACTOR })).error, "a permanent account was made an anonymous tester");
+      assert.equal(await readable(c(M("Ava")), (await rows(w.service.from("gatherings").select("id").eq("is_seed", true).limit(1)))[0].id), false, "Ava was elevated");
+    } finally {
+      await w.service.auth.admin.deleteUser(a.authId);
+    }
+  });
+
+  it("P124 no visitor can make, list or clear anonymous tester sessions", async () => {
+    for (const client of [c(M("Ava")), w.anon]) {
+      assert.ok((await client.rpc("admin_add_anonymous_tester", { p_user: randomUUID(), p_actor: "self" })).error, "a visitor made one");
+      assert.ok((await client.rpc("admin_anonymous_testers")).error, "a visitor listed them");
+      assert.ok((await client.rpc("admin_clear_anonymous_tester", { p_user: randomUUID() })).error, "a visitor cleared one");
+      assert.ok((await client.rpc("admin_clear_stale_anonymous_testers")).error, "a visitor ran the clean-up");
+    }
+  });
+
+  it("P125 a session is listed, and clearing it deletes the anonymous user; the clean-up removes only stale still-anonymous ones", async () => {
+    const a = await anon();
+    const b = await anon();
+    await ok(w.service.rpc("admin_add_anonymous_tester", { p_user: a.authId, p_actor: ACTOR }));
+    await ok(w.service.rpc("admin_add_anonymous_tester", { p_user: b.authId, p_actor: ACTOR }));
+    const listed = (await ok(w.service.rpc("admin_anonymous_testers"))) as { auth_user_id: string }[];
+    assert.ok(listed.some((r) => r.auth_user_id === a.authId), "the session is not listed");
+
+    await ok(w.service.rpc("admin_clear_anonymous_tester", { p_user: a.authId }));
+    const goneA = await w.service.auth.admin.getUserById(a.authId);
+    assert.ok(goneA.error || !goneA.data.user, "clearing left the anonymous user alive");
+
+    // A fresh session is not stale; with a zero cutoff it is.
+    assert.equal(await ok(w.service.rpc("admin_clear_stale_anonymous_testers", { p_older_than: "3 days", p_only: b.authId })), 0, "a fresh session was cleared as stale");
+    // Only the session this test made — never one someone is walking with.
+    assert.equal(await ok(w.service.rpc("admin_clear_stale_anonymous_testers", { p_older_than: "0 seconds", p_only: b.authId })), 1, "a stale session was not cleared");
+    const goneB = await w.service.auth.admin.getUserById(b.authId);
+    assert.ok(goneB.error || !goneB.data.user, "the stale session survived the clean-up");
+  });
+});

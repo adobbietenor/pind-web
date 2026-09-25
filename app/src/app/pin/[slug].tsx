@@ -20,6 +20,7 @@ import {
   QUICKPIN_COPY,
   QUICKPIN_FIELDS,
   countLine,
+  effectiveEnd,
   readQuickPin,
   spacing,
   THRESHOLD,
@@ -68,15 +69,26 @@ export default function QuickPin() {
   const load = useCallback(async () => {
     setTrouble(null);
     const db = supabase();
-    const { data, error } = await db.rpc("public_gathering", { p_slug: slug });
+    // Through RLS, not the public door: a tester reaches the seed gathering here, and
+    // nobody else does (the door never shows a seed row to anyone).
+    const { data: row, error } = await db
+      .from("gatherings")
+      .select("id, slug, name, starts_at, ends_at, venues(name)")
+      .eq("slug", slug)
+      .maybeSingle();
     if (error) throw error;
-    const door = data as { status: string; gathering?: Gathering & { effective_end: string }; venue?: { name: string } } | null;
-    if (!door || door.status !== "ok" || !door.gathering || !door.venue) {
+    if (!row) {
       setTrouble({ says: "That crowd is not on Pin'd." });
       setStage("form");
       return;
     }
-    const g = { ...door.gathering, venue: door.venue.name };
+    const g: Gathering = {
+      id: row.id,
+      slug: row.slug ?? slug,
+      name: row.name,
+      effective_end: effectiveEnd(row.starts_at, row.ends_at),
+      venue: (row as unknown as { venues: { name: string } | null }).venues?.name ?? "",
+    };
     setGathering(g);
 
     // Already pinned here? Then this is the edit screen, filled in.

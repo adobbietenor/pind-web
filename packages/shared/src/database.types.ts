@@ -2349,10 +2349,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_add_anonymous_tester: {
+        Args: { p_actor: string; p_user: string }
+        Returns: undefined
+      }
       admin_ai_spend_today: { Args: { p_city: string }; Returns: number }
       admin_alert_already_sent_today: {
         Args: { p_kind: string }
         Returns: boolean
+      }
+      admin_anonymous_testers: {
+        Args: never
+        Returns: {
+          added_at: string
+          auth_user_id: string
+          email: string
+          first_name: string
+          still_anonymous: boolean
+        }[]
       }
       admin_apply_publish_target: {
         Args: { p_actor: string; p_city: string; p_target: number }
@@ -2368,6 +2382,14 @@ export type Database = {
         Returns: string
       }
       admin_categorise_gatherings: { Args: never; Returns: number }
+      admin_clear_anonymous_tester: {
+        Args: { p_user: string }
+        Returns: undefined
+      }
+      admin_clear_stale_anonymous_testers: {
+        Args: { p_older_than?: string; p_only?: string }
+        Returns: number
+      }
       admin_confirm_venue: {
         Args: { p_actor: string; p_venue: string }
         Returns: undefined
