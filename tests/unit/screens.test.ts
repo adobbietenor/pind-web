@@ -236,4 +236,19 @@ describe("The web app claims a handed-over session before any screen renders (M3
     })(process.cwd()).filter((p) => /^(app\/src|packages\/shared\/src|src)\//.test(p));
     assert.deepEqual([...new Set(marked)].sort(), Object.keys(PROPOSED).sort(), "PROPOSED copy is unnamed, or named copy was approved — update PROPOSED");
   });
+
+  it("S26 A27 asks the gate's three facts, fresh, before its final write — and after a merge holds nothing from before it", () => {
+    // M3.2 walk: after a merge the safety sheet wrote with the deleted anonymous person's
+    // id, and the refusal reached the screen as "Pin'd was not allowed to write that".
+    const a27 = readFileSync(join(ROUTES, "opt-in", "[slug].tsx"), "utf8").replace(/^\s*\/\/.*$/gm, "");
+    const finish = a27.slice(a27.indexOf("const finish = async"), a27.indexOf('if (step === "loading")'));
+    assert.ok(finish.length > 100, "S26 cannot find A27's finish");
+    const read = finish.indexOf("await readMine(slug)");
+    const asked = finish.indexOf("optInMissing(fresh).missing.length) return sendBack(fresh)");
+    const write = finish.indexOf('.from("policy_acceptances")');
+    assert.ok(read >= 0 && asked > read && write > asked, "finish writes before reading fresh and asking optInMissing");
+    assert.doesNotMatch(finish, /mine\.personId|mine\.gatheringId/, "finish writes with ids the screen was holding");
+    assert.match(a27, /setMerging\(null\);\s*setMine\(null\);/, "after a merge the screen keeps the anonymous person it was holding");
+    assert.match(a27, /setStep\(optInMissing\(next\)\.step\)/, "A27 picks its step with a rule of its own, not the gate's facts");
+  });
 });

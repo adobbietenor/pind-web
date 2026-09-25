@@ -47,3 +47,48 @@ export function isEmailTaken(err: unknown): boolean {
   if (e.code === "email_exists") return true;
   return typeof e.message === "string" && /already (been )?registered|email address .*already/i.test(e.message);
 }
+
+// ---------------------------------------------------------------------------
+// What still stands between a person and "open to meeting" — the SAME three facts the
+// database's gate checks (`private.may_meet`: a permanent account, a people_private row,
+// a photo), read the way A27 reads them. A27 picks its step from this, and says it when
+// the gate refuses (Alex, M3.2 walk: "a refusal here has to say what's missing and offer
+// the way to fix it"). P126 compares it with `i_may_meet()` on real rows for every
+// combination, so the screen and the gate cannot disagree about what "complete" means.
+// ---------------------------------------------------------------------------
+
+export interface OptInFacts {
+  permanent: boolean;
+  hasPrivate: boolean;
+  hasPhoto: boolean;
+}
+
+export type OptInNeed = "details" | "photo" | "sign-in";
+
+const NEED_WORDS: Record<OptInNeed, string> = {
+  details: "your date of birth and gender",
+  photo: "a photo of you",
+  "sign-in": "a way to sign in",
+};
+
+export function optInMissing(f: OptInFacts): {
+  missing: OptInNeed[];
+  step: "details" | "contact" | "safety";
+  says: string | null;
+} {
+  const missing: OptInNeed[] = [];
+  if (!f.hasPrivate) missing.push("details");
+  if (!f.hasPhoto) missing.push("photo");
+  if (!f.permanent) missing.push("sign-in");
+  const step = !f.hasPrivate || !f.hasPhoto ? "details" : !f.permanent ? "contact" : "safety";
+  if (missing.length === 0) return { missing, step, says: null };
+  const words = missing.map((m) => NEED_WORDS[m]);
+  const list = words.length === 1 ? words[0] : `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
+  const fix =
+    missing.length > 1 ? "Start below — it takes a minute." : step === "details" ? "Add it below, then you're in." : "Set it up below, then you're in.";
+  return {
+    missing,
+    step,
+    says: `${missing.length === 1 ? "One thing" : "A few things"} before you can meet people here: ${list}. ${fix}`,
+  };
+}

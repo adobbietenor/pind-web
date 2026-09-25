@@ -27,6 +27,7 @@ import {
   GENDER_WHY,
   isEmailTaken,
   isOldEnough,
+  optInMissing,
   OPTIN_COPY,
   PHOTO_LABEL,
   PHOTO_WHY,
@@ -59,8 +60,34 @@ interface Mine {
   firstName: string;
   gatheringId: string;
   gatheringName: string;
+  permanent: boolean;
   hasPrivate: boolean;
   hasPhoto: boolean;
+}
+
+// Where this person stands, read fresh as whoever is signed in NOW: their pin's
+// gathering, and the three facts the gate checks. Null when there is no pin to follow.
+async function readMine(slug: string): Promise<Mine | null> {
+  const db = supabase();
+  const userId = await myAuthId();
+  // Read through RLS, not the public door, so a tester reaches the seed gathering.
+  const { data: g, error: gErr } = await db.from("gatherings").select("id, name").eq("slug", slug).maybeSingle();
+  if (gErr) throw gErr;
+  const { data: me, error: meErr } = await db.from("people").select("id, first_name, photo_path").eq("auth_user_id", userId).maybeSingle();
+  if (meErr) throw meErr;
+  if (!g || !me) return null;
+  const { data: priv, error: privErr } = await db.from("people_private").select("person_id").eq("person_id", me.id).maybeSingle();
+  if (privErr) throw privErr;
+  const { data: session } = await db.auth.getSession();
+  return {
+    personId: me.id,
+    firstName: me.first_name,
+    gatheringId: g.id,
+    gatheringName: g.name,
+    permanent: !!session.session && !session.session.user.is_anonymous,
+    hasPrivate: !!priv,
+    hasPhoto: !!me.photo_path,
+  };
 }
 
 export default function OptIn() {
@@ -70,6 +97,9 @@ export default function OptIn() {
   const [mine, setMine] = useState<Mine | null>(null);
   const [trouble, setTrouble] = useState<Described | null>(null);
   const [busy, setBusy] = useState(false);
+  // Why they are on this step when they did not choose it — the gate's refusal, said at
+  // the top of the step that fixes it (CLAUDE.md: "seen" is part of a refusal).
+  const [why, setWhy] = useState<string | null>(null);
 
   const [day, setDay] = useState("");
   const [month, setMonth] = useState("");
@@ -91,38 +121,15 @@ export default function OptIn() {
   // Where this person stands: their pin at this gathering, and which details they
   // already have (someone who did A2 skips straight to what is missing).
   const load = useCallback(async () => {
-    {
-      const db = supabase();
-      const userId = await myAuthId();
-      // Read through RLS, not the public door, so a tester reaches the seed gathering.
-      const { data: g, error: gErr } = await db.from("gatherings").select("id, name").eq("slug", slug).maybeSingle();
-      if (gErr) throw gErr;
-      const { data: me, error: meErr } = await db
-        .from("people")
-        .select("id, first_name, photo_path")
-        .eq("auth_user_id", userId)
-        .maybeSingle();
-      if (meErr) throw meErr;
-      if (!g || !me) {
-        setTrouble({ says: "Pin in first — this page follows the pin." });
-        setStep("details");
-        return;
-      }
-      const { data: priv } = await db.from("people_private").select("person_id").eq("person_id", me.id).maybeSingle();
-      const who = await whoAmI();
-      const next: Mine = {
-        personId: me.id,
-        firstName: me.first_name,
-        gatheringId: g.id,
-        gatheringName: g.name,
-        hasPrivate: !!priv,
-        hasPhoto: !!me.photo_path,
-      };
-      setMine(next);
-      const { data: session } = await db.auth.getSession();
-      const anonymous = who.state === "in" && !!session.session?.user.is_anonymous;
-      setStep(!next.hasPrivate || !next.hasPhoto ? "details" : anonymous ? "contact" : "safety");
+    const next = await readMine(slug);
+    setMine(next);
+    if (!next) {
+      setTrouble({ says: "Pin in first — this page follows the pin." });
+      setStep("details");
+      return next;
     }
+    setStep(optInMissing(next).step);
+    return next;
   }, [slug]);
 
   useEffect(() => {
@@ -194,8 +201,8 @@ export default function OptIn() {
       }
       const updated = { ...mine, hasPrivate: true, hasPhoto: true };
       setMine(updated);
-      const { data: session } = await db.auth.getSession();
-      setStep(session.session?.user.is_anonymous ? "contact" : "safety");
+      setWhy(null);
+      setStep(optInMissing(updated).step);
     } catch (err) {
       setTrouble(failed("save that", err));
     } finally {
@@ -281,7 +288,14 @@ export default function OptIn() {
       });
       if (!res.ok) throw Object.assign(new Error(`merge ${res.status}`), { status: res.status });
       setMerging(null);
-      await load();
+      // From here this is the ACCOUNT, not the anonymous person the screen was holding:
+      // nothing read before the merge may be written with (M3.2 walk — the safety sheet
+      // wrote the deleted anonymous person's id and was refused).
+      setMine(null);
+      const now = await load().catch(() => null);
+      // The account keeps its own profile; say plainly what it still needs.
+      if (now) setWhy(optInMissing(now).says);
+      return;
     } catch (err) {
       // Put the anonymous session back: the pin is exactly where it was.
       report(err, "merge into the existing account");
@@ -291,22 +305,47 @@ export default function OptIn() {
   };
 
   // 5: the safety sheet, then the pin opens — the gate allows it only now.
+  // Back to the step that fixes what the gate needs, saying what it is.
+  const sendBack = (fresh: Mine) => {
+    const need = optInMissing(fresh);
+    setMine(fresh);
+    setWhy(need.says);
+    setStep(need.step);
+  };
+
   const finish = async () => {
-    if (!mine || !accepted) return;
+    if (!accepted) return;
     setTrouble(null);
     setBusy(true);
     try {
+      // Fresh, as whoever is signed in now — never the ids this screen was holding.
+      const fresh = await readMine(slug);
+      if (!fresh) {
+        setMine(null);
+        setTrouble({ says: "Pin in first — this page follows the pin." });
+        return;
+      }
+      // The gate's three facts, asked before writing: a refusal becomes a sentence
+      // that names what is missing, on the step that adds it.
+      if (optInMissing(fresh).missing.length) return sendBack(fresh);
       // The version accepted, on record (M3.2, P110–P112): M4.1 asks again when it changes.
       const { error: acceptError } = await supabase()
         .from("policy_acceptances")
-        .upsert({ person_id: mine.personId, version: POLICY_VERSION }, { onConflict: "person_id,version", ignoreDuplicates: true });
+        .upsert({ person_id: fresh.personId, version: POLICY_VERSION }, { onConflict: "person_id,version", ignoreDuplicates: true });
       if (acceptError) throw acceptError;
-      const { error } = await supabase()
+      const { data: opened, error } = await supabase()
         .from("pins")
         .update({ open_to_meeting: true })
-        .eq("person_id", mine.personId)
-        .eq("gathering_id", mine.gatheringId);
-      if (error) throw error;
+        .eq("person_id", fresh.personId)
+        .eq("gathering_id", fresh.gatheringId)
+        .select("id");
+      if (error || !opened?.length) {
+        // The gate said no after all (something changed between the read and the
+        // write): read again and say what, rather than "not allowed".
+        const again = await readMine(slug);
+        if (again && optInMissing(again).missing.length) return sendBack(again);
+        throw error ?? new Error("the pin did not open");
+      }
       // Into the who's-going page (A9): the faces this opens up.
       router.replace(`/crowd/${slug}`);
     } catch (err) {
@@ -342,6 +381,11 @@ export default function OptIn() {
         <Body muted>{mine ? `${mine.firstName} · ${mine.gatheringName}` : ""}</Body>
         <Body muted>{OPTIN_COPY.lede}</Body>
       </View>
+      {why && step !== "safety" ? (
+        <View style={styles.why}>
+          <Body>{why}</Body>
+        </View>
+      ) : null}
 
       {step === "details" && mine ? (
         <>
@@ -446,6 +490,13 @@ const styles = StyleSheet.create({
   photoRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.sm },
   preview: { width: 72, height: 72, borderRadius: radius.md },
   previewEmpty: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },
+  why: {
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: palette.accent,
+    borderRadius: radius.md,
+    marginBottom: spacing.md,
+  },
   sheet: {
     gap: spacing.sm,
     padding: spacing.md,

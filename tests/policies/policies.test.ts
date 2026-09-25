@@ -14,6 +14,7 @@ import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEnv } from "./env.ts";
+import { optInMissing } from "../../packages/shared/src/optin.ts";
 import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, markHarness, newClient, sweep, type Member, type World } from "./world.ts";
 
 interface Result {
@@ -2820,6 +2821,36 @@ describe("Open to meeting only for someone who has finished A27 — permanent, d
       assert.ok((await w.anon.rpc("i_may_meet")).error, "a visitor with no session called i_may_meet");
     } finally {
       await gone(a);
+    }
+  });
+
+  it("P126 A27's rule and the gate agree on what \"complete\" means — every combination, read the way A27 reads it", async () => {
+    // M3.2 walk: A27 reached the safety sheet for someone the gate refused, and the
+    // refusal came back as "not allowed". The screen now asks optInMissing (shared)
+    // before writing; this proves its idea of complete IS the database's, on real rows.
+    for (const permanent of [true, false]) {
+      for (const privateRow of [true, false]) {
+        for (const photo of [true, false]) {
+          const label = `Agree${permanent ? "P" : "A"}${privateRow ? "D" : "x"}${photo ? "F" : "x"}`;
+          const q = await someone(label, { permanent, privateRow, photo });
+          try {
+            // A27's own reads, as the person: their row, their private row, their session.
+            const me = await ok(q.client.from("people").select("id, photo_path").eq("auth_user_id", q.authId).single());
+            const priv = await rows(q.client.from("people_private").select("person_id").eq("person_id", me.id));
+            const { data: session } = await q.client.auth.getSession();
+            const facts = { permanent: !session.session!.user.is_anonymous, hasPrivate: priv.length > 0, hasPhoto: !!me.photo_path };
+            assert.deepEqual(facts, { permanent, hasPrivate: privateRow, hasPhoto: photo }, `${label}: A27's reads do not see what was built`);
+            const screen = optInMissing(facts).missing.length === 0;
+            const gate = await ok(q.client.rpc("i_may_meet"));
+            assert.equal(screen, gate, `${label}: A27 says ${screen ? "complete" : "not complete"}, the gate says ${gate}`);
+            // And the gate is what the write meets: open is refused exactly when A27 says so.
+            const pin = await q.client.from("pins").insert({ gathering_id: w.G, person_id: q.personId, party_total: 1, open_to_meeting: true }).select("id");
+            assert.equal(!pin.error, screen, `${label}: the open pin was ${pin.error ? "refused" : "allowed"} while A27 said ${screen ? "complete" : "not complete"}`);
+          } finally {
+            await gone(q);
+          }
+        }
+      }
     }
   });
 });

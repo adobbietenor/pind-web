@@ -2,7 +2,7 @@
 // account" (the merge's branch) from every other failure — both sides (M3.2).
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { isEmailTaken, OPTIN_COPY } from "../../packages/shared/src/optin.ts";
+import { isEmailTaken, OPTIN_COPY, optInMissing } from "../../packages/shared/src/optin.ts";
 
 describe("A27: the existing-account branch", () => {
   it("M01 the auth server's own shapes for a taken address are recognised", () => {
@@ -51,5 +51,40 @@ describe("The merge's four checks, each made to fire (Alex: a refusal nobody has
   });
   it("M08 check 4 fires: the same person twice", () => {
     assert.ok(mergeRefusal({ id: "x", is_anonymous: true }, { id: "x", is_anonymous: false }));
+  });
+});
+
+// What still stands between a person and "open to meeting" (M3.2 walk: the gate refused
+// at the safety sheet and the screen said "Pin'd was not allowed to write that").
+describe("A27: what is missing, and the step that fixes it", () => {
+  const all = [true, false].flatMap((permanent) =>
+    [true, false].flatMap((hasPrivate) => [true, false].map((hasPhoto) => ({ permanent, hasPrivate, hasPhoto }))),
+  );
+
+  it("O01 complete is nothing missing, the safety sheet, and no sentence", () => {
+    assert.deepEqual(optInMissing({ permanent: true, hasPrivate: true, hasPhoto: true }), { missing: [], step: "safety", says: null });
+  });
+
+  it("O02 every incomplete combination gets a sentence naming each missing thing, and a step that is not the safety sheet", () => {
+    for (const f of all.filter((f) => !(f.permanent && f.hasPrivate && f.hasPhoto))) {
+      const need = optInMissing(f);
+      assert.notEqual(need.step, "safety", JSON.stringify(f));
+      assert.ok(need.says, JSON.stringify(f));
+      if (!f.hasPhoto) assert.match(need.says, /a photo of you/, JSON.stringify(f));
+      if (!f.hasPrivate) assert.match(need.says, /date of birth and gender/, JSON.stringify(f));
+      if (!f.permanent) assert.match(need.says, /a way to sign in/, JSON.stringify(f));
+      assert.doesNotMatch(need.says, /not allowed|went wrong/i);
+    }
+  });
+
+  it("O03 the walk's case: a merged account with no photo is sent to the photo, told so", () => {
+    const need = optInMissing({ permanent: true, hasPrivate: true, hasPhoto: false });
+    assert.deepEqual(need.missing, ["photo"]);
+    assert.equal(need.step, "details");
+    assert.equal(need.says, "One thing before you can meet people here: a photo of you. Add it below, then you're in.");
+  });
+
+  it("O04 only sign-in missing goes to the email step", () => {
+    assert.equal(optInMissing({ permanent: false, hasPrivate: true, hasPhoto: true }).step, "contact");
   });
 });
