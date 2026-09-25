@@ -3200,3 +3200,35 @@ or solo."* Where the two meet and where they do not:
   the second pin and must find two, which proves it can fail. It needs a browser, so it
   is a script run after any deploy that touches A26, the claim or the app's session
   handling — not a unit test.
+
+### Nothing left waiting for its screen, and nothing wired to one that is not there (Alex, M3.2 walk, 25 Sept 2026)
+
+- **A26 exists twice, and only one had its primary button.** The Worker's confirmation
+  had "Next: a few details…" / "See who's going"; the app's — the one the tester walk
+  goes through — had only Change and Share, so someone who had just ticked "meet up"
+  was stuck. This is the divergence risk the shared module was built for, showing up
+  in the one place it did not cover: **Q04 guards A26's fields and copy, not what a
+  screen does next.** **Q05** now reads both confirmations for the branch itself (ticked
+  → A27, otherwise → A9) and failed on the old app screen.
+- **The opt-in line says what it is for, never what it asks** (Alex): "If you'd like to
+  meet people here, set up a quick profile so others can see who you are." No fields
+  named — you find out when you get there. The same principle applied to A9's hint
+  under "I'd like to meet people here", which listed the fields too.
+- **W2 says "See who's going" once this browser has pinned** — the M3.1 decision,
+  wired now that A9 exists. One marker key (`pinnedMarker`), written by both A26s,
+  cleared by the app when a pin is removed, read by W2's script; Q06.
+- **A22's ⋯ is hidden until A24 exists** (Alex): "A menu that opens 'coming soon' isn't
+  two taps from report and block, it's a dead end with a nicer sentence — and H9 isn't
+  satisfied by a promise." The tap stays written behind `A24_EXISTS`.
+- **Every deferral is a named exception that fails the day it ends.**
+  - **S24:** every in-app tap lands on a route that exists. Its one exception is
+    `/person/<id>/report` (A24, M3.5), and the test fails when that route exists or the
+    tap disappears.
+  - **S25:** screens still on the M2.0 scaffold (A5 and A19 in M3.2b, A20 in M3.3) and
+    copy marked PROPOSED (A9's not-open copy) are named. It fails on an unnamed one,
+    and on a named one that has been built or approved.
+- **W1's card, Alex's wording:** "3 going · see who else is going"; "0 going · be the
+  first". "Who else" because the reader is one of the three.
+- **Found in the same sweep:** the Configuration panel still described `SESSION_SECRET`
+  as "not yet used by anything" and optional. It is required, since the web quick pin
+  cannot work without it.

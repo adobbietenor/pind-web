@@ -282,20 +282,20 @@ describe("what a card says about its crowd", () => {
   it("invites on zero, and still shows the zero", () => {
     // Small counts are shown, never hidden, including zero (H6) — so the invitation
     // sits beside the number rather than instead of it.
-    assert.equal(crowdLine(card(0, 0)), "0 pinned · be the first");
+    assert.equal(crowdLine(card(0, 0)), "0 going · be the first");
   });
 
   it("invites a tap on every row that has anybody", () => {
-    assert.equal(crowdLine(card(1, 0)), "1 pinned · see who’s going".replace("’", "'"));
-    assert.equal(crowdLine(card(3, 1)), "3 pinned · see who's going");
-    assert.equal(crowdLine(card(9, 4)), "9 pinned · see who's going");
+    assert.equal(crowdLine(card(1, 0)), "1 going · see who else is going");
+    assert.equal(crowdLine(card(3, 1)), "3 going · see who else is going");
+    assert.equal(crowdLine(card(9, 4)), "9 going · see who else is going");
   });
 
   it("says nothing about crews, wherever they are up to", () => {
     // **Crew state belongs on the page you land on** (Alex, closing M2.3). A card is
     // the count and the tap; what the crews are doing is on the other side of it.
-    assert.equal(crowdLine(card(12, 5, true)), "12 pinned · see who's going");
-    assert.equal(crowdLine(card(12, 5, false)), "12 pinned · see who's going");
+    assert.equal(crowdLine(card(12, 5, true)), "12 going · see who else is going");
+    assert.equal(crowdLine(card(12, 5, false)), "12 going · see who else is going");
   });
 
   it("says nothing about the threshold, or about crews, on any row", () => {

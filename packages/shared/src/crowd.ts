@@ -18,7 +18,9 @@ export const CROWD_COPY = {
   notOpenOthers: (open: number) =>
     open === 0 ? "Nobody has yet — you could be the first." : `${open} ${open === 1 ? "person has" : "people have"} said yes so far.`,
   openToMeeting: "I'd like to meet people here",
-  openToMeetingHint: "A photo, your date of birth and a way to sign in, the first time. You can turn it off any time.",
+  // What it's for, not what it asks (Alex, M3.2 walk, on A26's confirmation — the same
+  // principle here).
+  openToMeetingHint: "The first time, you'll set up a quick profile so others can see who you are. You can turn it off any time.",
   // Pinned and open.
   listHeading: "Going & open to meeting",
   listEmpty: "Nobody else has said yes yet. You're the first — they'll appear here as they do.",

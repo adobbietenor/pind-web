@@ -41,7 +41,7 @@ const NEEDED = [
   { name: "RESEND_API_KEY", required: false, what: "Operational alerts. Without it a failed nightly run is recorded and shown here, but reaches nobody." },
   { name: "ALERT_EMAIL", required: false, what: "Where operational alerts go. Without it there is nowhere to send them." },
   { name: "ALERT_FROM", required: false, what: "Who alerts come from. Defaults to alerts@pind.social." },
-  { name: "SESSION_SECRET", required: false, what: "Declared since M1.0 and not yet used by anything." },
+  { name: "SESSION_SECRET", required: true, what: "The quick pin on the web (A26). Without it nobody can pin from a crowd page: the Worker cannot seal the visitor's session to hand to the app." },
 ] as const satisfies readonly { name: string; required: boolean; what: string }[];
 
 export type SecretName = (typeof NEEDED)[number]["name"];

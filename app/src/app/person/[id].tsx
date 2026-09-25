@@ -174,18 +174,27 @@ export default function Person() {
         ) : null}
 
         {/* Report and block are two taps from everywhere (H9). The sheet itself is
-            A24, in M3.5; this is the tap that will open it. */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="More"
-          onPress={() => router.push(`/person/${id}/report`)}
-          style={styles.more}
-        >
-          <Text style={styles.moreLabel}>⋯</Text>
-        </Pressable>
+            A24, in M3.5, and until it exists the tap is HIDDEN, not pointed at a
+            "coming soon" (Alex, M3.2: "H9 isn't satisfied by a promise"). S24 names
+            this target as its one exception and fails the day A24's route exists —
+            which is when A24_EXISTS flips and the ⋯ comes back. */}
+        {A24_EXISTS ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="More"
+            onPress={() => router.push(`/person/${id}/report`)}
+            style={styles.more}
+          >
+            <Text style={styles.moreLabel}>⋯</Text>
+          </Pressable>
+        ) : null}
       </AppScreen>
   );
 }
+
+// A24 (report and block) lands in M3.5. S24 fails when its route exists and this is
+// still false.
+const A24_EXISTS = false;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.background },

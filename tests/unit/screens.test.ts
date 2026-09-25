@@ -194,6 +194,46 @@ describe("The web app claims a handed-over session before any screen renders (M3
     assert.ok(found.length >= 15, `only ${found.length} navigation targets found — the extractor is not reading the screens`);
     const dead = found.filter(({ t }) => !lands(t) && !(t in PENDING)).map(({ t, path }) => `${path} → ${t}`);
     assert.deepEqual(dead, [], "these taps go to a screen that does not exist");
-    for (const t of Object.keys(PENDING)) assert.ok(!lands(t), `${t} exists now — wire it and drop it from PENDING`);
+    for (const t of Object.keys(PENDING)) {
+      assert.ok(!lands(t), `${t} exists now — show its tap again and drop it from PENDING`);
+      // Hidden, not deleted: the tap is still written, behind its flag, so it comes back.
+      assert.ok(found.some((f) => f.t === t), `${t} is no longer in any screen — PENDING names a tap that is gone`);
+    }
+  });
+
+  it("S25 every placeholder is named, and each name fails the day it is no longer true", () => {
+    // Alex, M3.2: "apply the same thinking to anything else deferred with a
+    // placeholder". S24's shape for everything else a walker can meet before its time:
+    // a named list, a check that finds anything NOT on it, and a check that each entry is
+    // still a placeholder — so building it, or approving its copy, makes this fail until
+    // the list shrinks.
+
+    // Screens that are still the M2.0 scaffold: a title and nothing else.
+    const SCAFFOLDS: Record<string, string> = {
+      "(tabs)/crowds.tsx": "A5–A7, This Week's Crowds — M3.2b",
+      "(tabs)/my-events.tsx": "A19, My Events — M3.2b",
+      "(tabs)/connections.tsx": "A20, Connections — M3.3",
+    };
+    const isScaffold = (source: string) => /return <Screen title="[^"]*" \/>;/.test(source);
+    assert.ok(isScaffold('  return <Screen title="Crowds" />;') && !isScaffold("return <AppScreen>"), "the scaffold test cannot tell one");
+    const norm = (p: string) => p.split("\\").join("/");
+    const scaffolds = screens.filter((sc) => isScaffold(sc.source)).map((sc) => norm(sc.path)).sort();
+    assert.deepEqual(scaffolds, Object.keys(SCAFFOLDS).sort(), "a scaffold screen is unnamed, or a named one has been built — update SCAFFOLDS");
+
+    // Copy marked PROPOSED: waiting on Alex's verdict. Approving it means removing the
+    // marker, which fails here until the entry goes too.
+    const PROPOSED: Record<string, string> = {
+      "packages/shared/src/crowd.ts": "A9's pinned-not-open copy — Alex, on the M3.2 walk",
+    };
+    assert.ok(/\bPROPOSED\b/.test("// PROPOSED, for Alex") && !/\bPROPOSED\b/.test("UNPROPOSED"), "the marker test cannot see a marker");
+    const marked = (function walk(dir: string): string[] {
+      return readdirSync(dir).flatMap((name) => {
+        if (name === "node_modules" || name === "dist" || name.startsWith(".")) return [];
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) return walk(path);
+        return /\.tsx?$/.test(name) && /\bPROPOSED\b/.test(readFileSync(path, "utf8")) ? [norm(path.slice(process.cwd().length + 1))] : [];
+      });
+    })(process.cwd()).filter((p) => /^(app\/src|packages\/shared\/src|src)\//.test(p));
+    assert.deepEqual([...new Set(marked)].sort(), Object.keys(PROPOSED).sort(), "PROPOSED copy is unnamed, or named copy was approved — update PROPOSED");
   });
 });
