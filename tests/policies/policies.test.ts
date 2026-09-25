@@ -2974,3 +2974,20 @@ describe("Merging an anonymous pinner into their existing account (M3.2)", () =>
     }
   });
 });
+
+describe("The client's copy of effective_end matches the database's (M3.2)", () => {
+  it("P118 effectiveEnd(starts_at, ends_at) equals public.effective_end on real rows, with and without ends_at", async () => {
+    const { effectiveEnd } = await import("../../packages/shared/src/copy.ts");
+    const withEnd = await ok(
+      w.service.from("gatherings").insert({ name: `pindhx ${w.run} Ends`, starts_at: inDays(3), ends_at: inDays(3.2), venue_id: w.venue }).select("id").single(),
+    );
+    const rowsBack = (await ok(
+      w.service.from("gatherings").select("id, starts_at, ends_at, effective_end").in("id", [withEnd.id, w.G]),
+    )) as { id: string; starts_at: string; ends_at: string | null; effective_end: string }[];
+    assert.equal(rowsBack.length, 2, "the database did not return both rows (the check found nothing)");
+    assert.ok(rowsBack.some((r) => r.ends_at === null) && rowsBack.some((r) => r.ends_at !== null), "need one row of each kind");
+    for (const r of rowsBack) {
+      assert.equal(Date.parse(effectiveEnd(r.starts_at, r.ends_at)), Date.parse(r.effective_end), `drifted on ${r.id}`);
+    }
+  });
+});

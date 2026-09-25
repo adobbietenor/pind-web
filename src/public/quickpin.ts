@@ -28,6 +28,7 @@ import {
   QUICKPIN_COPY,
   QUICKPIN_FIELDS,
   countLine,
+  SEE_WHOS_GOING,
   readQuickPin,
   supabaseStorageKey,
   THRESHOLD,
@@ -315,7 +316,7 @@ ${counts ? (() => {
   return `<p class="place">${escape(c.line)}</p>${c.crews ? `<p class="lede">${escape(c.crews)}</p>` : ""}`;
 })() : ""}
 ${needsOptIn ? `<p class="note" style="text-align:left;margin-top:16px">${escape(QUICKPIN_COPY.optInNext)}</p>
-<a class="cta" href="/opt-in/${escape(g.slug)}">${escape(QUICKPIN_COPY.nextDetails)}</a>` : ""}
+<a class="cta" href="/opt-in/${escape(g.slug)}">${escape(QUICKPIN_COPY.nextDetails)}</a>` : `<a class="cta" href="/crowd/${escape(g.slug)}">${escape(SEE_WHOS_GOING)}</a>`}
 <noscript><p class="note" style="text-align:left;margin-top:16px">${escape(QUICKPIN_COPY.noScript)}</p></noscript>
 <div class="links">
 <a href="/pin/${escape(g.slug)}">${escape(QUICKPIN_COPY.editOrRemove)}</a>

@@ -307,8 +307,8 @@ export default function OptIn() {
         .eq("person_id", mine.personId)
         .eq("gathering_id", mine.gatheringId);
       if (error) throw error;
-      // Until A9 (the pinned crowd page) lands in this milestone, back to the pin.
-      router.replace(`/pin/${slug}`);
+      // Into the who's-going page (A9): the faces this opens up.
+      router.replace(`/crowd/${slug}`);
     } catch (err) {
       setTrouble(failed("open you to meeting", err));
     } finally {

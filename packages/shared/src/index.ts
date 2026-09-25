@@ -5,6 +5,7 @@ export * from "./age";
 export * from "./brand";
 export * from "./constants";
 export * from "./copy";
+export * from "./crowd";
 export * from "./image";
 export * from "./neighbourhoods";
 export * from "./optin";

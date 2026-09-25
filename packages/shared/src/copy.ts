@@ -168,3 +168,13 @@ export function countLine(going: number, open: number, threshold: number): { lin
   const crews = open > 0 && short > 0 && short <= 2 ? `${short} more and crews form` : null;
   return { line, crews };
 }
+
+// A gathering's effective end: `ends_at`, or `starts_at` + 180 minutes (decisions Part
+// 3). **The database's `public.effective_end` is the rule**; this is its one copy on
+// the client side, for screens that must know whether pinning has closed. P118
+// compares the two on real rows, so they cannot drift (CLAUDE.md: where a rule has two
+// copies across a boundary, compare them).
+export const EFFECTIVE_END_MINUTES = 180;
+export function effectiveEnd(startsAt: string, endsAt: string | null): string {
+  return endsAt ?? new Date(Date.parse(startsAt) + EFFECTIVE_END_MINUTES * 60_000).toISOString();
+}
