@@ -19,8 +19,7 @@ import {
   PARTY_CHOICES,
   QUICKPIN_COPY,
   QUICKPIN_FIELDS,
-  quickPinPlace,
-  quickPinProgress,
+  countLine,
   readQuickPin,
   spacing,
   THRESHOLD,
@@ -206,8 +205,10 @@ export default function QuickPin() {
         ) : null}
         {result.pinned !== undefined ? (
           <View style={{ marginTop: spacing.lg, gap: spacing.xs }}>
-            <Heading>{quickPinPlace(result.pinned)}</Heading>
-            <Body muted>{quickPinProgress(result.open ?? 0, THRESHOLD)}</Body>
+            <Heading>{countLine(result.pinned, result.open ?? 0, THRESHOLD).line}</Heading>
+            {countLine(result.pinned, result.open ?? 0, THRESHOLD).crews ? (
+              <Body muted>{countLine(result.pinned, result.open ?? 0, THRESHOLD).crews}</Body>
+            ) : null}
           </View>
         ) : null}
         <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>

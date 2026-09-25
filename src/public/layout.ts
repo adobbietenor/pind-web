@@ -158,6 +158,7 @@ h2.asks{
 
 /* Counts on the crowd page */
 .tallies{display:flex;gap:10px;margin:18px 0 6px}
+.count-line{font-size:1.3rem;font-weight:650;letter-spacing:-.01em;line-height:1.3;margin:4px 0 6px}
 .tally-box{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 14px}
 .tally-box b{display:block;font-size:1.6rem;line-height:1.1;font-weight:650;letter-spacing:-.02em}
 .tally-box span{font-size:.8rem;color:var(--muted)}

@@ -27,8 +27,7 @@ import {
   PARTY_CHOICES,
   QUICKPIN_COPY,
   QUICKPIN_FIELDS,
-  quickPinPlace,
-  quickPinProgress,
+  countLine,
   readQuickPin,
   supabaseStorageKey,
   THRESHOLD,
@@ -311,7 +310,10 @@ function done(
 <div class="done">
 <h1>${escape(already ? QUICKPIN_COPY.alreadyPinned : QUICKPIN_COPY.pinned)}</h1>
 <p class="lede">${escape(g.name)}${DOT}${escape(door.venue.name)}</p>
-${counts ? `<p class="place">${escape(quickPinPlace(counts.pinned))}</p><p class="lede">${escape(quickPinProgress(counts.open_to_meeting, THRESHOLD))}</p>` : ""}
+${counts ? (() => {
+  const c = countLine(counts.pinned, counts.open_to_meeting, THRESHOLD);
+  return `<p class="place">${escape(c.line)}</p>${c.crews ? `<p class="lede">${escape(c.crews)}</p>` : ""}`;
+})() : ""}
 ${needsOptIn ? `<p class="note" style="text-align:left;margin-top:16px">${escape(QUICKPIN_COPY.optInNext)}</p>
 <a class="cta" href="/opt-in/${escape(g.slug)}">${escape(QUICKPIN_COPY.nextDetails)}</a>` : ""}
 <noscript><p class="note" style="text-align:left;margin-top:16px">${escape(QUICKPIN_COPY.noScript)}</p></noscript>

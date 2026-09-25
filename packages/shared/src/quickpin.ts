@@ -83,9 +83,7 @@ export const QUICKPIN_COPY = {
 // it read as a rank, and it was wrong when you brought people — the number counts
 // bodies, your friends included. "Going" is the plain word for that number, the one
 // W2's box uses; "open to meeting" is the only word for the second.
-export const quickPinPlace = (going: number) => `${going} going so far`;
-export const quickPinProgress = (open: number, threshold: number) =>
-  open >= threshold ? "Crews are forming" : `${open} of ${threshold} open to meeting · ${threshold - open} to go`;
+// The counts themselves read through `countLine` (copy.ts), one wording everywhere.
 
 export type QuickPinInput = Partial<Record<QuickPinField, string | undefined>>;
 

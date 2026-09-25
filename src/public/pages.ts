@@ -3,7 +3,7 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { categoryLabel, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, THRESHOLD, THRESHOLD_EXPLANATION } from "@pind/shared";
+import { categoryLabel, countLine, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, THRESHOLD, THRESHOLD_EXPLANATION } from "@pind/shared";
 import type { Env } from "../env";
 import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
 import { markSvg } from "./brand";
@@ -465,11 +465,14 @@ function blurbBlock(g: Crowd2["gathering"]): string {
 function tallies(c: Counts): string {
   const mix = mixLine(c);
   const crews = crewLine(c);
+  // One wording for the two numbers on W2, A26's confirmation and A9 (countLine, Alex
+  // M3.2): "23 going · nobody open to meeting yet" / "· 3 open to meeting" / and the
+  // crews line only at 3–4. It replaced the two tally boxes, whose "0 open to meeting"
+  // said nothing about the state where someone could be first.
+  const count = countLine(c.pinned, c.open_to_meeting, THRESHOLD);
   return `<h2 class="asks">Who else is going?</h2>
-<div class="tallies">
-<div class="tally-box"><b>${c.pinned}</b><span>going</span></div>
-<div class="tally-box"><b>${c.open_to_meeting}</b><span>open to meeting</span></div>
-</div>
+<p class="count-line">${escape(count.line)}</p>
+${count.crews ? `<p class="mix">${escape(count.crews)}</p>` : ""}
 ${mix ? `<p class="mix">${escape(mix)}</p>` : ""}
 ${crews ? `<p class="mix">${escape(crews)}</p>` : ""}
 <p class="rule">${escape(THRESHOLD_EXPLANATION)}</p>`;

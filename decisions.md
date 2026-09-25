@@ -3167,3 +3167,21 @@ or solo."* Where the two meet and where they do not:
 - **Worth keeping from the gate:** three M3.1 cases failed on it first, because they
   pinned an anonymous user already open to meeting — now forbidden. Tests catching a
   rule change against their own assumptions is the harness doing its job.
+
+### The count display, and one person across pages (Alex, M3.2, 25 Sept 2026)
+
+- **The counts read one way everywhere** — W2, A26's confirmation and A9, each ending in
+  "See who's going" (W2 on the web, A9 in the app):
+  - nobody open: **"23 going · nobody open to meeting yet"** — the zero state is where
+    someone could be first, which is worth saying (A's wording, kept);
+  - 1–4 open: **"23 going · 3 open to meeting"**, and at 3–4 the crews line
+    ("2 more and crews form");
+  - 5 or more: **"23 going · 17 open to meeting"** — no progress wording once it is not
+    worth saying.
+  One function in `packages/shared` (`countLine`) so the three places cannot drift.
+- **One person whichever page they are on** (Alex): a claim marks the Worker's cookie
+  claimed rather than clearing it, so a later quick pin in that browser goes to the
+  app's A26 to pin as the same person. Reproduced in a real browser before fixing; the
+  guard is a test that pins, claims, pins again and proves it is one person, not two.
+- **The standard for moving someone's data between accounts** (Alex, on the merge):
+  proven live against a real sign-in code, with every check made to fire.

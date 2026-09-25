@@ -154,3 +154,17 @@ export const GENDER_CHOICES = [
   { value: "undisclosed", name: "Prefer not to say" },
 ] as const;
 export type GenderChoice = (typeof GENDER_CHOICES)[number]["value"];
+
+// How a crowd's two numbers read — W2, A26's confirmation and A9 alike (Alex, M3.2).
+// "Going" counts bodies (a +1 is a body); "open to meeting" counts people, never +1s
+// (Q1, and a +1 is never counted as open — decisions). Progress wording only while it
+// is genuinely below the threshold and worth saying: nothing at 0 beyond "nobody open
+// to meeting yet" (the state where someone could be first), a crews line only at 3–4.
+export const SEE_WHOS_GOING = "See who's going";
+
+export function countLine(going: number, open: number, threshold: number): { line: string; crews: string | null } {
+  const line = open === 0 ? `${going} going · nobody open to meeting yet` : `${going} going · ${open} open to meeting`;
+  const short = threshold - open;
+  const crews = open > 0 && short > 0 && short <= 2 ? `${short} more and crews form` : null;
+  return { line, crews };
+}
