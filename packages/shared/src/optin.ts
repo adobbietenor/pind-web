@@ -26,9 +26,6 @@ export const OPTIN_COPY = {
   emailHasAccount:
     "That email already has a Pin'd account. We've sent a code to it — enter it to bring this pin into that account.",
   nothingLost: "Nothing was lost — your pin is still there. Try again in a moment.",
-  // Until the merge is built (next in M3.2): the honest sentence for that branch.
-  emailHasAccountForNow:
-    "That email already has a Pin'd account. Joining this pin to it is nearly ready — for now, use another address. Nothing was lost; your pin is still there.",
   // The link path's one safety sheet (spec A27), verbatim.
   safetyHeading: "Before you meet anyone",
   safety: [

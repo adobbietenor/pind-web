@@ -2860,3 +2860,117 @@ describe("Policy acceptances: one row per acceptance, owner-only, never changed 
     await w.service.from("policy_acceptances").delete().eq("version", `${V}-next`);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — the existing-email merge (Alex, M3.2): only from anonymous, only into
+// permanent, only by the service key, and the moved pin wins on party size
+// ---------------------------------------------------------------------------
+
+describe("Merging an anonymous pinner into their existing account (M3.2)", () => {
+  async function anonWithPin(label: string, gathering: string, party: number) {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInAnonymously();
+    assert.equal(signIn.error, null, signIn.error?.message);
+    const authId = signIn.data.user!.id;
+    await markHarness(w.service, authId);
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label }).select("id").single());
+    await ok(w.service.from("age_attestations").insert({ person_id: person.id, source: "a26" }));
+    await ok(w.service.from("pins").insert({ gathering_id: gathering, person_id: person.id, party_total: party, open_to_meeting: false }));
+    return { authId, personId: person.id as string };
+  }
+  async function permanent(label: string, withPerson: boolean) {
+    const made = await w.service.auth.admin.createUser({
+      email: `${PREFIX}-${w.run}-merge-${label.toLowerCase()}@example.com`,
+      password: randomUUID(),
+      email_confirm: true,
+      app_metadata: { pind_harness: true },
+    });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    let personId: string | null = null;
+    if (withPerson) personId = (await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label }).select("id").single())).id;
+    return { authId, personId };
+  }
+  const merge = (anon: string, perm: string) => w.service.rpc("admin_merge_anonymous", { p_anon: anon, p_perm: perm });
+  const userGone = async (authId: string) => {
+    const u = await w.service.auth.admin.getUserById(authId);
+    return !!u.error || !u.data.user;
+  };
+  const cleanup = async (...ids: (string | null)[]) => {
+    for (const id of ids) if (id) await w.service.auth.admin.deleteUser(id).catch(() => undefined);
+  };
+
+  it("P113 the anonymous pin MOVES into the account; the anonymous person and user are gone", async () => {
+    const a = await anonWithPin("MergeA", w.G, 2);
+    const p = await permanent("MergeP", true);
+    try {
+      await ok(merge(a.authId, p.authId));
+      const pins = await rows(w.service.from("pins").select("party_total").eq("person_id", p.personId!).eq("gathering_id", w.G));
+      assert.deepEqual(pins, [{ party_total: 2 }], "the pin did not arrive in the account");
+      assert.equal((await rows(w.service.from("people").select("id").eq("id", a.personId))).length, 0, "the anonymous person survived");
+      assert.ok(await userGone(a.authId), "the anonymous user survived");
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P114 both pinned at one gathering: ONE pin remains, the moved one's party size wins, the count does not double", async () => {
+    const a = await anonWithPin("MergeBothA", w.H, 3);
+    const p = await permanent("MergeBothP", true);
+    await ok(w.service.from("age_attestations").insert({ person_id: p.personId, source: "a26" }));
+    await ok(w.service.from("pins").insert({ gathering_id: w.H, person_id: p.personId, party_total: 1, open_to_meeting: false }));
+    const before = (await counts(w.anon, w.H)).pinned;
+    try {
+      const out = await ok(merge(a.authId, p.authId));
+      assert.equal((out as { merged: number }).merged, 1);
+      const pins = await rows(w.service.from("pins").select("party_total").eq("person_id", p.personId!).eq("gathering_id", w.H));
+      assert.deepEqual(pins, [{ party_total: 3 }], "the moved pin's party size did not win");
+      assert.equal((await counts(w.anon, w.H)).pinned, before - 1, "the count doubled or did not settle to the moved party");
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P115 an account with no profile takes the anonymous person WHOLE — re-homed, not copied", async () => {
+    const a = await anonWithPin("MergeRehome", w.G, 1);
+    const p = await permanent("MergeRehomeP", false);
+    try {
+      const out = await ok(merge(a.authId, p.authId));
+      assert.equal((out as { rehomed: boolean }).rehomed, true);
+      const person = await rows(w.service.from("people").select("id, auth_user_id").eq("id", a.personId));
+      assert.deepEqual(person, [{ id: a.personId, auth_user_id: p.authId }], "the person was not re-homed onto the account");
+      assert.equal((await rows(w.service.from("pins").select("id").eq("person_id", a.personId))).length, 1, "the pin did not come with the person");
+      assert.ok(await userGone(a.authId), "the anonymous user survived");
+    } finally {
+      await w.service.from("people").delete().eq("id", a.personId);
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P116 every refusal FIRES: a permanent source, an anonymous target, the same user twice — and nothing moves", async () => {
+    const a = await anonWithPin("MergeRefA", w.G, 1);
+    const p = await permanent("MergeRefP", true);
+    const a2 = await anonWithPin("MergeRefA2", w.H, 1);
+    try {
+      for (const [from, to, why] of [
+        [p.authId, a.authId, "a permanent user as the source"],
+        [a.authId, a2.authId, "an anonymous user as the target"],
+        [a.authId, a.authId, "the same user twice"],
+      ] as const) {
+        const r = await merge(from, to);
+        assert.ok(r.error, `the merge accepted ${why}`);
+      }
+      assert.equal((await rows(w.service.from("pins").select("id").eq("person_id", a.personId))).length, 1, "a refused merge moved the pin");
+      assert.equal(await userGone(a.authId), false, "a refused merge deleted the anonymous user");
+    } finally {
+      await cleanup(a.authId, a2.authId, p.authId);
+    }
+  });
+
+  it("P117 nobody signed in, and no visitor, can call it — the service key only", async () => {
+    for (const client of [c(M("Ava")), w.anon]) {
+      const r = await client.rpc("admin_merge_anonymous", { p_anon: randomUUID(), p_perm: randomUUID() });
+      assert.ok(r.error, "a visitor ran the merge");
+    }
+  });
+});

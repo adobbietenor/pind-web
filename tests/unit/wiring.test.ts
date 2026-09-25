@@ -53,5 +53,6 @@ describe("Every imported route is wired (M3.2)", () => {
     const router = code(readFileSync("src/router.ts", "utf8"));
     assert.match(router, /"POST \/session\/claim":\s*claimSession/, "POST /session/claim is not routed");
     assert.match(router, /quickPinSubmit\(request, env,/, "POST /g/<slug>/pin is not routed");
+    assert.match(router, /"POST \/account\/merge":\s*mergeAccount/, "POST /account/merge is not routed");
   });
 });

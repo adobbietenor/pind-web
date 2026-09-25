@@ -17,8 +17,8 @@
 //
 // Only then is the pin opened — the database refuses it any earlier.
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Linking, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { ActivityIndicator, Image, Linking, Platform, StyleSheet, View } from "react-native";
 import {
   type A2Photo,
   ageOn,
@@ -49,6 +49,8 @@ import { myAuthId, whoAmI } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL || "https://pind.social";
+// The Worker is the same host on the web; the app on a phone names it.
+const WORKER = Platform.OS === "web" ? "" : SITE;
 
 type Step = "loading" | "details" | "contact" | "code" | "safety" | "removed";
 
@@ -78,13 +80,18 @@ export default function OptIn() {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [accepted, setAccepted] = useState(false);
+  // The merge (decisions, M3.2): the address already has an account. The anonymous
+  // session is held here until the code proves the address, then both go to the
+  // Worker together; on any failure after the code, it is put back, so "your pin is
+  // still there" is true, not just said.
+  const [merging, setMerging] = useState<{ access_token: string; refresh_token: string } | null>(null);
 
   const age = useMemo(() => ageOn(Number(day), Number(month), Number(year)), [day, month, year]);
 
   // Where this person stands: their pin at this gathering, and which details they
   // already have (someone who did A2 skips straight to what is missing).
-  useEffect(() => {
-    (async () => {
+  const load = useCallback(async () => {
+    {
       const db = supabase();
       const userId = await myAuthId();
       // Read through RLS, not the public door, so a tester reaches the seed gathering.
@@ -115,11 +122,15 @@ export default function OptIn() {
       const { data: session } = await db.auth.getSession();
       const anonymous = who.state === "in" && !!session.session?.user.is_anonymous;
       setStep(!next.hasPrivate || !next.hasPhoto ? "details" : anonymous ? "contact" : "safety");
-    })().catch((err) => {
+    }
+  }, [slug]);
+
+  useEffect(() => {
+    load().catch((err) => {
       setTrouble(failed("open this step", err));
       setStep("details");
     });
-  }, [slug]);
+  }, [load]);
 
   const choosePhoto = async () => {
     setTrouble(null);
@@ -200,7 +211,18 @@ export default function OptIn() {
       const { error } = await supabase().auth.updateUser({ email: email.trim().toLowerCase() });
       if (error) {
         if (isEmailTaken(error)) {
-          setTrouble({ says: OPTIN_COPY.emailHasAccountForNow });
+          const { data } = await supabase().auth.getSession();
+          const held = data.session;
+          if (!held) throw error;
+          // A sign-in code to the existing account — never creating one.
+          const sent = await supabase().auth.signInWithOtp({
+            email: email.trim().toLowerCase(),
+            options: { shouldCreateUser: false },
+          });
+          if (sent.error) throw sent.error;
+          setMerging({ access_token: held.access_token, refresh_token: held.refresh_token });
+          setTrouble({ says: OPTIN_COPY.emailHasAccount });
+          setStep("code");
           return;
         }
         throw error;
@@ -216,6 +238,11 @@ export default function OptIn() {
   const confirmCode = async () => {
     setTrouble(null);
     setBusy(true);
+    if (merging) {
+      await confirmMerge(merging);
+      setBusy(false);
+      return;
+    }
     try {
       const { error } = await supabase().auth.verifyOtp({
         email: email.trim().toLowerCase(),
@@ -228,6 +255,38 @@ export default function OptIn() {
       setTrouble(failed("confirm that code", err));
     } finally {
       setBusy(false);
+    }
+  };
+
+  // The merge: the code proves the address (only then does the app hold the account's
+  // session), then both sessions go to the Worker, which checks each with the auth
+  // server before anything moves.
+  const confirmMerge = async (held: { access_token: string; refresh_token: string }) => {
+    const db = supabase();
+    const { data: signedIn, error: codeError } = await db.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token: code.trim(),
+      type: "email",
+    });
+    if (codeError || !signedIn.session) {
+      // The code did not prove it: still anonymous, nothing moved.
+      setTrouble(failed("confirm that code", codeError ?? new Error("no session")));
+      return;
+    }
+    try {
+      const res = await fetch(`${WORKER}/account/merge`, {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${signedIn.session.access_token}` },
+        body: JSON.stringify({ anon_access_token: held.access_token }),
+      });
+      if (!res.ok) throw Object.assign(new Error(`merge ${res.status}`), { status: res.status });
+      setMerging(null);
+      await load();
+    } catch (err) {
+      // Put the anonymous session back: the pin is exactly where it was.
+      report(err, "merge into the existing account");
+      await db.auth.setSession(held).catch(() => undefined);
+      setTrouble({ says: OPTIN_COPY.nothingLost, wayOut: "retry" });
     }
   };
 

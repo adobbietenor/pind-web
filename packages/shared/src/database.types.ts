@@ -2405,6 +2405,10 @@ export type Database = {
         Args: { p_actor: string; p_note?: string; p_person: string }
         Returns: undefined
       }
+      admin_merge_anonymous: {
+        Args: { p_anon: string; p_perm: string }
+        Returns: Json
+      }
       admin_merge_gatherings: {
         Args: { p_actor: string; p_loser: string; p_survivor: string }
         Returns: undefined

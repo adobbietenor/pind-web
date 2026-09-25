@@ -1,6 +1,7 @@
 import { admin } from "./admin/routes";
 import type { Env } from "./env";
 import { page } from "./html";
+import { mergeAccount } from "./account/merge";
 import { deleteAccount } from "./account/routes";
 import { photoCheckForMe, photoWebhook } from "./photo/routes";
 import { claimSession, quickPinSubmit } from "./public/quickpin";
@@ -25,6 +26,9 @@ const routes: Record<string, Handler> = {
   // M3.2, the hand-off: the app claims the quick pin's session once
   // (src/public/quickpin.ts). /session/* is in run_worker_first.
   "POST /session/claim": claimSession,
+  // M3.2, A27: an anonymous pinner joins the account they already have. Both sessions,
+  // checked by the auth server, before anything moves (src/account/merge.ts).
+  "POST /account/merge": mergeAccount,
 };
 
 export async function route(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
