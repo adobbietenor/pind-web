@@ -14,11 +14,17 @@ import { supabase } from "./supabase";
 // stranger in anonymously and keeps the session in a sealed, HttpOnly cookie. The
 // first time the app asks who is signed in, it claims that session once
 // (`POST /session/claim`, same origin) and installs it with supabase-js's own
-// `setSession` — nothing writes supabase-js's storage by hand. Done here, inside
-// whoAmI, so no screen can read "signed out" in the moment before the claim lands.
+// `setSession` — nothing writes supabase-js's storage by hand.
+//
+// **The root layout awaits it before any screen renders** (M3.2). It used to happen
+// only inside whoAmI, and A8 read the gathering BEFORE asking who you were: an
+// anonymous tester's first read ran with no session, found nothing, and the page
+// returned "Not on Pin'd" without ever reaching the claim. Alex pressed the button and
+// got exactly that. Claiming at the root means no screen, whatever order it asks
+// things in, can read before the session lands. whoAmI still awaits it (idempotent).
 let claim: Promise<void> | null = null;
 
-function claimOnce(): Promise<void> {
+export function claimOnce(): Promise<void> {
   if (Platform.OS !== "web" || typeof window === "undefined") return Promise.resolve();
   claim ??= (async () => {
     const db = supabase();

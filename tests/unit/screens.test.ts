@@ -146,3 +146,14 @@ describe("App screens read gatherings through RLS, never the public door (M3.2)"
     assert.deepEqual(own, [], "these screens read the public door");
   });
 });
+
+describe("The web app claims a handed-over session before any screen renders (M3.2)", () => {
+  it("S23 the root layout awaits claimOnce and renders nothing until it has", () => {
+    // A8 read the gathering before the claim ran and showed an anonymous tester "Not on
+    // Pin'd" — the claim lived only inside whoAmI, which the page never reached. The
+    // root gate makes the order of any screen's own reads irrelevant.
+    const layout = readFileSync(join(ROUTES, "_layout.tsx"), "utf8");
+    assert.match(layout, /claimOnce\(\)\.finally\(\(\) => setClaimed\(true\)\)/, "the layout does not await the claim");
+    assert.match(layout, /if \(!fontsLoaded \|\| !claimed\) return/, "the layout renders screens before the claim lands");
+  });
+});

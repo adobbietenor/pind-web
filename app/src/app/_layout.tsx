@@ -5,12 +5,13 @@ import { useFonts } from "expo-font";
 import { DarkTheme, Stack, ThemeProvider } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Platform, View } from "react-native";
 import { colors as palette } from "@pind/shared";
 import { initAnalytics, track } from "@/lib/analytics";
 import { queryClient } from "@/lib/query";
 import { initSentry, wrapRoot } from "@/lib/sentry";
+import { claimOnce } from "@/lib/session";
 import { isQuickPinPath } from "@/lib/typeface";
 
 // Runs once per launch. Nothing here touches Supabase auth: opening the app
@@ -31,6 +32,14 @@ const landedOnQuickPin =
 
 function RootLayout() {
   const [fontsLoaded] = useFonts(landedOnQuickPin ? {} : { Poppins_600SemiBold, Poppins_700Bold });
+  // On the web, a session the Worker handed over (the quick pin, or an anonymous
+  // tester session) is claimed BEFORE any screen renders, so no screen reads data
+  // without it (M3.2 — A8 did, and showed a tester "Not on Pin'd"). One same-origin
+  // request that answers 204 when there is nothing to claim.
+  const [claimed, setClaimed] = useState(Platform.OS !== "web");
+  useEffect(() => {
+    if (Platform.OS === "web") void claimOnce().finally(() => setClaimed(true));
+  }, []);
 
   useEffect(() => {
     track("app_open");
@@ -54,7 +63,7 @@ function RootLayout() {
   };
 
   // On the web there is no native splash: hold on the background colour instead.
-  if (!fontsLoaded) return <View style={{ flex: 1, backgroundColor: palette.background }} />;
+  if (!fontsLoaded || !claimed) return <View style={{ flex: 1, backgroundColor: palette.background }} />;
 
   return (
     <QueryClientProvider client={queryClient}>
