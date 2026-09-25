@@ -17,12 +17,14 @@
 // so a tester reaches the seed gathering and nobody else does.
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   ALL_TAGS,
   colors as palette,
   countLine,
+  CREWS_MEET,
   CROWD_COPY,
+  HOUSE_RULES,
   effectiveEnd,
   fonts,
   NEIGHBOURHOODS,
@@ -36,6 +38,27 @@ import { Body, Button, Heading } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
 import { whoAmI } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
+
+// W2's facts, as W2's own functions decide them (the Worker's /g/<slug>/facts.json):
+// the map, its numbered markers, the spots, the cost line. One copy of each rule.
+const SITE = process.env.EXPO_PUBLIC_SITE_URL || "https://pind.social";
+const WORKER = Platform.OS === "web" ? "" : SITE;
+interface Facts {
+  when: string;
+  venue: string;
+  address: string | null;
+  blurb: string | null;
+  why: string | null;
+  cost: string | null;
+  map: { src: string; width: number; height: number; openInMaps: string | null; markers: { n: number; left: number; top: number }[] } | null;
+  spots: { n: number | null; name: string; description: string | null; meet: string; walk: number | null; offMap: boolean; directions: string | null }[];
+}
+async function factsFor(slug: string): Promise<Facts | null> {
+  // A seed gathering has no public door, so it has no facts here: a tester sees the
+  // rows RLS gives them, and the page says less. Real gatherings get W2's anatomy.
+  const res = await fetch(`${WORKER}/g/${slug}/facts.json`).catch(() => null);
+  return res?.ok ? ((await res.json()) as Facts) : null;
+}
 
 const tagName = (slug: string) => ALL_TAGS.find((t) => t.slug === slug)?.name ?? slug;
 const hoodName = (slug: string | null) => NEIGHBOURHOODS.find((n) => n.slug === slug)?.name ?? null;
@@ -56,6 +79,7 @@ interface Face {
   party: number;
 }
 interface View9 {
+  facts: Facts | null;
   gathering: Gathering;
   going: number;
   open: number;
@@ -139,7 +163,7 @@ async function load(slug: string): Promise<View9 | null> {
     }));
   }
 
-  return { gathering, going: c?.pinned ?? 0, open: c?.open_to_meeting ?? 0, mix, mine, mayMeet, faces };
+  return { facts: await factsFor(slug), gathering, going: c?.pinned ?? 0, open: c?.open_to_meeting ?? 0, mix, mine, mayMeet, faces };
 }
 
 export default function CrowdPage() {
@@ -204,7 +228,14 @@ export default function CrowdPage() {
   return (
     <AppScreen>
       <Heading>{g.name}</Heading>
-      <Body muted>{`${when(g.startsAt)} · ${g.venue}`}</Body>
+      <Body muted>{`${view.facts?.when ?? when(g.startsAt)} · ${g.venue}`}</Body>
+      {view.facts?.address ? <Body muted>{view.facts.address}</Body> : null}
+      {view.facts?.blurb ? (
+        <View style={{ marginTop: spacing.sm }}>
+          <Body>{view.facts.blurb}</Body>
+          {view.facts.why ? <Body muted>{view.facts.why}</Body> : null}
+        </View>
+      ) : null}
 
       <View style={styles.counts}>
         <Text style={styles.countLine}>{count.line}</Text>
@@ -216,7 +247,12 @@ export default function CrowdPage() {
 
       {!view.mine ? (
         // A8 — not pinned here.
-        !ended ? <Button label={CROWD_COPY.pinIn} onPress={() => router.push(`/pin/${slug}`)} /> : null
+        !ended ? (
+          <>
+            <Button label={CROWD_COPY.pinIn} onPress={() => router.push(`/pin/${slug}`)} />
+            {view.facts?.cost ? <Text style={styles.cost}>{view.facts.cost}</Text> : null}
+          </>
+        ) : null
       ) : !view.mine.open ? (
         // A9's empty state — one step away, and the step is the biggest thing here.
         <View style={styles.oneStep}>
@@ -279,11 +315,89 @@ export default function CrowdPage() {
           <Button kind="quiet" label="Change or remove my pin" onPress={() => router.push(`/pin/${slug}`)} />
         </View>
       ) : null}
+
+      {/* W2's anatomy (spec A8): the house rules, then the map and where crews meet. */}
+      <Text style={[styles.sectionName, { marginTop: spacing.xl }]}>House rules</Text>
+      <View style={styles.rules}>
+        {HOUSE_RULES.map((r, i) => (
+          <Text key={r} style={styles.rule}>{`${i + 1}.  ${r}`}</Text>
+        ))}
+      </View>
+      <Body muted>{CREWS_MEET}</Body>
+
+      {view.facts?.map ? (
+        <View style={{ marginTop: spacing.xl }}>
+          <View style={[styles.mapBox, { aspectRatio: view.facts.map.width / view.facts.map.height }]}>
+            <Image
+              source={{ uri: view.facts.map.src }}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+              accessibilityLabel="Map of the venue and the numbered spots crews meet at. No people are shown."
+            />
+            <View style={styles.venuePin} />
+            {view.facts.map.markers.map((m) => (
+              <View key={m.n} style={[styles.marker, { left: `${m.left}%`, top: `${m.top}%` }]}>
+                <Text style={styles.markerNum}>{m.n}</Text>
+              </View>
+            ))}
+          </View>
+          <Text style={styles.caption}>
+            The venue, and the spots crews meet at — never where anyone is.
+            {view.facts.map.openInMaps ? (
+              <Text style={styles.link} onPress={() => void Linking.openURL(view.facts!.map!.openInMaps!)}>
+                {"  Open in Maps"}
+              </Text>
+            ) : null}
+          </Text>
+        </View>
+      ) : null}
+
+      {view.facts?.spots.length ? (
+        <View style={{ marginTop: spacing.lg }}>
+          <Text style={styles.sectionName}>Where crews meet</Text>
+          {view.facts.spots.map((sp) => (
+            <View key={sp.name} style={styles.spot}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                {sp.n !== null ? (
+                  <View style={styles.badge}>
+                    <Text style={styles.markerNum}>{sp.n}</Text>
+                  </View>
+                ) : null}
+                <Text style={styles.spotName}>{sp.name}</Text>
+              </View>
+              {sp.description ? <Body muted>{sp.description}</Body> : null}
+              <Text style={styles.meta}>
+                {[`meet ${sp.meet}`, sp.walk ? `${sp.walk} min walk` : null, sp.offMap ? "a bit further out, so not on the map above" : null]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </Text>
+              {sp.directions ? (
+                <Text style={styles.link} onPress={() => void Linking.openURL(sp.directions!)}>
+                  Walking directions
+                </Text>
+              ) : null}
+            </View>
+          ))}
+        </View>
+      ) : null}
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
+  cost: { marginTop: spacing.sm, textAlign: "center", color: palette.textMuted, fontSize: 14 },
+  rules: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm, marginBottom: spacing.sm },
+  rule: { fontSize: 15, lineHeight: 21, color: palette.text },
+  mapBox: { width: "100%", borderRadius: radius.md, overflow: "hidden", backgroundColor: palette.surface },
+  venuePin: { position: "absolute", left: "50%", top: "50%", width: 16, height: 16, marginLeft: -8, marginTop: -8, borderRadius: 8, backgroundColor: palette.accent, borderWidth: 3, borderColor: "#fff" },
+  marker: { position: "absolute", width: 26, height: 26, marginLeft: -13, marginTop: -13, borderRadius: 13, backgroundColor: palette.accent, borderWidth: 2, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
+  markerNum: { color: "#fff", fontSize: 13, fontWeight: "700" },
+  badge: { width: 24, height: 24, borderRadius: 12, backgroundColor: palette.accent, alignItems: "center", justifyContent: "center" },
+  caption: { marginTop: spacing.sm, fontSize: 13, color: palette.textMuted },
+  link: { color: palette.accentText, fontSize: 14 },
+  spot: { paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: palette.border, gap: 3 },
+  spotName: { fontFamily: fonts.headline, fontSize: 16, color: palette.text },
+  meta: { fontSize: 13, color: palette.textMuted },
   counts: { marginTop: spacing.md, marginBottom: spacing.lg, gap: 2 },
   countLine: { fontFamily: fonts.headline, fontSize: 20, color: palette.text },
   oneStep: {

@@ -11,7 +11,7 @@ import { crowd } from "./data";
 import { appSiteAssociation, ogImage } from "./og";
 import { pngResponse, rasterise } from "./ogpng";
 import { venueMapImage, venueMapUpload } from "./mapserve";
-import { about, favicon, ics, robots, w1, w2, w3 } from "./pages";
+import { about, favicon, ics, robots, w1, w2, w2FactsJson, w3 } from "./pages";
 import { privacy, terms } from "./policy";
 import { quickPinPage } from "./quickpin";
 
@@ -65,6 +65,8 @@ export async function publicRoutes(request: Request, env: Env, ctx?: ExecutionCo
 
   if (tail.length === 0 || (tail.length === 1 && tail[0] === "")) return w2(request, env, slug, ctx);
   if (tail.length === 1 && tail[0] === "spot") return w3(request, env, slug);
+  // W2’s facts as data, for the app’s A8 (M3.2): one copy of W2’s decisions.
+  if (tail.length === 1 && tail[0] === "facts.json") return w2FactsJson(request, env, slug);
 
   // A26, the quick pin — the Worker's since M3.2 (spec §4). Its POST is routed in
   // router.ts, because this function answers GET and HEAD only.

@@ -843,3 +843,61 @@ export function favicon(): Response {
 }
 
 export { walkMinutes };
+
+// ---------------------------------------------------------------------------
+// W2's facts as data, for the app's A8 (M3.2)
+//
+// A8 is "the same anatomy as W2 so a shared link feels continuous" (spec), and W2 is
+// the page Alex judges everything else against. So the app does not rebuild W2's
+// decisions — which map (the uploaded one, the rendered one, none), which zoom, where
+// each numbered marker sits, which spots are off the frame, the walk, the cost line —
+// it asks for them, built here by W2's own functions. One copy of each rule.
+// Public facts only (the door as a visitor sees it); nothing about anyone.
+// ---------------------------------------------------------------------------
+export function w2Facts(door: Crowd2, origin: string) {
+  const g = door.gathering;
+  const v = door.venue;
+  const tz = v.timezone;
+  const zoom = chooseZoom(v, v.map_spots);
+  const real = v.map_image_path ? null : readyMapUrl(v, zoom);
+  const placed = numbered(door, zoom);
+  return {
+    name: g.name,
+    when: longWhen(g.starts_at, tz),
+    venue: v.name,
+    address: v.address,
+    blurb: g.blurb,
+    why: g.blurb_why,
+    cost: entryLine(g) || null,
+    signupRequired: g.signup_required,
+    map: real
+      ? {
+          src: `${origin}${real}`,
+          width: 768,
+          height: 480,
+          openInMaps: venueDirections(v),
+          markers: placed.filter((p) => p.n !== null).map(({ at, n }) => ({ n: n!, left: at!.left, top: at!.top })),
+        }
+      : null,
+    spots: placed.map(({ spot, at, n }) => {
+      const walk = spot.walk_minutes ?? walkMetres(v, spot);
+      return {
+        n: real ? n : null,
+        name: spot.name,
+        description: spot.description,
+        meet: clock(spot.meet_at, tz),
+        walk,
+        offMap: !!real && !at?.onMap,
+        directions: spot.latitude !== null ? directions(spot) : null,
+      };
+    }),
+  };
+}
+
+export async function w2FactsJson(request: Request, env: Env, slug: string): Promise<Response> {
+  const door = await crowd(env, slug);
+  if (door.status !== "ok") return new Response(JSON.stringify({ status: door.status }), { status: 404, headers: { "content-type": "application/json" } });
+  return new Response(JSON.stringify(w2Facts(door, new URL(request.url).origin)), {
+    headers: { "content-type": "application/json", "cache-control": "public, max-age=0, s-maxage=60" },
+  });
+}
