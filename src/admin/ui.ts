@@ -34,6 +34,7 @@ const NAV: [string, string][] = [
   ["/admin/venues", "Venues"],
   ["/admin/photos", "Photos"],
   ["/admin/reports", "Reports"],
+  ["/admin/testers", "Testers"],
   ["/admin/config", "Config"],
 ];
 

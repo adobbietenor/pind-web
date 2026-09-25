@@ -11,6 +11,7 @@ import * as pub from "./publishing";
 import { AdminError, adminPage, notFound, UUID } from "./ui";
 import * as v from "./venues";
 import * as community from "./community";
+import * as testers from "./testers";
 
 // "METHOD /path", where :id is a uuid. One line per admin route.
 const ROUTES: [string, AdminHandler][] = [
@@ -37,6 +38,10 @@ const ROUTES: [string, AdminHandler][] = [
   ["GET /admin/gatherings/:id/export.csv", g.exportCsv],
   ["POST /admin/pins/:id/delete", g.deletePin],
   // M2.3b — the community series and their liveness
+  ["GET /admin/testers", testers.testersPage],
+  ["POST /admin/testers", testers.addTester],
+  ["POST /admin/testers/:id/remove", testers.removeTester],
+  ["POST /admin/test-crowd", testers.rebuildTestCrowd],
   ["GET /admin/community", community.communityPage],
   ["POST /admin/community/check", community.runCheckNow],
   ["POST /admin/community/:id/settle", community.settleSeries],
