@@ -43,6 +43,12 @@ There is no separate `pind-app` repo. `app/` and `packages/shared/` arrived in M
   unless it is one person (`--break` must find two). Run it after any deploy that
   touches A26, `/session/claim` or the app’s session handling; no unit test can reach
   the page script it depends on.
+- **The anonymous-tester button, from outside Access** (M3.2): `npm run check:tester-session`
+  does what the button does (anonymous sign-up, `admin_add_anonymous_tester`, the sealed
+  cookie), sets the cookie in real Chrome and loads the test crowd; it fails unless the
+  app claims the session and renders the crowd. Its first version set localStorage
+  directly, skipped the claim, and passed while the button failed — **a check of a
+  hand-off must go through the hand-off**.
 - EAS, from `app/`: `npx eas-cli@24.7.0 build --profile <development|internal|production>
   --platform ios`. Profiles in `app/eas.json`; `APP_VARIANT` picks the staging or
   production bundle ID.
