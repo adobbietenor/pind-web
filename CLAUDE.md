@@ -55,6 +55,11 @@ There is no separate `pind-app` repo. `app/` and `packages/shared/` arrived in M
     allowed". The other side must open the pin.
   - `npm run check:merge-photos` merges through the live `/account/merge`. The account
     takes a photo only when it has none, and the anonymous folder must end up empty.
+  - `npm run check:link-path` walks the whole link path in real Chrome, as a tester on
+    the test crowd: the quick pin, then A27's steps, then A9. It does it three ways: a
+    fresh address, an existing account (a real code typed in, then the merge), and a
+    skip at "where" that Profile then fixes. Run it after anything that touches A26,
+    A27, the shared profile steps or the merge.
   - `npm run check:orphan-photos` lists every photo file whose user no longer exists.
     Add `-- --delete` to remove them. Run it after anything that deletes users.
 - EAS, from `app/`: `npx eas-cli@24.7.0 build --profile <development|internal|production>

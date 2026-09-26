@@ -50,7 +50,11 @@ const authId = user.id;
 let ok = false;
 let chrome;
 try {
-  const [person] = await must(await admin("/rest/v1/people", { method: "POST", body: JSON.stringify({ auth_user_id: authId, first_name: "Refusalcheck", photo_path: `${authId}/face.png` }) }), "person");
+  // Complete in every way A27 asks, "where" included (one set of profile steps, M3.2),
+  // so the page opens on the safety sheet.
+  const [person] = await must(await admin("/rest/v1/people", { method: "POST", body: JSON.stringify({ auth_user_id: authId, first_name: "Refusalcheck", photo_path: `${authId}/face.png`, neighbourhood: "king-west" }) }), "person");
+  const tags = await must(await admin("/rest/v1/tags?select=slug&order=slug&limit=3"), "tags");
+  await must(await admin("/rest/v1/person_tags", { method: "POST", body: JSON.stringify(tags.map((t) => ({ person_id: person.id, tag: t.slug }))) }), "person tags");
   await must(await admin("/rest/v1/people_private", { method: "POST", body: JSON.stringify({ person_id: person.id, gender: "woman", birth_year: 1995 }) }), "people_private");
   // The 19+ record may already exist (written alongside people_private); make sure of it.
   await must(await admin("/rest/v1/age_attestations?on_conflict=person_id", { method: "POST", headers: { prefer: "resolution=ignore-duplicates" }, body: JSON.stringify({ person_id: person.id, source: "a26" }) }), "19+");

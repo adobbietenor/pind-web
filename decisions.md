@@ -3275,3 +3275,51 @@ or solo."* Where the two meet and where they do not:
   while one remains.
 - **The order of A27 is unchanged** (Alex): date of birth first, so under-19 stops
   before anything else is collected.
+
+### One set of profile steps, two orders (Alex, M3.2 walk, 26 Sept 2026)
+
+- **A2 and A27 were two implementations of the same screen.** They shared the building
+  blocks (the gender list, the age rule, the photo states) and wrote everything else
+  twice: the date-of-birth fields, the gender picker, the photo block, and both saves.
+  **The women-only question had already drifted**: yes/no on A2, a tickbox on A27. Alex:
+  "No amount of guarding fixes something that shouldn't have been duplicated."
+- **Now there are three shared steps** (`app/src/components/profile`), with one writer
+  (`lib/profile.ts`):
+  - **You:** first name, date of birth, gender, the one women-only question, the photo.
+  - **Where:** neighbourhood and tags. Skip is kept: "a thinner profile is better than
+    no profile", and a skip keeps a neighbourhood already chosen.
+  - **Identity:** Apple, Google or the email code.
+- **The two orders:**
+  - **Store path:** A1 identity → A2 you → A3 where.
+  - **A27:** you (date of birth first, so under-19 stops before anything else is
+    collected) → where → identity → the safety sheet. Each step is chosen by
+    `nextOptInStep` on a fresh read.
+- **Apple and Google at A27** (moved up from after the walk). The same anonymous user
+  gains the identity (`linkIdentity`). If that identity already has an account, the
+  person is offered the merge: sign in with the same provider, and the anonymous session
+  is held until then. On the web it is held in sessionStorage across the redirect. The
+  merge then runs through the same Worker route as the email code.
+- **The code step names the address** it sent the code to. On the walk, autofill had
+  put a different address in the field.
+- **"Nudged later" was decided and never built; now it is.**
+  - Profile names what is still missing (a photo, a neighbourhood, tags) and offers a
+    way to each (`profileGaps`).
+  - **The neighbourhood is editable from Profile** (`/neighbourhood`), like tags.
+  - A link-path person used to get no neighbourhood at all.
+- **The merge carries the neighbourhood and the tags too**
+  (`m3_2_merge_fills_where`). A27 now collects them before sign-in, so they belong to
+  the anonymous person the merge deletes. Same rules: only into an account that has
+  none, and tags move as a set, never mixed (P133, P134). P135 proves an anonymous
+  pinner can set their own neighbourhood and tags, and nobody else's.
+- **Guards:**
+  - **S27:** only `lib/profile.ts` and `lib/tags.ts` write a profile.
+  - **S28:** A1–A3 and A27 draw the shared steps, and the women-only question and the
+    gender choice each exist in one file.
+  - S26–S28 fail on the old A2 and A27.
+  - **O05–O09** cover the order and the gaps.
+  - **`check:link-path`** walks the whole path in real Chrome three ways (fresh
+    address, merge, skip then fix from Profile).
+- **Scope** (Alex): universal links, the end-of-milestone build and the native walk
+  moved to the end of M3.2b, with native Apple and Google at A27 added to its list.
+  D01 holds that list in place. The rejected-photo deletion and the purge moved to M4.1,
+  whose acceptance now checks every privacy-page promise one line at a time.
