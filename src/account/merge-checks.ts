@@ -14,3 +14,12 @@ export function mergeRefusal(anon: VouchedUser | null, perm: VouchedUser | null)
   if (anon.id === perm.id) return "both sessions are the same person";
   return null;
 }
+
+// Where the anonymous person's photo lands in the account: the account's own folder,
+// same file name (the bucket's owner policies key on the first folder being the user's
+// id). The database refuses any other destination (P131); this is its one producer.
+export function photoDest(permId: string, fromPath: string): string {
+  const name = fromPath.split("/").pop() ?? "";
+  if (!name || name === ".." || name === ".") throw new Error("no file name to move");
+  return `${permId}/${name}`;
+}

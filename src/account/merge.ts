@@ -15,10 +15,22 @@
 // server returned — never ids the request supplied. A stranger who typed someone
 // else's address never got the code, so never holds the second session, and this
 // route refuses them at check 1.
+//
+// **The merge fills the account's gaps and leaves nothing behind** (Alex, M3.2 walk).
+// The database moves rows; the photo FILE is moved here, in the same request:
+//   1. ask which photo the account would take (none if it has its own, or it was rejected);
+//   2. copy it into the account's folder;
+//   3. merge, pointing the account at the copy — the database takes it only where the
+//      account has no photo, so the account's own is never replaced;
+//   4. remove everything left in the anonymous folder, the copy's source included, and
+//      the copy itself if the database did not take it.
+// A file this cannot remove is logged; `npm run check:orphan-photos` finds any that remain.
 
 import type { Env } from "../env";
 import { projectUrl, serviceClient } from "../supabase.ts";
-import { mergeRefusal, type VouchedUser } from "./merge-checks.ts";
+import { mergeRefusal, photoDest, type VouchedUser } from "./merge-checks.ts";
+
+const BUCKET = "photos";
 
 // Ask the auth server who a token belongs to. Null for anything it will not vouch for.
 async function vouch(env: Env, token: string | null | undefined): Promise<VouchedUser | null> {
@@ -46,10 +58,39 @@ export async function mergeAccount(request: Request, env: Env): Promise<Response
   const refused = mergeRefusal(anon, perm);
   if (refused) return json(403, { error: refused });
 
-  const { data, error } = await serviceClient(env).rpc("admin_merge_anonymous", { p_anon: anon!.id, p_perm: perm!.id });
+  const db = serviceClient(env);
+  const photos = db.storage.from(BUCKET);
+
+  // 1–2. The photo the account would take, copied into its folder first, so the path
+  // the database is given always has a file behind it.
+  let dest: string | null = null;
+  const plan = await db.rpc("admin_merge_photo_plan", { p_anon: anon!.id, p_perm: perm!.id });
+  if (plan.error) console.error("merge photo plan failed:", plan.error.message);
+  else if (typeof plan.data === "string" && plan.data) {
+    const to = photoDest(perm!.id, plan.data);
+    const copied = await photos.copy(plan.data, to);
+    if (copied.error) console.error("merge photo copy failed:", copied.error.message);
+    else dest = to;
+  }
+
+  // 3. The merge itself, one transaction.
+  const { data, error } = await db.rpc("admin_merge_anonymous", { p_anon: anon!.id, p_perm: perm!.id, p_photo_dest: dest });
   if (error) {
     console.error("merge failed:", error.message);
+    // Nothing moved: the anonymous person keeps their photo; only the copy goes.
+    if (dest) await photos.remove([dest]).catch(() => undefined);
     return json(500, { error: "merge failed" });
+  }
+
+  // 4. Nothing of the anonymous person stays in the bucket.
+  const leftovers: string[] = [];
+  const listed = await photos.list(anon!.id, { limit: 1000 });
+  if (listed.error) console.error("merge could not list the anonymous folder:", listed.error.message);
+  for (const f of listed.data ?? []) if (f.id) leftovers.push(`${anon!.id}/${f.name}`);
+  if (dest && !(data as { photo?: boolean } | null)?.photo) leftovers.push(dest);
+  if (leftovers.length) {
+    const removed = await photos.remove(leftovers);
+    if (removed.error) console.error(`merge left ${leftovers.length} photo file(s):`, removed.error.message);
   }
   return json(200, data);
 }

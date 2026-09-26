@@ -3232,3 +3232,46 @@ or solo."* Where the two meet and where they do not:
 - **Found in the same sweep:** the Configuration panel still described `SESSION_SECRET`
   as "not yet used by anything" and optional. It is required, since the web quick pin
   cannot work without it.
+
+### The merge fills the account's gaps; nothing of the anonymous person is left behind (Alex, M3.2 walk, 26 Sept 2026)
+
+- **What the walk found, read from the data.** At A27, an anonymous tester gave a date
+  of birth, gender and photo. They then entered an email that already had an account.
+  - The merge moved the pin and the 19+ record, and deleted the anonymous person along
+    with everything they had just given.
+  - The photo file stayed in the bucket with no user behind it.
+  - The account had no photo, and was not a tester, so the test crowd disappeared and
+    A27's reload failed.
+  - The screen was still holding the deleted person, and the safety sheet wrote with
+    that id. Its first write (the policy acceptance) was refused (42501) and reached the
+    screen as "Pin'd was not allowed to write that".
+- **A27 now re-reads, then asks the gate's own facts, before the final write**
+  (`optInMissing`, shared).
+  - A refusal names what is missing and goes to the step that adds it: "One thing
+    before you can meet people here: a photo of you. Add it below, then you're in."
+  - P126 proves this rule and `i_may_meet` agree on all eight combinations. S26 fails if
+    the write uses held ids. `check:optin-refusal` fires the refusal from the screen,
+    and it reproduced the walk's failure against the old deploy.
+  - CLAUDE.md: "Re-read who you are after anything that can change it".
+- **The merge fills gaps, never overwrites** (Alex):
+  - **The photo:** the account takes the anonymous person's photo only if it has none,
+    and only if that photo was not rejected (P127, P128, P132). The Worker copies it
+    into the account's folder first. The owner storage policies key on that folder, and
+    the database accepts no other destination (P131).
+  - **Date of birth and gender:** they come in only if the account has none (P129).
+  - **An account with no profile** still takes the whole person, and its photo now moves
+    folders with it (P130).
+  - **Everything not moved is deleted in the same request:** the rows in the
+    transaction, the files by the Worker straight after. `check:merge-photos` proves
+    both branches through the live Worker, and it failed against the old one.
+  - **Service key only, after both sessions are verified** — unchanged.
+- **A moved photo is checked again.** This differs from my proposal ("keeps its check
+  status"). V6's trigger sends any new `photo_path` back to pending, so an approved
+  photo can never be swapped for an unchecked one. I kept V6 rather than add an
+  exception for a move. It is the same bytes, and the AI check runs again in seconds.
+- **Orphans:** a scan of the whole bucket found exactly one file with no user behind
+  it: Alex's walk photo. It was deleted and the re-listing confirms it is gone. No
+  earlier merge had left one. `npm run check:orphan-photos` now lists any, and exits 1
+  while one remains.
+- **The order of A27 is unchanged** (Alex): date of birth first, so under-19 stops
+  before anything else is collected.

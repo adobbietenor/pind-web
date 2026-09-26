@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEnv } from "./env.ts";
 import { optInMissing } from "../../packages/shared/src/optin.ts";
+import { photoDest } from "../../src/account/merge-checks.ts";
 import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, markHarness, newClient, sweep, type Member, type World } from "./world.ts";
 
 interface Result {
@@ -3002,6 +3003,132 @@ describe("Merging an anonymous pinner into their existing account (M3.2)", () =>
     for (const client of [c(M("Ava")), w.anon]) {
       const r = await client.rpc("admin_merge_anonymous", { p_anon: randomUUID(), p_perm: randomUUID() });
       assert.ok(r.error, "a visitor ran the merge");
+    }
+    for (const client of [c(M("Ava")), w.anon]) {
+      const r = await client.rpc("admin_merge_photo_plan", { p_anon: randomUUID(), p_perm: randomUUID() });
+      assert.ok(r.error, "a visitor asked for the merge's photo plan");
+    }
+  });
+
+  // The merge fills the account's gaps (Alex, M3.2 walk): never overwrite, fill only what
+  // is missing, delete what is not moved. The photo FILE moves in the Worker; these prove
+  // the rows, with the destination the Worker's own photoDest() produces.
+  async function anonGave(label: string, o: { photo?: "approved" | "pending" | "rejected"; details?: boolean }) {
+    const a = await anonWithPin(label, w.G, 1);
+    if (o.photo) {
+      await ok(w.service.from("people").update({ photo_path: `${a.authId}/face.jpg` }).eq("id", a.personId));
+      await ok(w.service.from("people").update({ photo_status: o.photo }).eq("id", a.personId));
+    }
+    if (o.details) await ok(w.service.from("people_private").insert({ person_id: a.personId, gender: "woman", birth_year: 1996 }));
+    return a;
+  }
+  const personOf = async (authId: string) =>
+    (await rows(w.service.from("people").select("id, first_name, photo_path, photo_status").eq("auth_user_id", authId)))[0];
+  const privateOf = async (personId: string) => (await rows(w.service.from("people_private").select("gender, birth_year").eq("person_id", personId)))[0];
+  const plan = async (anon: string, perm: string) => (await ok(w.service.rpc("admin_merge_photo_plan", { p_anon: anon, p_perm: perm }))) as string | null;
+  const mergeWith = (anon: string, perm: string, dest: string | null) =>
+    w.service.rpc("admin_merge_anonymous", { p_anon: anon, p_perm: perm, p_photo_dest: dest });
+
+  it("P127 an account with NO photo takes the anonymous person's, in its own folder — checked again, as V6 requires", async () => {
+    const a = await anonGave("FillPhotoA", { photo: "approved", details: true });
+    const p = await permanent("FillPhotoP", true);
+    try {
+      const from = await plan(a.authId, p.authId);
+      assert.equal(from, `${a.authId}/face.jpg`, "the plan does not offer the photo to an account without one");
+      const dest = photoDest(p.authId, from!);
+      const out = await ok(mergeWith(a.authId, p.authId, dest));
+      assert.equal((out as { photo: boolean }).photo, true);
+      const me = await personOf(p.authId);
+      assert.equal(me.photo_path, dest, "the account did not take the photo");
+      assert.equal(me.photo_status, "pending", "a moved photo skipped the check (V6)");
+      assert.equal((await rows(w.service.from("people").select("id").eq("id", a.personId))).length, 0, "the anonymous person survived");
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P128 an account WITH a photo is never replaced — not by the plan, not by a destination passed anyway", async () => {
+    const a = await anonGave("KeepPhotoA", { photo: "approved" });
+    const p = await permanent("KeepPhotoP", true);
+    await ok(w.service.from("people").update({ photo_path: `${p.authId}/mine.jpg` }).eq("id", p.personId!));
+    await ok(w.service.from("people").update({ photo_status: "approved" }).eq("id", p.personId!));
+    try {
+      assert.equal(await plan(a.authId, p.authId), null, "the plan offered to replace the account's photo");
+      // Even if the Worker passed a destination, the database does not take it.
+      const out = await ok(mergeWith(a.authId, p.authId, `${p.authId}/face.jpg`));
+      assert.equal((out as { photo: boolean }).photo, false);
+      const me = await personOf(p.authId);
+      assert.deepEqual([me.photo_path, me.photo_status], [`${p.authId}/mine.jpg`, "approved"], "the account's photo was replaced or re-checked");
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P129 date of birth and gender fill an account that has none, and NEVER overwrite one that has them", async () => {
+    const a1 = await anonGave("FillDetailsA", { details: true });
+    const p1 = await permanent("FillDetailsP", true);
+    const a2 = await anonGave("KeepDetailsA", { details: true });
+    const p2 = await permanent("KeepDetailsP", true);
+    await ok(w.service.from("people_private").insert({ person_id: p2.personId, gender: "man", birth_year: 1980 }));
+    try {
+      const filled = await ok(mergeWith(a1.authId, p1.authId, null));
+      assert.equal((filled as { details: boolean }).details, true);
+      assert.deepEqual(await privateOf(p1.personId!), { gender: "woman", birth_year: 1996 }, "the account without details did not take them");
+      const kept = await ok(mergeWith(a2.authId, p2.authId, null));
+      assert.equal((kept as { details: boolean }).details, false);
+      assert.deepEqual(await privateOf(p2.personId!), { gender: "man", birth_year: 1980 }, "the account's own details were overwritten");
+      assert.equal(await privateOf(a2.personId), undefined, "the anonymous details not moved were left behind");
+      // Never the first name either.
+      assert.equal((await personOf(p2.authId)).first_name, "KeepDetailsP");
+    } finally {
+      await cleanup(a1.authId, p1.authId, a2.authId, p2.authId);
+    }
+  });
+
+  it("P130 an account with no profile takes the person whole — its photo moved to the account's folder, or none", async () => {
+    const a = await anonGave("RehomePhotoA", { photo: "pending" });
+    const p = await permanent("RehomePhotoP", false);
+    const a2 = await anonGave("RehomeNoCopyA", { photo: "pending" });
+    const p2 = await permanent("RehomeNoCopyP", false);
+    try {
+      const dest = photoDest(p.authId, (await plan(a.authId, p.authId))!);
+      const out = await ok(mergeWith(a.authId, p.authId, dest));
+      assert.deepEqual([(out as { rehomed: boolean }).rehomed, (out as { photo: boolean }).photo], [true, true]);
+      assert.equal((await personOf(p.authId)).photo_path, dest, "the re-homed person's photo still points into the anonymous folder");
+      // No copy made (the Worker's copy failed): no photo, rather than a path nobody owns.
+      await ok(mergeWith(a2.authId, p2.authId, null));
+      assert.equal((await personOf(p2.authId)).photo_path, null, "a re-homed person kept a path into a deleted user's folder");
+    } finally {
+      await w.service.from("people").delete().in("id", [a.personId, a2.personId]);
+      await cleanup(a.authId, p.authId, a2.authId, p2.authId);
+    }
+  });
+
+  it("P131 the photo can only go to the ACCOUNT's own folder — anywhere else is refused, and nothing moves", async () => {
+    const a = await anonGave("DestA", { photo: "pending" });
+    const p = await permanent("DestP", true);
+    try {
+      for (const bad of [`${a.authId}/face.jpg`, `${randomUUID()}/face.jpg`, `${p.authId}/x/face.jpg`, `${p.authId}/../face.jpg`, "face.jpg"]) {
+        await denied(mergeWith(a.authId, p.authId, bad), "22023");
+      }
+      assert.equal((await rows(w.service.from("pins").select("id").eq("person_id", a.personId))).length, 1, "a refused merge moved the pin");
+      // And the Worker's own producer passes the database's rule.
+      await ok(mergeWith(a.authId, p.authId, photoDest(p.authId, `${a.authId}/face.jpg`)));
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P132 a REJECTED photo is never carried into the account", async () => {
+    const a = await anonGave("RejectedA", { photo: "rejected" });
+    const p = await permanent("RejectedP", true);
+    try {
+      assert.equal(await plan(a.authId, p.authId), null, "the plan offered a rejected photo");
+      const out = await ok(mergeWith(a.authId, p.authId, `${p.authId}/face.jpg`));
+      assert.equal((out as { photo: boolean }).photo, false);
+      assert.equal((await personOf(p.authId)).photo_path, null, "a rejected photo came in");
+    } finally {
+      await cleanup(a.authId, p.authId);
     }
   });
 });

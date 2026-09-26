@@ -49,6 +49,14 @@ There is no separate `pind-app` repo. `app/` and `packages/shared/` arrived in M
   app claims the session and renders the crowd. Its first version set localStorage
   directly, skipped the claim, and passed while the button failed — **a check of a
   hand-off must go through the hand-off**.
+- **A27 and the merge, from the screen and the bucket** (M3.2):
+  - `npm run check:optin-refusal` takes a test account's photo away under the safety
+    sheet. It must get a sentence naming the photo, and the photo picker, never "not
+    allowed". The other side must open the pin.
+  - `npm run check:merge-photos` merges through the live `/account/merge`. The account
+    takes a photo only when it has none, and the anonymous folder must end up empty.
+  - `npm run check:orphan-photos` lists every photo file whose user no longer exists.
+    Add `-- --delete` to remove them. Run it after anything that deletes users.
 - EAS, from `app/`: `npx eas-cli@24.7.0 build --profile <development|internal|production>
   --platform ios`. Profiles in `app/eas.json`; `APP_VARIANT` picks the staging or
   production bundle ID.
@@ -350,6 +358,26 @@ Two things that follow, both cheap and both easy to skip:
   nothing while reporting a pass; it now asserts it can see a real `.message` read in
   `errors.ts` before it trusts "no screen reads one". The guard rule, pointed at the
   tests themselves.
+
+## Re-read who you are after anything that can change it
+
+**After any operation that can change who is signed in, or which person they are — a
+claim, a merge, a sign-in, a sign-out, an account link — re-read identity before the
+next write. Never write with what the screen is still holding.** It is the same shape
+three times, each a component confidently acting on a fact that had stopped being true
+underneath it:
+
+- **The session hand-off** (M3.2): A8 read before the claim ran.
+- **The config panel** (M3.1): it compared two values that were no longer the same
+  thing.
+- **A27 after the merge** (M3.2 walk): the database had just deleted the anonymous
+  person, and the safety sheet wrote with that person's id. The refusal reached the
+  screen as "Pin'd was not allowed to write that", on the one action the flow exists
+  for.
+
+The fix is a fresh read at the point of the write. The guard is a test that fails if
+the write uses held ids (S26). Its firing proof is a script that changes the facts
+under the page and presses the button (`check:optin-refusal`).
 
 ## A test of a rule proves nothing about a screen that does not call it
 
