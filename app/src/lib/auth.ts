@@ -155,7 +155,8 @@ export type LinkResult = "linked" | "has-account" | "left-page";
 
 const isAlreadyLinked = (err: unknown) => {
   const e = err as { code?: unknown; message?: unknown } | null;
-  return e?.code === "identity_already_exists" || (typeof e?.message === "string" && /already (linked|exists)/i.test(e.message));
+  // The identity is someone's, or its email address is (an account made with the code).
+  return e?.code === "identity_already_exists" || e?.code === "email_exists" || (typeof e?.message === "string" && /already (linked|exists|registered)/i.test(e.message));
 };
 
 // `returnTo` is the web path to come back to (A27's own URL); the marker says which
@@ -193,7 +194,7 @@ export async function linkProvider(provider: "apple" | "google", returnTo: strin
   const url = new URL(result.url);
   const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
   const errorCode = url.searchParams.get("error_code") ?? hash.get("error_code");
-  if (errorCode === "identity_already_exists") return "has-account";
+  if (errorCode === "identity_already_exists" || errorCode === "email_exists") return "has-account";
   const code = url.searchParams.get("code");
   if (!code) throw new Error(errorCode ?? "Google came back without a code");
   const exchange = await auth.exchangeCodeForSession(code);

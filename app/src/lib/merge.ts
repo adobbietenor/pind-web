@@ -131,7 +131,12 @@ export async function finishWebReturn(): Promise<WebReturn> {
       return { kind: "merge-failed" };
     }
   }
-  if (back.errorCode === "identity_already_exists" && back.linking) return { kind: "has-account", provider: back.linking };
+  // Already an account: the identity itself (identity_already_exists), or its email
+  // address belongs to one made with the email code (email_exists). Either way, signing
+  // in with that provider reaches the account, so the merge is what is offered.
+  if ((back.errorCode === "identity_already_exists" || back.errorCode === "email_exists") && back.linking) {
+    return { kind: "has-account", provider: back.linking };
+  }
   if (back.errorCode) return { kind: "link-failed", provider: back.linking };
   return { kind: "none" };
 }
