@@ -657,8 +657,8 @@ working. Hours are Alex's, agent-assisted.
 | M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | **Done** — merged as `M2.3` | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | **Done** — merged as `737bdb4` | 12–16 |
-| M3.2 | Crowds, pins, the link-path funnel, universal links (A5–A9, A19, A26, A27) | Not started | 12–18 |
-| M3.2b | The app's front door — A5–A7, interests, search, A19 (split from M3.2, Alex) | Not started | 11–12 |
+| M3.2 | Crowds, pins, the link-path funnel (A8, A9, A22, A26, A27; one set of profile steps shared with A1–A3) | In progress | 28–35 |
+| M3.2b | The app's front door — A5–A7, interests, search, A19, universal links, and the one build + native walk for M3.2 and M3.2b (Alex) | Not started | 16–19 |
 | M3.3 | Crews, the thread, the night, the morning after (A10–A17, A20, "Put me in a crew") | Not started | 20–28 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
 | M3.5 | Safety and the five notifications (A18, A23, A24) | Not started | 10–14 |

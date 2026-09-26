@@ -414,14 +414,16 @@ any of it.
 
 12–18 h
 
-#### M3.2 · Crowds, pins, the link-path funnel, universal links (A5–A9, A19, A26 quick pin, A27 opt-in)
+#### M3.2 · Crowds, pins, the link-path funnel (A8, A9, A22, A26 quick pin, A27 opt-in)
 
 **Goal.** The Reddit link ends in a pin in thirty seconds and in a reciprocal list at two — the first showable checkpoint, worth sending to friends even with no crews.
 
 - A8 in-app crowd page with the same anatomy as W2. (A5–A7, the app's home list, moved to M3.2b — Alex, M3.2.)
 - **A26 Quick pin** (new, link path): first name, alone / +1 / +2 / a group, "I'd like to meet up", 19+ → pinned as an anonymous user. **A27 Opt in** (new): DOB, gender, photo, contact → permanent account; one safety sheet.
+- **One set of profile steps, two orders** (Alex, M3.2 walk: A2 and A27 were two implementations of the same screen, and the women-only question had already drifted — yes/no on one, a tickbox on the other). Four steps, each one component with one shared save: **date of birth and gender** (with women-only), **photo**, **neighbourhood and tags** (Skip kept — "a thinner profile is better than no profile"), **a way to sign in** (Apple, Google, the email code). The store path: sign-in → details → photo (optional) → neighbourhood and tags. A27: details (date of birth first, so under-19 stops before anything else is collected) → photo (required) → neighbourhood and tags → sign-in → the safety sheet. One completeness rule decides which steps are skipped on both. **Apple and Google at A27** on the same anonymous user, and into an existing account through the merge.
+- **What's missing is never left to chance** (Alex: "nudged later" was decided and never built). Profile says what the person's profile still lacks — a neighbourhood, tags, a photo — with a way to each; **neighbourhood is editable from Profile**, like tags. The code step names the address it sent to (autofill substituted one on the walk).
 - Opt-in toggle; A9 locked state with the number named; the reciprocal list (RLS already does the work — the screen just renders what the policy returns); tapping a person opens A22, never a chat.
-- Edit and remove my pin; universal links into the app. (A19 My Events moved to M3.2b; the "get the app" nudge to M3.3, because it is shown at crews-open and crews are M3.3 — Alex, M3.2.)
+- Edit and remove my pin. (A19 My Events moved to M3.2b; the "get the app" nudge to M3.3, because it is shown at crews-open and crews are M3.3; **universal links, the end-of-milestone build and the native walk to the end of M3.2b**, one build covering both milestones — Alex, M3.2.)
 - **A22, built properly, answers "nothing to read"** (Alex, M3.1): **the shared context** ("you're both pinned to Leafs vs Bruins"), **all the person's tags, grouped** — not only the three on the list — and **their gathering count**. 2–3 h inside A22 work that happens here anyway. It exists to answer the feeling that a profile is thin **without a bio, a handle leak or a grid** (decisions, "Six photos — considered" and "A bio is a V17 bypass"). **Not** the list of which gatherings someone has been to: a stranger seeing a pattern of where somebody goes is new visibility, against Part 4. Photos are revisited after the first real crowds.
 - **Move the Google OAuth consent screen from Testing to In production** (Alex, M3.1), so strangers can sign in with Google without being on Alex's test-user list — until then anyone else gets "Access blocked". With only the email and profile scopes it needs no scope review. **No logo on the consent screen, ever, unless we choose to be reviewed:** uploading one forces Google's brand verification for any app that is not Internal or in Testing, and this step is exactly what takes it out of Testing.
 - **The crowd-page button follows what you have done at that gathering** (Alex, M3.1, after "Open" appeared on every crowd page): not pinned → `PIN_IN`, already pinned → `SEE_WHO`. **"Open" never appears on the web.** A26 is what makes the second state reachable, so both halves land here.
@@ -430,7 +432,6 @@ any of it.
 - **Decided before M3.2 opened** (decisions.md, the section of that name): the page limit is time; A27 with an existing email moves the pin to that account only after its code is proved; a draft privacy policy with the accepted version stored; pinning open until the effective end; chips and tags separate; Supabase's rate limit and no CAPTCHA on anonymous sign-in. **Still open:** how the staging test people are marked (the seed rule hides them from signed-in readers too).
 - **Close the pinning window at the effective end** (found and dated in M2.2, harness P37b). Pinning has no upper time bound today: a pin can be taken at a gathering that ended two days ago. It is a gap left from M1.1, not a decision, and A26 is the first screen with a real button to hang the rule on. Decide the exact edge with A26 — almost certainly the effective end, matching everything else time-driven — enforce it in the database, and **invert P37b rather than treating its failure as a regression**; the case is written to say so.
 
-- **M3.1's native-only walk, on M3.2's first build** (Alex, at the M3.1 merge — carried rather than holding the merge; CLAUDE.md, "Build when a milestone is ready to walk"). Everything else in M3.1 was walked on the web or proved by test, and the Done entry says which. On the phone, signed in to an account with a photo: **the photo picker** from the phone's own library (Change photo → Choose another → Save); **HEIC** — a photo straight from the iPhone camera is re-encoded or refused with its own sentence, never uploaded as something the check cannot read; **native Apple sign-in**; and **airplane mode with Wi-Fi off** (grey, not blue): open Change photo while online, then go offline, choose a photo and Save — the pick greys, the sentence reads "We could not upload your photo — Pin'd could not be reached…" with no hostname, and Remove photo brings the old photo back; then the Profile tab and Edit tags say "Pin'd could not be reached…" with **Try again**, never "Set up your profile" or an empty picker, and each loads once the network is back.
 - **Watch for: Apple sign-in on the web failing once, unreproduced** (Alex, M3.1 walk, about 12:20 UTC on 2026-09-23, iPhone Safari). A notification said it was "trying to sign back in but couldn't"; the retry two minutes later worked (a web Apple session at 12:24:07 UTC). The Supabase side was healthy when read — the authorize redirect names `social.pind.web` and the Supabase callback — and a failed attempt leaves no session, the project's auth audit table is empty, and the text is not ours. **Not fixed, not diagnosed, and no cause guessed at.** If it happens again, note the minute and pull **Logs → Auth** for it straight away: the auth server's own log is the only record of a refused attempt.
 
 **Acceptance**
@@ -451,11 +452,13 @@ any of it.
   behind the confirmation: "Next: a few details so people can find you" (ticked "meet
   up" → A27) or "See who's going" (→ A9). Measured: the tap does not land on a loading
   screen.
-- With the app installed, the same iMessage link opens the app on that crowd page; without it, Safari.
 - Remove my pin drops the count; edit changes party size and opt-in. (My Events moved to M3.2b.)
 - **Carried from M3.1's walk** (Alex: they need a fresh account, and A26 makes them constantly): **the email-code field with the keyboard up** — what you type stays visible — and **a field near the bottom of a screen** stays clear of the keyboard. Both rest on `AppScreen` (S11/S12 fail the build if a screen draws its own frame), which is why they did not hold M3.1's merge.
+- **The same steps on both paths, proved rather than trusted:** a source test fails if any screen writes date of birth, gender, photo, neighbourhood or tags itself, or draws a profile step it does not import from the shared set. Someone who opts in through A27 ends with the same profile an app sign-up has, or sees on Profile exactly what is missing.
+- **A27 offers Apple and Google as well as the email code** (on the web in M3.2; native Apple at A27 is on M3.2b's build), each on the same user, each into an existing account through the merge.
+- **The code step names the address the code went to.**
 
-20–28 h
+20–28 h planned. **About 28–35 h after the moves** (Alex, M3.2): the shared steps (7–10 h) and the Profile nudge (2–3 h) came in; universal links, the build and the native walk went to M3.2b (5–7 h), the rejected-photo deletion and purge to M4.1 (~3 h). Apple and Google at A27 were already counted.
 
 #### M3.2b · The app's front door (A5–A7, interests, search, A19)
 
@@ -469,9 +472,14 @@ any of it.
   - **The overlap with the Interests tag group is settled when this is built, not before** — seven of the 32 tags are taste and so are the chips, and if this ships the obvious question is why tapping "comedy" as a tag does not change the list.
 - **Search** (designed in M2.3 and filed here; confirmed still M3.2 by Alex, M3.1). About two hours. **No client JavaScript**: it is the same page with an optional query, so W1 keeps its byte budget and works with scripting off. **One door function with an optional query, shared by the Worker's list and the app's** — the M2.3 rule about a second copy of "what is public" drifting applies to "which rows match" as well, and `publicVenueIds()`/`crowds()` in `src/public/data.ts` is where it goes. It was carried out of M2.3 into spec §6 but never into this list, which is the list a session reads first.
 - A19 My Events: the gatherings you have pinned to.
+- **Universal links, the end-of-milestone build and the native walk** — moved here from M3.2 (Alex, M3.2): one build covering both milestones rather than two. The walk list below was carried from M3.1 into M3.2 and then here; **it is held in place by `tests/unit/plan.test.ts` (D01), which fails if any item leaves this section** — it waits on a build two milestones after the work was done, and must not be quietly dropped.
+- **M3.1's native-only walk, on M3.2b's build** (moved twice: M3.1 → M3.2 → M3.2b) (Alex, at the M3.1 merge — carried rather than holding the merge; CLAUDE.md, "Build when a milestone is ready to walk"). Everything else in M3.1 was walked on the web or proved by test, and the Done entry says which. On the phone, signed in to an account with a photo: **the photo picker** from the phone's own library (Change photo → Choose another → Save); **HEIC** — a photo straight from the iPhone camera is re-encoded or refused with its own sentence, never uploaded as something the check cannot read; **native Apple sign-in**; and **airplane mode with Wi-Fi off** (grey, not blue): open Change photo while online, then go offline, choose a photo and Save — the pick greys, the sentence reads "We could not upload your photo — Pin'd could not be reached…" with no hostname, and Remove photo brings the old photo back; then the Profile tab and Edit tags say "Pin'd could not be reached…" with **Try again**, never "Set up your profile" or an empty picker, and each loads once the network is back.
+  - **And native Apple at A27** (added M3.2): opting in with Apple from the app, on the same anonymous user, and into an existing account through the merge.
 
 **Acceptance**
 
+- **The native walk above passes on the build, item by item:** the photo picker, HEIC, native Apple sign-in, airplane mode with Wi-Fi off, native Apple at A27.
+- With the app installed, the same iMessage link opens the app on that crowd page; without it, Safari.
 - The app's home list shows the same gatherings W1 does for the same week, in date order, with honest counts; a chip narrows and never reorders (Q10), is visibly on, and clears in one tap; its empty state says why.
 - Search finds a gathering by name on W1 and in the app, through the one door, with scripting off on the web.
 - My Events shows the pinned gathering; removing the pin removes it.
@@ -587,8 +595,11 @@ any of it.
 - Moderation rota that covers Toronto's night without heroics: Tatiana's time zone in Spain is six hours ahead, which naturally covers the 2 a.m. to 8 a.m. gap; Alex and Jayme cover the day. Every report posts to a private team channel; "by 10 a.m. someone has looked" is the standard, 24 hours the promise.
 - Incident scripts (safety report, data breach, a public safety post) in the admin; the reporter-acknowledgement copy.
 
+- **The rejected photo's immediate deletion and the 12-month purge of check records** — moved here from M3.2 (Alex, M3.2). The privacy page already promises both; that is safe only because every public page is noindex until this milestone.
+
 **Acceptance**
 
+- **Every promise on the privacy page is true before the page is indexed — checked one line at a time, not assumed** (Alex, M3.2). A written list, one row per sentence that promises something, each with the test, query or walk that proves it. The rejected-photo deletion and the purge are two of the rows. `npm run check:orphan-photos` reports none.
 - Policy and terms are live and linked from every crowd surface footer and the opt-in sheet.
 - A test report reaches the team channel within a minute.
 - The scripts exist in the admin and the three of you have read them.
