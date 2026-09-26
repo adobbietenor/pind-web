@@ -53,7 +53,17 @@ const SITE = process.env.EXPO_PUBLIC_SITE_URL || "https://pind.social";
 // The Worker is the same host on the web; the app on a phone names it.
 const WORKER = Platform.OS === "web" ? "" : SITE;
 
-type Step = "loading" | "details" | "contact" | "code" | "safety" | "removed";
+type Step = "loading" | "details" | "contact" | "code" | "safety" | "removed" | "lost";
+
+// Why there is nothing here to fill in — never a blank page (M3.2 walk: after a merge
+// into an account that is not a tester, the test crowd vanished and A27 showed only its
+// heading, on every refresh). Each says what happened and offers the way on.
+type Lost = "crowd" | "person" | "failed";
+const LOST_SAYS: Record<Lost, string> = {
+  crowd: "This crowd isn't open to the account you're signed in as.",
+  person: "Pin in first — this page follows the pin.",
+  failed: "We couldn't open this step. Check your connection and try again.",
+};
 
 interface Mine {
   personId: string;
@@ -66,8 +76,8 @@ interface Mine {
 }
 
 // Where this person stands, read fresh as whoever is signed in NOW: their pin's
-// gathering, and the three facts the gate checks. Null when there is no pin to follow.
-async function readMine(slug: string): Promise<Mine | null> {
+// gathering, and the three facts the gate checks — or why there is nothing to follow.
+async function readMine(slug: string): Promise<Mine | { lost: Lost }> {
   const db = supabase();
   const userId = await myAuthId();
   // Read through RLS, not the public door, so a tester reaches the seed gathering.
@@ -75,7 +85,8 @@ async function readMine(slug: string): Promise<Mine | null> {
   if (gErr) throw gErr;
   const { data: me, error: meErr } = await db.from("people").select("id, first_name, photo_path").eq("auth_user_id", userId).maybeSingle();
   if (meErr) throw meErr;
-  if (!g || !me) return null;
+  if (!g) return { lost: "crowd" };
+  if (!me) return { lost: "person" };
   const { data: priv, error: privErr } = await db.from("people_private").select("person_id").eq("person_id", me.id).maybeSingle();
   if (privErr) throw privErr;
   const { data: session } = await db.auth.getSession();
@@ -100,6 +111,7 @@ export default function OptIn() {
   // Why they are on this step when they did not choose it — the gate's refusal, said at
   // the top of the step that fixes it (CLAUDE.md: "seen" is part of a refusal).
   const [why, setWhy] = useState<string | null>(null);
+  const [lost, setLost] = useState<Lost | null>(null);
 
   const [day, setDay] = useState("");
   const [month, setMonth] = useState("");
@@ -122,20 +134,24 @@ export default function OptIn() {
   // already have (someone who did A2 skips straight to what is missing).
   const load = useCallback(async () => {
     const next = await readMine(slug);
-    setMine(next);
-    if (!next) {
-      setTrouble({ says: "Pin in first — this page follows the pin." });
-      setStep("details");
-      return next;
+    if ("lost" in next) {
+      setMine(null);
+      setLost(next.lost);
+      setStep("lost");
+      return null;
     }
+    setMine(next);
+    setLost(null);
     setStep(optInMissing(next).step);
     return next;
   }, [slug]);
 
   useEffect(() => {
     load().catch((err) => {
-      setTrouble(failed("open this step", err));
-      setStep("details");
+      report(err, "open A27");
+      setMine(null);
+      setLost("failed");
+      setStep("lost");
     });
   }, [load]);
 
@@ -320,9 +336,10 @@ export default function OptIn() {
     try {
       // Fresh, as whoever is signed in now — never the ids this screen was holding.
       const fresh = await readMine(slug);
-      if (!fresh) {
+      if ("lost" in fresh) {
         setMine(null);
-        setTrouble({ says: "Pin in first — this page follows the pin." });
+        setLost(fresh.lost);
+        setStep("lost");
         return;
       }
       // The gate's three facts, asked before writing: a refusal becomes a sentence
@@ -343,7 +360,7 @@ export default function OptIn() {
         // The gate said no after all (something changed between the read and the
         // write): read again and say what, rather than "not allowed".
         const again = await readMine(slug);
-        if (again && optInMissing(again).missing.length) return sendBack(again);
+        if (!("lost" in again) && optInMissing(again).missing.length) return sendBack(again);
         throw error ?? new Error("the pin did not open");
       }
       // Into the who's-going page (A9): the faces this opens up.
@@ -381,6 +398,27 @@ export default function OptIn() {
         <Body muted>{mine ? `${mine.firstName} · ${mine.gatheringName}` : ""}</Body>
         <Body muted>{OPTIN_COPY.lede}</Body>
       </View>
+      {step === "lost" && lost ? (
+        <View style={{ gap: spacing.md }}>
+          <Body>{LOST_SAYS[lost]}</Body>
+          {lost === "person" ? (
+            <Button label="Pin in" onPress={() => router.replace(`/pin/${slug}`)} />
+          ) : lost === "failed" ? (
+            <Button
+              label="Try again"
+              onPress={() => {
+                setStep("loading");
+                load().catch(() => {
+                  setLost("failed");
+                  setStep("lost");
+                });
+              }}
+            />
+          ) : (
+            <Button label="This week's crowds" onPress={() => void Linking.openURL(`${SITE}/`)} />
+          )}
+        </View>
+      ) : null}
       {why && step !== "safety" ? (
         <View style={styles.why}>
           <Body>{why}</Body>

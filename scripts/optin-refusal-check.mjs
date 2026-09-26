@@ -9,7 +9,9 @@
 //   2. its photo is taken away underneath the page (the state a merge left Alex in);
 //   3. "I'm in" must say what is missing — the photo — and show the photo picker, never
 //      "not allowed", and the pin must stay closed;
-//   4. the other side: photo back, reload, "I'm in" must open the pin and land on A9.
+//   4. the other side: photo back, reload, "I'm in" must open the pin and land on A9;
+//   5. the crowd stops being visible to the account → A27 says so, with a way on (never
+//      blank — the walk's hang after a merge into an account that is not a tester).
 //
 //   npm run check:optin-refusal
 //
@@ -110,7 +112,16 @@ try {
   const opened = { landed, open: await pinOpen() };
   console.log(`4. complete → opens: ${JSON.stringify(opened)}`);
 
-  ok = atSheet && Object.values(refusal).every(Boolean) && opened.landed === `/crowd/${crowd.slug}` && opened.open === true;
+  // 5. The walk's hang: the crowd stops being visible to this account (a merge into an
+  // account that is not a tester). A27 must say so and offer a way on — never blank.
+  await must(await admin("/rest/v1/rpc/admin_set_tester", { method: "POST", body: JSON.stringify({ p_auth_user: authId, p_on: false, p_actor: "optin-refusal-check" }) }), "untester");
+  await send("Page.navigate", { url: `${SITE}/opt-in/${crowd.slug}` });
+  await sleep(8000);
+  const blank = await body();
+  const notBlank = { says: blank.includes("This crowd isn't open to the account you're signed in as."), wayOn: blank.includes("This week's crowds") };
+  console.log(`5. crowd gone from under A27 → a sentence and a way on: ${JSON.stringify(notBlank)}`);
+
+  ok = atSheet && Object.values(refusal).every(Boolean) && opened.landed === `/crowd/${crowd.slug}` && opened.open === true && notBlank.says && notBlank.wayOn;
   ws.close();
 } finally {
   chrome?.kill();
