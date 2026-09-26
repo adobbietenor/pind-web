@@ -139,3 +139,85 @@ export function signInError(step: SignInStep, err: unknown): string {
   if (says === SIGNIN_FAILED) report(err, `sign in (${step})`);
   return says;
 }
+
+// ---------------------------------------------------------------------------
+// **Apple and Google at A27** (Alex, M3.2 walk: "the step where someone is most likely
+// to give up"). The same anonymous user gains the identity — `linkIdentity`, which is
+// switched on (P86) — so the pin, the party and the profile survive with the same id.
+//
+// When that Apple or Google account already has a Pin'd account, the auth server
+// refuses the link (`identity_already_exists`) and nothing changes. The person is then
+// offered the merge: sign in to that account with the same provider, and the held
+// anonymous session goes with it to the Worker (lib/merge.ts).
+// ---------------------------------------------------------------------------
+
+export type LinkResult = "linked" | "has-account" | "left-page";
+
+const isAlreadyLinked = (err: unknown) => {
+  const e = err as { code?: unknown; message?: unknown } | null;
+  return e?.code === "identity_already_exists" || (typeof e?.message === "string" && /already (linked|exists)/i.test(e.message));
+};
+
+// `returnTo` is the web path to come back to (A27's own URL); the marker says which
+// provider was being linked, so the return can say "that Google account…".
+export async function linkProvider(provider: "apple" | "google", returnTo: string): Promise<LinkResult> {
+  const auth = supabase().auth;
+  if (Platform.OS === "web") {
+    const back = new URL(returnTo, window.location.origin);
+    back.searchParams.set("linking", provider);
+    const { error } = await auth.linkIdentity({ provider, options: { redirectTo: back.toString() } });
+    if (error) throw error;
+    return "left-page";
+  }
+
+  if (provider === "apple") {
+    const credential = await AppleAuthentication.signInAsync({
+      requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME],
+    });
+    if (!credential.identityToken) throw new Error("Apple did not return an identity token");
+    appleToken = credential.identityToken;
+    const { error } = await auth.linkIdentity({ provider: "apple", token: credential.identityToken });
+    if (error) {
+      if (isAlreadyLinked(error)) return "has-account";
+      throw error;
+    }
+    return "linked";
+  }
+
+  const returnApp = AuthSession.makeRedirectUri();
+  const { data, error } = await auth.linkIdentity({ provider: "google", options: { redirectTo: returnApp, skipBrowserRedirect: true } });
+  if (error) throw error;
+  if (!data.url) throw new Error("Google did not give us a sign-in page");
+  const result = await WebBrowser.openAuthSessionAsync(data.url, returnApp);
+  if (result.type !== "success") throw new Error("ERR_REQUEST_CANCELED");
+  const url = new URL(result.url);
+  const hash = new URLSearchParams(url.hash.replace(/^#/, ""));
+  const errorCode = url.searchParams.get("error_code") ?? hash.get("error_code");
+  if (errorCode === "identity_already_exists") return "has-account";
+  const code = url.searchParams.get("code");
+  if (!code) throw new Error(errorCode ?? "Google came back without a code");
+  const exchange = await auth.exchangeCodeForSession(code);
+  if (exchange.error) throw exchange.error;
+  return "linked";
+}
+
+// The Apple identity token from the last link attempt in the app: signing in to the
+// existing account reuses it rather than asking Apple twice.
+let appleToken: string | null = null;
+
+// Sign in to the account that already owns this Apple or Google identity, for the merge.
+// In the app the caller holds the anonymous session first; on the web the page leaves,
+// so the caller stashes it (lib/merge.ts) before calling this.
+export async function signInForMerge(provider: "apple" | "google", returnTo: string): Promise<"signed-in" | "left-page"> {
+  if (Platform.OS === "web") {
+    await (provider === "apple" ? signInWithApple : signInWithGoogle)(new URL(returnTo, window.location.origin).toString());
+    return "left-page";
+  }
+  if (provider === "apple" && appleToken) {
+    const { error } = await supabase().auth.signInWithIdToken({ provider: "apple", token: appleToken });
+    appleToken = null;
+    if (!error) return "signed-in";
+  }
+  await (provider === "apple" ? signInWithApple() : signInWithGoogle());
+  return "signed-in";
+}

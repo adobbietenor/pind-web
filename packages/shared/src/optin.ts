@@ -73,19 +73,21 @@ const NEED_WORDS: Record<OptInNeed, string> = {
 
 export function optInMissing(f: OptInFacts): {
   missing: OptInNeed[];
-  step: "details" | "contact" | "safety";
+  step: "you" | "identity" | "safety";
   says: string | null;
 } {
   const missing: OptInNeed[] = [];
   if (!f.hasPrivate) missing.push("details");
   if (!f.hasPhoto) missing.push("photo");
   if (!f.permanent) missing.push("sign-in");
-  const step = !f.hasPrivate || !f.hasPhoto ? "details" : !f.permanent ? "contact" : "safety";
+  // The step names are the shared profile steps' (profile.ts): "you" asks date of birth,
+  // gender and the photo; "identity" is a way to sign in.
+  const step = !f.hasPrivate || !f.hasPhoto ? "you" : !f.permanent ? "identity" : "safety";
   if (missing.length === 0) return { missing, step, says: null };
   const words = missing.map((m) => NEED_WORDS[m]);
   const list = words.length === 1 ? words[0] : `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
   const fix =
-    missing.length > 1 ? "Start below — it takes a minute." : step === "details" ? "Add it below, then you're in." : "Set it up below, then you're in.";
+    missing.length > 1 ? "Start below — it takes a minute." : step === "you" ? "Add it below, then you're in." : "Set it up below, then you're in.";
   return {
     missing,
     step,

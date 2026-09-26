@@ -45,7 +45,13 @@ describe("Every app screen sits in the shared shell", () => {
 });
 
 describe("Every tag screen gates on the shared rule (T10)", () => {
-  const tagScreens = screens.filter((s) => /<TagPicker\b/.test(s.source));
+  // The routes, and the shared profile steps they draw (M3.2: A3's picker moved into
+  // components/profile/WhereStep.tsx, which A27 draws too).
+  const STEPS = join(process.cwd(), "app", "src", "components", "profile");
+  const stepFiles = readdirSync(STEPS)
+    .filter((n) => n.endsWith(".tsx"))
+    .map((n) => ({ path: `components/profile/${n}`, source: readFileSync(join(STEPS, n), "utf8") }));
+  const tagScreens = [...screens, ...stepFiles].filter((s) => /<TagPicker\b/.test(s.source));
 
   it("S13 the tag screens are found", () => {
     assert.ok(tagScreens.length >= 2, `found ${tagScreens.length}: A3 and Profile → Edit tags both use the picker`);
@@ -64,8 +70,8 @@ describe("The sign-in screen gates each way in on the shared table (signInMethod
   it("S15 Apple and Google appear exactly when methodsFor() lists them — no platform check of the screen's own", () => {
     // The web had no Apple button because the screen ALSO checked Platform.OS === "ios"
     // around it, while the table said "later". Two rules, one of them unseen.
-    const signIn = screens.find((s) => s.path.split("\\").join("/").endsWith("(onboarding)/sign-in.tsx"));
-    assert.ok(signIn, "sign-in screen not found");
+    // The buttons are the shared identity step's (M3.2), drawn by A1 and A27 alike.
+    const signIn = { source: readFileSync(join(process.cwd(), "app", "src", "components", "profile", "IdentityStep.tsx"), "utf8") };
     assert.match(signIn.source, /const methods = methodsFor\(\)/);
     assert.match(signIn.source, /methods\.includes\("apple"\) \?/);
     assert.match(signIn.source, /methods\.includes\("google"\) \?/);
@@ -248,7 +254,50 @@ describe("The web app claims a handed-over session before any screen renders (M3
     const write = finish.indexOf('.from("policy_acceptances")');
     assert.ok(read >= 0 && asked > read && write > asked, "finish writes before reading fresh and asking optInMissing");
     assert.doesNotMatch(finish, /mine\.personId|mine\.gatheringId/, "finish writes with ids the screen was holding");
-    assert.match(a27, /setMerging\(null\);\s*setMine\(null\);/, "after a merge the screen keeps the anonymous person it was holding");
-    assert.match(a27, /setStep\(optInMissing\(next\)\.step\)/, "A27 picks its step with a rule of its own, not the gate's facts");
+    // Before reading anything, a merge the page left for is finished; then every step
+    // is chosen from a fresh read by the shared rule — never from what the screen held.
+    const load = a27.slice(a27.indexOf("const load = useCallback"), a27.indexOf("useEffect("));
+    assert.ok(load.indexOf("await finishWebReturn()") >= 0 && load.indexOf("await finishWebReturn()") < load.indexOf("await advance()"), "A27 reads before finishing a merge it left the page for");
+    assert.match(a27, /const next = await readMine\(slug\);[\s\S]{0,400}setStep\(nextOptInStep\(/, "A27 picks its step with a rule of its own, not the shared one on a fresh read");
+  });
+
+  it("S27 only lib/profile.ts and lib/tags.ts write a profile — no screen or step writes date of birth, gender, photo, neighbourhood or tags itself", () => {
+    // M3.2 walk: A2 and A27 each wrote their own, and the women-only question drifted.
+    const SRC = join(process.cwd(), "app", "src");
+    const all = (function walk(dir: string): { path: string; source: string }[] {
+      return readdirSync(dir).flatMap((name) => {
+        const path = join(dir, name);
+        if (statSync(path).isDirectory()) return walk(path);
+        return /\.tsx?$/.test(name) ? [{ path: path.slice(SRC.length + 1).split("\\").join("/"), source: readFileSync(path, "utf8") }] : [];
+      });
+    })(SRC);
+    const WRITERS = new Set(["lib/profile.ts", "lib/tags.ts"]);
+    const writes = (src: string) =>
+      /from\("people_private"\)\s*\.(insert|update|upsert)/.test(src) ||
+      /from\("person_tags"\)\s*\.(insert|delete|upsert)/.test(src) ||
+      /from\("people"\)\s*\.(insert|update|upsert)\(\{[^}]*\b(photo_path|neighbourhood|first_name)\b/.test(src);
+    // The guard's own cases: a write it must see, and a read it must not.
+    assert.ok(writes('db.from("people").update({ photo_path: p })') && writes('db.from("people_private").insert({})'), "S27 cannot see a profile write");
+    assert.ok(!writes('db.from("people").select("photo_path")'), "S27 mistakes a read for a write");
+    assert.ok(all.some((f) => WRITERS.has(f.path) && writes(f.source)), "S27 sees no write even in lib/profile.ts — the pattern is broken");
+    const own = all.filter((f) => !WRITERS.has(f.path) && writes(f.source)).map((f) => f.path);
+    assert.deepEqual(own, [], "these write a profile themselves — call lib/profile.ts");
+  });
+
+  it("S28 both paths draw the SAME steps: A1/A2/A3 and A27 render the shared components, and the women-only question exists once", () => {
+    const read = (...p: string[]) => readFileSync(join(process.cwd(), "app", "src", ...p), "utf8");
+    const a27 = read("app", "opt-in", "[slug].tsx");
+    for (const step of ["YouStep", "WhereStep", "IdentityStep"]) assert.match(a27, new RegExp(`<${step}\\b`), `A27 does not draw ${step}`);
+    assert.match(read("app", "(onboarding)", "you.tsx"), /<YouStep\b/, "A2 does not draw the shared YouStep");
+    assert.match(read("app", "(onboarding)", "where.tsx"), /<WhereStep\b/, "A3 does not draw the shared WhereStep");
+    assert.match(read("app", "(onboarding)", "sign-in.tsx"), /<IdentityStep\b/, "A1 does not draw the shared IdentityStep");
+    // The women-only question, and the gender choice, are drawn in one file.
+    const SRC = join(process.cwd(), "app", "src");
+    const files = (function walk(dir: string): string[] {
+      return readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? walk(join(dir, n)) : /\.tsx$/.test(n) ? [join(dir, n)] : []));
+    })(SRC);
+    const asking = (re: RegExp) => files.filter((f) => re.test(readFileSync(f, "utf8").replace(/^\s*\/\/.*$/gm, ""))).map((f) => f.slice(SRC.length + 1).split("\\").join("/"));
+    assert.deepEqual(asking(/[Ww]omen-only crews"|include_in_women_only|setWomenOnly/), ["components/profile/YouStep.tsx"], "the women-only question is asked in more than one place");
+    assert.deepEqual(asking(/options=\{GENDER_CHOICES\}/), ["components/profile/YouStep.tsx"], "gender is asked in more than one place");
   });
 });

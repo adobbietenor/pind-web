@@ -3131,6 +3131,72 @@ describe("Merging an anonymous pinner into their existing account (M3.2)", () =>
       await cleanup(a.authId, p.authId);
     }
   });
+
+  // A27 now asks "where" before a way to sign in (one set of profile steps), so the
+  // neighbourhood and tags an anonymous person gave must survive a merge the same way.
+  const someTags = async (n: number) => (await rows(w.service.from("tags").select("slug").order("slug").limit(n))).map((t) => t.slug as string);
+  const tagsOf = async (personId: string) => (await rows(w.service.from("person_tags").select("tag").eq("person_id", personId))).map((t) => t.tag as string).sort();
+  const hoodOf = async (personId: string) => (await rows(w.service.from("people").select("neighbourhood").eq("id", personId)))[0]?.neighbourhood ?? null;
+
+  it("P133 an account with no neighbourhood and no tags takes the anonymous person's — the tags as a set", async () => {
+    const a = await anonGave("FillWhereA", {});
+    const p = await permanent("FillWhereP", true);
+    const tags = await someTags(3);
+    await ok(w.service.from("people").update({ neighbourhood: "dundas-west" }).eq("id", a.personId));
+    await ok(w.service.from("person_tags").insert(tags.map((tag) => ({ person_id: a.personId, tag }))));
+    try {
+      const out = await ok(mergeWith(a.authId, p.authId, null));
+      assert.deepEqual([(out as { neighbourhood: boolean }).neighbourhood, (out as { tags: boolean }).tags], [true, true]);
+      assert.equal(await hoodOf(p.personId!), "dundas-west", "the neighbourhood did not come in");
+      assert.deepEqual(await tagsOf(p.personId!), tags.slice().sort(), "the tags did not come in");
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P134 an account WITH a neighbourhood and tags keeps exactly its own — never overwritten, never mixed", async () => {
+    const a = await anonGave("KeepWhereA", {});
+    const p = await permanent("KeepWhereP", true);
+    const [t1, t2, t3, t4, t5, t6] = await someTags(6);
+    await ok(w.service.from("people").update({ neighbourhood: "dundas-west" }).eq("id", a.personId));
+    await ok(w.service.from("person_tags").insert([t1, t2, t3].map((tag) => ({ person_id: a.personId, tag }))));
+    await ok(w.service.from("people").update({ neighbourhood: "king-west" }).eq("id", p.personId!));
+    await ok(w.service.from("person_tags").insert([t4, t5, t6].map((tag) => ({ person_id: p.personId, tag }))));
+    try {
+      const out = await ok(mergeWith(a.authId, p.authId, null));
+      assert.deepEqual([(out as { neighbourhood: boolean }).neighbourhood, (out as { tags: boolean }).tags], [false, false]);
+      assert.equal(await hoodOf(p.personId!), "king-west", "the account's neighbourhood was overwritten");
+      assert.deepEqual(await tagsOf(p.personId!), [t4, t5, t6].sort(), "the account's tags were overwritten or mixed");
+      assert.deepEqual(await tagsOf(a.personId), [], "the anonymous tags not moved were left behind");
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P135 an ANONYMOUS pinner can set their own neighbourhood and tags (A27's 'where' comes before sign-in) — and nobody else's", async () => {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInAnonymously();
+    assert.equal(signIn.error, null, signIn.error?.message);
+    const authId = signIn.data.user!.id;
+    await markHarness(w.service, authId);
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: "WhereAnon" }).select("id").single());
+    const other = await anonGave("WhereOther", {});
+    const [t1, t2, t3] = await someTags(3);
+    try {
+      await ok(client.from("people").update({ neighbourhood: "king-west" }).eq("id", person.id).select("id"));
+      assert.equal(await hoodOf(person.id), "king-west", "an anonymous pinner could not set their own neighbourhood");
+      await ok(client.from("person_tags").insert([t1, t2, t3].map((tag) => ({ person_id: person.id, tag }))));
+      assert.deepEqual(await tagsOf(person.id), [t1, t2, t3].sort(), "an anonymous pinner could not set their own tags");
+      // Someone else's: refused, and nothing changes.
+      const theirs = await client.from("people").update({ neighbourhood: "king-west" }).eq("id", other.personId).select("id");
+      assert.deepEqual(theirs.data ?? [], [], "an anonymous pinner changed someone else's neighbourhood");
+      assert.equal(await hoodOf(other.personId), null);
+      await denied(client.from("person_tags").insert({ person_id: other.personId, tag: t1 }));
+    } finally {
+      await w.service.from("people").delete().eq("id", person.id);
+      await cleanup(authId, other.authId);
+    }
+  });
 });
 
 describe("The client's copy of effective_end matches the database's (M3.2)", () => {

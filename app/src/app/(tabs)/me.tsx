@@ -14,7 +14,20 @@
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, PHOTO_REJECTED, photoShowsToOthers, radius, spacing } from "@pind/shared";
+import {
+  ALL_TAGS,
+  colors as palette,
+  fonts,
+  NEIGHBOURHOODS,
+  PHOTO_REJECTED,
+  PROFILE_GAP_ACTION,
+  profileGapLine,
+  profileGaps,
+  photoShowsToOthers,
+  radius,
+  spacing,
+  type ProfileGap,
+} from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
@@ -104,6 +117,12 @@ export default function Profile() {
     }
   };
 
+  // **What is still missing, and a way to each** (Alex, M3.2: "nudged later" was decided
+  // and never built, so a link-path person never got a neighbourhood and was never sent
+  // to tags). Said at the top of their own profile, with the button beside it.
+  const gaps = profileGaps({ hasPhoto: !!me.photoPath, neighbourhood: me.neighbourhood, tagCount: me.tags.length });
+  const gapRoute: Record<ProfileGap, "/photo" | "/neighbourhood" | "/tags"> = { photo: "/photo", neighbourhood: "/neighbourhood", tags: "/tags" };
+
   // Whether others get the photo — the database's rule, mirrored for the preview
   // (P88 keeps the two the same). Nothing waits on the check (Alex, M3.1).
   const shows = !!me.photoPath && photoShowsToOthers(me.photoStatus);
@@ -131,12 +150,25 @@ export default function Profile() {
           </View>
         </View>
 
+        {gaps.length ? (
+          <View style={styles.card}>
+            <Body>{profileGapLine(gaps, me.tags.length)}</Body>
+            <View style={{ marginTop: spacing.sm, gap: spacing.xs }}>
+              {gaps.map((g) => (
+                <Button key={g} kind="quiet" label={PROFILE_GAP_ACTION[g]} onPress={() => router.push(gapRoute[g])} />
+              ))}
+            </View>
+          </View>
+        ) : null}
+
         {/* The owner hears about one state only: a rejection. Never "checking", and
             never a possible-minor flag — that is a note to Alex, not a verdict about
             them (Alex, M3.1). */}
         {me.photoPath && me.photoStatus === "rejected" ? <Notice tone="stop">{PHOTO_REJECTED}</Notice> : null}
         {!me.photoPath ? (
-          <Notice>You have no photo yet. You will need one before you can meet up with anyone.</Notice>
+          <View style={{ marginBottom: spacing.sm }}>
+            <Body muted>You will need a photo before you can meet up with anyone.</Body>
+          </View>
         ) : null}
         {/* Change or remove the photo after A2 (Alex, M3.1 walk: it could not be
             changed once set, so a bad photo was stuck). The same picker and states. */}
@@ -161,8 +193,10 @@ export default function Profile() {
             <Body muted>No tags yet — a few of them give a crew something to start with.</Body>
           </View>
         )}
-        <View style={{ marginBottom: spacing.lg }}>
+        <View style={{ marginBottom: spacing.lg, gap: spacing.xs }}>
           <Button kind="quiet" label={me.tags.length ? "Edit tags" : "Pick tags"} onPress={() => router.push("/tags")} />
+          {/* Editable like tags (Alex, M3.2): a wrong pick is never stuck. */}
+          <Button kind="quiet" label={me.neighbourhood ? "Change neighbourhood" : "Pick your neighbourhood"} onPress={() => router.push("/neighbourhood")} />
         </View>
 
         <View style={styles.counts}>

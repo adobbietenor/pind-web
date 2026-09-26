@@ -10,6 +10,7 @@ export * from "./image";
 export * from "./neighbourhoods";
 export * from "./optin";
 export * from "./policy";
+export * from "./profile";
 export * from "./quickpin";
 export * from "./said";
 export * from "./session";

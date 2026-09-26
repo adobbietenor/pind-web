@@ -1,59 +1,55 @@
-// A27 — Opt in (M3.2): the details that make "I'd like to meet up" real.
+// A27 — Opt in (M3.2): what makes "I'd like to meet up" real, on the link path.
 //
-// Reached from A26 by someone who ticked "meet up" (the tick is intent — the opt-in
-// gate, P105–P109), or later from the pinned crowd page's "Open to meeting". In the
-// spec's order:
+// **One set of profile steps, in this path's order** (Alex, M3.2 walk: A2 and A27 were
+// two implementations of the same screen, and the women-only question had drifted).
+// The steps are the shared components the store path draws too (components/profile);
+// this screen only puts them in order and runs what is A27's alone:
 //
-//   1. Date of birth — **under 19 stops here, no soft fail** (H8), and removes them
-//      completely: the pin, the person, the 19+ record and the anonymous user
-//      (`remove_me_under_19`, P103). Only the year is kept.
-//   2. Gender (never shown to anyone; D1) and, for nonbinary, women-only crews.
-//   3. A photo — required to be open to meeting (Q2). The same picker and states as A2.
-//   4. A way to sign in — the email code on the SAME user (`updateUser` then
-//      `verifyOtp`, type email_change): anonymous → permanent, same id, so the pin and
-//      party size survive (P84). An address that already has an account is the merge
-//      (decisions, M3.2), built next; until then that branch says so and loses nothing.
-//   5. One safety sheet, where the privacy policy and terms are accepted.
+//   1. "you" — date of birth first, so **under 19 stops before anything else is
+//      collected** (H8) and removes them completely: the pin, the person, the 19+
+//      record and the anonymous user (`remove_me_under_19`, P103); then gender and a
+//      photo, required here (Q2, the gate);
+//   2. "where" — neighbourhood and tags, **Skip kept** (Alex: "a thinner profile is
+//      better than no profile"); what is skipped is named on Profile afterwards;
+//   3. "identity" — Apple, Google or the email code on the SAME user, so the pin and
+//      party survive (P84); an identity that already has an account is the merge;
+//   4. the safety sheet, where the privacy policy and terms are accepted — and only
+//      then is the pin opened. The database refuses it any earlier.
 //
-// Only then is the pin opened — the database refuses it any earlier.
+// **Every step is chosen from a fresh read** (CLAUDE.md: re-read who you are after
+// anything that can change it): after each step, after a merge, after a return from
+// Apple or Google. `nextOptInStep` (shared) decides, from the gate's own facts.
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Linking, Platform, StyleSheet, View } from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { ActivityIndicator, Linking, Platform, StyleSheet, View } from "react-native";
 import {
-  type A2Photo,
-  ageOn,
   colors as palette,
-  GENDER_CHOICES,
-  GENDER_WHY,
-  isEmailTaken,
-  isOldEnough,
-  optInMissing,
+  nextOptInStep,
   OPTIN_COPY,
-  PHOTO_LABEL,
-  PHOTO_WHY,
-  photoActions,
+  optInMissing,
   POLICY_VERSION,
   radius,
-  removePhoto,
   spacing,
-  uploadFailed,
-  uploadReason,
-  type GenderChoice,
+  whereComplete,
+  type OptInStep,
 } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
+import { IdentityStep } from "@/components/profile/IdentityStep";
+import { WhereStep } from "@/components/profile/WhereStep";
+import { YouStep } from "@/components/profile/YouStep";
+import type { Picked } from "@/components/TagPicker";
 import { Trouble } from "@/components/Trouble";
-import { Body, Button, Choice, Field, Heading, Tick } from "@/components/ui";
+import { Body, Button, Heading, Tick } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
-import { askForCheck, pickPhoto, uploadPhoto, type Picked } from "@/lib/photo";
+import { finishWebReturn, type Provider } from "@/lib/merge";
+import { readProfile } from "@/lib/profile";
 import { report } from "@/lib/sentry";
-import { myAuthId, whoAmI } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
+import { loadTags } from "@/lib/tags";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL || "https://pind.social";
-// The Worker is the same host on the web; the app on a phone names it.
-const WORKER = Platform.OS === "web" ? "" : SITE;
 
-type Step = "loading" | "details" | "contact" | "code" | "safety" | "removed" | "lost";
+type Step = "loading" | OptInStep | "removed" | "lost";
 
 // Why there is nothing here to fill in — never a blank page (M3.2 walk: after a merge
 // into an account that is not a tester, the test crowd vanished and A27 showed only its
@@ -73,78 +69,103 @@ interface Mine {
   permanent: boolean;
   hasPrivate: boolean;
   hasPhoto: boolean;
+  neighbourhood: string | null;
+  tags: Picked[];
 }
 
-// Where this person stands, read fresh as whoever is signed in NOW: their pin's
-// gathering, and the three facts the gate checks — or why there is nothing to follow.
+// Where this person stands, read fresh as whoever is signed in NOW: the gathering, and
+// their profile — or why there is nothing to follow.
 async function readMine(slug: string): Promise<Mine | { lost: Lost }> {
-  const db = supabase();
-  const userId = await myAuthId();
   // Read through RLS, not the public door, so a tester reaches the seed gathering.
-  const { data: g, error: gErr } = await db.from("gatherings").select("id, name").eq("slug", slug).maybeSingle();
-  if (gErr) throw gErr;
-  const { data: me, error: meErr } = await db.from("people").select("id, first_name, photo_path").eq("auth_user_id", userId).maybeSingle();
-  if (meErr) throw meErr;
+  const { data: g, error } = await supabase().from("gatherings").select("id, name").eq("slug", slug).maybeSingle();
+  if (error) throw error;
   if (!g) return { lost: "crowd" };
-  if (!me) return { lost: "person" };
-  const { data: priv, error: privErr } = await db.from("people_private").select("person_id").eq("person_id", me.id).maybeSingle();
-  if (privErr) throw privErr;
-  const { data: session } = await db.auth.getSession();
+  const p = await readProfile();
+  if (!p.personId) return { lost: "person" };
   return {
-    personId: me.id,
-    firstName: me.first_name,
+    personId: p.personId,
+    firstName: p.firstName,
     gatheringId: g.id,
     gatheringName: g.name,
-    permanent: !!session.session && !session.session.user.is_anonymous,
-    hasPrivate: !!priv,
-    hasPhoto: !!me.photo_path,
+    permanent: p.permanent,
+    hasPrivate: p.hasPrivate,
+    hasPhoto: p.hasPhoto,
+    neighbourhood: p.neighbourhood,
+    tags: await loadTags(p.personId),
   };
 }
+
+// "Where" was skipped on this visit. Kept for the tab, because Apple and Google leave
+// the page and come back — a skip must not be asked again on the return.
+const SKIPPED = (slug: string) => `pind.where.skipped.${slug}`;
+function skippedWhere(slug: string): boolean {
+  if (Platform.OS !== "web") return false;
+  try {
+    return sessionStorage.getItem(SKIPPED(slug)) === "1";
+  } catch {
+    return false;
+  }
+}
+function rememberSkip(slug: string) {
+  if (Platform.OS !== "web") return;
+  try {
+    sessionStorage.setItem(SKIPPED(slug), "1");
+  } catch {
+    // No storage: the skip holds for this page only.
+  }
+}
+
+const RETURN_SAYS = {
+  "merge-failed": OPTIN_COPY.nothingLost,
+  "link-failed": "That sign-in didn't go through, and nothing was changed. Try again, or use another way.",
+} as const;
 
 export default function OptIn() {
   const { slug } = useLocalSearchParams<{ slug: string }>();
   const router = useRouter();
   const [step, setStep] = useState<Step>("loading");
   const [mine, setMine] = useState<Mine | null>(null);
+  const [lost, setLost] = useState<Lost | null>(null);
+  const [whereDone, setWhereDone] = useState(() => skippedWhere(slug));
+  // Why they are on this step when they did not choose it — the gate's refusal, or what
+  // a merged account still needs — said at the top of the step that fixes it.
+  const [why, setWhy] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
+  const [hasAccount, setHasAccount] = useState<Provider | null>(null);
+  const [accepted, setAccepted] = useState(false);
   const [trouble, setTrouble] = useState<Described | null>(null);
   const [busy, setBusy] = useState(false);
-  // Why they are on this step when they did not choose it — the gate's refusal, said at
-  // the top of the step that fixes it (CLAUDE.md: "seen" is part of a refusal).
-  const [why, setWhy] = useState<string | null>(null);
-  const [lost, setLost] = useState<Lost | null>(null);
 
-  const [day, setDay] = useState("");
-  const [month, setMonth] = useState("");
-  const [year, setYear] = useState("");
-  const [gender, setGender] = useState<GenderChoice | null>(null);
-  const [womenOnly, setWomenOnly] = useState(false);
-  const [photo, setPhoto] = useState<A2Photo<Picked>>({ state: "none" });
-  const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [accepted, setAccepted] = useState(false);
-  // The merge (decisions, M3.2): the address already has an account. The anonymous
-  // session is held here until the code proves the address, then both go to the
-  // Worker together; on any failure after the code, it is put back, so "your pin is
-  // still there" is true, not just said.
-  const [merging, setMerging] = useState<{ access_token: string; refresh_token: string } | null>(null);
+  // Read, then choose the step. `skipDone` lets a step that just finished count before
+  // its state update lands.
+  const advance = useCallback(
+    async (opts: { whereNow?: boolean } = {}) => {
+      const next = await readMine(slug);
+      if ("lost" in next) {
+        setMine(null);
+        setLost(next.lost);
+        setStep("lost");
+        return null;
+      }
+      setMine(next);
+      setLost(null);
+      const done = opts.whereNow || whereDone || whereComplete({ neighbourhood: next.neighbourhood, tagCount: next.tags.length });
+      setStep(nextOptInStep({ ...next, whereDone: done }));
+      return next;
+    },
+    [slug, whereDone],
+  );
 
-  const age = useMemo(() => ageOn(Number(day), Number(month), Number(year)), [day, month, year]);
-
-  // Where this person stands: their pin at this gathering, and which details they
-  // already have (someone who did A2 skips straight to what is missing).
   const load = useCallback(async () => {
-    const next = await readMine(slug);
-    if ("lost" in next) {
-      setMine(null);
-      setLost(next.lost);
-      setStep("lost");
-      return null;
-    }
-    setMine(next);
-    setLost(null);
-    setStep(optInMissing(next).step);
-    return next;
-  }, [slug]);
+    // Before reading anything: finish a merge the page left to sign in for, or hear how
+    // a link attempt with Apple or Google came back.
+    const back = await finishWebReturn();
+    if (back.kind === "has-account") setHasAccount(back.provider);
+    if (back.kind === "merge-failed" || back.kind === "link-failed") setNotice(RETURN_SAYS[back.kind]);
+    const now = await advance();
+    // The account keeps its own profile; say plainly what it still needs.
+    if (back.kind === "merged" && now) setWhy(optInMissing(now).says);
+  }, [advance]);
 
   useEffect(() => {
     load().catch((err) => {
@@ -153,174 +174,28 @@ export default function OptIn() {
       setLost("failed");
       setStep("lost");
     });
-  }, [load]);
+    // Once, on arrival: every later step calls advance() itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const choosePhoto = async () => {
+  const afterStep = (opts: { whereNow?: boolean } = {}) => {
+    setWhy(null);
     setTrouble(null);
-    try {
-      const picked = await pickPhoto();
-      if (picked) setPhoto({ state: "chosen", picked });
-    } catch (err) {
-      setTrouble(failed("open that photo", err));
-    }
-  };
-
-  // 1–3: date of birth (and the under-19 stop), gender, photo.
-  const saveDetails = async () => {
-    if (!mine) return;
-    setTrouble(null);
-    if (!mine.hasPrivate && (age === null || gender === null)) return;
-    if (!mine.hasPrivate && age !== null && !isOldEnough(age)) {
-      setBusy(true);
-      try {
-        const { error } = await supabase().rpc("remove_me_under_19");
-        if (error) throw error;
-        await supabase().auth.signOut({ scope: "local" });
-        setStep("removed");
-      } catch (err) {
-        setTrouble(failed("finish that", err));
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
-    if (!mine.hasPhoto && photo.state === "none") return;
-    setBusy(true);
-    const db = supabase();
-    try {
-      const userId = await myAuthId();
-      if (!mine.hasPrivate) {
-        // Only the year is kept (decisions Part 3); the full date is never written.
-        const { error } = await db.from("people_private").insert({
-          person_id: mine.personId,
-          gender: gender!,
-          include_in_women_only: gender === "nonbinary" ? womenOnly : false,
-          birth_year: Number(year),
-          age_attested_at: new Date().toISOString(),
-        });
-        if (error) throw error;
-      }
-      if (!mine.hasPhoto && photo.state !== "none") {
-        let path: string;
-        try {
-          path = await uploadPhoto(userId, photo.picked);
-        } catch (err) {
-          report(err, "upload your photo");
-          const next = uploadFailed(photo, uploadReason(err));
-          setPhoto(next);
-          if (next.state === "failed") setTrouble({ says: next.says });
-          return;
-        }
-        const { error } = await db.from("people").update({ photo_path: path }).eq("id", mine.personId);
-        if (error) throw error;
-        void askForCheck();
-      }
-      const updated = { ...mine, hasPrivate: true, hasPhoto: true };
-      setMine(updated);
-      setWhy(null);
-      setStep(optInMissing(updated).step);
-    } catch (err) {
-      setTrouble(failed("save that", err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // 4: the email code, on the same user.
-  const sendCode = async () => {
-    setTrouble(null);
-    setBusy(true);
-    try {
-      const { error } = await supabase().auth.updateUser({ email: email.trim().toLowerCase() });
-      if (error) {
-        if (isEmailTaken(error)) {
-          const { data } = await supabase().auth.getSession();
-          const held = data.session;
-          if (!held) throw error;
-          // A sign-in code to the existing account — never creating one.
-          const sent = await supabase().auth.signInWithOtp({
-            email: email.trim().toLowerCase(),
-            options: { shouldCreateUser: false },
-          });
-          if (sent.error) throw sent.error;
-          setMerging({ access_token: held.access_token, refresh_token: held.refresh_token });
-          setTrouble({ says: OPTIN_COPY.emailHasAccount });
-          setStep("code");
-          return;
-        }
-        throw error;
-      }
-      setStep("code");
-    } catch (err) {
-      setTrouble(failed("send the code", err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const confirmCode = async () => {
-    setTrouble(null);
-    setBusy(true);
-    if (merging) {
-      await confirmMerge(merging);
-      setBusy(false);
-      return;
-    }
-    try {
-      const { error } = await supabase().auth.verifyOtp({
-        email: email.trim().toLowerCase(),
-        token: code.trim(),
-        type: "email_change",
-      });
-      if (error) throw error;
-      setStep("safety");
-    } catch (err) {
-      setTrouble(failed("confirm that code", err));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  // The merge: the code proves the address (only then does the app hold the account's
-  // session), then both sessions go to the Worker, which checks each with the auth
-  // server before anything moves.
-  const confirmMerge = async (held: { access_token: string; refresh_token: string }) => {
-    const db = supabase();
-    const { data: signedIn, error: codeError } = await db.auth.verifyOtp({
-      email: email.trim().toLowerCase(),
-      token: code.trim(),
-      type: "email",
+    advance(opts).catch((err) => {
+      report(err, "A27 next step");
+      setLost("failed");
+      setStep("lost");
     });
-    if (codeError || !signedIn.session) {
-      // The code did not prove it: still anonymous, nothing moved.
-      setTrouble(failed("confirm that code", codeError ?? new Error("no session")));
-      return;
-    }
-    try {
-      const res = await fetch(`${WORKER}/account/merge`, {
-        method: "POST",
-        headers: { "content-type": "application/json", authorization: `Bearer ${signedIn.session.access_token}` },
-        body: JSON.stringify({ anon_access_token: held.access_token }),
-      });
-      if (!res.ok) throw Object.assign(new Error(`merge ${res.status}`), { status: res.status });
-      setMerging(null);
-      // From here this is the ACCOUNT, not the anonymous person the screen was holding:
-      // nothing read before the merge may be written with (M3.2 walk — the safety sheet
-      // wrote the deleted anonymous person's id and was refused).
-      setMine(null);
-      const now = await load().catch(() => null);
-      // The account keeps its own profile; say plainly what it still needs.
-      if (now) setWhy(optInMissing(now).says);
-      return;
-    } catch (err) {
-      // Put the anonymous session back: the pin is exactly where it was.
-      report(err, "merge into the existing account");
-      await db.auth.setSession(held).catch(() => undefined);
-      setTrouble({ says: OPTIN_COPY.nothingLost, wayOut: "retry" });
-    }
   };
 
-  // 5: the safety sheet, then the pin opens — the gate allows it only now.
+  // Under 19 at A27 removes everything, and the screen says so (Alex, M3.2; P103).
+  const removeUnder19 = async () => {
+    const { error } = await supabase().rpc("remove_me_under_19");
+    if (error) throw error;
+    await supabase().auth.signOut({ scope: "local" });
+    setStep("removed");
+  };
+
   // Back to the step that fixes what the gate needs, saying what it is.
   const sendBack = (fresh: Mine) => {
     const need = optInMissing(fresh);
@@ -329,6 +204,7 @@ export default function OptIn() {
     setStep(need.step);
   };
 
+  // The safety sheet, then the pin opens — the gate allows it only now.
   const finish = async () => {
     if (!accepted) return;
     setTrouble(null);
@@ -389,15 +265,17 @@ export default function OptIn() {
     );
   }
 
-  const tooYoung = age !== null && !isOldEnough(age);
-
   return (
     <AppScreen>
-      <Heading>{OPTIN_COPY.heading}</Heading>
-      <View style={{ marginBottom: spacing.lg }}>
-        <Body muted>{mine ? `${mine.firstName} · ${mine.gatheringName}` : ""}</Body>
-        <Body muted>{OPTIN_COPY.lede}</Body>
-      </View>
+      {step !== "where" ? <Heading>{step === "identity" ? OPTIN_COPY.contactHeading : step === "safety" ? OPTIN_COPY.safetyHeading : OPTIN_COPY.heading}</Heading> : null}
+      {step !== "where" ? (
+        <View style={{ marginBottom: spacing.lg }}>
+          <Body muted>{mine ? `${mine.firstName} · ${mine.gatheringName}` : ""}</Body>
+          {step === "you" ? <Body muted>{OPTIN_COPY.lede}</Body> : null}
+          {step === "identity" ? <Body muted>{OPTIN_COPY.contactWhy}</Body> : null}
+        </View>
+      ) : null}
+
       {step === "lost" && lost ? (
         <View style={{ gap: spacing.md }}>
           <Body>{LOST_SAYS[lost]}</Body>
@@ -419,91 +297,53 @@ export default function OptIn() {
           )}
         </View>
       ) : null}
-      {why && step !== "safety" ? (
+
+      {why && step !== "safety" && step !== "lost" ? (
         <View style={styles.why}>
           <Body>{why}</Body>
         </View>
       ) : null}
 
-      {step === "details" && mine ? (
-        <>
-          {!mine.hasPrivate ? (
-            <>
-              <View style={styles.dob}>
-                <View style={styles.dobPart}>
-                  <Field label="Day" value={day} onChangeText={setDay} keyboardType="number-pad" inputMode="numeric" maxLength={2} />
-                </View>
-                <View style={styles.dobPart}>
-                  <Field label="Month" value={month} onChangeText={setMonth} keyboardType="number-pad" inputMode="numeric" maxLength={2} />
-                </View>
-                <View style={[styles.dobPart, { flex: 1.4 }]}>
-                  <Field label="Year" value={year} onChangeText={setYear} keyboardType="number-pad" inputMode="numeric" maxLength={4} />
-                </View>
-              </View>
-              <Choice label="Gender" hint={GENDER_WHY} options={GENDER_CHOICES} value={gender} onChange={setGender} />
-              {gender === "nonbinary" ? (
-                <Tick label="Include me in women-only crews" value={womenOnly} onChange={setWomenOnly} />
-              ) : null}
-            </>
-          ) : null}
-          {!mine.hasPhoto ? (
-            <View style={{ marginBottom: spacing.md }}>
-              <Body>{PHOTO_LABEL}</Body>
-              <Body muted>{PHOTO_WHY}</Body>
-              <View style={styles.photoRow}>
-                {photo.state !== "none" ? (
-                  <Image source={{ uri: photo.picked.uri }} style={[styles.preview, photo.state === "failed" && { opacity: 0.4 }]} />
-                ) : (
-                  <View style={[styles.preview, styles.previewEmpty]} />
-                )}
-                <View style={{ flex: 1, gap: spacing.sm }}>
-                  {photoActions(photo).map((action) =>
-                    action === "remove" ? (
-                      <Button key={action} kind="quiet" label="Remove photo" onPress={() => { setPhoto(removePhoto()); setTrouble(null); }} />
-                    ) : (
-                      <Button key={action} kind="quiet" label={action === "choose" ? "Choose a photo" : "Choose another"} onPress={choosePhoto} />
-                    ),
-                  )}
-                </View>
-              </View>
-            </View>
-          ) : null}
-          {trouble ? <Trouble what={trouble} onRetry={saveDetails} busy={busy} /> : null}
-          <Button
-            label="Continue"
-            busy={busy}
-            disabled={(!mine.hasPrivate && (age === null || gender === null)) || (!mine.hasPhoto && photo.state === "none" && !tooYoung)}
-            onPress={saveDetails}
-          />
-        </>
+      {step === "you" && mine ? (
+        <YouStep
+          firstName={mine.firstName}
+          hasPrivate={mine.hasPrivate}
+          hasPhoto={mine.hasPhoto}
+          photoRequired
+          onUnder19={removeUnder19}
+          onSaved={() => afterStep()}
+        />
       ) : null}
 
-      {step === "contact" ? (
-        <>
-          <Heading>{OPTIN_COPY.contactHeading}</Heading>
-          <View style={{ marginBottom: spacing.md }}>
-            <Body muted>{OPTIN_COPY.contactWhy}</Body>
-          </View>
-          <Field label={OPTIN_COPY.email} value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" inputMode="email" />
-          {trouble ? <Trouble what={trouble} onRetry={sendCode} busy={busy} /> : null}
-          <Button label={OPTIN_COPY.sendCode} busy={busy} disabled={!email.includes("@")} onPress={sendCode} />
-        </>
+      {step === "where" && mine ? (
+        <WhereStep
+          personId={mine.personId}
+          neighbourhood={mine.neighbourhood}
+          tags={mine.tags}
+          onDone={(saved) => {
+            if (!saved) rememberSkip(slug);
+            setWhereDone(true);
+            afterStep({ whereNow: true });
+          }}
+        />
       ) : null}
 
-      {step === "code" ? (
-        <>
-          <View style={{ marginBottom: spacing.md }}>
-            <Body muted>{OPTIN_COPY.codeSent}</Body>
-          </View>
-          <Field label={OPTIN_COPY.code} value={code} onChangeText={setCode} keyboardType="number-pad" inputMode="numeric" autoComplete="one-time-code" maxLength={6} />
-          {trouble ? <Trouble what={trouble} onRetry={confirmCode} busy={busy} /> : null}
-          <Button label={OPTIN_COPY.verify} busy={busy} disabled={code.trim().length < 6} onPress={confirmCode} />
-        </>
+      {step === "identity" ? (
+        <IdentityStep
+          mode="link"
+          returnTo={`/opt-in/${slug}`}
+          hasAccount={hasAccount}
+          notice={notice}
+          onDone={() => {
+            setHasAccount(null);
+            setNotice(null);
+            afterStep({ whereNow: true });
+          }}
+        />
       ) : null}
 
       {step === "safety" ? (
         <>
-          <Heading>{OPTIN_COPY.safetyHeading}</Heading>
           <View style={styles.sheet}>
             {OPTIN_COPY.safety.map((line) => (
               <Body key={line}>{`•  ${line}`}</Body>
@@ -523,11 +363,6 @@ export default function OptIn() {
 }
 
 const styles = StyleSheet.create({
-  dob: { flexDirection: "row", gap: spacing.sm },
-  dobPart: { flex: 1 },
-  photoRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginTop: spacing.sm },
-  preview: { width: 72, height: 72, borderRadius: radius.md },
-  previewEmpty: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },
   why: {
     padding: spacing.md,
     borderWidth: 1,

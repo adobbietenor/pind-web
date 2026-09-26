@@ -80,11 +80,51 @@ describe("A27: what is missing, and the step that fixes it", () => {
   it("O03 the walk's case: a merged account with no photo is sent to the photo, told so", () => {
     const need = optInMissing({ permanent: true, hasPrivate: true, hasPhoto: false });
     assert.deepEqual(need.missing, ["photo"]);
-    assert.equal(need.step, "details");
+    assert.equal(need.step, "you");
     assert.equal(need.says, "One thing before you can meet people here: a photo of you. Add it below, then you're in.");
   });
 
   it("O04 only sign-in missing goes to the email step", () => {
-    assert.equal(optInMissing({ permanent: false, hasPrivate: true, hasPhoto: true }).step, "contact");
+    assert.equal(optInMissing({ permanent: false, hasPrivate: true, hasPhoto: true }).step, "identity");
+  });
+});
+
+// One profile, two orders (M3.2 walk): A27's next step, and what Profile says is missing.
+import { nextOptInStep, profileGapLine, profileGaps, whereComplete } from "../../packages/shared/src/profile.ts";
+
+describe("A27's order, and the gaps Profile names", () => {
+  const base = { permanent: false, hasPrivate: false, hasPhoto: false, whereDone: false };
+
+  it("O05 date of birth first: nothing else is asked before 'you' is done — under 19 stops before anything is collected", () => {
+    assert.equal(nextOptInStep(base), "you");
+    assert.equal(nextOptInStep({ ...base, whereDone: true }), "you", "'where' jumped ahead of the date of birth");
+    assert.equal(nextOptInStep({ ...base, hasPrivate: true }), "you", "the photo is still part of 'you'");
+  });
+
+  it("O06 then where, then a way to sign in, then the safety sheet", () => {
+    const you = { ...base, hasPrivate: true, hasPhoto: true };
+    assert.equal(nextOptInStep(you), "where");
+    assert.equal(nextOptInStep({ ...you, whereDone: true }), "identity");
+    assert.equal(nextOptInStep({ ...you, whereDone: true, permanent: true }), "safety");
+  });
+
+  it("O07 skipping 'where' never blocks: the gate does not need it", () => {
+    // whereDone is set by a skip as well as by a completed step.
+    assert.equal(nextOptInStep({ permanent: true, hasPrivate: true, hasPhoto: true, whereDone: true }), "safety");
+  });
+
+  it("O08 'where' is complete with a neighbourhood and at least three tags — and not with either alone", () => {
+    assert.equal(whereComplete({ neighbourhood: "dundas-west", tagCount: 3 }), true);
+    assert.equal(whereComplete({ neighbourhood: "dundas-west", tagCount: 2 }), false);
+    assert.equal(whereComplete({ neighbourhood: null, tagCount: 5 }), false);
+  });
+
+  it("O09 Profile names each gap, and nothing when there is none", () => {
+    assert.deepEqual(profileGaps({ hasPhoto: true, neighbourhood: "x", tagCount: 3 }), []);
+    assert.equal(profileGapLine([], 3), null);
+    const all = profileGaps({ hasPhoto: false, neighbourhood: null, tagCount: 0 });
+    assert.deepEqual(all, ["photo", "neighbourhood", "tags"]);
+    assert.equal(profileGapLine(all, 0), "Your profile is still missing a photo, a neighbourhood and 3 tags — it's what the people you meet go on.");
+    assert.equal(profileGapLine(profileGaps({ hasPhoto: true, neighbourhood: "x", tagCount: 2 }), 2), "Your profile is still missing 1 more tag — it's what the people you meet go on.");
   });
 });
