@@ -75,13 +75,15 @@ async function walk(kind) {
     const email = `delivered+pind-${kind}-${Date.now()}@resend.dev`;
     let accountId = null;
     if (kind === "merge") {
-      // An existing account with nothing on it — and a tester, as Alex's would be, so
-      // the test crowd stays visible after the merge.
+      // An existing account with nothing on it, and NOT a tester — exactly Alex's. The
+      // first version of this check made it a tester "as Alex's would be", and so walked
+      // the failing path (the tester flag lost at the merge) and reported success.
       const u = await must(await rest("/auth/v1/admin/users", { method: "POST", body: JSON.stringify({ email, password: randomUUID(), email_confirm: true, app_metadata: { pind_harness: true } }) }), "account");
       accountId = u.id;
       made.push(accountId);
       await must(await rest("/rest/v1/people", { method: "POST", body: JSON.stringify({ auth_user_id: accountId, first_name: "Mergeaccount" }) }), "account person");
-      await must(await rest("/rest/v1/rpc/admin_set_tester", { method: "POST", body: JSON.stringify({ p_auth_user: accountId, p_on: true, p_actor: "link-path-check", p_note: "link-path-check" }) }), "account tester");
+      const listed = await must(await rest("/rest/v1/rpc/admin_testers", { method: "POST", body: "{}" }), "testers");
+      if (listed.some((t) => t.auth_user_id === accountId)) throw new Error("the account is a tester before the walk — the check would prove nothing");
     }
 
     const port = 9700 + Math.floor(Math.random() * 90);
@@ -188,13 +190,17 @@ async function walk(kind) {
       await click("Continue");
     }
 
-    // The safety sheet, then open.
+    // After signing in — as whoever this now is — the test crowd must still be there.
+    // This is the step Alex could never get past (M3.2 walk, 28 Sept).
     step("the safety sheet", await until(OPTIN_COPY.safetyHeading, 25000));
+    const afterSignIn = await body();
+    step("after sign-in the test crowd is still visible", afterSignIn.includes("Test crowd") && !afterSignIn.includes("isn't open to the account") && !afterSignIn.includes("Not on Pin'd"));
     await click(OPTIN_COPY.accept);
     await sleep(300);
     await click(OPTIN_COPY.finish);
     for (let t = 0; t < 30; t++) { if ((await evaluate("location.pathname")) === `/crowd/${crowd.slug}`) break; await sleep(500); }
     step("lands on A9", (await evaluate("location.pathname")) === `/crowd/${crowd.slug}`);
+    step("A9 shows the test crowd, not 'Not on Pin'd'", (await until("Test crowd", 15000)) && !(await body()).includes("Not on Pin'd"));
 
     // What the database holds now, for whoever this ended up as.
     const who = kind === "merge" ? accountId : anonId;

@@ -357,6 +357,14 @@ Two things that follow, both cheap and both easy to skip:
   sent to /dev/null. The commit said nothing was wrong because nothing asked. **Gate
   every commit, push and deploy on its check with `&&`**, and never hide a check's
   output and its exit code at the same time.
+- **A check whose setup grants the thing under test proves nothing.** M3.2:
+  `check:link-path` walked the whole path through the merge and passed. But its setup
+  made the merge account a tester "as Alex's would be". The fault was the merge
+  dropping the tester flag, so the check walked straight through it and reported
+  success, while Alex could not get past sign-in on four attempts. **A setup must leave
+  the state under test as a real person has it, and assert that before the walk**
+  ("this account is not a tester going in"). The walk then asserts the outcome the
+  person saw: the crowd is still visible after sign-in.
 - **A test that reads the source must prove its own pattern matches something real.**
   An empty result is what a pattern that matches nothing returns, so it passes by
   finding nothing. M3.1: S20's regex was mangled on the way into the file and matched

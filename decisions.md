@@ -3323,3 +3323,27 @@ or solo."* Where the two meet and where they do not:
   moved to the end of M3.2b, with native Apple and Google at A27 added to its list.
   D01 holds that list in place. The rejected-photo deletion and the purge moved to M4.1,
   whose acceptance now checks every privacy-page promise one line at a time.
+
+### The tester flag follows the person (Alex, M3.2 walk, 28 Sept 2026)
+
+- **The walk was impossible as built.** The tester button puts the flag on an anonymous
+  user. Alex's Apple, Google and email addresses all already have staging accounts, so
+  every way he signed in at A27 was a merge. The merge deleted the anonymous tester, and
+  the flag with it, and the test crowd vanished: four attempts, three methods, none past
+  sign-in.
+  - The data: no new account was created, and his Apple account signed in at 14:11 and
+    holds the test-crowd pin.
+  - A link (a fresh address, or Apple or Google new to Pin'd) keeps the same user id,
+    and the flag is keyed on the id, so it already survived (P138).
+- **Fix** (`m3_2_tester_follows_the_person`): when the anonymous user is a tester, the
+  account it merges into becomes one.
+  - The account is listed on /admin/testers with a note saying how, and is removable
+    like any other.
+  - A merge from a non-tester never creates the flag (P137).
+  - P136 asserts the account could not see the test crowd before and can after.
+  - **This reverses Alex's earlier condition** ("never elevates an existing one"), at
+    his instruction. It is reachable only from a session the admin made a tester.
+- **Why `check:link-path` passed:** its setup made the merge account a tester. It now
+  refuses to run if the account is a tester going in, and asserts the crowd is still
+  visible after sign-in and on A9. CLAUDE.md records the lesson: a check whose setup
+  grants the thing under test proves nothing.

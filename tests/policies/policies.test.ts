@@ -3173,6 +3173,77 @@ describe("Merging an anonymous pinner into their existing account (M3.2)", () =>
     }
   });
 
+  // **The tester flag follows the person** (Alex, M3.2 walk, 28 Sept). The walk was
+  // impossible: every way Alex signed in at A27 was a merge into an account he already
+  // had, the merge deleted the anonymous tester, and the test crowd vanished. Proved the
+  // way it failed — can this account SEE the seed gathering after signing in — not by
+  // reading the list.
+  async function accountWithSession(label: string) {
+    const email = `${PREFIX}-${w.run}-tester-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    return { authId, client };
+  }
+  const makeAnonTester = (authId: string) => w.service.rpc("admin_add_anonymous_tester", { p_user: authId, p_actor: "harness" });
+
+  it("P136 an anonymous TESTER who signs in to an account they already have makes it a tester — the test crowd is still there", async () => {
+    const a = await anonWithPin("TesterMergeA", w.G, 1);
+    await ok(makeAnonTester(a.authId));
+    const acct = await accountWithSession("TesterMergeP");
+    try {
+      assert.equal(await readable(acct.client, seedG), false, "the account could see the test crowd BEFORE the merge");
+      const out = await ok(merge(a.authId, acct.authId));
+      assert.equal((out as { tester: boolean }).tester, true);
+      assert.equal(await readable(acct.client, seedG), true, "after signing in from a tester session, the test crowd vanished — the walk's failure");
+      // Visible and removable like any other tester, with how it got there.
+      const listed = (await rows(w.service.rpc("admin_testers"))).find((t: { auth_user_id: string }) => t.auth_user_id === acct.authId);
+      assert.match(String(listed?.note), /anonymous tester session/, "the account is a tester with no note saying how");
+    } finally {
+      await ok(w.service.rpc("admin_set_tester", { p_auth_user: acct.authId, p_on: false, p_actor: "harness" }));
+      await cleanup(a.authId, acct.authId);
+    }
+  });
+
+  it("P137 a merge from someone who is NOT a tester never makes the account one — the flag is never created from nothing", async () => {
+    const a = await anonWithPin("PlainMergeA", w.G, 1);
+    const acct = await accountWithSession("PlainMergeP");
+    try {
+      const out = await ok(merge(a.authId, acct.authId));
+      assert.equal((out as { tester: boolean }).tester, false);
+      assert.equal(await readable(acct.client, seedG), false, "a merge from a non-tester made the account a tester");
+    } finally {
+      await cleanup(a.authId, acct.authId);
+    }
+  });
+
+  it("P138 an anonymous tester who becomes permanent by LINK (same user) keeps the test crowd", async () => {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInAnonymously();
+    assert.equal(signIn.error, null, signIn.error?.message);
+    const authId = signIn.data.user!.id;
+    await markHarness(w.service, authId);
+    await ok(makeAnonTester(authId));
+    try {
+      assert.equal(await readable(client, seedG), true, "the anonymous tester could not see the test crowd");
+      // What a confirmed email code does to the same user: an identity, no longer anonymous.
+      const linked = await w.service.auth.admin.updateUserById(authId, { email: `${PREFIX}-${w.run}-tester-link@example.com`, email_confirm: true });
+      assert.equal(linked.error, null, linked.error?.message);
+      const refreshed = await client.auth.refreshSession();
+      assert.equal(refreshed.error, null, refreshed.error?.message);
+      assert.equal(refreshed.data.session?.user.is_anonymous, false, "the link did not make the user permanent");
+      assert.equal(await readable(client, seedG), true, "linking lost the test crowd");
+    } finally {
+      await w.service.rpc("admin_set_tester", { p_auth_user: authId, p_on: false, p_actor: "harness" });
+      await cleanup(authId);
+    }
+  });
+
   it("P135 an ANONYMOUS pinner can set their own neighbourhood and tags (A27's 'where' comes before sign-in) — and nobody else's", async () => {
     const client = newClient(w.env, w.env.publishableKey);
     const signIn = await client.auth.signInAnonymously();
