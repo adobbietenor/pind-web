@@ -66,5 +66,5 @@ all of this.
 
 ## Resend / DNS
 
-- Domain `pind.social`; DKIM aligned; **DMARC `p=none`** — Alex is adding
-  `rua=mailto:dmarc@pind.social`, then `p=quarantine` after a week.
+- Domain `pind.social`; DKIM aligned; **DMARC live with `rua=mailto:dmarc@pind.social`
+  and `p=none`** (decisions). Still to do: `p=quarantine`.

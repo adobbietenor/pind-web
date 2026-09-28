@@ -108,6 +108,8 @@ A pin can be edited or removed by its owner at any time.
 Deleted 30 days after the gathering's effective end.
 
 ### crew
+**Superseded 28 Sept: the room → small group → solo design — build plan §8 M3.3.** Groups now form from the room by invite, on at 3, up to 8; H5 reads "3 or more". This section is rewritten as M3.3's first step.
+
 `kind`: **crew** (the default) or **solo**. Everything below about sizes — "3–8",
 "locks at 3", requests, sibling crews — applies to `kind = 'crew'`. A **solo plan**
 (`kind = 'solo'`) has exactly 2 seats, is created by an accepted proposal (below),
@@ -344,6 +346,8 @@ link out, pins, opt-ins, gender mix, crews badge. **No map, no feed, no algorith
 - **A7 populated** — crews badge is the only purple element per row.
 
 ### A8–A10 — Crowd page
+**A10 and A11–A17 below are superseded 28 Sept: the room → small group → solo design — build plan §8 M3.3.** A9 leads with the room.
+
 - **A8 pre-pin** — same anatomy as W2 so a shared link feels continuous. Facts, the
   **only map in the app** (venue + named spots, never people, H1), counts, house rules,
   one button: "Pin in — I've got a ticket". Works logged-out via the share link.
@@ -416,7 +420,10 @@ The same screen serves a solo plan's two members.
 have gone alone anyway?" — Yes / No / I wasn't going to go at all. It is the
 **attendance metric** (§7): did Pin'd create attendance, or only company.
 
-### A18 — Notifications (exactly five)
+### A18 — Notifications (exactly six)
+
+**Six since 28 Sept** (Alex): the room made conversation the first thing that happens, so #6 below was added. #2 now fires for the room, and #3 covers group invites and plans. The rest of this section is rewritten with M3.3.
+
 1. **Monday 6:00 PM** — this week's crowds digest → A7
 2. **Threshold** — "5 people going to X want to meet up — crews are open" → A10
 3. **Plan status** — formed / spot set / dissolved / **gathering date changed or
@@ -426,7 +433,7 @@ have gone alone anyway?" — Yes / No / I wasn't going to go at all. It is the
    you're there" → A13
 5. **Next morning** — "Did you meet up?" → A16
 
-Nothing else. Never "someone viewed your profile". The rule is five moments, all
+Nothing else. Never "someone viewed your profile". The rule is six moments (#6, room activity, batched, since 28 Sept), all
 about a plan — a ban on engagement bait, not a count to defend.
 **Every notification is mirrored by email to people without a device token** (web-only
 people), through Resend on pind.social; the digest email has an unsubscribe link.
@@ -463,7 +470,7 @@ count (Q3).
 "Meet 1-on-1" appears here only as a summary of the per-gathering setting (on at which
 gatherings, and who can see you); it is switched on and off on the pinned crowd page
 (A28), never here.
-Notifications: the five, toggleable.
+Notifications: the six, toggleable.
 Data: export my data, delete account (in-app, required by both stores).
 Note on screen: no location permission exists to manage — the app never asks.
 
@@ -661,7 +668,7 @@ working. Hours are Alex's, agent-assisted.
 | M3.2b | The app's front door — A5–A7, interests, search, A19, universal links, and the one build + native walk for M3.2 and M3.2b (Alex) | Not started | 16–19 |
 | M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | Not started | 22–31 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
-| M3.5 | Safety and the five notifications (A18, A23, A24) | Not started | 10–14 |
+| M3.5 | Safety and the notifications (A18, A23, A24) | Not started | 10–14 |
 | M3.6 | Dogfood on staging | Not started | 6–8 |
 | **Phase 4** | **Before the first real crowd** | | 28–42 |
 | M4.1 | Policy, terms, operations (moderation rota, incident scripts) | Not started | 4–6 |
@@ -1719,10 +1726,11 @@ to be legible in the admin and correct with sparse data.
 |---|---|---|
 | `publish_target_weekly` | **50** | How many gatherings should be published per calendar week of start dates. Raised from 5 in M2.2: build assuming it is popular (decisions Part 5) |
 | `publish_min` / `publish_max` | 3 / **75** | Floor and ceiling for the target. The ceiling rose with the target; the floor only binds once adaptive is on (M4.5) |
-| `publish_lead_days_min` / `_max` | 4 / 21 | Publish a draft only if it starts within this window; nearer first |
-| `max_per_venue_per_week` | 2 | A Jays homestand does not fill the week |
+| `publish_lead_days_min` / `_max` | **0** / 21 | Publish a draft only if it starts within this window; nearer first |
+| `max_per_venue_per_week` | **6** | A Jays homestand does not fill the week — meant to be inert at 50 (M2.2) |
 | `community_slots_weekly` | 1 | Reserved for a "Community & free" gathering above its own threshold (from M4.4). **One in five was chosen before any evidence — revisit at M4.4** |
-| `score_floor` | 70 | Final score (AI score minus distance adjustment) below which a draft is never auto-published. **At a target of 50 this, not the target, is what limits the list** — and lowering it needs a per-category cap in the same change (decisions Part 5) |
+| `score_floor` | **60** | Final score (AI score minus distance adjustment) below which a draft is never auto-published. **At a target of 50 this, not the target, is what limits the list** — and lowering it needs a per-category cap in the same change (decisions Part 5) |
+| `max_category_share` | **0.40** | No category takes more than this share of what is published; lands with the floor of 60 (M2.2) |
 | `grow_reach` · `grow_median_pins` | 0.60 · 8 | Both must hold to grow |
 | `shrink_reach` | 0.30 | Below this, shrink |
 | `step_up` · `step_down` | +2 · −1 | The most the target can move in one week |

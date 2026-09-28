@@ -28,7 +28,7 @@ Last updated: 18 September 2026 (the revised build plan, `docs/build-plan.md`, m
 deliberate, narrow exception to H2 (no cold DMs) and H5 (no 1:1 meet-ups), with the
 guardrails in Part 5, "Future and beta features". Every other rule stands.
 Implemented (Alex, revised build plan) as `crews.kind = 'solo'` with exactly two seats;
-H5's 3–8 governs `kind = 'crew'`; any report on a person hides them from solo
+H5's 3–8 governs `kind = 'crew'` (since 28 Sept: 3 or more, a group growing to 8 by invite); any report on a person hides them from solo
 immediately (`people.hidden_from_solo`).
 
 ---
@@ -44,7 +44,7 @@ consented to nothing: they never count toward "open to meeting" or the threshold
 5, and never appear in the reciprocal list. **The +1 claim page is dropped** (Alex,
 revised build plan): a +1 who wants to be visible pins in themselves through the share
 link. `party_total` keeps counting bodies. Crews show "+1 friend" for a seat taken by
-an unnamed +1, and a +1 occupies a seat: a member with a +1 takes 2 of the 8.
+an unnamed +1, and a +1 occupies a seat: a member with a +1 takes 2 of the 8. **Seats retired 28 Sept** — a small group is sized by its invited members.
 **Alternative:** force every attendee to pin individually. Cleaner data, but it taxes
 the organiser and undercounts real groups.
 
@@ -81,7 +81,7 @@ inference risk that remains is accepted; the pinned list is never ordered by joi
 
 ### Q4 — Who approves crew joins
 **Call:** **any member can approve** (A12). Crews have no owner. Declines are silent —
-the requester sees a "crew filled up" framing, never a rejection event.
+the requester sees a "crew filled up" framing, never a rejection event. **Retired 28 Sept:** there are no join requests — a group is by invite, and a declined invite sends nothing.
 **Alternative:** creator-only approval. More accountability, but creates a boss of what
 should be a table of strangers.
 
@@ -90,6 +90,7 @@ should be a table of strangers.
 minutes later (A15). Never a waitlist.
 **Alternative:** waitlist with auto-promote. Handles dropouts, leaves the 9th person
 planless until it is too late to matter.
+**Retired 28 Sept:** no sibling crews — a group grows by invite to 8, and the room holds everyone else.
 
 ### Q6 — Keep-in-touch mechanics
 **Call:** ticks are **invisible until mutual** (A16), gated behind a mutual "we met",
@@ -191,9 +192,9 @@ profile.
   auto-dissolve) are applied by pg_cron. `dissolved` is a fifth, terminal state; the
   row is never deleted.
 - **Crew seats:** a member occupies 1 or 2 seats (at most one +1). `pins.party_total`
-  stays 1–10 and is independent.
+  stays 1–10 and is independent. **Retired 28 Sept** (the room design).
 - **Dissolve notification** is folded into A18 notification 3 ("Crew status — formed /
-  spot set / dissolved"). Still five. A18's rule is five moments, all about a plan — a
+  spot set / dissolved"). Still five — **six since 28 Sept** (room activity). A18's rule is five moments, all about a plan — a
   ban on engagement bait, not a count to defend; a dissolve is a plan-state change.
 - **Contact details** (email; phone is not collected — Q8, Part 4) live in their own
   table, never on the person row.
@@ -347,7 +348,7 @@ profile.
   - **"Put me in a crew"**: an optional button that places a person in an open crew
     with room, for people who don't want to choose. **Decided yes** (Alex, revised
     build plan): built in M3.3 — it places the person in the open crew with the most
-    room, respecting women-only.
+    room, respecting women-only. **Retired 28 Sept:** the room places everyone at the gathering; a group is by invite.
   - **"Solo crew"** (working name): an opt-in mode for people pinned to an event who
     want to meet individually as well as in crews. Crews stay the main product and
     story; this is an opt-in extra, not marketed, and not framed as romantic (open,
@@ -437,7 +438,7 @@ change). Where the plan has more detail, the plan is the reference.
 - **Date changes message pinned people** (Alex, revised build plan; closes the open
   item from M1.3). A date change applied from a flag, or a withdrawal, reaches pinned
   people through notification 3, renamed **"plan status"** (formed / spot set /
-  dissolved / gathering date changed or withdrawn). Still five notifications.
+  dissolved / gathering date changed or withdrawn). Still five notifications — **six since 28 Sept**.
 - **Photo check on the Worker via a database webhook** (Alex, revised build plan). The
   app uploads the photo and inserts the row; a database webhook calls a Worker endpoint,
   which runs the Claude vision check and writes approve / reject / queue to
@@ -1842,7 +1843,7 @@ occurrences to 31 December**, three and a half months out.
     are. A row short of five now says nothing about five — two hundred rows all reading
     "crews open at 5" was the rule being repeated at a reader rather than anything about
     that gathering.
-  - **The pinned page leads with "Find your crew"** (Alex; recorded here for A9/A10 in
+  - **The pinned page leads with "Find your crew"** — **superseded 28 Sept: A9 leads with the room** (Alex; recorded here for A9/A10 in
     M3.3), where forming one is genuinely the next action rather than a state to wait
     for. This is the screen decision the earlier note predicted would cost nothing in
     the data layer: `private.can_see_at` never mentions five, so the reciprocal list
@@ -3086,7 +3087,7 @@ or solo."* Where the two meet and where they do not:
   **the counts and nobody's face** — with the way in (the "Open to meeting" toggle,
   which leads to A27). Not a contradiction of the flow; the flow's "browse" step is the
   opted-in branch, and the page must say so rather than look empty.
-- **Starting a crew waits for five people open to meeting** (M3.3 acceptance: "Below 5
+- **Starting a crew waits for five people open to meeting** — **superseded 28 Sept: the room opens at 2, a group is on at 3, and 5 gates only the mix chip** (M3.3 acceptance as it was: "Below 5
   opt-ins 'start a crew' is locked with the reason"). Below five, the page leads with
   the people (M2.2's reframing) and 1-on-1 (M3.4) is the thing you can do now.
 - **Where a person lands, by branch** (Alex, M3.2 — decided):
@@ -3097,7 +3098,7 @@ or solo."* Where the two meet and where they do not:
 - **Today** A26 on the web lands on the Worker's result page, which stops there: "You're
   #N pinned", the progress line, change or remove, share, add to calendar. Nothing after
   it exists yet — A27, A8, A9 are M3.2 work still to build; A10's crews and "Put me in
-  a crew" are M3.3; 1-on-1 (A28, A29) is M3.4.
+  a crew" were M3.3 (both retired 28 Sept for the room and small groups); 1-on-1 (A28, A29) is M3.4.
 
 - **The landing, decided** (Alex, M3.2): an instant **"You're in"** confirmation on the
   Worker, with **one primary button** into the app and the app's script already
