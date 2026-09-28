@@ -155,11 +155,14 @@ describe("Public data — V2, V11", () => {
     // `tags` and `person_tags` left this list in M3.1: the vocabulary is public
     // reference data like `neighbourhoods`, and a person's own tags are theirs.
     // P74–P77 are the cases that replaced them.
-    for (const t of [
-      "crews", "crew_members", "crew_proposals", "crew_proposal_votes", "crew_join_requests",
-      "crew_messages", "confirmations", "connections", "magic_links", "outbound_messages",
-    ]) {
+    for (const t of ["confirmations", "connections", "magic_links", "outbound_messages"]) {
       await noAccess(ava, t);
+    }
+    // The group tables opened in M3.3 behind their own rules (P149–P158): someone in no
+    // group reads nothing from them, and nobody creates a group except through
+    // start_group.
+    for (const t of ["crews", "crew_members", "crew_proposals", "crew_proposal_votes", "crew_messages", "crew_invites"]) {
+      assert.deepEqual(await rows(ava.from(t).select("*").limit(1)), [], `${t}: someone in no group read a row`);
     }
     await denied(ava.from("crews").insert({ gathering_id: w.G }), "42501");
     await denied(ava.from("connections").insert({ person_a: id("Ava"), person_b: id("Ben") }), "42501");
@@ -1869,11 +1872,13 @@ describe("Instagram handles — V17 (Alex, M3.1)", () => {
     assert.equal(await seesPeople(cal, "Ava"), 0, "the connection branch changed V1");
   });
 
-  it("P70 a pending join request is not a crewmate / a block and a moderation hide both override the crew branch", async () => {
+  it("P70 a pending invite is not a crewmate / a block and a moderation hide both override the crew branch", async () => {
+    // Join requests went with the room design (M3.3); an invite not yet accepted is its
+    // successor and, like a request before it, makes nobody a crewmate.
     const crew = await crewOf(w.G, ["Dee"]);
-    await ok(w.service.from("crew_join_requests").insert({ crew_id: crew, person_id: id("Hana") }), "Hana asks to join");
-    assert.equal(await handleSeen(c(M("Hana")), "Dee"), null, "a pending requester read a member's handle");
-    assert.equal(await handleSeen(c(M("Dee")), "Hana"), null, "a member read a pending requester's handle");
+    await ok(w.service.from("crew_invites").insert({ crew_id: crew, gathering_id: w.G, from_person: id("Dee"), to_person: id("Hana") }), "Dee invites Hana");
+    assert.equal(await handleSeen(c(M("Hana")), "Dee"), null, "someone invited read a member's handle");
+    assert.equal(await handleSeen(c(M("Dee")), "Hana"), null, "a member read an invitee's handle");
 
     // Gus blocked Hal in P14. Being in a crew together does not undo a block (V4).
     await crewOf(w.H, ["Gus", "Hal"]);
@@ -3570,5 +3575,166 @@ describe("The room — who is in it, who reads it, who can post (M3.3)", () => {
     }
     assert.ok((await w.anon.rpc("my_rooms", { p_gathering: G })).error, "a visitor asked for rooms");
     await denied(people.Vic.client.from("room_members").insert({ room_id: (await generalRoom("Rae"))!, gathering_id: G, person_id: people.Vic.personId, women_only: false }));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.3 — small groups: "go together" from the room (first version)
+// ---------------------------------------------------------------------------
+
+describe("Small groups — invites to people you've talked with, the plan, the night (M3.3)", () => {
+  let E = ""; // Events: a spot first
+  let K = ""; // Community: at the gathering
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+
+  async function meeter(label: string, gathering: string) {
+    const email = `${PREFIX}-${w.run}-grp-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1993 }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    await ok(client.from("pins").insert({ gathering_id: gathering, person_id: person.id, party_total: 1, open_to_meeting: true }).select("id").single());
+    people[label] = { authId, personId: person.id, client };
+    return people[label];
+  }
+  const room = async (label: string, gathering: string) =>
+    (await rows(people[label].client.rpc("my_rooms", { p_gathering: gathering }))).find((r: { women_only: boolean }) => !r.women_only)?.room_id as string;
+  const say = async (label: string, gathering: string, body: string) =>
+    ok(people[label].client.from("room_messages").insert({ room_id: await room(label, gathering), author_id: people[label].personId, body }).select("id").single());
+  const start = async (label: string, gathering: string, invitees: string[]) =>
+    people[label].client.rpc("start_group", { p_room: await room(label, gathering), p_invitees: invitees.map((n) => people[n].personId) });
+  const inviteFor = async (label: string, gathering: string) =>
+    (await rows(people[label].client.rpc("my_invites", { p_gathering: gathering })))[0] as { invite_id: string; crew_id: string; from_name: string; members: string[] } | undefined;
+  const crewState = async (crew: string) => (await serviceRow("crews", "id", crew, "state, spot_id, meet_at")) as { state: string; spot_id: string | null; meet_at: string | null };
+  const pause = () => new Promise((r) => setTimeout(r, 3100));
+
+  before(async () => {
+    const make = async (label: string, extra: Record<string, unknown>) =>
+      (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} ${label}`, starts_at: inDays(4), venue_id: w.venue, published_at: new Date().toISOString(), ...extra }).select("id").single())).id as string;
+    E = await make("Groups E", { source: "ticketmaster", convening: "a_spot_first" });
+    K = await make("Groups K", { source: "manual" });
+    const spots = await rows(w.service.from("gathering_spots").select("spot_id").eq("gathering_id", w.G));
+    await ok(w.service.from("gathering_spots").insert(spots.map((s: { spot_id: string }, i: number) => ({ gathering_id: E, spot_id: s.spot_id, meet_at: inDays(4 - i / 100) }))));
+    for (const n of ["Ada", "Bo", "Cy", "Di", "Ed", "Fay"]) await meeter(n, E);
+    for (const n of ["Gil", "Hu", "Ike"]) await meeter(n, K);
+  });
+
+  after(async () => {
+    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+  });
+
+  it("P149 the default convening follows the source, and the admin can override it", async () => {
+    assert.equal(await ok(w.anon.rpc("convening_of", { p_gathering: K })), "at_the_gathering");
+    assert.equal(await ok(w.anon.rpc("convening_of", { p_gathering: E })), "a_spot_first");
+  });
+
+  it("P150 you can invite only people you've both talked with in this room — not before you've said hi, not someone silent, not two, not four", async () => {
+    await denied(start("Ada", E, ["Bo", "Cy"]), "42501"); // Ada hasn't posted
+    await say("Ada", E, "hi all");
+    await say("Bo", E, "hey");
+    await say("Cy", E, "hello");
+    await denied(start("Ada", E, ["Bo", "Di"]), "42501"); // Di hasn't posted
+    await denied(start("Ada", E, ["Bo"]), "22023"); // too few
+    await say("Di", E, "hi");
+    await say("Ed", E, "yo");
+    await say("Fay", E, "hiya");
+    await denied(start("Ada", E, ["Bo", "Cy", "Di", "Ed"]), "22023"); // too many
+  });
+
+  let crew = "";
+  let diCrew = "";
+  it("P151 a group exists only for its members and the people invited; the room cannot see it", async () => {
+    crew = await ok(start("Ada", E, ["Bo", "Cy", "Fay"]));
+    assert.equal((await rows(people.Ada.client.from("crews").select("id").eq("id", crew))).length, 1, "the starter could not see their group");
+    assert.equal((await rows(people.Di.client.from("crews").select("id").eq("id", crew))).length, 0, "someone in the room saw the group");
+    const inv = await inviteFor("Bo", E);
+    assert.equal(inv?.from_name, "Ada", "the invitee did not see who asked");
+    assert.equal(await inviteFor("Di", E), undefined, "someone not invited saw an invite");
+    assert.equal((await rows(people.Ada.client.from("crew_invites").select("id").eq("crew_id", crew))).length, 0, "the inviter could read the invites (and so learn of a decline)");
+  });
+
+  it("P152 a decline is silent; an accept makes a member; at 3 the group is on", async () => {
+    const cyInv = (await inviteFor("Cy", E))!;
+    await ok(people.Cy.client.rpc("respond_to_invite", { p_invite: cyInv.invite_id, p_accept: false }));
+    assert.equal((await rows(people.Ada.client.from("crew_members").select("person_id").eq("crew_id", crew))).length, 1, "a decline added someone");
+    const boInv = (await inviteFor("Bo", E))!;
+    await ok(people.Bo.client.rpc("respond_to_invite", { p_invite: boInv.invite_id, p_accept: true }));
+    assert.equal((await rows(people.Ada.client.from("crew_members").select("person_id").eq("crew_id", crew).is("left_at", null))).length, 2);
+    // Nobody else can accept someone else's invite.
+    await denied(people.Di.client.rpc("respond_to_invite", { p_invite: boInv.invite_id, p_accept: true }), "42501");
+    assert.equal((await crewState(crew)).state, "forming", "a spot-first group set a plan before three hours out");
+  });
+
+  it("P153 one group per person per gathering: accepting one lapses your other invites; a member can be neither invited nor start another", async () => {
+    await pause();
+    const other = await ok(start("Di", E, ["Ed", "Fay"]));
+    assert.ok(other);
+    diCrew = other as string;
+    assert.equal((await rows(people.Fay.client.rpc("my_invites", { p_gathering: E }))).length, 2, "Fay should hold two invites");
+    const fromAda = (await rows(people.Fay.client.rpc("my_invites", { p_gathering: E }))).find((i: { crew_id: string }) => i.crew_id === crew);
+    await ok(people.Fay.client.rpc("respond_to_invite", { p_invite: fromAda.invite_id, p_accept: true }));
+    assert.equal((await rows(people.Fay.client.rpc("my_invites", { p_gathering: E }))).length, 0, "the other invite did not lapse");
+    // Bo is in Ada's group: nobody can invite him, and he cannot start a second.
+    await denied(start("Ed", E, ["Bo", "Di"]), "42501");
+    await denied(start("Bo", E, ["Di", "Ed"]));
+    assert.equal((await rows(people.Ada.client.from("crew_members").select("person_id").eq("crew_id", crew).is("left_at", null))).length, 3, "the group is not on at 3");
+  });
+
+  it("P154 the group's thread: members read and post; the room and those invited do not", async () => {
+    await ok(people.Ada.client.from("crew_messages").insert({ crew_id: crew, author_id: people.Ada.personId, kind: "user", body: "Spot B at 6?" }));
+    const read = (label: string) => rows(people[label].client.from("crew_messages").select("body").eq("crew_id", crew));
+    assert.equal((await read("Bo")).length, 1, "a member could not read the thread");
+    assert.equal((await read("Di")).length, 0, "someone in the room read a group's thread");
+    await denied(people.Di.client.from("crew_messages").insert({ crew_id: crew, author_id: people.Di.personId, kind: "user", body: "let me in" }));
+    await denied(people.Bo.client.from("crew_messages").insert({ crew_id: crew, author_id: people.Bo.personId, kind: "system", body: "fake system" }));
+  });
+
+  it("P155 votes: members vote on the poll; others cannot", async () => {
+    const props = await rows(people.Ada.client.from("crew_proposals").select("id").eq("crew_id", crew));
+    assert.ok(props.length >= 1, "the group had no spot options");
+    await ok(people.Bo.client.from("crew_proposal_votes").insert({ proposal_id: props[props.length - 1].id, person_id: people.Bo.personId }));
+    await denied(people.Di.client.from("crew_proposal_votes").insert({ proposal_id: props[0].id, person_id: people.Di.personId }));
+    assert.equal((await rows(people.Di.client.from("crew_proposals").select("id").eq("crew_id", crew))).length, 0, "a non-member read the poll");
+  });
+
+  it("P156 three hours out, a group of 3 takes the poll's leader without anyone setting it, and goes live; 'I'm here' needs a line and works only then", async () => {
+    // Time moves to two hours before the start.
+    const leader = (await rows(people.Ada.client.from("crew_proposals").select("id, spot_id").eq("crew_id", crew))).slice(-1)[0];
+    await ok(w.service.from("gatherings").update({ starts_at: new Date(Date.now() + 2 * 3_600_000).toISOString() }).eq("id", E));
+    await ok(w.service.rpc("admin_groups_tick"));
+    const s = await crewState(crew);
+    assert.equal(s.state, "live", "the group did not take its plan and go live");
+    assert.equal(s.spot_id, leader.spot_id, "the plan was not the poll's leader");
+    await denied(people.Bo.client.from("crew_members").update({ arrived_at: new Date().toISOString(), arrival_note: null }).eq("crew_id", crew).eq("person_id", people.Bo.personId).select("person_id"));
+    await ok(people.Bo.client.from("crew_members").update({ arrived_at: new Date().toISOString(), arrival_note: "green Matthews jersey" }).eq("crew_id", crew).eq("person_id", people.Bo.personId).select("person_id"));
+  });
+
+  it("P157 at the gathering: a Community group of 3 has its plan at once — the start, no spot", async () => {
+    for (const n of ["Gil", "Hu", "Ike"]) await say(n, K, `hi from ${n}`);
+    const g = await ok(people.Gil.client.rpc("start_group", { p_room: await room("Gil", K), p_invitees: [people.Hu.personId, people.Ike.personId] }));
+    for (const n of ["Hu", "Ike"]) {
+      const inv = (await inviteFor(n, K))!;
+      await ok(people[n].client.rpc("respond_to_invite", { p_invite: inv.invite_id, p_accept: true }));
+    }
+    const s = await crewState(g);
+    assert.equal(s.state, "spot_set");
+    assert.equal(s.spot_id, null, "an at-the-gathering plan named a spot");
+    assert.ok(s.meet_at, "an at-the-gathering plan had no time");
+  });
+
+  it("P158 under 3 at six hours out, a forming group dissolves and releases its people; the lifecycle job is the service key's only", async () => {
+    const dCrew = diCrew;
+    assert.ok(dCrew, "Di's group was not made");
+    // E is two hours out now: Di's group has one member (Fay went with Ada; Ed never answered).
+    await ok(w.service.rpc("admin_groups_tick"));
+    assert.equal((await crewState(dCrew)).state, "dissolved");
+    assert.equal((await rows(w.service.from("crew_members").select("person_id").eq("crew_id", dCrew).is("left_at", null))).length, 0, "a dissolved group kept its people");
+    for (const client of [people.Ada.client, w.anon]) assert.ok((await client.rpc("admin_groups_tick")).error, "a visitor ran the lifecycle job");
   });
 });

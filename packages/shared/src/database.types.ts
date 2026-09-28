@@ -93,6 +93,8 @@ export type Database = {
           import_weeks: number | null
           max_category_share: number
           max_per_venue_per_week: number
+          meet_offset_minutes: number
+          meet_offset_morning_minutes: number
           min_capacity: number
           min_per_category: number
           name: string
@@ -129,6 +131,8 @@ export type Database = {
           import_weeks?: number | null
           max_category_share?: number
           max_per_venue_per_week?: number
+          meet_offset_minutes?: number
+          meet_offset_morning_minutes?: number
           min_capacity?: number
           min_per_category?: number
           name: string
@@ -165,6 +169,8 @@ export type Database = {
           import_weeks?: number | null
           max_category_share?: number
           max_per_venue_per_week?: number
+          meet_offset_minutes?: number
+          meet_offset_morning_minutes?: number
           min_capacity?: number
           min_per_category?: number
           name?: string
@@ -422,55 +428,62 @@ export type Database = {
           },
         ]
       }
-      crew_join_requests: {
+      crew_invites: {
         Row: {
           created_at: string
           crew_id: string
           decided_at: string | null
-          decided_by: string | null
+          from_person: string
+          gathering_id: string
           id: string
-          person_id: string
-          seats: number
-          status: Database["public"]["Enums"]["join_request_status"]
+          status: Database["public"]["Enums"]["invite_status"]
+          to_person: string
         }
         Insert: {
           created_at?: string
           crew_id: string
           decided_at?: string | null
-          decided_by?: string | null
+          from_person: string
+          gathering_id: string
           id?: string
-          person_id: string
-          seats?: number
-          status?: Database["public"]["Enums"]["join_request_status"]
+          status?: Database["public"]["Enums"]["invite_status"]
+          to_person: string
         }
         Update: {
           created_at?: string
           crew_id?: string
           decided_at?: string | null
-          decided_by?: string | null
+          from_person?: string
+          gathering_id?: string
           id?: string
-          person_id?: string
-          seats?: number
-          status?: Database["public"]["Enums"]["join_request_status"]
+          status?: Database["public"]["Enums"]["invite_status"]
+          to_person?: string
         }
         Relationships: [
           {
-            foreignKeyName: "crew_join_requests_crew_id_fkey"
+            foreignKeyName: "crew_invites_crew_id_fkey"
             columns: ["crew_id"]
             isOneToOne: false
             referencedRelation: "crews"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "crew_join_requests_decided_by_fkey"
-            columns: ["decided_by"]
+            foreignKeyName: "crew_invites_from_person_fkey"
+            columns: ["from_person"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "crew_join_requests_person_id_fkey"
-            columns: ["person_id"]
+            foreignKeyName: "crew_invites_gathering_id_fkey"
+            columns: ["gathering_id"]
+            isOneToOne: false
+            referencedRelation: "gatherings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crew_invites_to_person_fkey"
+            columns: ["to_person"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
@@ -663,6 +676,7 @@ export type Database = {
           hidden_at: string | null
           id: string
           meet_at: string | null
+          room_id: string | null
           sibling_of: string | null
           spot_id: string | null
           state: Database["public"]["Enums"]["crew_state"]
@@ -676,6 +690,7 @@ export type Database = {
           hidden_at?: string | null
           id?: string
           meet_at?: string | null
+          room_id?: string | null
           sibling_of?: string | null
           spot_id?: string | null
           state?: Database["public"]["Enums"]["crew_state"]
@@ -689,6 +704,7 @@ export type Database = {
           hidden_at?: string | null
           id?: string
           meet_at?: string | null
+          room_id?: string | null
           sibling_of?: string | null
           spot_id?: string | null
           state?: Database["public"]["Enums"]["crew_state"]
@@ -701,6 +717,13 @@ export type Database = {
             columns: ["gathering_id"]
             isOneToOne: false
             referencedRelation: "gatherings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crews_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
             referencedColumns: ["id"]
           },
           {
@@ -1014,6 +1037,7 @@ export type Database = {
           blurb_why: string | null
           capacity: number | null
           category: Database["public"]["Enums"]["gathering_category"] | null
+          convening: Database["public"]["Enums"]["convening"] | null
           counted_at: string | null
           created_at: string
           dismissed_at: string | null
@@ -1049,6 +1073,7 @@ export type Database = {
           blurb_why?: string | null
           capacity?: number | null
           category?: Database["public"]["Enums"]["gathering_category"] | null
+          convening?: Database["public"]["Enums"]["convening"] | null
           counted_at?: string | null
           created_at?: string
           dismissed_at?: string | null
@@ -1084,6 +1109,7 @@ export type Database = {
           blurb_why?: string | null
           capacity?: number | null
           category?: Database["public"]["Enums"]["gathering_category"] | null
+          convening?: Database["public"]["Enums"]["convening"] | null
           counted_at?: string | null
           created_at?: string
           dismissed_at?: string | null
@@ -2559,6 +2585,7 @@ export type Database = {
         Args: { p_actor: string; p_note?: string; p_person: string }
         Returns: undefined
       }
+      admin_groups_tick: { Args: never; Returns: Json }
       admin_hide_person: {
         Args: { p_actor: string; p_note?: string; p_person: string }
         Returns: undefined
@@ -2817,6 +2844,10 @@ export type Database = {
         Args: { p_classification: string }
         Returns: Database["public"]["Enums"]["gathering_category"]
       }
+      convening_of: {
+        Args: { p_gathering: string }
+        Returns: Database["public"]["Enums"]["convening"]
+      }
       effective_end: {
         Args: { g: Database["public"]["Tables"]["gatherings"]["Row"] }
         Returns: string
@@ -2834,6 +2865,16 @@ export type Database = {
         }[]
       }
       i_may_meet: { Args: never; Returns: boolean }
+      leave_group: { Args: { p_crew: string }; Returns: undefined }
+      my_invites: {
+        Args: { p_gathering: string }
+        Returns: {
+          crew_id: string
+          from_name: string
+          invite_id: string
+          members: string[]
+        }[]
+      }
       my_rooms: {
         Args: { p_gathering: string }
         Returns: {
@@ -2869,6 +2910,10 @@ export type Database = {
         }[]
       }
       remove_me_under_19: { Args: never; Returns: undefined }
+      respond_to_invite: {
+        Args: { p_accept: boolean; p_invite: string }
+        Returns: undefined
+      }
       room_seen: { Args: { p_room: string }; Returns: undefined }
       spot_poll: {
         Args: { p_gathering: string }
@@ -2877,12 +2922,17 @@ export type Database = {
           votes: number
         }[]
       }
+      start_group: {
+        Args: { p_invitees: string[]; p_room: string }
+        Returns: string
+      }
       venue_map_key: { Args: { p_lat: number; p_lng: number }; Returns: string }
       women_only_offer: { Args: { p_gathering: string }; Returns: boolean }
     }
     Enums: {
       confirmation_kind: "we_met" | "keep_in_touch"
       contact_kind: "email" | "sms"
+      convening: "at_the_gathering" | "a_spot_first" | "after"
       crew_state: "forming" | "spot_set" | "live" | "done" | "dissolved"
       entry_kind: "free" | "door" | "ticketed"
       gathering_category:
@@ -2903,7 +2953,7 @@ export type Database = {
       gathering_source: "ticketmaster" | "manual" | "ai"
       gender: "woman" | "man" | "nonbinary" | "undisclosed"
       group_link_kind: "everyone" | "women_only"
-      join_request_status: "pending" | "approved" | "declined"
+      invite_status: "sent" | "accepted" | "declined" | "expired" | "withdrawn"
       message_kind: "system" | "user" | "arrival"
       outbound_kind: "threshold" | "survey"
       photo_status: "pending" | "approved" | "needs_review" | "rejected"
@@ -3046,6 +3096,7 @@ export const Constants = {
     Enums: {
       confirmation_kind: ["we_met", "keep_in_touch"],
       contact_kind: ["email", "sms"],
+      convening: ["at_the_gathering", "a_spot_first", "after"],
       crew_state: ["forming", "spot_set", "live", "done", "dissolved"],
       entry_kind: ["free", "door", "ticketed"],
       gathering_category: [
@@ -3068,7 +3119,7 @@ export const Constants = {
       gathering_source: ["ticketmaster", "manual", "ai"],
       gender: ["woman", "man", "nonbinary", "undisclosed"],
       group_link_kind: ["everyone", "women_only"],
-      join_request_status: ["pending", "approved", "declined"],
+      invite_status: ["sent", "accepted", "declined", "expired", "withdrawn"],
       message_kind: ["system", "user", "arrival"],
       outbound_kind: ["threshold", "survey"],
       photo_status: ["pending", "approved", "needs_review", "rejected"],
