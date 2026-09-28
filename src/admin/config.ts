@@ -40,6 +40,7 @@ const _everyNameIsAnEnvSetting: Record<SecretName, keyof Env> = {
   ALERT_EMAIL: "ALERT_EMAIL",
   ALERT_FROM: "ALERT_FROM",
   SESSION_SECRET: "SESSION_SECRET",
+  EXPO_ACCESS_TOKEN: "EXPO_ACCESS_TOKEN",
 };
 void _everyNameIsAnEnvSetting;
 

@@ -1,5 +1,6 @@
 import { runSeriesChecks, CHECKER } from "./community/run";
 import { jobsFor } from "./cron";
+import { deliverPending } from "./notify/deliver";
 import { spotSuggestionsOn, type Env } from "./env";
 import { escape, page } from "./html";
 import { IMPORTER, runImport } from "./import/run";
@@ -56,6 +57,11 @@ export default {
           console.error("photo sweep run:", err instanceof Error ? err.message : err);
         }
       }
+      return;
+    }
+    if (jobs.includes("notify")) {
+      const outcome = await deliverPending(env);
+      if (outcome.sent.push + outcome.sent.email + outcome.sent.none + outcome.failed > 0) console.log(outcome.message);
       return;
     }
     if (jobs.includes("liveness")) {

@@ -3844,7 +3844,10 @@ describe("Notifications #2 and #6 — written by the act itself, and refused whe
     }
     // The Worker's view of the queue carries where each can go.
     const pending = await ok(w.service.rpc("admin_pending_notifications", { p_limit: 500 }));
-    const jo = (pending as { person_id: string; tokens: string[]; email: string }[]).find((p) => p.person_id === people.Jo.personId);
-    if (jo) assert.ok(jo.tokens.length === 1 && jo.email, "the queue lost the phone or the email");
+    // Jo is a harness person: the queue sends her nowhere — no phone, no email — so a
+    // harness run never emails @example.com (m3_3_notifications_skip_harness).
+    const jo = (pending as { person_id: string; tokens: string[]; email: string | null }[]).find((p) => p.person_id === people.Jo.personId);
+    assert.ok(jo, "Jo's notification was not in the queue");
+    assert.deepEqual([jo!.tokens, jo!.email], [[], null], "a harness person would have been emailed or pushed");
   });
 });

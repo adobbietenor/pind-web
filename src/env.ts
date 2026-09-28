@@ -60,6 +60,11 @@ export interface Env {
   // Where operational alerts go, and who they come from (M2.2). Not secrets.
   ALERT_EMAIL?: string;
   ALERT_FROM?: string;
+  // Push to phones (M3.3). Secret. Without it a person with a phone is emailed instead,
+  // and the Configuration panel says the token is missing.
+  EXPO_ACCESS_TOKEN?: string;
+  // Who notification emails come from (M3.3). Not a secret. Defaults to hello@pind.social.
+  NOTIFY_FROM?: string;
 }
 
 export const spotSuggestionsOn = (env: Env): boolean => env.AI_SPOT_SUGGESTIONS === "on";
