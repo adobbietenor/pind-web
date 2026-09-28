@@ -487,50 +487,45 @@ any of it.
 
 11–12 h
 
-#### M3.3 · Crews, the thread, the night, the morning after (A10–A17, A20)
+#### M3.3 · The room and small groups, the night, the morning after (A9–A17, A20)
 
-**Redesigned before it opened** (Alex, with Tatiana and Jayme, 28 Sept 2026 — decisions.md, "The room, then a small group, then solo"; the design doc "M3.3 — The Room"). Three shapes, each opted into from the one above: **the room** (everyone opted in at a gathering, automatic from 2, up to 30 a room), **a small group** (2 or 3 people you have talked with, invited — no requests, no approvals — where the spot and the plan live), and **solo** (the same move with one person). The section below is the crew design it replaces and is rewritten when M3.3 opens. First version recommended at 22–31 h.
+**Redesigned before it opened** (Alex, with Tatiana and Jayme, 28 Sept 2026 — decisions.md, "The room, then a small group, then solo"; the design doc "M3.3 — The Room"). The crew design asked someone to commit to a plan with strangers before anyone had spoken. Now there are three shapes, each opted into from the one above: **the room** (everyone open to meeting at a gathering, automatic from 2, up to 30 a room), **a small group** (2 or 3 people you have talked with in the room, invited — no requests, no approvals — where the spot and the plan live), and **solo** (the same move with one person; M3.4). **This milestone builds the first version** (Alex): 22–31 h. Its three deferrals are on M3.6's list by name.
 
-**The convening is not one shape** (Alex, after walking the community pages; decisions.md). The reveal is identical at an arena and at a run club — commit, see who committed — and the convening is not. A10–A12 have to decide this before they are drawn.
+**Goal.** Five faces are never "nothing to do": from the second person opted in there is somewhere to talk, the product speaks first so nobody has to, and a conversation becomes a small group with a spot and a time — end to end, with nobody from Pin'd in the room.
 
-**The spot-poll offset becomes a setting here** (Alex, M2.2): sixty minutes before is right for a 7pm gig and wrong for a 9am run. A value on the `cities` row with a shorter morning figure, done when crews are built rather than while the publisher is being walked.
+**The room at 1, 2, 3 and 5 people** (Alex: "two people and an empty thread is the same cold start in a different costume"; decided here, not left to copy). The room never opens on an empty thread, and nobody is asked to go first cold.
+- **1 — just you.** No room yet. A9: "You're the first here to say you'd like to meet. We'll tell you the moment someone else does." That moment is notification #2.
+- **2 — the room opens, already speaking.** The top of the thread is an **arrival card** for each person: face, first name, neighbourhood and their three on-list tags — only what the list already shows (H3). Shared tags are marked ("you both picked food before"). Under them, **three openers** as tappable lines: one from a shared tag when there is one, one about this gathering (shaped by its convening setting), one plain hello. Tapping one **fills the message box, editable — it is never sent for you**; the message is still yours. The first person gets #2 ("Maya's going to Leafs vs Bruins too — say hi"); the second arrives on the room with the box ready. Each has a reason to speak, and neither is the one who broke a silence.
+- **3 — enough to go together.** A new arrival card; the openers turn to the newcomer ("Say hi to Sam"). Once, a quiet card: "There are three of you — enough to go together", with "Go together". Invites reach only people you have both posted with, so to someone who has not posted it says "Say hi first — you can invite people you've talked with."
+- **5 — the room fills out.** The gender-mix chip appears in the header (Q3's floor). Past four, arrival cards fold into a "5 here" strip, so the thread stays about the talking. Openers show until you have posted your first message, then go.
+- **Arrival cards are drawn from membership, not stored as messages**: nobody wrote them, so there is nothing to moderate and nothing that outlives the room.
 
-**Two reframings carried in from M2.2** (decisions.md, "Crews open at 5" and "Messaging while crews are forming"). Both are the same point: the hinge is whether people convene without a host, so every screen before that moment should pull toward it rather than report on it.
-- **Lead with the people, not the rule.** The reciprocal list already works at n=2 — `can_see_at` never mentions five, and only crews and the mix chip are gated at 5 — so A9 has faces to show long before the threshold. The locked crew state belongs as a quiet line underneath, not as the page's headline, and "Crews open when 5 people opt in." needs replacing with what a reader came for.
-- **The vibe chips are load-bearing, not decorative** (Alex, after the community pass). If the product is commit → see who → form a crew by vibe, then **vibe is the only thing distinguishing one open crew from another**. Two crews at the same gathering, same spot, same time differ by nothing else, so a reader choosing between them is choosing on the vibe alone. Design them as the deciding information on the crew card, not as a garnish on it.
-- **Build the nudge here, once.** A preset, plan-shaped line that opens a free-text thread on a one-tap accept, so the recipient lets the conversation in. M3.4's solo mode specifies the same mechanism, so building it in M3.3 and reusing it there is the cheap order. Do the "Start a crew" → "I'll be at [spot], join me" reframing first: it is hours, and may shrink what the nudge has to carry.
+**First version — built here**
+- **Rooms**: one per gathering per 30 people, placement into the fullest room with space; readable exactly by `can_see_at` (the list's rule, reused); text only, up to 500 characters, at most one message every 3 seconds and 200 a day, enforced in the database; long-press to report with the body snapshotted (H9); closes 24 h after the effective end, read-only 30 days, deleted (Q11). Women-only room alongside, opening at 3 eligible, offered without a number (H7, Q9).
+- **A9 leads with the room**: faces, the last few messages, "Say hi in the room". Tapping a face still opens A22, never a chat.
+- **Small groups** (`crews`, `kind = 'crew'`, reused): "Go together" invites 2 or 3 people you have both posted with in the room; accept or decline, declining sends nothing; on at 3; one group per person per gathering; a group from the women-only room is women-only; below 3 at six hours out it dissolves with one notification. Its own thread (A14), invisible to the room.
+- **The group's plan**, by the gathering's convening setting: `a_spot_first` — the spot poll over the gathering's spot options, and **the leader becomes the plan three hours before** (pg_cron); `at_the_gathering` — "find each other at the start"; `after` — the poll timed to the effective end. "Share spot & time with a friend" (W3).
+- **The spot-poll offset becomes a setting** (Alex, M2.2): a value on the `cities` row with a shorter morning figure — sixty minutes before is right for a 7pm gig and wrong for a 9am run.
+- **The night and after**: A13 "I'm here" from three hours before, a line of text required, never geofenced; A17 done; A16 mutual-only "we met" and "keep in touch", the "showed up" badge, connections; A20 with its one verb, "invite"; the after-event question (§7).
+- **Notifications, six** (Alex): #2 is the room's, once per person per gathering, when there is first someone to talk to; **#6 is room activity, batched** — the first message since you last looked, then nothing from that room for an hour, never per message, off in one tap; #3 covers invites and a group's plan; #4 and #5 go to the group. Push where there is a device token, email otherwise (Resend).
+- **The "get the app" nudge, shown once, when you first join a group** (moved from "at crews-open": the moment you have a plan is the moment an app earns its place). On the web it is the hand-off into the product and gets design attention for that reason.
+- **Realtime** through `postgres_changes` only (it respects RLS). Fallback if it misbehaves on one platform: poll every 10 seconds while the room or thread is open. The spot and time are on the group card, so a meeting never depends on the chat.
+- **Retired with the crew design**: join requests and any-member approval (Q4), sibling crews (Q5), "Put me in a crew", the public crew list, a +1 taking a seat, crew vibe chips (shelved; Tatiana's list kept — "the vibe chips own the night; the person's tags own the person" stays true of tags), and the preset "shall we start a crew?" nudge (the room is where you say it).
 
+**Acceptance** (two real people on two devices plus test accounts; a staging gathering scheduled hours ahead)
 
+- **Rules first, both sides, in the harness:** a room message is readable by exactly the people who can see its author on the list, and not by someone not opted in, blocked, hidden, at another gathering or in another room; the women-only room only by the eligible; an invite only between two people who have both posted in the same room; a group's thread only by its members; the rate limits refuse the fourth message in three seconds and the 201st in a day.
+- **Placement:** with the room size set to 3 on staging, the fourth person opted in lands in a second room, and the first room is never reshuffled.
+- **The room at 1, 2, 3 and 5**, exactly as above: alone, A9 says so; at 2, arrival cards and three openers, and a tapped opener fills the box without sending; at 3, "enough to go together" appears once; at 5, the mix chip, and the cards fold.
+- **Notifications:** #2 reaches the first person when the second arrives; #6 fires for the first message since they last looked and **not** for a second one inside the hour; turning #6 off stops it.
+- **A group:** invite two people from the room; one declines and hears nothing; the other accepts; the group is on at 3 with a third; a fourth invite reaches only someone the inviter has talked with; a second group at the same gathering is refused; a group of two dissolves at six hours before with one notification.
+- **The plan:** at an `a_spot_first` gathering the poll's leader becomes the plan three hours before without anyone setting it; at an `at_the_gathering` one there is no poll; the share card carries no names.
+- **The night:** the group turns live three hours before; "I'm here" refuses an empty line; after the effective end the group is done; "we met" is invisible until mutual, mints the badge, and unlocks "keep in touch", which makes a connection whose "invite" opens this week's crowds.
+- **The women-only room and group** are invisible to a man's account and visible to a nonbinary account that chose inclusion.
+- **Retention:** the room and threads close 24 h after the effective end, are read-only for 30 days, and are deleted — proved by the job, not by waiting.
+- **The walk, in one sitting** (Alex and Tatiana, two devices, as testers on the test crowd): arrive, speak first from an opener, go together, the plan sets itself, "I'm here", and the next morning's ticks.
 
-**Goal.** The convene step — the hinge the whole product turns on — working end to end without anyone from Pin'd in the room. The biggest milestone; split the session in two if it runs long (crews and thread; then night and after).
-
-- Crew object and states: forming → spot set → live → done, plus dissolved; pg_cron transitions keyed off the effective end; one crew per person per gathering; seats counting bodies (a member's +1 takes a seat).
-- A10 crews above the people list; start a crew (women-only flag); request to join; any-member approval; silent decline; locks at 3; spot poll from the venue's spots with three times; "Set spot & time"; the crew card as hero; "Share spot & time with a friend" as a first-class button sending the W3 card; sibling crew at 8/8; A15 non-member view; A17 done.
-- **"Put me in a crew"** (decided here, see §10): one button that places the person in the open crew with the most room, respecting women-only — the closest thing to a host the product will ever have. 2–3 hours inside this milestone.
-- A14 thread on Supabase Realtime using `postgres_changes` only (it respects RLS; broadcast does not); auto-posted card and rules; long-press to report with the message body snapshotted onto the report; close at +24 h, read-only 30 days, delete.
-- A13 "I'm here": unlocks 3 hours before; requires a line of text; posts to the thread; never geofenced.
-- **Crew vibe** (Alex, M2.1; spec §3, under A11–A13): up to nine preset chips, never free text, set by whoever starts the crew and changeable by any member, shown on the crew card and in the crews list so someone choosing between two open crews has something to choose on. Tatiana rewrites the starting set. No substances, nothing that reads as a dating signal, and any chip most crews would tick gets cut.
-  - **The vibe chips own the night; the person's tags own the person** (Alex, M3.1). The M3.1 tag list was cut against exactly this line — anything about when you arrive, how long you stay or what you drink is the crew's, not the person's — so the nine chips can take that whole territory back without colliding with a tag. `packages/shared/src/tags.ts` records the split.
-  - **"first time here" is a strange chip for a crew** (Alex, M3.1, rewriting the starting set): a crew cannot be a first-timer, its members can, and the person's version of it is already a tag (`first-time-at-this`). It wants replacing with something a crew can actually be.
-- **The "get the app" nudge, shown once at crews-open** (moved from M3.2, Alex: it is shown when crews open, so it belongs with crews). On the web it is the hand-off into the product and gets design attention for that reason.
-- A16 after the event: mutual-only "we met" and "keep in touch", invisible until mutual; the "showed up" badge; connections; A20 with the single verb "invite"; the one after-event question from §7.
-- Fallback if Realtime misbehaves on one platform: poll the thread every 10 seconds while it is open. The spot and time are on the card, so the meeting never depends on the chat.
-
-**Acceptance** (five test accounts across two phones and a laptop, a staging gathering scheduled hours ahead)
-
-- Below 5 opt-ins "start a crew" is locked with the reason; at 5, crews appear above the people list.
-- A crew of one accepts two requests (any member can approve); the third request is declined and the requester sees nothing; the crew cannot set a spot until it has 3.
-- The poll shows up to 3 curated spots and three times; setting them makes the crew card the hero; the share button sends a card with no names.
-- At 8/8, a ninth request is offered a prefilled sibling crew at the same spot 15 minutes later.
-- Two open crews at the same gathering read differently at a glance because their vibe chips differ, and a member who did not start the crew can change them.
-- A women-only crew is invisible to a man test account (list and direct URL) and visible to a nonbinary account with women-only inclusion.
-- The thread opens with the card and rules, updates live between two phones, reports a long-pressed message, and contains no phone numbers.
-- Three hours before the fake start the crew turns live; "I'm here" refuses an empty line and posts the description; after the effective end the crew is done; a forming crew of two dissolves at six hours before with one notification.
-- "We met" ticks are invisible until mutual; a mutual tick mints the badge for both; "keep in touch" appears only then; a mutual keep-in-touch shows in Connections with "invite", which opens this week's crowds.
-- Trying to join a second crew at the same gathering is refused.
-- "Put me in a crew" seats a woman in the women-only crew when one has room, otherwise in the mixed one.
-
-8–12 h
+22–31 h (first version).
 
 #### M3.4 · Solo crew (A28 opt-in sheet, A29 proposals and plan)
 
@@ -577,6 +572,10 @@ any of it.
 
 **Goal.** The whole loop walked by people who know what it should feel like, on real phones, before a stranger is invited.
 
+- **Deferred from M3.3's first version, built here before the walk** (Alex: "get them on M3.6's list now rather than 'after the dogfood' as a phrase"). Held in place by `tests/unit/plan.test.ts` (D04):
+  - **Seeing and switching rooms** — "See the other rooms": how many are in each, how busy it has been in the last hour, a strip of faces the list already shows you, each room's three most common tags; tap one with space to move. About 2 h.
+  - **Groups growing after they form** — any member invites someone they have talked with in the room, up to 8. 1–2 h.
+  - **The manual "Set spot & time"** — any member sets the group's plan before the leader is taken three hours out. About 1 h.
 - **The tester invite link** (filed by Alex, M3.2 — build here, when several people need to walk something): from /admin/testers, a single-use link that expires in 24 hours. Opening it gives what the tester button gives — an anonymous tester session on the test crowd — with no Access and no admin. Only the code's hash is stored; the admin lists, and can cancel, links made. Harness cases prove a used or expired code grants nothing. About 2–3 h. Until then, a tester's own account goes on /admin/testers.
 
 **Acceptance**

@@ -42,4 +42,11 @@ describe("The build plan keeps what was carried", () => {
     const acceptance = planted.slice(planted.indexOf("**Acceptance**"));
     assert.ok(!acceptance.includes("photo picker"), "the acceptance slice cannot tell a missing item");
   });
+
+  it("D04 M3.6 holds M3.3's three deferrals by name: seeing and switching rooms, groups growing, the manual 'Set spot & time'", () => {
+    const m = section("M3.6");
+    for (const item of ["Seeing and switching rooms", "Groups growing after they form", "Set spot & time"]) {
+      assert.ok(m.includes(item), `M3.6 lost "${item}"`);
+    }
+  });
 });

@@ -659,7 +659,7 @@ working. Hours are Alex's, agent-assisted.
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | **Done** — merged as `737bdb4` | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel (A8, A9, A22, A26, A27; one set of profile steps shared with A1–A3) | In progress | 28–35 |
 | M3.2b | The app's front door — A5–A7, interests, search, A19, universal links, and the one build + native walk for M3.2 and M3.2b (Alex) | Not started | 16–19 |
-| M3.3 | Crews, the thread, the night, the morning after (A10–A17, A20, "Put me in a crew") | Not started | 20–28 |
+| M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | Not started | 22–31 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
 | M3.5 | Safety and the five notifications (A18, A23, A24) | Not started | 10–14 |
 | M3.6 | Dogfood on staging | Not started | 6–8 |

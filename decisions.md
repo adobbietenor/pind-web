@@ -13,7 +13,7 @@ Last updated: 18 September 2026 (the revised build plan, `docs/build-plan.md`, m
 | # | Rule | Why |
 |---|------|-----|
 | H1 | **Never a map of people.** A map appears only on a crowd page, showing the venue and its curated meeting spots. | The entire graveyard of "see who's around" products died on this. |
-| H2 | **No swipes, likes, matches, hearts, follows, or cold DMs.** | Positioning: this is not a dating app. A swipe UI loses that argument in ten seconds. |
+| H2 | **No swipes, likes, matches, hearts, follows, or cold DMs.** **Added (Alex, 28 Sept 2026):** a room is a group of people who all opted in at the same gathering and see each other reciprocally. It is not a DM: nobody chose who is in it, and everyone in it can already see everyone else. | Positioning: this is not a dating app. A swipe UI loses that argument in ten seconds. |
 | H3 | **Reciprocal reveal only.** You see a person's name and photo only once you have pinned in AND opted in to meeting at the same gathering — or you share a crew or a connection with them. | Nobody can browse who will be where without committing to be there too. |
 | H4 | **No location permission, ever.** The app never requests device location. The only coordinates in the system belong to venues and curated meeting spots. | Removes the stalking class of risk entirely; also removes a permission prompt that reframes the product. |
 | H5 | **Crews are 3–8 people, meeting at a curated public spot.** No 1:1 meet-ups. No free-text addresses, ever. **Amended (Alex, 28 Sept 2026):** a group meet-up is **3 or more people**, at a curated public spot or at the gathering itself; a room holds up to 30; no private addresses, ever. Solo stays the one-on-one exception. | Safety with no host present. Every meeting happens somewhere public with staff and crowds. |
@@ -3378,3 +3378,5 @@ commit to a plan with strangers before anyone had spoken. The design doc
   - which version M3.3 builds (the first version, 22–31 h, is recommended);
   - Tatiana's copy;
   - §7 re-registered.
+- **Decided (Alex, 28 Sept):** M3.3 builds the **first version** (22–31 h). Its three deferrals — seeing and switching rooms, groups growing after they form, the manual "Set spot & time" — are on **M3.6's list by name**, held there by D04. **The H2 line** is added to the rule, with Alex's reason: nobody chose who is in a room, and everyone in it can already see everyone else.
+- **The room at 1, 2, 3 and 5 people is specified, not left to copy** (Alex: "two people and an empty thread is the same cold start in a different costume"). The room never opens empty: arrival cards (face, name, neighbourhood, three on-list tags, shared tags marked), and three openers that fill the message box but are never sent for anyone. The first person is told by #2; the second arrives with the box ready. "Enough to go together" appears once at 3; the mix chip at 5. Build plan §8 M3.3 has it in full.
