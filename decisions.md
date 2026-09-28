@@ -16,7 +16,7 @@ Last updated: 18 September 2026 (the revised build plan, `docs/build-plan.md`, m
 | H2 | **No swipes, likes, matches, hearts, follows, or cold DMs.** | Positioning: this is not a dating app. A swipe UI loses that argument in ten seconds. |
 | H3 | **Reciprocal reveal only.** You see a person's name and photo only once you have pinned in AND opted in to meeting at the same gathering — or you share a crew or a connection with them. | Nobody can browse who will be where without committing to be there too. |
 | H4 | **No location permission, ever.** The app never requests device location. The only coordinates in the system belong to venues and curated meeting spots. | Removes the stalking class of risk entirely; also removes a permission prompt that reframes the product. |
-| H5 | **Crews are 3–8 people, meeting at a curated public spot.** No 1:1 meet-ups. No free-text addresses, ever. | Safety with no host present. Every meeting happens somewhere public with staff and crowds. |
+| H5 | **Crews are 3–8 people, meeting at a curated public spot.** No 1:1 meet-ups. No free-text addresses, ever. **Amended (Alex, 28 Sept 2026):** a group meet-up is **3 or more people**, at a curated public spot or at the gathering itself; a room holds up to 30; no private addresses, ever. Solo stays the one-on-one exception. | Safety with no host present. Every meeting happens somewhere public with staff and crowds. |
 | H6 | **Honest counts, always — including zero.** Never inflate, never hide a small number, never fabricate a user or a pin. | IRL raised $200M on fake users and its founder was charged with fraud. |
 | H7 | **Women-only crews available on every gathering.** Open to `gender = woman` plus nonbinary people who set `include_in_women_only`; invisible to everyone else. | The least-safe user is also the most likely customer. |
 | H8 | **19+ only** (Ontario drinking age). Under-19 date of birth is a hard stop at sign-up, no soft fail. | Legal and safety. |
@@ -3347,3 +3347,34 @@ or solo."* Where the two meet and where they do not:
   refuses to run if the account is a tester going in, and asserts the crowd is still
   visible after sign-in and on A9. CLAUDE.md records the lesson: a check whose setup
   grants the thing under test proves nothing.
+
+### The room, then a small group, then solo (Alex, with Tatiana and Jayme, 28 Sept 2026 — for M3.3)
+
+**Why:** Alex, at the end of the first full walk, found five faces with nothing to do: the
+second time that week he had hit the same shape. The crew design asked someone to
+commit to a plan with strangers before anyone had spoken. The design doc
+"M3.3 — The Room" has it in full.
+
+- **Three shapes, each opted into from the one above.**
+  - **The room:** everyone open to meeting at a gathering, automatic from 2, up to 30
+    per room.
+  - **A small group:** 2 or 3 people you've talked with in the room. You invite them;
+    there are no requests and no approvals. The spot and the meet plan live here.
+  - **Solo:** the same move with one person.
+- **How the shapes work:**
+  - **Who can see a message:** exactly the people who can see its author on the list
+    (`can_see_at`).
+  - **Who you can invite:** people you've both posted with in the same room, enforced
+    in the database.
+  - **Rooms at scale:** you are assigned to the fullest room with space. Seeing and
+    switching rooms comes after the first version.
+- **Decided:**
+  - **H5 amended:** a group meet-up is 3 or more people; a room holds up to 30.
+  - **A sixth notification:** room activity, batched. You get the first message since
+    you last looked, then an hour of silence. It is off in one tap.
+  - **The tester invite link** is filed for M3.6.
+- **Open:**
+  - the H2 line;
+  - which version M3.3 builds (the first version, 22–31 h, is recommended);
+  - Tatiana's copy;
+  - §7 re-registered.

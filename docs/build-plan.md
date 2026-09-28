@@ -489,6 +489,8 @@ any of it.
 
 #### M3.3 · Crews, the thread, the night, the morning after (A10–A17, A20)
 
+**Redesigned before it opened** (Alex, with Tatiana and Jayme, 28 Sept 2026 — decisions.md, "The room, then a small group, then solo"; the design doc "M3.3 — The Room"). Three shapes, each opted into from the one above: **the room** (everyone opted in at a gathering, automatic from 2, up to 30 a room), **a small group** (2 or 3 people you have talked with, invited — no requests, no approvals — where the spot and the plan live), and **solo** (the same move with one person). The section below is the crew design it replaces and is rewritten when M3.3 opens. First version recommended at 22–31 h.
+
 **The convening is not one shape** (Alex, after walking the community pages; decisions.md). The reveal is identical at an arena and at a run club — commit, see who committed — and the convening is not. A10–A12 have to decide this before they are drawn.
 
 **The spot-poll offset becomes a setting here** (Alex, M2.2): sixty minutes before is right for a 7pm gig and wrong for a 9am run. A value on the `cities` row with a shorter morning figure, done when crews are built rather than while the publisher is being walked.
@@ -574,6 +576,8 @@ any of it.
 #### M3.6 · Dogfood on staging
 
 **Goal.** The whole loop walked by people who know what it should feel like, on real phones, before a stranger is invited.
+
+- **The tester invite link** (filed by Alex, M3.2 — build here, when several people need to walk something): from /admin/testers, a single-use link that expires in 24 hours. Opening it gives what the tester button gives — an anonymous tester session on the test crowd — with no Access and no admin. Only the code's hash is stored; the admin lists, and can cancel, links made. Harness cases prove a used or expired code grants nothing. About 2–3 h. Until then, a tester's own account goes on /admin/testers.
 
 **Acceptance**
 
