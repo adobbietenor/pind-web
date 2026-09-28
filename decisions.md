@@ -3423,3 +3423,16 @@ commit to a plan with strangers before anyone had spoken. The design doc
     itself when it happens, and §7 counts "Session lost (web)". Fix 3 is built when
     more than 1 in 5 returning web pinners arrive with their session lost, over any
     four weeks with at least 25 returning web pinners.
+
+### No TestFlight build until M3.2b is done (Alex, 28 Sept 2026)
+
+- **Why:** a build before M3.2b opens to three M2.0 tabs and has no way into a crowd from
+  inside the app. The home list and links opening the app are both M3.2b.
+- **The one M3.2b build carries:**
+  - M3.1's native list;
+  - M3.2's universal links;
+  - M3.3's push;
+  - the brand icon and splash (swapped in M3.3: RGB, no alpha).
+- **Why push can wait:** it is the one thing that wants native eyes early, and a push
+  bug found at that build reworks nothing in M3.2b.
+- **The order:** M3.3 → M3.2b → one build. D05 holds this in the build plan.

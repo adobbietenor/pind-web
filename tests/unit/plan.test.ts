@@ -43,6 +43,12 @@ describe("The build plan keeps what was carried", () => {
     assert.ok(!acceptance.includes("photo picker"), "the acceptance slice cannot tell a missing item");
   });
 
+  it("D05 no TestFlight build until M3.2b is done, and that build carries push and the icon", () => {
+    const m = section("M3.2b");
+    assert.match(m, /No TestFlight build until M3\.2b is done/);
+    for (const item of ["M3.1's native list", "universal links", "M3.3's push", "icon and splash"]) assert.ok(m.includes(item), `M3.2b's build lost "${item}"`);
+  });
+
   it("D04 M3.6 holds M3.3's three deferrals by name: seeing and switching rooms, groups growing, the manual 'Set spot & time'", () => {
     const m = section("M3.6");
     for (const item of ["Seeing and switching rooms", "Groups growing after they form", "Set spot & time"]) {
