@@ -306,6 +306,13 @@ Two things that make this failure mode hard to see from inside, both worth knowi
   cleaning a value on the way in destroys the evidence that something upstream is
   adding it.
 
+**A decision that changes a plan item marks the plan line in the same commit.** M3.2:
+the build plan still listed the Google consent screen as a to-do five days after
+decisions.md recorded it done, and it was read back to Alex as outstanding; an audit
+then found sixteen more lines of the same shape. When the plan and decisions.md
+disagree, decisions.md wins and the plan is fixed — and a setting that lives in the
+database is read from the database.
+
 **When a setting is in dispute, read it from the thing that enforces it, not the thing
 that displays it.** M3.1: the dashboard showed "Allow manual linking" on, Alex had a
 screenshot of it and was certain he had set it, and P86 kept failing. Two reads that
