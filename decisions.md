@@ -3380,3 +3380,37 @@ commit to a plan with strangers before anyone had spoken. The design doc
   - §7 re-registered.
 - **Decided (Alex, 28 Sept):** M3.3 builds the **first version** (22–31 h). Its three deferrals — seeing and switching rooms, groups growing after they form, the manual "Set spot & time" — are on **M3.6's list by name**, held there by D04. **The H2 line** is added to the rule, with Alex's reason: nobody chose who is in a room, and everyone in it can already see everyone else.
 - **The room at 1, 2, 3 and 5 people is specified, not left to copy** (Alex: "two people and an empty thread is the same cold start in a different costume"). The room never opens empty: arrival cards (face, name, neighbourhood, three on-list tags, shared tags marked), and three openers that fill the message box but are never sent for anyone. The first person is told by #2; the second arrives with the box ready. "Enough to go together" appears once at 3; the mix chip at 5. Build plan §8 M3.3 has it in full.
+
+### Does a session last? What a second pin costs today (Alex asked, 28 Sept 2026)
+
+- **On the server, a session never expires.** Read from the hosted config
+  (`npx supabase config diff`):
+  - the access token lasts an hour and refreshes itself;
+  - refresh tokens rotate and never expire;
+  - there is no session time-box and no inactivity timeout.
+
+  A session ends only with sign-out, account deletion, or the device losing what it
+  stored.
+- **What the device stores:**
+  - **In the app:** the session is in the iOS Keychain. It survives app updates, and is
+    expected to survive delete-and-reinstall. That is checked on M3.2b's build
+    (on its native list).
+  - **On the web:** the session is in localStorage, which is where it breaks.
+- **What breaks it on the web:**
+  - **Safari:** scripts' storage is deleted after 7 days of Safari use without a visit
+    to pind.social.
+  - **Private Browsing:** it is gone when the tab closes.
+  - **Another browser** is a stranger. The Reddit app's own browser and Safari may be
+    two browsers; that is to be checked on a phone.
+- **What happens when it breaks:** the next pin is a new anonymous person. Ticking
+  "meet up" leads to A27, which asks date of birth, gender, photo and "where" again
+  before the sign-in step, whose merge then keeps the account's own answers. The result
+  is right; the experience is all of A27 again.
+- **What a second pin costs today, with the session intact:**
+  - W2 → the Worker's A26 → redirected to the app's A26, with the name filled in.
+  - Then **"meet up" and "19+" must be ticked again**, then "Pin in", then
+    "See who's going".
+  - No account, code or details, but not "tap and I'm in the room". The 19+ record
+    already exists (P100) and the person already may meet, so both ticks are asked for
+    nothing.
+- Proposed to Alex; not built.

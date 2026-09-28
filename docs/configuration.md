@@ -35,8 +35,8 @@ all of this.
   mxuajvlrkggrqpntekqt.supabase.co", tested well after Google's cache. The free route
   does not work; only the custom auth domain (M4.3) fixes it — recorded in build-plan
   §8, M4.3.
-- **In Testing**, so only listed test users can sign in. **Moving it to In production is
-  an M3.2 step** — and **no logo on it, ever, unless we choose to be reviewed**.
+- **In production since 23 Sept 2026** (Alex; decisions.md). Its test-user list had been
+  empty all along. **No logo on it, ever, unless we choose to be reviewed.**
 
 ## Apple
 
