@@ -657,7 +657,7 @@ working. Hours are Alex's, agent-assisted.
 | M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | **Done** — merged as `M2.3` | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | **Done** — merged as `737bdb4` | 12–16 |
-| M3.2 | Crowds, pins, the link-path funnel (A8, A9, A22, A26, A27; one set of profile steps shared with A1–A3) | In progress | 28–35 |
+| M3.2 | Crowds, pins, the link-path funnel (A8, A9, A22, A26, A27; one set of profile steps shared with A1–A3) | **Done** — merged as `b11908a` (28 Sept; the last three phone checks walked by Alex) | 28–35 |
 | M3.2b | The app's front door — A5–A7, interests, search, A19, universal links, and the one build + native walk for M3.2 and M3.2b (Alex) | Not started | 16–19 |
 | M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | Not started | 22–31 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
