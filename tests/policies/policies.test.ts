@@ -3394,3 +3394,181 @@ describe("Anonymous tester sessions (M3.2)", () => {
     assert.ok(goneB.error || !goneB.data.user, "the stale session survived the clean-up");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.3 — the room (Alex, with Tatiana and Jayme, 28 Sept 2026)
+// ---------------------------------------------------------------------------
+// Each rule proved from both sides, with fresh people at a fresh gathering sized to 3,
+// so the placement can be seen and nothing else in the world is touched.
+
+describe("The room — who is in it, who reads it, who can post (M3.3)", () => {
+  let G = "";
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+
+  // A person who may meet: permanent, dated, with a photo — then opted in at G as themselves.
+  async function meeter(label: string, gender: "woman" | "man" | "nonbinary", open = true, womenOnly = false) {
+    const email = `${PREFIX}-${w.run}-room-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender, birth_year: 1994, include_in_women_only: womenOnly }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    await ok(client.from("pins").insert({ gathering_id: G, person_id: person.id, party_total: 1, open_to_meeting: open }).select("id").single());
+    people[label] = { authId, personId: person.id, client };
+    return people[label];
+  }
+  const roomsOf = async (label: string) => rows(people[label].client.rpc("my_rooms", { p_gathering: G }));
+  const generalRoom = async (label: string) => (await roomsOf(label)).find((r: { women_only: boolean }) => !r.women_only)?.room_id as string | undefined;
+  const post = (label: string, room: string, body: string) =>
+    people[label].client.from("room_messages").insert({ room_id: room, author_id: people[label].personId, body }).select("id").single();
+  const readBodies = async (label: string, room: string) =>
+    (await rows(people[label].client.from("room_messages").select("body").eq("room_id", room))).map((m: { body: string }) => m.body);
+  const pause = () => new Promise((r) => setTimeout(r, 3100));
+
+  before(async () => {
+    G = (
+      await ok(
+        w.service
+          .from("gatherings")
+          .insert({ name: `${PREFIX} ${w.run} Room`, starts_at: inDays(5), venue_id: w.venue, published_at: new Date().toISOString(), room_size: 3 })
+          .select("id")
+          .single(),
+      )
+    ).id;
+  });
+
+  after(async () => {
+    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+  });
+
+  it("P139 opting in places you; the fullest room with space fills first; the fourth of a room of 3 opens room 2; pinning without opting in places nobody", async () => {
+    await meeter("Rae", "woman");
+    await meeter("Sol", "man");
+    await meeter("Tia", "woman");
+    await meeter("Uma", "man");
+    await meeter("Vic", "man", false);
+    const r1 = await generalRoom("Rae");
+    assert.ok(r1, "Rae was not placed");
+    assert.equal(await generalRoom("Sol"), r1);
+    assert.equal(await generalRoom("Tia"), r1, "the fullest room with space did not fill first");
+    const r2 = await generalRoom("Uma");
+    assert.ok(r2 && r2 !== r1, "the fourth person was not placed in a second room");
+    assert.equal((await roomsOf("Vic")).length, 0, "someone pinned without opting in was placed in a room");
+    const [first] = (await roomsOf("Rae")).filter((r: { women_only: boolean }) => !r.women_only);
+    assert.deepEqual([first.number, first.members, first.open], [1, 3, true]);
+  });
+
+  it("P140 a message is read by the people in the room who can see its author — not by someone pinned without opting in, another room, a blocked person or a visitor", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    await ok(post("Rae", r1, "Hi — first time at this"));
+    assert.deepEqual(await readBodies("Sol", r1), ["Hi — first time at this"], "someone in the room could not read it");
+    assert.deepEqual(await readBodies("Uma", r1), [], "someone in another room read it");
+    assert.deepEqual(await readBodies("Vic", r1), [], "someone pinned without opting in read it");
+    assert.deepEqual(await rows(w.anon.from("room_messages").select("body").eq("room_id", r1)), [], "a visitor read it");
+    // A block, either way, hides the author's messages and arrival card.
+    await ok(w.service.from("blocks").insert({ blocker_id: people.Tia.personId, blocked_id: people.Rae.personId }));
+    assert.deepEqual(await readBodies("Tia", r1), [], "a blocked pair still read each other");
+    const cards = (await rows(people.Tia.client.from("room_members").select("person_id").eq("room_id", r1))).map((m: { person_id: string }) => m.person_id);
+    assert.ok(!cards.includes(people.Rae.personId), "a blocked person's arrival card was visible");
+    assert.ok(cards.includes(people.Sol.personId), "someone visible was missing from the room");
+  });
+
+  it("P141 posting is refused as someone else, in a room you are not in, and in a room of one", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    const r2 = (await generalRoom("Uma"))!;
+    await denied(people.Sol.client.from("room_messages").insert({ room_id: r1, author_id: people.Rae.personId, body: "not me" }));
+    await denied(post("Sol", r2, "wrong room"));
+    // Room 2 has one person: nobody to talk to, so it is not open.
+    await denied(post("Uma", r2, "anyone?"));
+    assert.equal((await roomsOf("Uma"))[0].open, false);
+  });
+
+  it("P142 one message every 3 seconds, and 200 a day — both refused, both sides", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    await ok(post("Sol", r1, "one"));
+    await denied(post("Sol", r1, "two, too soon"), "23514");
+    // 199 more earlier today, set up by the service key (outside the limits): 200 in all.
+    await ok(
+      w.service.from("room_messages").insert(
+        Array.from({ length: 199 }, (_, i) => ({ room_id: r1, author_id: people.Sol.personId, body: `earlier ${i}`, created_at: new Date(Date.now() - 3_600_000 - i * 1000).toISOString() })),
+      ),
+    );
+    await pause();
+    await denied(post("Sol", r1, "the 201st"), "23514");
+    await ok(w.service.from("room_messages").delete().eq("author_id", people.Sol.personId).like("body", "earlier %"));
+    await ok(post("Sol", r1, "under the cap again"), "after the day's messages go, posting works again");
+  });
+
+  it("P143 you can delete your own message — it is gone for everyone — and nobody else's", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    await pause();
+    const mine = await ok(post("Rae", r1, "take this back"));
+    const theirs = await people.Sol.client.from("room_messages").delete().eq("id", mine.id).select("id");
+    assert.deepEqual(theirs.data ?? [], [], "someone deleted another person's message");
+    assert.ok((await readBodies("Sol", r1)).includes("take this back"));
+    await ok(people.Rae.client.from("room_messages").delete().eq("id", mine.id).select("id"));
+    assert.ok(!(await readBodies("Sol", r1)).includes("take this back"), "a deleted message was still there for others");
+  });
+
+  it("P144 a safety report hides the message at once for others, keeps its snapshot, and the author still sees it", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    await pause();
+    const msg = await ok(post("Rae", r1, "reportable line"));
+    await ok(people.Sol.client.from("reports").insert({ reporter_id: people.Sol.personId, target_kind: "message", target_room_message_id: msg.id, reason: "uncomfortable" }));
+    assert.ok(!(await readBodies("Sol", r1)).includes("reportable line"), "a reported message stayed visible");
+    assert.ok((await readBodies("Rae", r1)).includes("reportable line"), "the author lost sight of their own message");
+    const report = await serviceRow("reports", "target_room_message_id", msg.id, "reported_content_snapshot");
+    assert.equal(report.reported_content_snapshot, "reportable line", "the report did not keep the text");
+    // Nobody can report a message they cannot read.
+    await denied(people.Uma.client.from("reports").insert({ reporter_id: people.Uma.personId, target_kind: "message", target_room_message_id: msg.id, reason: "spam" }));
+  });
+
+  it("P145 the women-only room: only the eligible are placed in it, and it is offered only from 3", async () => {
+    const wo = (label: string) => roomsOf(label).then((rs) => rs.find((r: { women_only: boolean }) => r.women_only));
+    // Rae and Tia are women: two eligible, so it is not offered yet.
+    assert.equal(await wo("Rae"), undefined, "the women-only room was offered below 3");
+    await meeter("Wen", "nonbinary", true, true);
+    assert.ok(await wo("Rae"), "the women-only room was not offered to a woman at 3");
+    assert.ok(await wo("Wen"), "a nonbinary person who chose inclusion was not in it");
+    assert.equal(await wo("Sol"), undefined, "a man was placed in the women-only room");
+    const woRoom = (await wo("Rae")).room_id as string;
+    assert.deepEqual(await readBodies("Sol", woRoom), [], "a man read the women-only room");
+  });
+
+  it("P146 opting out takes you out: you stop reading the room and stop showing in it; opting back in returns you to it", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    await ok(people.Sol.client.from("pins").update({ open_to_meeting: false }).eq("person_id", people.Sol.personId).eq("gathering_id", G).select("id"));
+    assert.equal(await generalRoom("Sol"), undefined, "opting out left you in the room");
+    // Their own messages stay theirs (they can still delete them); everyone else's go.
+    assert.ok(!(await readBodies("Sol", r1)).includes("Hi — first time at this"), "someone who opted out still read the room");
+    assert.ok((await readBodies("Sol", r1)).includes("one"), "someone who opted out lost sight of their own message");
+    const cards = (await rows(people.Rae.client.from("room_members").select("person_id").eq("room_id", r1))).map((m: { person_id: string }) => m.person_id);
+    assert.ok(!cards.includes(people.Sol.personId), "someone who left still showed in the room");
+    await ok(people.Sol.client.from("pins").update({ open_to_meeting: true }).eq("person_id", people.Sol.personId).eq("gathering_id", G).select("id"));
+    assert.equal(await generalRoom("Sol"), r1, "opting back in did not return you to your room");
+  });
+
+  it("P147 after the gathering the room is read-only: posting is refused, reading still works though the list has closed", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    await ok(w.service.from("gatherings").update({ starts_at: inDays(-3) }).eq("id", G));
+    try {
+      await denied(post("Rae", r1, "too late"));
+      assert.ok((await readBodies("Sol", r1)).includes("one"), "the room stopped being readable when the list closed");
+    } finally {
+      await ok(w.service.from("gatherings").update({ starts_at: inDays(5) }).eq("id", G));
+    }
+  });
+
+  it("P148 the retention job and the placement machinery are nobody else's to call", async () => {
+    for (const client of [people.Rae.client, w.anon]) {
+      assert.ok((await client.rpc("admin_delete_expired_room_messages")).error, "a visitor ran the retention job");
+    }
+    assert.ok((await w.anon.rpc("my_rooms", { p_gathering: G })).error, "a visitor asked for rooms");
+    await denied(people.Vic.client.from("room_members").insert({ room_id: (await generalRoom("Rae"))!, gathering_id: G, person_id: people.Vic.personId, women_only: false }));
+  });
+});

@@ -101,6 +101,7 @@ export type Database = {
           publish_max: number
           publish_min: number
           publish_target_weekly: number
+          room_size: number
           score_floor: number
           search_radius_km: number | null
           shrink_reach: number
@@ -136,6 +137,7 @@ export type Database = {
           publish_max?: number
           publish_min?: number
           publish_target_weekly?: number
+          room_size?: number
           score_floor?: number
           search_radius_km?: number | null
           shrink_reach?: number
@@ -171,6 +173,7 @@ export type Database = {
           publish_max?: number
           publish_min?: number
           publish_target_weekly?: number
+          room_size?: number
           score_floor?: number
           search_radius_km?: number | null
           shrink_reach?: number
@@ -1026,6 +1029,7 @@ export type Database = {
           name: string
           publish_mark: Database["public"]["Enums"]["publish_mark"] | null
           published_at: string | null
+          room_size: number | null
           series_id: string | null
           signup_required: boolean
           signup_url: string | null
@@ -1060,6 +1064,7 @@ export type Database = {
           name: string
           publish_mark?: Database["public"]["Enums"]["publish_mark"] | null
           published_at?: string | null
+          room_size?: number | null
           series_id?: string | null
           signup_required?: boolean
           signup_url?: string | null
@@ -1094,6 +1099,7 @@ export type Database = {
           name?: string
           publish_mark?: Database["public"]["Enums"]["publish_mark"] | null
           published_at?: string | null
+          room_size?: number | null
           series_id?: string | null
           signup_required?: boolean
           signup_url?: string | null
@@ -1980,6 +1986,7 @@ export type Database = {
           target_kind: Database["public"]["Enums"]["report_target"]
           target_message_id: string | null
           target_person_id: string | null
+          target_room_message_id: string | null
         }
         Insert: {
           created_at?: string
@@ -1995,6 +2002,7 @@ export type Database = {
           target_kind: Database["public"]["Enums"]["report_target"]
           target_message_id?: string | null
           target_person_id?: string | null
+          target_room_message_id?: string | null
         }
         Update: {
           created_at?: string
@@ -2010,6 +2018,7 @@ export type Database = {
           target_kind?: Database["public"]["Enums"]["report_target"]
           target_message_id?: string | null
           target_person_id?: string | null
+          target_room_message_id?: string | null
         }
         Relationships: [
           {
@@ -2038,6 +2047,135 @@ export type Database = {
             columns: ["target_person_id"]
             isOneToOne: false
             referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_target_room_message_id_fkey"
+            columns: ["target_room_message_id"]
+            isOneToOne: false
+            referencedRelation: "room_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      room_members: {
+        Row: {
+          first_posted_at: string | null
+          gathering_id: string
+          joined_at: string
+          last_seen_at: string | null
+          left_at: string | null
+          person_id: string
+          room_id: string
+          women_only: boolean
+        }
+        Insert: {
+          first_posted_at?: string | null
+          gathering_id: string
+          joined_at?: string
+          last_seen_at?: string | null
+          left_at?: string | null
+          person_id: string
+          room_id: string
+          women_only: boolean
+        }
+        Update: {
+          first_posted_at?: string | null
+          gathering_id?: string
+          joined_at?: string
+          last_seen_at?: string | null
+          left_at?: string | null
+          person_id?: string
+          room_id?: string
+          women_only?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_members_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_members_room_id_gathering_id_fkey"
+            columns: ["room_id", "gathering_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id", "gathering_id"]
+          },
+        ]
+      }
+      room_messages: {
+        Row: {
+          author_id: string
+          body: string
+          created_at: string
+          hidden_at: string | null
+          id: string
+          room_id: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          created_at?: string
+          hidden_at?: string | null
+          id?: string
+          room_id: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          created_at?: string
+          hidden_at?: string | null
+          id?: string
+          room_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "room_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "room_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          created_at: string
+          gathering_id: string
+          id: string
+          number: number
+          women_only: boolean
+        }
+        Insert: {
+          created_at?: string
+          gathering_id: string
+          id?: string
+          number: number
+          women_only?: boolean
+        }
+        Update: {
+          created_at?: string
+          gathering_id?: string
+          id?: string
+          number?: number
+          women_only?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_gathering_id_fkey"
+            columns: ["gathering_id"]
+            isOneToOne: false
+            referencedRelation: "gatherings"
             referencedColumns: ["id"]
           },
         ]
@@ -2404,6 +2542,7 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_delete_expired_room_messages: { Args: never; Returns: number }
       admin_delete_pin: {
         Args: { p_actor: string; p_note?: string; p_pin: string }
         Returns: undefined
@@ -2435,12 +2574,16 @@ export type Database = {
         Returns: undefined
       }
       admin_merge_anonymous: {
-        Args: { p_anon: string; p_perm: string }
+        Args: { p_anon: string; p_perm: string; p_photo_dest?: string }
         Returns: Json
       }
       admin_merge_gatherings: {
         Args: { p_actor: string; p_loser: string; p_survivor: string }
         Returns: undefined
+      }
+      admin_merge_photo_plan: {
+        Args: { p_anon: string; p_perm: string }
+        Returns: string
       }
       admin_merge_venues: {
         Args: { p_actor: string; p_from: string; p_into: string }
@@ -2691,6 +2834,16 @@ export type Database = {
         }[]
       }
       i_may_meet: { Args: never; Returns: boolean }
+      my_rooms: {
+        Args: { p_gathering: string }
+        Returns: {
+          members: number
+          number: number
+          open: boolean
+          room_id: string
+          women_only: boolean
+        }[]
+      }
       public_gathering: { Args: { p_slug: string }; Returns: Json }
       public_gatherings: {
         Args: { p_from: string; p_to: string }
@@ -2716,6 +2869,7 @@ export type Database = {
         }[]
       }
       remove_me_under_19: { Args: never; Returns: undefined }
+      room_seen: { Args: { p_room: string }; Returns: undefined }
       spot_poll: {
         Args: { p_gathering: string }
         Returns: {
