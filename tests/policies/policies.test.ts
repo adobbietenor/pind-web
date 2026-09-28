@@ -3738,3 +3738,113 @@ describe("Small groups — invites to people you've talked with, the plan, the n
     for (const client of [people.Ada.client, w.anon]) assert.ok((await client.rpc("admin_groups_tick")).error, "a visitor ran the lifecycle job");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.3 — notifications #2 and #6, recorded at the moment (A18, six)
+// ---------------------------------------------------------------------------
+
+describe("Notifications #2 and #6 — written by the act itself, and refused when they should be (M3.3)", () => {
+  let N = "";
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+
+  async function meeter(label: string) {
+    const email = `${PREFIX}-${w.run}-note-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1992 }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    people[label] = { authId, personId: person.id, client };
+    return people[label];
+  }
+  const optIn = (label: string) =>
+    ok(people[label].client.from("pins").insert({ gathering_id: N, person_id: people[label].personId, party_total: 1, open_to_meeting: true }).select("id").single());
+  const room = async (label: string) =>
+    (await rows(people[label].client.rpc("my_rooms", { p_gathering: N }))).find((r: { women_only: boolean }) => !r.women_only)?.room_id as string;
+  const notes = async (label: string, kind: string) =>
+    rows(w.service.from("notifications").select("id, body, created_at").eq("person_id", people[label].personId).eq("kind", kind));
+  const say = async (label: string, body: string) =>
+    ok(people[label].client.from("room_messages").insert({ room_id: await room(label), author_id: people[label].personId, body }).select("id").single());
+  const pause = () => new Promise((r) => setTimeout(r, 3100));
+
+  before(async () => {
+    N = (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Notes`, starts_at: inDays(6), venue_id: w.venue, published_at: new Date().toISOString() }).select("id").single())).id;
+    for (const n of ["Jo", "Kit", "Lu", "Mo"]) await meeter(n);
+  });
+  after(async () => {
+    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+  });
+
+  it("P159 #2: the first person is told, by name, when the second arrives — the second is not, and nobody is told twice", async () => {
+    await optIn("Jo");
+    assert.equal((await notes("Jo", "room_open")).length, 0, "someone alone was told there was someone to talk to");
+    await optIn("Kit");
+    const jo = await notes("Jo", "room_open");
+    assert.equal(jo.length, 1, "the promise did not fire: the first person was not told");
+    assert.match(jo[0].body, /^Kit's going to .* too — say hi$/);
+    assert.equal((await notes("Kit", "room_open")).length, 0, "the second person was told about themselves");
+    await optIn("Lu");
+    assert.equal((await notes("Jo", "room_open")).length, 1, "the first person was told twice");
+    assert.equal((await notes("Lu", "room_open")).length, 0);
+  });
+
+  it("P160 #6: the first message since you last looked — then nothing for an hour; never to the author; not to someone who switched it off", async () => {
+    await ok(people.Lu.client.from("notification_settings").insert({ person_id: people.Lu.personId, room_activity: false }));
+    await say("Jo", "anyone getting food before?");
+    assert.equal((await notes("Kit", "room_activity")).length, 1, "the first message since Kit looked did not notify");
+    assert.equal((await notes("Jo", "room_activity")).length, 0, "the author was notified of their own message");
+    assert.equal((await notes("Lu", "room_activity")).length, 0, "someone who switched it off was notified");
+    await pause();
+    await say("Jo", "and a second one");
+    assert.equal((await notes("Kit", "room_activity")).length, 1, "a second message inside the hour notified again");
+    // Kit looks; a message after that, still inside the hour, stays quiet (the hour holds).
+    await ok(people.Kit.client.rpc("room_seen", { p_room: await room("Kit") }));
+    await pause();
+    await say("Jo", "third");
+    assert.equal((await notes("Kit", "room_activity")).length, 1, "the hour did not hold after Kit looked");
+    // Two hours on (moved back by the service key). Kit was told and has NOT looked since:
+    // still the same unread activity, so no second notification, however long it has been.
+    await ok(w.service.from("notifications").update({ created_at: new Date(Date.now() - 2 * 3_600_000).toISOString() }).eq("person_id", people.Kit.personId).eq("kind", "room_activity"));
+    await ok(w.service.from("room_members").update({ last_seen_at: new Date(Date.now() - 3 * 3_600_000).toISOString() }).eq("person_id", people.Kit.personId).eq("gathering_id", N));
+    await pause();
+    await say("Jo", "fourth, unseen");
+    assert.equal((await notes("Kit", "room_activity")).length, 1, "someone was told twice about activity they have not looked at");
+    // Kit looked after being told, and the hour has passed: the next message notifies once more.
+    await ok(w.service.from("room_members").update({ last_seen_at: new Date(Date.now() - 90 * 60_000).toISOString() }).eq("person_id", people.Kit.personId).eq("gathering_id", N));
+    await pause();
+    await say("Jo", "fifth, after Kit looked and the hour passed");
+    assert.equal((await notes("Kit", "room_activity")).length, 2, "after looking and an hour, new activity did not notify");
+  });
+
+  it("P161 #6 is not sent across a block, nor to someone looking right now", async () => {
+    await optIn("Mo");
+    await ok(w.service.from("blocks").insert({ blocker_id: people.Mo.personId, blocked_id: people.Jo.personId }));
+    await ok(people.Kit.client.rpc("room_seen", { p_room: await room("Kit") }));
+    const kitBefore = (await notes("Kit", "room_activity")).length;
+    await pause();
+    await say("Jo", "after the block");
+    assert.equal((await notes("Mo", "room_activity")).length, 0, "a blocked pair was notified of each other");
+    assert.equal((await notes("Kit", "room_activity")).length, kitBefore, "someone looking right now was notified");
+  });
+
+  it("P162 your switches and phones are yours only; the queue and the delivery functions are the service key's", async () => {
+    await ok(people.Jo.client.rpc("register_device", { p_token: `ExponentPushToken[${w.run}-jo]`, p_platform: "ios" }));
+    assert.equal((await rows(people.Jo.client.from("device_tokens").select("token"))).length, 1);
+    assert.equal((await rows(people.Kit.client.from("device_tokens").select("token"))).length, 0, "someone read another person's phone");
+    await denied(people.Kit.client.from("device_tokens").insert({ token: `ExponentPushToken[${w.run}-x]`, person_id: people.Jo.personId, platform: "ios" }));
+    await denied(people.Kit.client.from("notification_settings").insert({ person_id: people.Jo.personId, room_activity: false }));
+    await noAccess(people.Jo.client, "notifications");
+    for (const fn of ["admin_pending_notifications", "admin_mark_notification", "admin_forget_device", "admin_switch_off"]) {
+      assert.ok((await people.Jo.client.rpc(fn, {})).error, `${fn} was callable by a person`);
+    }
+    // The Worker's view of the queue carries where each can go.
+    const pending = await ok(w.service.rpc("admin_pending_notifications", { p_limit: 500 }));
+    const jo = (pending as { person_id: string; tokens: string[]; email: string }[]).find((p) => p.person_id === people.Jo.personId);
+    if (jo) assert.ok(jo.tokens.length === 1 && jo.email, "the queue lost the phone or the email");
+  });
+});

@@ -742,6 +742,38 @@ export type Database = {
           },
         ]
       }
+      device_tokens: {
+        Row: {
+          created_at: string
+          last_seen_at: string
+          person_id: string
+          platform: string
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          last_seen_at?: string
+          person_id: string
+          platform: string
+          token: string
+        }
+        Update: {
+          created_at?: string
+          last_seen_at?: string
+          person_id?: string
+          platform?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_tokens_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gathering_flags: {
         Row: {
           created_at: string
@@ -1360,6 +1392,127 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      notification_settings: {
+        Row: {
+          day_of: boolean
+          digest: boolean
+          next_morning: boolean
+          person_id: string
+          plan_status: boolean
+          room_activity: boolean
+          room_open: boolean
+          updated_at: string
+        }
+        Insert: {
+          day_of?: boolean
+          digest?: boolean
+          next_morning?: boolean
+          person_id: string
+          plan_status?: boolean
+          room_activity?: boolean
+          room_open?: boolean
+          updated_at?: string
+        }
+        Update: {
+          day_of?: boolean
+          digest?: boolean
+          next_morning?: boolean
+          person_id?: string
+          plan_status?: boolean
+          room_activity?: boolean
+          room_open?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_settings_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          attempts: number
+          body: string
+          channel: string | null
+          created_at: string
+          crew_id: string | null
+          gathering_id: string | null
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          last_error: string | null
+          path: string
+          person_id: string
+          room_id: string | null
+          sent_at: string | null
+          title: string
+        }
+        Insert: {
+          attempts?: number
+          body: string
+          channel?: string | null
+          created_at?: string
+          crew_id?: string | null
+          gathering_id?: string | null
+          id?: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          last_error?: string | null
+          path: string
+          person_id: string
+          room_id?: string | null
+          sent_at?: string | null
+          title: string
+        }
+        Update: {
+          attempts?: number
+          body?: string
+          channel?: string | null
+          created_at?: string
+          crew_id?: string | null
+          gathering_id?: string | null
+          id?: string
+          kind?: Database["public"]["Enums"]["notification_kind"]
+          last_error?: string | null
+          path?: string
+          person_id?: string
+          room_id?: string | null
+          sent_at?: string | null
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_crew_id_fkey"
+            columns: ["crew_id"]
+            isOneToOne: false
+            referencedRelation: "crews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_gathering_id_fkey"
+            columns: ["gathering_id"]
+            isOneToOne: false
+            referencedRelation: "gatherings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       ops_alerts: {
         Row: {
@@ -2585,6 +2738,7 @@ export type Database = {
         Args: { p_actor: string; p_note?: string; p_person: string }
         Returns: undefined
       }
+      admin_forget_device: { Args: { p_token: string }; Returns: undefined }
       admin_groups_tick: { Args: never; Returns: Json }
       admin_hide_person: {
         Args: { p_actor: string; p_note?: string; p_person: string }
@@ -2598,6 +2752,10 @@ export type Database = {
       admin_import_health: { Args: never; Returns: Json }
       admin_keep_hidden: {
         Args: { p_actor: string; p_note?: string; p_person: string }
+        Returns: undefined
+      }
+      admin_mark_notification: {
+        Args: { p_channel: string; p_error: string; p_id: string }
         Returns: undefined
       }
       admin_merge_anonymous: {
@@ -2617,6 +2775,20 @@ export type Database = {
         Returns: undefined
       }
       admin_mint_slug: { Args: { p_gathering: string }; Returns: string }
+      admin_pending_notifications: {
+        Args: { p_limit?: number }
+        Returns: {
+          attempts: number
+          body: string
+          email: string
+          id: string
+          kind: Database["public"]["Enums"]["notification_kind"]
+          path: string
+          person_id: string
+          title: string
+          tokens: string[]
+        }[]
+      }
       admin_photo_states: {
         Args: never
         Returns: {
@@ -2797,6 +2969,13 @@ export type Database = {
         }
         Returns: number
       }
+      admin_switch_off: {
+        Args: {
+          p_kind: Database["public"]["Enums"]["notification_kind"]
+          p_person: string
+        }
+        Returns: undefined
+      }
       admin_testers: {
         Args: never
         Returns: {
@@ -2909,6 +3088,10 @@ export type Database = {
           venue_name: string
         }[]
       }
+      register_device: {
+        Args: { p_platform: string; p_token: string }
+        Returns: undefined
+      }
       remove_me_under_19: { Args: never; Returns: undefined }
       respond_to_invite: {
         Args: { p_accept: boolean; p_invite: string }
@@ -2955,6 +3138,13 @@ export type Database = {
       group_link_kind: "everyone" | "women_only"
       invite_status: "sent" | "accepted" | "declined" | "expired" | "withdrawn"
       message_kind: "system" | "user" | "arrival"
+      notification_kind:
+        | "digest"
+        | "room_open"
+        | "plan_status"
+        | "day_of"
+        | "next_morning"
+        | "room_activity"
       outbound_kind: "threshold" | "survey"
       photo_status: "pending" | "approved" | "needs_review" | "rejected"
       publish_mark: "publish" | "never"
@@ -3121,6 +3311,14 @@ export const Constants = {
       group_link_kind: ["everyone", "women_only"],
       invite_status: ["sent", "accepted", "declined", "expired", "withdrawn"],
       message_kind: ["system", "user", "arrival"],
+      notification_kind: [
+        "digest",
+        "room_open",
+        "plan_status",
+        "day_of",
+        "next_morning",
+        "room_activity",
+      ],
       outbound_kind: ["threshold", "survey"],
       photo_status: ["pending", "approved", "needs_review", "rejected"],
       publish_mark: ["publish", "never"],
