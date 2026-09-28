@@ -1674,7 +1674,10 @@ split by mode. Everything else explains it.
 | Safety | reports per 100 opted-in; auto-hides; incidents and hours to first human action | same | reports, moderation_log |
 | Repeat | pinners who pin a second gathering within 6 weeks | same, for solo-opted people | pins |
 | Cannibalisation | crew reach rate and crews-set rate at gatherings with solo activity vs without; share of solo-opted people who also joined a crew | | crews × pins |
+| Session lost (web) | people who arrive at a pin with no session and turn out to have an account — merges into an existing account per week, split by "Already on Pin'd?" or the email/Apple/Google branch, and as a share of returning web pinners | | the merge record, written by the merge when it happens (M3.3) |
 | Attendance created | "Would you have gone alone anyway?" — one question in the after-event screen (A16) for everyone opted in (yes / no / I wasn't going to go at all) | | after-event answers |
+
+**The number that decides a longer-lived web session** (Alex, 28 Sept 2026; "fix 3", not built). Safari deletes a site's stored data after 7 days without a visit, so a returning web person can arrive as a stranger. Build a session the browser keeps longer (a sealed, server-set cookie) **when more than 1 in 5 returning web pinners arrive with their session lost, over any four weeks with at least 25 returning web pinners.** Below that, "Already on Pin'd? Sign in" at the top of A27 is the fix.
 
 ### Pass criteria for the first crowds, fixed now
 Over 6–8 weeks of seeded and unseeded gatherings:

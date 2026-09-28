@@ -3414,3 +3414,11 @@ commit to a plan with strangers before anyone had spoken. The design doc
     already exists (P100) and the person already may meet, so both ticks are asked for
     nothing.
 - Proposed to Alex; not built.
+- **Decided (Alex, 28 Sept):** fixes 1 and 2 go in M3.3.
+  - **"Already on Pin'd? Sign in" goes at the top of A27, above the first field**, never
+    a link at the bottom. It is the fix that matters most.
+  - **A one-tap second pin** for someone who already may meet.
+  - **Fix 3 (a longer-lived web session) waits for a number.** Every merge records
+    itself when it happens, and §7 counts "Session lost (web)". Fix 3 is built when
+    more than 1 in 5 returning web pinners arrive with their session lost, over any
+    four weeks with at least 25 returning web pinners.
