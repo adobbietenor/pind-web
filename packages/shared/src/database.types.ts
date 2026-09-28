@@ -14,6 +14,32 @@ export type Database = {
   }
   public: {
     Tables: {
+      age_attestations: {
+        Row: {
+          attested_at: string
+          person_id: string
+          source: string
+        }
+        Insert: {
+          attested_at?: string
+          person_id: string
+          source: string
+        }
+        Update: {
+          attested_at?: string
+          person_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "age_attestations_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       blocks: {
         Row: {
           blocked_id: string
@@ -985,6 +1011,7 @@ export type Database = {
           blurb_why: string | null
           capacity: number | null
           category: Database["public"]["Enums"]["gathering_category"] | null
+          counted_at: string | null
           created_at: string
           dismissed_at: string | null
           door_price_cents: number | null
@@ -1018,6 +1045,7 @@ export type Database = {
           blurb_why?: string | null
           capacity?: number | null
           category?: Database["public"]["Enums"]["gathering_category"] | null
+          counted_at?: string | null
           created_at?: string
           dismissed_at?: string | null
           door_price_cents?: number | null
@@ -1051,6 +1079,7 @@ export type Database = {
           blurb_why?: string | null
           capacity?: number | null
           category?: Database["public"]["Enums"]["gathering_category"] | null
+          counted_at?: string | null
           created_at?: string
           dismissed_at?: string | null
           door_price_cents?: number | null
@@ -1423,6 +1452,7 @@ export type Database = {
           auth_user_id: string | null
           created_at: string
           first_name: string
+          gatherings_count: number
           hidden_at: string | null
           id: string
           is_seed: boolean
@@ -1436,6 +1466,7 @@ export type Database = {
           auth_user_id?: string | null
           created_at?: string
           first_name: string
+          gatherings_count?: number
           hidden_at?: string | null
           id?: string
           is_seed?: boolean
@@ -1449,6 +1480,7 @@ export type Database = {
           auth_user_id?: string | null
           created_at?: string
           first_name?: string
+          gatherings_count?: number
           hidden_at?: string | null
           id?: string
           is_seed?: boolean
@@ -1694,6 +1726,35 @@ export type Database = {
           },
           {
             foreignKeyName: "pins_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      policy_acceptances: {
+        Row: {
+          accepted_at: string
+          id: string
+          person_id: string
+          version: string
+        }
+        Insert: {
+          accepted_at?: string
+          id?: string
+          person_id: string
+          version: string
+        }
+        Update: {
+          accepted_at?: string
+          id?: string
+          person_id?: string
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "policy_acceptances_person_id_fkey"
             columns: ["person_id"]
             isOneToOne: false
             referencedRelation: "people"
@@ -2288,10 +2349,24 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_add_anonymous_tester: {
+        Args: { p_actor: string; p_user: string }
+        Returns: undefined
+      }
       admin_ai_spend_today: { Args: { p_city: string }; Returns: number }
       admin_alert_already_sent_today: {
         Args: { p_kind: string }
         Returns: boolean
+      }
+      admin_anonymous_testers: {
+        Args: never
+        Returns: {
+          added_at: string
+          auth_user_id: string
+          email: string
+          first_name: string
+          still_anonymous: boolean
+        }[]
       }
       admin_apply_publish_target: {
         Args: { p_actor: string; p_city: string; p_target: number }
@@ -2307,10 +2382,19 @@ export type Database = {
         Returns: string
       }
       admin_categorise_gatherings: { Args: never; Returns: number }
+      admin_clear_anonymous_tester: {
+        Args: { p_user: string }
+        Returns: undefined
+      }
+      admin_clear_stale_anonymous_testers: {
+        Args: { p_older_than?: string; p_only?: string }
+        Returns: number
+      }
       admin_confirm_venue: {
         Args: { p_actor: string; p_venue: string }
         Returns: undefined
       }
+      admin_count_ended_gatherings: { Args: never; Returns: number }
       admin_create_series: {
         Args: {
           p_actor: string
@@ -2350,6 +2434,10 @@ export type Database = {
         Args: { p_actor: string; p_note?: string; p_person: string }
         Returns: undefined
       }
+      admin_merge_anonymous: {
+        Args: { p_anon: string; p_perm: string }
+        Returns: Json
+      }
       admin_merge_gatherings: {
         Args: { p_actor: string; p_loser: string; p_survivor: string }
         Returns: undefined
@@ -2379,6 +2467,13 @@ export type Database = {
           secret_set: boolean
           url: string
           waiting: number
+        }[]
+      }
+      admin_photos_waiting: {
+        Args: { p_limit: number }
+        Returns: {
+          id: string
+          photo_path: string
         }[]
       }
       admin_publish_gathering: {
@@ -2454,6 +2549,19 @@ export type Database = {
         Args: { p_cron: string; p_scheduled_time: string }
         Returns: undefined
       }
+      admin_rescore_photo: {
+        Args: {
+          p_cost?: number
+          p_duration_ms?: number
+          p_model?: string
+          p_only_if_ai?: boolean
+          p_outcome: string
+          p_person: string
+          p_photo_path: string
+          p_reason?: string
+        }
+        Returns: string
+      }
       admin_resolve_flag: {
         Args: { p_actor: string; p_flag: string; p_resolution: string }
         Returns: undefined
@@ -2493,6 +2601,15 @@ export type Database = {
         Args: { p_actor: string; p_gathering: string; p_slug: string }
         Returns: string
       }
+      admin_set_tester: {
+        Args: {
+          p_actor: string
+          p_auth_user: string
+          p_note?: string
+          p_on: boolean
+        }
+        Returns: undefined
+      }
       admin_settle_series: {
         Args: { p_actor: string; p_note?: string; p_series: string }
         Returns: undefined
@@ -2509,6 +2626,16 @@ export type Database = {
           p_trigger: string
         }
         Returns: number
+      }
+      admin_testers: {
+        Args: never
+        Returns: {
+          added_at: string
+          added_by: string
+          auth_user_id: string
+          email: string
+          note: string
+        }[]
       }
       admin_top_up_spot_poll: {
         Args: { p_gathering: string }
@@ -2563,6 +2690,7 @@ export type Database = {
           women: number
         }[]
       }
+      i_may_meet: { Args: never; Returns: boolean }
       public_gathering: { Args: { p_slug: string }; Returns: Json }
       public_gatherings: {
         Args: { p_from: string; p_to: string }
@@ -2587,6 +2715,7 @@ export type Database = {
           venue_name: string
         }[]
       }
+      remove_me_under_19: { Args: never; Returns: undefined }
       spot_poll: {
         Args: { p_gathering: string }
         Returns: {

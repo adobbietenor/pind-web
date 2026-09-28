@@ -60,7 +60,10 @@ export function entryLine(g: {
 // counts as a quiet fact; W2 is headed "Who else is going?" and the pinned page will
 // lead with "Find your crew" (A9/A10). A card on W1 that is short of five says nothing
 // about five at all.
-export const THRESHOLD_EXPLANATION = "Crews open when 5 people opt in.";
+// One word for the second number everywhere: "open to meeting" (Alex, M3.2 — it read
+// "opt in" here and "opted in" on A26, two words for one idea). "Form", not "open", so
+// the sentence does not say "open" twice.
+export const THRESHOLD_EXPLANATION = "Crews form once 5 people are open to meeting.";
 
 // Verbatim, on every crowd surface (spec W2). Rewritten by Alex after the M2.1
 // on-device walk: the safety property each line describes is unchanged, only how it
@@ -141,3 +144,40 @@ export const PHOTO_WHEN = "Add one now or later — you’ll need one before you
 
 // A1's own header, on the screen where the first name is asked.
 export const A2_HEADING = "A bit about you";
+
+// The gender question's answers (D1; V3: "Prefer not to say" is always offered). One
+// list for A2 and A27 (M3.2) — it lived inside A2's screen until A27 needed it too.
+export const GENDER_CHOICES = [
+  { value: "woman", name: "Woman" },
+  { value: "man", name: "Man" },
+  { value: "nonbinary", name: "Nonbinary" },
+  { value: "undisclosed", name: "Prefer not to say" },
+] as const;
+export type GenderChoice = (typeof GENDER_CHOICES)[number]["value"];
+
+// How a crowd's two numbers read — W2, A26's confirmation and A9 alike (Alex, M3.2).
+// "Going" counts bodies (a +1 is a body); "open to meeting" counts people, never +1s
+// (Q1, and a +1 is never counted as open — decisions). Progress wording only while it
+// is genuinely below the threshold and worth saying: nothing at 0 beyond "nobody open
+// to meeting yet" (the state where someone could be first), a crews line only at 3–4.
+export const SEE_WHOS_GOING = "See who's going";
+
+export function countLine(going: number, open: number, threshold: number): { line: string; crews: string | null } {
+  // Nobody at all: a bare zero reads as dead rather than early (M2.3), so it invites
+  // (Alex, M3.2).
+  if (going === 0) return { line: "Nobody’s pinned yet — be the first", crews: null };
+  const line = open === 0 ? `${going} going · nobody open to meeting yet` : `${going} going · ${open} open to meeting`;
+  const short = threshold - open;
+  const crews = open > 0 && short > 0 && short <= 2 ? `${short} more and crews form` : null;
+  return { line, crews };
+}
+
+// A gathering's effective end: `ends_at`, or `starts_at` + 180 minutes (decisions Part
+// 3). **The database's `public.effective_end` is the rule**; this is its one copy on
+// the client side, for screens that must know whether pinning has closed. P118
+// compares the two on real rows, so they cannot drift (CLAUDE.md: where a rule has two
+// copies across a boundary, compare them).
+export const EFFECTIVE_END_MINUTES = 180;
+export function effectiveEnd(startsAt: string, endsAt: string | null): string {
+  return endsAt ?? new Date(Date.parse(startsAt) + EFFECTIVE_END_MINUTES * 60_000).toISOString();
+}

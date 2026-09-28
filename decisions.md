@@ -13,10 +13,10 @@ Last updated: 18 September 2026 (the revised build plan, `docs/build-plan.md`, m
 | # | Rule | Why |
 |---|------|-----|
 | H1 | **Never a map of people.** A map appears only on a crowd page, showing the venue and its curated meeting spots. | The entire graveyard of "see who's around" products died on this. |
-| H2 | **No swipes, likes, matches, hearts, follows, or cold DMs.** | Positioning: this is not a dating app. A swipe UI loses that argument in ten seconds. |
+| H2 | **No swipes, likes, matches, hearts, follows, or cold DMs.** **Added (Alex, 28 Sept 2026):** a room is a group of people who all opted in at the same gathering and see each other reciprocally. It is not a DM: nobody chose who is in it, and everyone in it can already see everyone else. | Positioning: this is not a dating app. A swipe UI loses that argument in ten seconds. |
 | H3 | **Reciprocal reveal only.** You see a person's name and photo only once you have pinned in AND opted in to meeting at the same gathering — or you share a crew or a connection with them. | Nobody can browse who will be where without committing to be there too. |
 | H4 | **No location permission, ever.** The app never requests device location. The only coordinates in the system belong to venues and curated meeting spots. | Removes the stalking class of risk entirely; also removes a permission prompt that reframes the product. |
-| H5 | **Crews are 3–8 people, meeting at a curated public spot.** No 1:1 meet-ups. No free-text addresses, ever. | Safety with no host present. Every meeting happens somewhere public with staff and crowds. |
+| H5 | **Crews are 3–8 people, meeting at a curated public spot.** No 1:1 meet-ups. No free-text addresses, ever. **Amended (Alex, 28 Sept 2026):** a group meet-up is **3 or more people**, at a curated public spot or at the gathering itself; a room holds up to 30; no private addresses, ever. Solo stays the one-on-one exception. | Safety with no host present. Every meeting happens somewhere public with staff and crowds. |
 | H6 | **Honest counts, always — including zero.** Never inflate, never hide a small number, never fabricate a user or a pin. | IRL raised $200M on fake users and its founder was charged with fraud. |
 | H7 | **Women-only crews available on every gathering.** Open to `gender = woman` plus nonbinary people who set `include_in_women_only`; invisible to everyone else. | The least-safe user is also the most likely customer. |
 | H8 | **19+ only** (Ontario drinking age). Under-19 date of birth is a hard stop at sign-up, no soft fail. | Legal and safety. |
@@ -2880,3 +2880,503 @@ the milestone does not stop for them.
 
 DMARC for pind.social is live with `rua=mailto:dmarc@pind.social` and `p=none`, the
 address forwarded to Alex by Email Routing. `p=quarantine` waits a week of reports.
+
+### Decided at M3.2's opening (Alex, 23 Sept 2026)
+
+- **A testers list — a V18 change, for the M4.2 review.** The seed rule hides a seed
+  person from every signed-in reader, which is right for every other purpose and wrong
+  for walking a list. So: a short list of real accounts (Alex and a friend) who, signed
+  in, can see the seed gathering and the seed people at it, under the usual reciprocal
+  and block rules. **Only the admin writes the list, with the service key; nobody can
+  add themselves.** **It changes nothing on any public page** — a tester signed out
+  sees what a stranger sees. Harness cases on both sides: a tester sees; a signed-in
+  non-tester, a signed-out visitor and every public page do not. Anything that makes
+  hidden rows visible to somebody is the class of thing M4.2 exists for.
+- **Test people** for the list walks are seed people at one seed gathering, visible to
+  testers only (the resolution of decision 6 above). Unmarked test people at a real
+  gathering were rejected: any stranger who opted in there would see them.
+- **After the effective end, a pin can be removed but not edited.** Taking yourself off
+  a list is always possible; changing party size or opting in after the fact is editing
+  history.
+- **Two pins at one gathering after A27's merge: the last one wins**, the older row
+  goes, and the count does not double. **Nothing merges until the address is proved
+  with its code** — somebody typing an address that is not theirs must never end up
+  holding another person's pin.
+- **The privacy policy and terms are built early in M3.2**, at exactly
+  `https://pind.social/privacy` and `https://pind.social/terms`, served by the Worker
+  and marked clearly as drafts. **Why early:** publishing the Google consent screen
+  required a home page, a privacy policy URL and a terms URL, and Google accepted all
+  three without fetching them — so the consent screen links to two pages that do not
+  exist yet. They cover the Ticketmaster data and its 30-day purge, the automated photo
+  check, gender and why it is asked, retention, and PIPEDA access and deletion. M4.1
+  replaces them with lawyer-read versions and asks again; that is why the accepted
+  version is stored.
+- **The Google consent screen is In production** (Alex, 23 Sept). Its test-user list
+  had been empty all along — only Alex, as the project owner, could ever have signed in
+  with Google, which is why nothing looked broken. Still to verify, without blocking
+  anything: a Google account that is not Alex's signs in on pind.social without "Access
+  blocked".
+- **Associated Domains is on for `social.pind.app.staging`** (Alex, 23 Sept).
+
+### Decided in Phase 3 M3.2 — the ruler, the privacy facts, data location (Alex, 23 Sept 2026)
+
+- **"Under a second" is not Lighthouse's number.** On Lighthouse's mobile profile
+  (simulated mid-range phone, slow 4G) even W2 — the page that already feels instant —
+  is fully shown at about **2.2 s**; a ruler the instant page fails is a broken ruler.
+  **The rule: A26 is ready to type into no slower than W2 is fully shown under the
+  same profile (~2.2 s), and Alex confirms by eye with one cold load on a phone on
+  mobile data.** Day-one measure, before any A26 work: A26 score 67, main content
+  6.3 s, usable 6.8 s, 950 KB in 15 requests (789 KB of it the whole app's JavaScript,
+  142 KB two Poppins weights); W2 score 98, 2.2 s, 79 KB in 5. Cuts, in this order:
+  A26's own code only on that route, the system font there, analytics after first
+  paint.
+- **PostHog goes through pind.social** (a Worker path), so A26 talks to nobody but us
+  — the own-origin rule.
+- **Testers may also pin at the seed gathering** — the walk needs it. Same conditions:
+  the admin sets the list with the service key, nobody adds themselves, nothing
+  changes on any public page.
+- **The privacy policy's facts.** Operator **Tenor Investments Inc., Surrey, British
+  Columbia, Canada** (the mailing address comes from Alex; **no placeholder is ever
+  published**). **Privacy Officer: Alex**, at **privacy@pind.social** (Alex adds it to
+  Email Routing). **British Columbia law governs the terms.** The policy addresses
+  **BC's PIPA as well as federal PIPEDA**, and says which fact each statement rests on:
+  the company is in Surrey, the product operates in Toronto.
+- **A rejected photo's image is deleted immediately; its check record is kept 12
+  months**, like reports. Deleting the image is the point; the record proves a decision
+  was made.
+- **Where the data is — read, not inferred.** pind-staging is **`ca-central-1`
+  (Montreal)**, from the Supabase Management API (`projects list`), so nothing moves.
+  Sentry: the **US** region (the DSN sends to `ingest.us.sentry.io`). PostHog: **US**,
+  Alex's choice. Anthropic: stored at rest in the **US** (the only workspace geo it
+  offers); **where a photo check is processed depends on `inference_geo`**, which the
+  code does not set, so it follows the workspace default — "global", any geography,
+  unless the workspace was pinned to US. Resend: not yet read. **A policy naming the
+  wrong country is worse than a vague one**; it states where data is, not where we
+  would like it.
+- **`pind-prod` is created in `ca-central-1` — a hard requirement, written into M4.3's
+  scope** so it cannot be missed when the project is created. The region cannot be
+  changed on an existing project; a wrong one means a new project and every
+  dashboard setting in `docs/configuration.md` redone.
+- **Photo checks are pinned to US inference** (Alex, M3.2): `inference_geo: "us"` on
+  every photo-check request (`photoRequest`, R01), counted at 1.1x so the daily cap
+  measures what is billed (R02). Confirmed by one live call whose response reported
+  `inference_geo: "us"`. The import vetting sends no personal data and is left global.
+- **Retention placement** (Alex, M3.2): M3.2 builds the rejected photo's immediate
+  deletion and the 12-month purge of check records. **M4.5 owns deleting pins and
+  anonymous users at 30 days and the deferred cascade fixes**, beside the
+  `gathering_stats` snapshots they depend on. "Pin and anonymous-user deletion proven
+  on staging" joins the first-real-crowds list. The draft policy states the 30-day
+  rule as the rule — it is what will happen, and the only pin on staging is Alex's.
+- **Mailing address** for the policy: Tenor Investments Inc., 2562 136th Street,
+  Surrey, BC V4P 1S4, Canada. `privacy@pind.social` forwards to Alex.
+- **The draft says so at the top**: a draft, not reviewed by a lawyer, replaced at
+  M4.1 — so nobody mistakes it for a settled document.
+- **A26's first cuts, measured** (M3.2, Lighthouse mobile, two runs each). Sentry and
+  PostHog moved after first paint and Poppins skipped on A26: the web entry went from
+  3,012 KB to 1,658 KB minified, and A26 from **main content 6.3 s / usable 6.8 s to
+  3.8 s / 5.6 s**, 950 KB to 810 KB, score 67 to 82. W2 in the same session: 1.6 s,
+  score 99 — **the ruler itself moves between 1.6 s and 2.2 s from run to run**.
+  - **Splitting routes (`asyncRoutes: { web: true }`) made it worse and was reverted**:
+    main content 4.2 s → 5.6 s. It turned one download into a chain — entry, then the
+    layout, then the route — and on a slow connection each round trip costs more than
+    the smaller files save. Do not retry it for A26 without a different shape.
+  - What is left before anything draws is the framework: Expo Router, React Native Web
+    and supabase-js, about 430 KB compressed, which A26 needs to run at all.
+
+### A26 moves to the Worker — the boundary rule restated (Alex, M3.2, 23 Sept 2026)
+
+- **The rule, as it now reads** (spec §4, CLAUDE.md): everything a stranger meets
+  before they have committed is the Worker — including the one form that commits them.
+  The Worker may create an anonymous session exactly once, at pin-in, and hand it over;
+  it never reads people or renders anything that depends on who someone is. Everything
+  after the pin is Expo. It replaces "public is the Worker; a session is Expo", which
+  never said which side pin-in was on and so drifted.
+- **Why, measured:** the Expo A26 after every cut that worked drew its content at
+  3.8 s and was usable at 5.6 s against W2's 1.6–2.2 s. Deferring analytics further
+  bought about a second by losing the visits of people who leave without tapping —
+  backwards for the page whose whole job is being measured. The Worker A26 costs about
+  9 hours against about 4, plus A26 maintained twice (the app still needs its own for
+  someone who has it). A27, the list and editing a pin stay Expo.
+- **The session hand-off, as built — a cookie, not the app's storage.** The Worker
+  signs the visitor in anonymously and keeps the session in a signed, HttpOnly,
+  SameSite=Lax cookie (`SESSION_SECRET`, declared since M1.0 for exactly this). When
+  the app next loads it asks the Worker for it once (`POST /session/claim`, same origin
+  only) and installs it with supabase-js's own public `setSession`. So nothing writes
+  supabase-js's internal storage format. What the page still reads is only **whether**
+  a session exists under supabase-js's storage key — someone already signed in is sent
+  to the app's A26 so they pin as themselves — and a unit test derives that key the way
+  supabase-js does. supabase-js upgrades are deliberate and re-checked (CLAUDE.md).
+- **No JavaScript** (Alex's condition: never a silent dead end). The form is a plain
+  HTML form and pins without script: the count moves and the session waits in the
+  cookie. The page that comes back says so — you are pinned; to change or remove it,
+  open this page again with JavaScript on in this browser, where your pin is kept. The
+  next visit with script on claims it, so edit and remove are reached rather than lost.
+  How often: GOV.UK measured about 1 visit in 100 arriving without its JavaScript
+  running, mostly scripts that failed to load rather than switched off — the case this
+  covers, not only the rare person who turned it off.
+- **The divergence guard is written first** (Alex): A26's fields, copy and validation in
+  `packages/shared/src/quickpin.ts`; `tests/unit/quickpin.test.ts` fails if either A26
+  writes its own, and proves its own pattern matches something real (the S20 rule).
+
+### A steer on emphasis: the app is the product, the web is the on-ramp (Alex, M3.2, 23 Sept 2026)
+
+- **The steer.** Most design attention goes to the app — how it looks, feels and
+  flows. The web has to work well and look right, enough to get people in and to
+  publish the app, without disproportionate effort there.
+- **Two things it does not break** (Alex):
+  1. **W1, W2 and A26 keep real design attention.** They are where a stranger meets
+     Pin'd; a rough page loses the people being funnelled to the app. "Working" is not
+     enough for those three. Everything after the pin is where the app gets the
+     attention.
+  2. **The first real crowds still run on the web with email, TestFlight as an extra**
+     ("First crowds on the web, plus email", revised build plan) — a Reddit visitor
+     will not install an app to pin in. Not overturned.
+- **How the two fit, stated rather than worked around.** They only fit because the app
+  and the web after the pin are **one Expo codebase**: A27, the list, crews, the
+  thread, "I'm here" and the morning after are the same screens on an iPhone and in
+  mobile Safari. So "the app gets the attention" means **the Expo screens are designed
+  and judged on the iPhone app first**, and **every after-pin screen is also checked
+  once in iPhone Safari**, because during the first crowds that is where most people
+  will meet it. Native-only touches (haptics, sheets, gestures) must degrade to
+  something that still reads right on the web. If "the app" ever meant native-only
+  work the web does not get, it would contradict the web-first crowds, and that would
+  be a decision to take, not a drift.
+- **What it changes in the sequence: nothing reordered.** M3.3's shape stands; its
+  acceptance is walked on the iPhone app first and each screen once in iPhone Safari
+  (it already names "two phones and a laptop"). The "get the app" nudge at crews-open
+  (M3.2) becomes the web's hand-off to the product and gets design attention for that
+  reason. M3.5's email mirror of the five notifications is what web-only crowd members
+  live on, and stays. M3.6's dogfood includes at least one person on the web only.
+- **The Worker A26, measured after it shipped** (M3.2, Lighthouse mobile, two runs
+  each, same session): A26 shown and usable at **0.8–1.6 s**, 22 KB in 4 requests,
+  score 99–100, no blocking time — W2 beside it at 1.6 s, 85 KB. The Expo A26 it
+  replaced was usable at 5.6 s. Walked from the terminal as a no-JavaScript visitor:
+  the refusal beside the 19+ box, the pin ("You're #2 pinned", the progress line, the
+  no-JavaScript note), a second pin from the same browser updating the same person
+  rather than making another, the rows (one person, the `a26` record, the updated
+  pin), and the claim handing over the session once. Cleaned up after.
+  - **Found by that walk, not by the suite:** the GET route and `/session/claim` had
+    been imported and never wired — green typecheck, green tests, green deploy, and
+    the live page served the app's index.html with a 200. `tests/unit/wiring.test.ts`
+    (W01–W03) now fails on exactly that class, and proved it against the broken commit.
+
+### Considered and rejected: a +1 counts as open to meeting when their host is (Alex, M3.2)
+
+- **No.** A +1 has no face, no name, and has not agreed to anything. Counting them as
+  open to meeting would make the crowd page promise five people who want to meet when
+  it is really two people and three friends — a dishonest count (H6). And a person can
+  say their friends are coming; they cannot say their friends want to be introduced to
+  strangers. That is the reciprocal reveal (H3) applied to the count.
+- **The real thing underneath is already handled** (Q1): a member's +1 takes a seat in
+  a crew, shown as "+1 friend", so a group arriving is visible where it matters without
+  anyone being counted as something they did not choose. `open_to_meeting` counts
+  people, never +1s (visibility §4); `pinned` counts bodies.
+- Do not revisit without a new reason: the reasoning above is the whole of it.
+
+### After the pin: where a person lands (Alex, M3.2 — written down before M3.3)
+
+Alex's flow: **pin → the who's-going page → browse who's there → start a crew or go
+1-on-1.** The plan's link path (build-plan §2) already reads: *"Crowd page (Worker) →
+Pin in → Opt in (only if ticked): DOB, gender, photo, contact → one safety sheet → crews
+or solo."* Where the two meet and where they do not:
+
+- **Browsing who's there needs opting in, by H3**: "You see a person's name and photo
+  only once you have pinned in AND opted in to meeting at the same gathering." So a
+  person who pinned without ticking "meet up" lands on the who's-going page and sees
+  **the counts and nobody's face** — with the way in (the "Open to meeting" toggle,
+  which leads to A27). Not a contradiction of the flow; the flow's "browse" step is the
+  opted-in branch, and the page must say so rather than look empty.
+- **Starting a crew waits for five people open to meeting** (M3.3 acceptance: "Below 5
+  opt-ins 'start a crew' is locked with the reason"). Below five, the page leads with
+  the people (M2.2's reframing) and 1-on-1 (M3.4) is the thing you can do now.
+- **Where a person lands, by branch** (Alex, M3.2 — decided):
+  - ticked "meet up" → A27 (date of birth, gender, photo, a way to sign in) → the
+    safety sheet → **the pinned crowd page (A9/A10)**;
+  - did not tick → **the pinned crowd page (A9)** directly: counts, "Open to meeting"
+    toggle, nobody's face until they turn it on.
+- **Today** A26 on the web lands on the Worker's result page, which stops there: "You're
+  #N pinned", the progress line, change or remove, share, add to calendar. Nothing after
+  it exists yet — A27, A8, A9 are M3.2 work still to build; A10's crews and "Put me in
+  a crew" are M3.3; 1-on-1 (A28, A29) is M3.4.
+
+- **The landing, decided** (Alex, M3.2): an instant **"You're in"** confirmation on the
+  Worker, with **one primary button** into the app and the app's script already
+  loading behind it (`<link rel="prefetch">` of the app's current entry, read from its
+  own index.html). A four-second loading screen at the exact moment someone commits is
+  the worst place in the flow to put one. The primary button lands with A9 and A27 —
+  it is not wired to screens that do not exist yet.
+- **The counts in plain English** (Alex, M3.2 — "readable by someone who has never used
+  this, before internally consistent"):
+  - the second number is **"open to meeting"** everywhere; the threshold sentence is now
+    "Crews form once 5 people are open to meeting.";
+  - the first number is **"going"** where it is a count: W2's box ("3 going"), A26's
+    confirmation ("3 going so far"), and "You're in" instead of "You're pinned";
+  - the profile's count of gatherings you have pinned to reads **"gatherings"**, not
+    "pinned";
+  - "pin in" / "pinned in" stays as the verb, because it names the button a person has
+    just pressed;
+  - **not changed, for Alex:** W1's card reads "3 pinned · see who's going" (M2.3's three
+    states, Alex's). With "going" it would say "3 going · see who's going" — the word
+    twice. It stays until Alex picks its wording.
+- **The who's-going page for someone pinned but not open to meeting is the most
+  important empty state in the product** (Alex, M3.2): they have committed, they are on
+  the page, and they see counts and no faces. It must read as **one step away, not a
+  locked door** — its copy and the toggle's prominence are a named M3.2 acceptance item,
+  not whatever wording it happens to get.
+
+### The opt-in gate, the build order, test people's faces (Alex, M3.2, 23 Sept 2026)
+
+- **"Open to meeting" is true only for someone who has finished A27**: a permanent
+  sign-in (email, Apple or Google), a date of birth and gender on record, and a photo.
+  Refused in the database for the Worker, the app and a raw token alike, with tests on
+  both sides. **The A26 tick records intent and sends the person to A27 — nothing more.**
+  - **Found on the walk:** Alex's anonymous pin with the tick showed "1 of 5" — **the
+    count was honest about the flag, and the flag was wrong.** Nothing in the database
+    stopped an anonymous, photo-less pin from being open to meeting.
+- **The build order inside M3.2** (Alex): the walkable path first — the gate, A27, A8
+  and A9, A22, the testers page and the test crowd — then A5–A7, interests, search, My
+  Events and W2's button after the walk. The walk starts in the app on the seed
+  gathering's A8; the link-to-pin half is already walked on a real gathering, and
+  nothing changes on a public page.
+- **Test people's photos are illustrations**, generated, visibly not photographs —
+  nobody should mistake a test person for a real one on a screen being judged — and
+  approved without the AI check. No real faces.
+- **The existing-email merge is written up before it is built.** Alex's condition: the
+  code proves it is the same person before anything moves, and the service-key step
+  runs only when both sessions are presented together.
+
+### The merge approved; M3.2b split out (Alex, M3.2, 23 Sept 2026)
+
+- **The existing-email merge, as written** (the steps and states are in this file's
+  M3.2 notes and in the build): nothing moves until the code proves the address, and a
+  stranger typing someone else's address can never produce the second session. Two
+  additions (Alex):
+  - **Each of the Worker's four checks has a test that makes it fire** — both sessions
+    valid now, the first really anonymous, the second really permanent, different
+    people. A refusal nobody has seen refuse is not proven.
+  - **A failure between the code and the merge says so on the screen**: "Nothing was
+    lost — your pin is still there." Never silence, never a person unsure whether
+    their pin survived.
+- **M3.2b — the app's front door** (A5–A7, interests, search, A19 My Events), about
+  11–12 hours, **between M3.2 and M3.3**. M3.3 stays the loop and nothing else. The
+  "get the app" nudge moves to M3.3 (it is shown when crews open); the admin control
+  to block a pair moves to M3.5 (Safety). **Checked:** nothing on M3.2's walk needs the
+  home list (it enters by link); M3.3's one reliance — "invite" opens this week's
+  crowds — and M3.6's TestFlight phones are both satisfied because M3.2b lands first.
+  It is not the dogfood's problem moved, as long as the order holds.
+- **Worth keeping from the gate:** three M3.1 cases failed on it first, because they
+  pinned an anonymous user already open to meeting — now forbidden. Tests catching a
+  rule change against their own assumptions is the harness doing its job.
+
+### The count display, and one person across pages (Alex, M3.2, 25 Sept 2026)
+
+- **The counts read one way everywhere** — W2, A26's confirmation and A9, each ending in
+  "See who's going" (W2 on the web, A9 in the app):
+  - nobody open: **"23 going · nobody open to meeting yet"** — the zero state is where
+    someone could be first, which is worth saying (A's wording, kept);
+  - 1–4 open: **"23 going · 3 open to meeting"**, and at 3–4 the crews line
+    ("2 more and crews form");
+  - 5 or more: **"23 going · 17 open to meeting"** — no progress wording once it is not
+    worth saying.
+  One function in `packages/shared` (`countLine`) so the three places cannot drift.
+- **One person whichever page they are on** (Alex): a claim marks the Worker's cookie
+  claimed rather than clearing it, so a later quick pin in that browser goes to the
+  app's A26 to pin as the same person. Reproduced in a real browser before fixing; the
+  guard is a test that pins, claims, pins again and proves it is one person, not two.
+- **The standard for moving someone's data between accounts** (Alex, on the merge):
+  proven live against a real sign-in code, with every check made to fire.
+- **The repeat pins, reproduced — and not the path we expected** (M3.2, 25 Sept). In
+  real headless Chrome (one profile): quick pin → the app claims the session → quick
+  pin again **redirects to the app's A26 and stays one person**. The hypothesis (a pin
+  after the claim cleared the cookie) was wrong. The evidence points to **two browsers
+  on one phone** — Alex's session log shows Chrome (CriOS) and Safari on 23 Sept — and
+  separate browsers have separate storage, so a pin from the other one is, as far as
+  anything can tell, a stranger. **The merge joins them** when that person reaches A27
+  with the same email. **The cookie is not changed**: marking a claim instead of
+  clearing it would re-identify a browser after the person signed out, which would be
+  wrong.
+- **The guard, kept:** `npm run check:one-person -- <slug>` drives real Chrome through
+  pin → claim → pin and fails unless it is one person; `--break` clears storage before
+  the second pin and must find two, which proves it can fail. It needs a browser, so it
+  is a script run after any deploy that touches A26, the claim or the app's session
+  handling — not a unit test.
+
+### Nothing left waiting for its screen, and nothing wired to one that is not there (Alex, M3.2 walk, 25 Sept 2026)
+
+- **A26 exists twice, and only one had its primary button.** The Worker's confirmation
+  had "Next: a few details…" / "See who's going"; the app's — the one the tester walk
+  goes through — had only Change and Share, so someone who had just ticked "meet up"
+  was stuck. This is the divergence risk the shared module was built for, showing up
+  in the one place it did not cover: **Q04 guards A26's fields and copy, not what a
+  screen does next.** **Q05** now reads both confirmations for the branch itself (ticked
+  → A27, otherwise → A9) and failed on the old app screen.
+- **The opt-in line says what it is for, never what it asks** (Alex): "If you'd like to
+  meet people here, set up a quick profile so others can see who you are." No fields
+  named — you find out when you get there. The same principle applied to A9's hint
+  under "I'd like to meet people here", which listed the fields too.
+- **W2 says "See who's going" once this browser has pinned** — the M3.1 decision,
+  wired now that A9 exists. One marker key (`pinnedMarker`), written by both A26s,
+  cleared by the app when a pin is removed, read by W2's script; Q06.
+- **A22's ⋯ is hidden until A24 exists** (Alex): "A menu that opens 'coming soon' isn't
+  two taps from report and block, it's a dead end with a nicer sentence — and H9 isn't
+  satisfied by a promise." The tap stays written behind `A24_EXISTS`.
+- **Every deferral is a named exception that fails the day it ends.**
+  - **S24:** every in-app tap lands on a route that exists. Its one exception is
+    `/person/<id>/report` (A24, M3.5), and the test fails when that route exists or the
+    tap disappears.
+  - **S25:** screens still on the M2.0 scaffold (A5 and A19 in M3.2b, A20 in M3.3) and
+    copy marked PROPOSED (A9's not-open copy) are named. It fails on an unnamed one,
+    and on a named one that has been built or approved.
+- **W1's card, Alex's wording:** "3 going · see who else is going"; "0 going · be the
+  first". "Who else" because the reader is one of the three.
+- **Found in the same sweep:** the Configuration panel still described `SESSION_SECRET`
+  as "not yet used by anything" and optional. It is required, since the web quick pin
+  cannot work without it.
+
+### The merge fills the account's gaps; nothing of the anonymous person is left behind (Alex, M3.2 walk, 26 Sept 2026)
+
+- **What the walk found, read from the data.** At A27, an anonymous tester gave a date
+  of birth, gender and photo. They then entered an email that already had an account.
+  - The merge moved the pin and the 19+ record, and deleted the anonymous person along
+    with everything they had just given.
+  - The photo file stayed in the bucket with no user behind it.
+  - The account had no photo, and was not a tester, so the test crowd disappeared and
+    A27's reload failed.
+  - The screen was still holding the deleted person, and the safety sheet wrote with
+    that id. Its first write (the policy acceptance) was refused (42501) and reached the
+    screen as "Pin'd was not allowed to write that".
+- **A27 now re-reads, then asks the gate's own facts, before the final write**
+  (`optInMissing`, shared).
+  - A refusal names what is missing and goes to the step that adds it: "One thing
+    before you can meet people here: a photo of you. Add it below, then you're in."
+  - P126 proves this rule and `i_may_meet` agree on all eight combinations. S26 fails if
+    the write uses held ids. `check:optin-refusal` fires the refusal from the screen,
+    and it reproduced the walk's failure against the old deploy.
+  - CLAUDE.md: "Re-read who you are after anything that can change it".
+- **The merge fills gaps, never overwrites** (Alex):
+  - **The photo:** the account takes the anonymous person's photo only if it has none,
+    and only if that photo was not rejected (P127, P128, P132). The Worker copies it
+    into the account's folder first. The owner storage policies key on that folder, and
+    the database accepts no other destination (P131).
+  - **Date of birth and gender:** they come in only if the account has none (P129).
+  - **An account with no profile** still takes the whole person, and its photo now moves
+    folders with it (P130).
+  - **Everything not moved is deleted in the same request:** the rows in the
+    transaction, the files by the Worker straight after. `check:merge-photos` proves
+    both branches through the live Worker, and it failed against the old one.
+  - **Service key only, after both sessions are verified** — unchanged.
+- **A moved photo is checked again.** This differs from my proposal ("keeps its check
+  status"). V6's trigger sends any new `photo_path` back to pending, so an approved
+  photo can never be swapped for an unchecked one. I kept V6 rather than add an
+  exception for a move. It is the same bytes, and the AI check runs again in seconds.
+- **Orphans:** a scan of the whole bucket found exactly one file with no user behind
+  it: Alex's walk photo. It was deleted and the re-listing confirms it is gone. No
+  earlier merge had left one. `npm run check:orphan-photos` now lists any, and exits 1
+  while one remains.
+- **The order of A27 is unchanged** (Alex): date of birth first, so under-19 stops
+  before anything else is collected.
+
+### One set of profile steps, two orders (Alex, M3.2 walk, 26 Sept 2026)
+
+- **A2 and A27 were two implementations of the same screen.** They shared the building
+  blocks (the gender list, the age rule, the photo states) and wrote everything else
+  twice: the date-of-birth fields, the gender picker, the photo block, and both saves.
+  **The women-only question had already drifted**: yes/no on A2, a tickbox on A27. Alex:
+  "No amount of guarding fixes something that shouldn't have been duplicated."
+- **Now there are three shared steps** (`app/src/components/profile`), with one writer
+  (`lib/profile.ts`):
+  - **You:** first name, date of birth, gender, the one women-only question, the photo.
+  - **Where:** neighbourhood and tags. Skip is kept: "a thinner profile is better than
+    no profile", and a skip keeps a neighbourhood already chosen.
+  - **Identity:** Apple, Google or the email code.
+- **The two orders:**
+  - **Store path:** A1 identity → A2 you → A3 where.
+  - **A27:** you (date of birth first, so under-19 stops before anything else is
+    collected) → where → identity → the safety sheet. Each step is chosen by
+    `nextOptInStep` on a fresh read.
+- **Apple and Google at A27** (moved up from after the walk). The same anonymous user
+  gains the identity (`linkIdentity`). If that identity already has an account, the
+  person is offered the merge: sign in with the same provider, and the anonymous session
+  is held until then. On the web it is held in sessionStorage across the redirect. The
+  merge then runs through the same Worker route as the email code.
+- **The code step names the address** it sent the code to. On the walk, autofill had
+  put a different address in the field.
+- **"Nudged later" was decided and never built; now it is.**
+  - Profile names what is still missing (a photo, a neighbourhood, tags) and offers a
+    way to each (`profileGaps`).
+  - **The neighbourhood is editable from Profile** (`/neighbourhood`), like tags.
+  - A link-path person used to get no neighbourhood at all.
+- **The merge carries the neighbourhood and the tags too**
+  (`m3_2_merge_fills_where`). A27 now collects them before sign-in, so they belong to
+  the anonymous person the merge deletes. Same rules: only into an account that has
+  none, and tags move as a set, never mixed (P133, P134). P135 proves an anonymous
+  pinner can set their own neighbourhood and tags, and nobody else's.
+- **Guards:**
+  - **S27:** only `lib/profile.ts` and `lib/tags.ts` write a profile.
+  - **S28:** A1–A3 and A27 draw the shared steps, and the women-only question and the
+    gender choice each exist in one file.
+  - S26–S28 fail on the old A2 and A27.
+  - **O05–O09** cover the order and the gaps.
+  - **`check:link-path`** walks the whole path in real Chrome three ways (fresh
+    address, merge, skip then fix from Profile).
+- **Scope** (Alex): universal links, the end-of-milestone build and the native walk
+  moved to the end of M3.2b, with native Apple and Google at A27 added to its list.
+  D01 holds that list in place. The rejected-photo deletion and the purge moved to M4.1,
+  whose acceptance now checks every privacy-page promise one line at a time.
+
+### The tester flag follows the person (Alex, M3.2 walk, 28 Sept 2026)
+
+- **The walk was impossible as built.** The tester button puts the flag on an anonymous
+  user. Alex's Apple, Google and email addresses all already have staging accounts, so
+  every way he signed in at A27 was a merge. The merge deleted the anonymous tester, and
+  the flag with it, and the test crowd vanished: four attempts, three methods, none past
+  sign-in.
+  - The data: no new account was created, and his Apple account signed in at 14:11 and
+    holds the test-crowd pin.
+  - A link (a fresh address, or Apple or Google new to Pin'd) keeps the same user id,
+    and the flag is keyed on the id, so it already survived (P138).
+- **Fix** (`m3_2_tester_follows_the_person`): when the anonymous user is a tester, the
+  account it merges into becomes one.
+  - The account is listed on /admin/testers with a note saying how, and is removable
+    like any other.
+  - A merge from a non-tester never creates the flag (P137).
+  - P136 asserts the account could not see the test crowd before and can after.
+  - **This reverses Alex's earlier condition** ("never elevates an existing one"), at
+    his instruction. It is reachable only from a session the admin made a tester.
+- **Why `check:link-path` passed:** its setup made the merge account a tester. It now
+  refuses to run if the account is a tester going in, and asserts the crowd is still
+  visible after sign-in and on A9. CLAUDE.md records the lesson: a check whose setup
+  grants the thing under test proves nothing.
+
+### The room, then a small group, then solo (Alex, with Tatiana and Jayme, 28 Sept 2026 — for M3.3)
+
+**Why:** Alex, at the end of the first full walk, found five faces with nothing to do: the
+second time that week he had hit the same shape. The crew design asked someone to
+commit to a plan with strangers before anyone had spoken. The design doc
+"M3.3 — The Room" has it in full.
+
+- **Three shapes, each opted into from the one above.**
+  - **The room:** everyone open to meeting at a gathering, automatic from 2, up to 30
+    per room.
+  - **A small group:** 2 or 3 people you've talked with in the room. You invite them;
+    there are no requests and no approvals. The spot and the meet plan live here.
+  - **Solo:** the same move with one person.
+- **How the shapes work:**
+  - **Who can see a message:** exactly the people who can see its author on the list
+    (`can_see_at`).
+  - **Who you can invite:** people you've both posted with in the same room, enforced
+    in the database.
+  - **Rooms at scale:** you are assigned to the fullest room with space. Seeing and
+    switching rooms comes after the first version.
+- **Decided:**
+  - **H5 amended:** a group meet-up is 3 or more people; a room holds up to 30.
+  - **A sixth notification:** room activity, batched. You get the first message since
+    you last looked, then an hour of silence. It is off in one tap.
+  - **The tester invite link** is filed for M3.6.
+- **Open:**
+  - the H2 line;
+  - which version M3.3 builds (the first version, 22–31 h, is recommended);
+  - Tatiana's copy;
+  - §7 re-registered.
+- **Decided (Alex, 28 Sept):** M3.3 builds the **first version** (22–31 h). Its three deferrals — seeing and switching rooms, groups growing after they form, the manual "Set spot & time" — are on **M3.6's list by name**, held there by D04. **The H2 line** is added to the rule, with Alex's reason: nobody chose who is in a room, and everyone in it can already see everyone else.
+- **The room at 1, 2, 3 and 5 people is specified, not left to copy** (Alex: "two people and an empty thread is the same cold start in a different costume"). The room never opens empty: arrival cards (face, name, neighbourhood, three on-list tags, shared tags marked), and three openers that fill the message box but are never sent for anyone. The first person is told by #2; the second arrives with the box ready. "Enough to go together" appears once at 3; the mix chip at 5. Build plan §8 M3.3 has it in full.

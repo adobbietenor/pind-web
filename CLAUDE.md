@@ -38,6 +38,30 @@ There is no separate `pind-app` repo. `app/` and `packages/shared/` arrived in M
   - `npm run web --workspace app` — the dev server in a browser
 - Shared DB types: `npm run gen:types --workspace packages/shared` after every
   migration (reads pind-staging).
+- **One person across pages** (M3.2): `npm run check:one-person -- <slug>` drives real
+  headless Chrome through quick pin → the app’s claim → quick pin again, and fails
+  unless it is one person (`--break` must find two). Run it after any deploy that
+  touches A26, `/session/claim` or the app’s session handling; no unit test can reach
+  the page script it depends on.
+- **The anonymous-tester button, from outside Access** (M3.2): `npm run check:tester-session`
+  does what the button does (anonymous sign-up, `admin_add_anonymous_tester`, the sealed
+  cookie), sets the cookie in real Chrome and loads the test crowd; it fails unless the
+  app claims the session and renders the crowd. Its first version set localStorage
+  directly, skipped the claim, and passed while the button failed — **a check of a
+  hand-off must go through the hand-off**.
+- **A27 and the merge, from the screen and the bucket** (M3.2):
+  - `npm run check:optin-refusal` takes a test account's photo away under the safety
+    sheet. It must get a sentence naming the photo, and the photo picker, never "not
+    allowed". The other side must open the pin.
+  - `npm run check:merge-photos` merges through the live `/account/merge`. The account
+    takes a photo only when it has none, and the anonymous folder must end up empty.
+  - `npm run check:link-path` walks the whole link path in real Chrome, as a tester on
+    the test crowd: the quick pin, then A27's steps, then A9. It does it three ways: a
+    fresh address, an existing account (a real code typed in, then the merge), and a
+    skip at "where" that Profile then fixes. Run it after anything that touches A26,
+    A27, the shared profile steps or the merge.
+  - `npm run check:orphan-photos` lists every photo file whose user no longer exists.
+    Add `-- --delete` to remove them. Run it after anything that deletes users.
 - EAS, from `app/`: `npx eas-cli@24.7.0 build --profile <development|internal|production>
   --platform ios`. Profiles in `app/eas.json`; `APP_VARIANT` picks the staging or
   production bundle ID.
@@ -48,11 +72,26 @@ There is no separate `pind-app` repo. `app/` and `packages/shared/` arrived in M
 
 ## Where things live (the boundary rule — do not cross it)
 
-If it is public, it is the Worker. If it needs a session, it is Expo. If it is
+**Everything a stranger meets before they have committed is the Worker — including the
+one form that commits them (A26, the quick pin). The Worker may create an anonymous
+session exactly once, at pin-in, and hand it over; it never reads people or renders
+anything that depends on who someone is. Everything after the pin is Expo.** If it is
 time-driven, it is pg_cron in Postgres. If it decides who sees whom, it is a policy in
-Postgres (H11). If it sends anything or calls an AI, it is the Worker. Nothing is built
-twice. So: **no people lists rendered by the Worker; no AI or email calls from the
-app.** (spec.md §4 has the full table.)
+Postgres (H11). If it sends anything or calls an AI, it is the Worker. So: **no people
+lists rendered by the Worker; no AI or email calls from the app.** (spec.md §4 has the
+full table.)
+
+**Why the line moved** (Alex, M3.2). It used to read "if it is public, it is the
+Worker; if it needs a session, it is Expo" — which never said which side pin-in was
+on, so it drifted into Expo. Measured in M3.2 on Lighthouse's mobile profile: the Expo A26, after every cut that worked, drew its content at 3.8 s and was usable at 5.6 s, against W2's 1.6–2.2 s — about twice the page the visitor arrived from. What was left was the framework itself. The new line has an edge you can test: the
+next page that wants to cross it has to be before commitment, and A27, the list and
+editing a pin are not. `SESSION_SECRET`, declared since M1.0 for exactly this, says
+the original design was right.
+
+**The one thing built twice, on purpose: A26** — the Worker's for the web, Expo's for
+someone who has the app. Its fields, copy and validation live in `packages/shared`
+(`quickpin.ts`), and `tests/unit/quickpin.test.ts` fails if either A26 writes its own.
+Nothing else is built twice.
 
 ## Expo rules
 
@@ -158,6 +197,12 @@ own cron, not inside the nightly import.
 - Do not upgrade anything mid-milestone. Upgrades happen deliberately, between phases,
   when I ask.
 - Do not add a dependency without asking first.
+- **supabase-js upgrades are deliberate and re-checked, never incidental** (M3.2).
+  The Worker's A26 hands its anonymous session to the app, and the app finds it by the
+  key supabase-js stores sessions under. A silent upgrade that moved it would break
+  pinning on the web with nothing saying so. `tests/unit/quickpin.test.ts` derives the
+  key the way supabase-js does and fails if they part; after any upgrade, also pin once
+  on the web and open the pinned crowd page in the app.
 
 ## Keep the Worker lean
 
@@ -202,6 +247,16 @@ response for the URL. **Any new public route goes into `run_worker_first` in
 `wrangler.jsonc` in the same commit as the route itself, and the check is loading it in
 a browser — never trusting the router.** The same applies to a route you delete: the
 path keeps answering 200 with the app.
+
+**A new route can be shadowed for a minute after the deploy that adds it** (M3.2, a
+live instance, not a one-off). `/privacy` had been requested before it existed —
+Google's consent-screen publish is the likely caller — so the edge held the app's
+`index.html` for that URL. Right after the deploy that added the route, `/privacy`
+still answered **200 with the app** while `/terms` was correct; `?x=1` got the real
+page, and the stale copy expired inside its 60-second window. Anyone checking
+immediately sees a pass that isn't one. **So check a new route twice, a minute apart,
+and compare the body, not only the status** — a 200 is exactly what the wrong answer
+returns.
 
 ## A visitor is never the thing that does the work
 
@@ -296,12 +351,46 @@ Two things that follow, both cheap and both easy to skip:
   firing test, I named the publisher's capacity floor — and it has four, including
   both sides of the boundary. Confidently wrong about my own coverage is the same
   failure as the instrument above, pointed inward.
+- **A chained command runs the next step whether or not the check passed, unless
+  it is chained with `&&`.** M3.2: `npm run typecheck ...; git commit` committed twice
+  with the typecheck red, because `;` runs regardless and the typecheck's output was
+  sent to /dev/null. The commit said nothing was wrong because nothing asked. **Gate
+  every commit, push and deploy on its check with `&&`**, and never hide a check's
+  output and its exit code at the same time.
+- **A check whose setup grants the thing under test proves nothing.** M3.2:
+  `check:link-path` walked the whole path through the merge and passed. But its setup
+  made the merge account a tester "as Alex's would be". The fault was the merge
+  dropping the tester flag, so the check walked straight through it and reported
+  success, while Alex could not get past sign-in on four attempts. **A setup must leave
+  the state under test as a real person has it, and assert that before the walk**
+  ("this account is not a tester going in"). The walk then asserts the outcome the
+  person saw: the crowd is still visible after sign-in.
 - **A test that reads the source must prove its own pattern matches something real.**
   An empty result is what a pattern that matches nothing returns, so it passes by
   finding nothing. M3.1: S20's regex was mangled on the way into the file and matched
   nothing while reporting a pass; it now asserts it can see a real `.message` read in
   `errors.ts` before it trusts "no screen reads one". The guard rule, pointed at the
   tests themselves.
+
+## Re-read who you are after anything that can change it
+
+**After any operation that can change who is signed in, or which person they are — a
+claim, a merge, a sign-in, a sign-out, an account link — re-read identity before the
+next write. Never write with what the screen is still holding.** It is the same shape
+three times, each a component confidently acting on a fact that had stopped being true
+underneath it:
+
+- **The session hand-off** (M3.2): A8 read before the claim ran.
+- **The config panel** (M3.1): it compared two values that were no longer the same
+  thing.
+- **A27 after the merge** (M3.2 walk): the database had just deleted the anonymous
+  person, and the safety sheet wrote with that person's id. The refusal reached the
+  screen as "Pin'd was not allowed to write that", on the one action the flow exists
+  for.
+
+The fix is a fresh read at the point of the write. The guard is a test that fails if
+the write uses held ids (S26). Its firing proof is a script that changes the facts
+under the page and presses the button (`check:optin-refusal`).
 
 ## A test of a rule proves nothing about a screen that does not call it
 

@@ -300,9 +300,11 @@ export interface CrowdCounts {
 // **What a card says about its crowd** (Alex, closing M2.3, and his call on the second
 // clause rather than mine).
 //
-//   nobody yet        "0 pinned · be the first"
-//   somebody          "3 pinned · see who's going"
-//   crews forming     "12 pinned · crews forming · see who's going"
+//   nobody yet        "0 going · be the first"
+//   somebody          "3 going · see who else is going"
+//
+// (M3.2, Alex's wording: "going" is the count's word everywhere since M3.2, and "who
+// ELSE" because the reader is one of the three. The M2.3 version said "pinned".)
 //
 // I had made the second clause vary — the open-to-meeting count where there was one —
 // on the grounds that one phrase repeated down two hundred rows is a slogan said at a
@@ -321,9 +323,7 @@ export function crowdLine(g: CrowdCounts): string {
   // M2.3). "Crews forming" was the last thing on a card that was about our machinery
   // rather than about the reader: the count is the information, the tap is the point,
   // and what the crews are doing is on the other side of it.
-  return g.pinned === 0
-    ? `${plural(g.pinned, "pinned", "pinned")} · be the first`
-    : `${plural(g.pinned, "pinned", "pinned")} · see who's going`;
+  return g.pinned === 0 ? `${g.pinned} going · be the first` : `${g.pinned} going · see who else is going`;
 }
 
 // ---------------------------------------------------------------------------

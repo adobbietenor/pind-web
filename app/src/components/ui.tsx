@@ -10,7 +10,8 @@ import {
   View,
   type TextInputProps,
 } from "react-native";
-import { colors as palette, fonts, radius, spacing } from "@pind/shared";
+import { colors as palette, radius, spacing } from "@pind/shared";
+import { headlineFamily } from "@/lib/typeface";
 
 export function Heading({ children }: { children: ReactNode }) {
   return (
@@ -126,6 +127,41 @@ export function Choice<T extends string>({
   );
 }
 
+// A checkbox as a whole tappable row (A26, M3.2): the label is part of the target, so
+// a thumb never has to find a 22-point square. A refusal about it is said beneath it,
+// where the tap was.
+export function Tick({
+  label,
+  hint,
+  value,
+  onChange,
+  error,
+}: {
+  label: string;
+  hint?: string;
+  value: boolean;
+  onChange: (value: boolean) => void;
+  error?: string;
+}) {
+  return (
+    <View style={{ marginBottom: spacing.md }}>
+      <Pressable
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: value }}
+        onPress={() => onChange(!value)}
+        style={[styles.tick, !!error && { borderColor: "#E06B6B" }]}
+      >
+        <View style={[styles.box, value && styles.boxOn]}>{value ? <Text style={styles.boxMark}>✓</Text> : null}</View>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.body}>{label}</Text>
+          {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+        </View>
+      </Pressable>
+      {error ? <Text style={styles.tickError}>{error}</Text> : null}
+    </View>
+  );
+}
+
 export function Notice({ tone = "quiet", children }: { tone?: "quiet" | "stop"; children: ReactNode }) {
   return (
     <View style={[styles.notice, tone === "stop" && { borderColor: "#E06B6B" }]}>
@@ -136,7 +172,7 @@ export function Notice({ tone = "quiet", children }: { tone?: "quiet" | "stop"; 
 
 const styles = StyleSheet.create({
   heading: {
-    fontFamily: fonts.headline,
+    fontFamily: headlineFamily,
     fontSize: 27,
     lineHeight: 34,
     color: palette.text,
@@ -145,7 +181,7 @@ const styles = StyleSheet.create({
   },
   body: { fontSize: 16, lineHeight: 23, color: palette.text },
   label: {
-    fontFamily: fonts.headline,
+    fontFamily: headlineFamily,
     fontSize: 14,
     color: palette.textMuted,
     marginBottom: spacing.xs + 2,
@@ -171,7 +207,7 @@ const styles = StyleSheet.create({
   },
   primary: { backgroundColor: palette.accent },
   quiet: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },
-  buttonLabel: { fontFamily: fonts.headline, fontSize: 16, color: palette.onAccent },
+  buttonLabel: { fontFamily: headlineFamily, fontSize: 16, color: palette.onAccent },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   chip: {
     borderWidth: 1,
@@ -182,6 +218,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
   },
   chipOn: { backgroundColor: palette.accent, borderColor: palette.accent },
+  tick: {
+    flexDirection: "row",
+    gap: spacing.md,
+    alignItems: "flex-start",
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: radius.md,
+    backgroundColor: palette.surface,
+  },
+  box: {
+    width: 22,
+    height: 22,
+    marginTop: 1,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: palette.textMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  boxOn: { backgroundColor: palette.accent, borderColor: palette.accent },
+  boxMark: { color: palette.onAccent, fontSize: 14, fontWeight: "700", lineHeight: 16 },
+  tickError: { fontSize: 14, color: "#F3B4B4", marginTop: spacing.xs + 2 },
   chipLabel: { fontSize: 15, color: palette.text },
   notice: {
     borderWidth: 1,

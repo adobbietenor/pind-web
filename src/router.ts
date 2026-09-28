@@ -1,10 +1,13 @@
 import { admin } from "./admin/routes";
 import type { Env } from "./env";
 import { page } from "./html";
+import { mergeAccount } from "./account/merge";
 import { deleteAccount } from "./account/routes";
 import { photoCheckForMe, photoWebhook } from "./photo/routes";
+import { claimSession, quickPinSubmit } from "./public/quickpin";
 import { publicRoutes } from "./public/routes";
 import { health } from "./routes/health";
+import { ingest } from "./routes/ingest";
 
 export type Handler = (request: Request, env: Env) => Promise<Response>;
 
@@ -20,6 +23,12 @@ const routes: Record<string, Handler> = {
   // bundle — and a half-finished delete is worse than either state, so it is one
   // server-side call rather than the app doing the parts it can.
   "POST /account/delete": deleteAccount,
+  // M3.2, the hand-off: the app claims the quick pin's session once
+  // (src/public/quickpin.ts). /session/* is in run_worker_first.
+  "POST /session/claim": claimSession,
+  // M3.2, A27: an anonymous pinner joins the account they already have. Both sessions,
+  // checked by the auth server, before anything moves (src/account/merge.ts).
+  "POST /account/merge": mergeAccount,
 };
 
 export async function route(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {
@@ -35,6 +44,14 @@ export async function route(request: Request, env: Env, ctx?: ExecutionContext):
   // Admin (M1.2): behind Cloudflare Access, and every request re-checks the Access
   // token in the Worker. See src/admin/routes.ts.
   if (pathname === "/admin" || pathname.startsWith("/admin/")) return admin(request, env);
+
+  // PostHog through our own origin (M3.2): any method, anything under /ingest.
+  const analytics = await ingest(request);
+  if (analytics) return analytics;
+
+  // A26’s form posts to its own URL (M3.2).
+  const pinPost = request.method === "POST" ? /^\/g\/([a-z0-9]+(?:-[a-z0-9]+)*)\/pin\/?$/.exec(pathname) : null;
+  if (pinPost) return quickPinSubmit(request, env, pinPost[1]!);
 
   const handler = routes[`${request.method} ${pathname}`];
   if (handler) return handler(request, env);

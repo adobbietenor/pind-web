@@ -484,8 +484,14 @@ Reached from W2's button at `/g/<slug>/pin`. One screen, no account, no photo:
 - Checkbox: "I'd like to meet up with others going" (unticked)
 - Checkbox: "I'm 19 or older" (H8 attestation; the date-of-birth hard stop comes at A27)
 → pinned, as a Supabase anonymous user; the pin is a real row under RLS. About 30
-seconds. Then: "You're #14 pinned", the threshold with progress ("4 of 5 opted in · 1
-to go"), share this page, add to calendar, edit my pin, remove my pin.
+seconds. Then, at once (Alex, M3.2): **"You're in"**, the count ("3 going so far" — never
+"You're #3 pinned", which read as a rank and was wrong for a party), the threshold with
+progress ("1 of 5 open to meeting · 4 to go"), and **one primary button into the app**
+— "Next: a few details so people can find you" if they ticked "meet up" (A27), "See
+who's going" if they did not (A9) — with the app already loading behind the page, so
+the tap never lands on a loading screen at the moment of commitment. Below it: change
+or remove my pin, share this page, add to calendar. Without JavaScript the
+confirmation is the landing and says how to come back.
 
 ### A27 — Opt in *(link path; new)*
 Only for someone who ticked "meet up" (or turns it on later). One screen more:
@@ -528,19 +534,24 @@ never in the digest, never in the store listing or screenshots.
 
 (Alex, revised build plan; `docs/build-plan.md` §2.)
 
-**One rule decides the boundary.** If it is public, it is the Worker. If it needs a
-session, it is Expo. If it is time-driven, it is pg_cron in Postgres. If it decides who
+**One rule decides the boundary.** Everything a stranger meets before they have
+committed is the Worker — including the one form that commits them (A26). The Worker
+may create an anonymous session exactly once, at pin-in, and hand it over; it never
+reads people or renders anything that depends on who someone is. Everything after the
+pin is Expo (Alex, M3.2 — replacing "if it is public, it is the Worker; if it needs a
+session, it is Expo", which never said which side pin-in was on). Measured in M3.2 on Lighthouse's mobile profile: the Expo A26, after every cut that worked, drew its content at 3.8 s and was usable at 5.6 s, against W2's 1.6–2.2 s — about twice the page the visitor arrived from. What was left was the framework itself. If it is
+time-driven, it is pg_cron in Postgres. If it decides who
 sees whom, it is a policy in Postgres (H11). If it sends anything or calls an AI, it is
-the Worker. Nothing is built twice.
+the Worker. Nothing is built twice, except A26 — the Worker’s for the web, Expo’s in the app — whose fields, copy and validation are shared and tested (packages/shared/src/quickpin.ts).
 
 | Surface or job | Lives in | Why there |
 |---|---|---|
-| This week's crowds (W1), the crowd page before you pin (W2), the `/spot` share card (W3), the OG image, the universal-link file, the PindScene.com redirect | **Worker** (HTML from template strings, dark look) | Must load in under a second inside a Reddit tab, work with no account, and be indexable. Reads counts through the anon key and RLS, never the service key. |
+| This week's crowds (W1), the crowd page before you pin (W2), **the quick pin (A26) and its pin write** (M3.2), the `/spot` share card (W3), the OG image, the universal-link file, the PindScene.com redirect | **Worker** (HTML from template strings, dark look) | Must load in under a second inside a Reddit tab, work with no account, and be indexable. Reads counts through the anon key and RLS, never the service key. |
 | Admin, draft queue, venues and spots, moderation queues, metrics page, publishing panel | **Worker** behind Cloudflare Access | Built. Moves from workers.dev to pind.social/admin in M2.1. |
 | Nightly Ticketmaster import, AI vetting, auto-publishing fill, the weekly adaptive adjustment, the Community & free discovery run, spot suggestions (M5.2) | **Worker cron** | The Anthropic key already lives there; M1.3b's streaming-and-abort lessons apply to every AI call. |
 | Delivering push and email | **Worker cron** every 5 minutes, reading `notification_queue` | The database decides *what* (a trigger enqueues when opt-ins reach 5, a crew changes state, a date changes); the Worker decides *how* (Expo Push API for devices, Resend for web-only people). One place to retry, one log. |
 | The AI photo check | **Worker endpoint** called by a database webhook on the new photo row | The app uploads and inserts; the check is asynchronous with a pending state (V6); the decision lands in `moderation_log` with actor `ai:photo-check`. |
-| Pin in, opt in, complete profile, photo upload, the reciprocal list, crews, solo, the thread, "I'm here", the morning after, connections, My Events, settings, report and block | **Expo** — iOS app and web build, one codebase | Everything with a session. The web build is the complete product, not a preview: the first real crowds run on it. |
+| Pin in **from inside the app** (A26 for someone who has it), opt in, complete profile, photo upload, the reciprocal list, crews, solo, the thread, "I'm here", the morning after, connections, My Events, settings, report and block | **Expo** — iOS app and web build, one codebase | Everything with a session. The web build is the complete product, not a preview: the first real crowds run on it. |
 | Crew live/done/dissolve, thread close and delete, keep-in-touch expiry, pin deletion, Ticketmaster data purge, metrics snapshots | **pg_cron** | Time-driven and keyed off the effective end; no app or Worker code path can forget to run them. |
 | Reciprocity, blocks, women-only, hidden people, solo visibility, review-only gatherings, Instagram handles | **RLS policies** + `private.can_see_at` | H11. The harness is the test suite; the adversarial review is the audit. |
 
@@ -548,7 +559,7 @@ the Worker. Nothing is built twice.
 the *same host*. The Worker renders its own routes first (`/`, `/g/<slug>`,
 `/g/<slug>/spot`, `/og/*`, `/admin*`, `/hooks/*`, `/.well-known/*`, `/health`);
 everything else falls through to the app's `index.html` with single-page-app fallback,
-so `/g/<slug>/pin`, `/crew/<id>`, `/me` and the rest are app routes. One domain, one
+so `/crew/<id>`, `/me` and the rest are app routes. `/g/<slug>/pin` is the Worker’s since M3.2 (the quick pin, above). One domain, one
 `wrangler deploy`, one universal-link file, no CORS, and the shared link is always the
 crowd page. Universal links open a crowd URL in the app when installed, the web page
 when not; Reddit's in-app browser does not always honour them, which is one more reason
@@ -562,7 +573,9 @@ the web build must be the complete product.
 - One-liner: "See who's going, meet them there."
 - Primary action: **"Pin in — I've got a ticket"**. For gatherings with `is_free = true`:
   **"Pin in — I'm going"** (Alex, Phase 1 M1.2).
-- Threshold explanation: "Crews open when 5 people opt in."
+- Threshold explanation: "Crews form once 5 people are open to meeting." (Alex, M3.2:
+  one word for the second number everywhere, "open to meeting" — it read "opt in" here
+  and "opted in" on A26. "Form" so the sentence does not say "open" twice.)
 - The three house rules, verbatim, on every crowd surface (see W2), and under them
   "Crews meet at a spot near the venue before doors." Rewritten by Alex after the M2.1
   walk: **the safety property each line describes is unchanged, only how it is said.**
@@ -644,8 +657,9 @@ working. Hours are Alex's, agent-assisted.
 | M2.3 | The list at fifty a week — today/tomorrow split and category chips (W1) | **Done** — merged as `M2.3` | 4–6 |
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | **Done** — merged as `737bdb4` | 12–16 |
-| M3.2 | Crowds, pins, the link-path funnel, universal links (A5–A9, A19, A26, A27) | Not started | 12–18 |
-| M3.3 | Crews, the thread, the night, the morning after (A10–A17, A20, "Put me in a crew") | Not started | 20–28 |
+| M3.2 | Crowds, pins, the link-path funnel (A8, A9, A22, A26, A27; one set of profile steps shared with A1–A3) | In progress | 28–35 |
+| M3.2b | The app's front door — A5–A7, interests, search, A19, universal links, and the one build + native walk for M3.2 and M3.2b (Alex) | Not started | 16–19 |
+| M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | Not started | 22–31 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
 | M3.5 | Safety and the five notifications (A18, A23, A24) | Not started | 10–14 |
 | M3.6 | Dogfood on staging | Not started | 6–8 |

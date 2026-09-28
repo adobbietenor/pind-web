@@ -41,7 +41,7 @@ import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
 import { askForCheck, pickPhoto, uploadPhoto, type Picked } from "@/lib/photo";
-import { loadMe, photoUrl } from "@/lib/profile";
+import { loadMe, photoUrl, setPhotoPath } from "@/lib/profile";
 import { report } from "@/lib/sentry";
 import { myAuthId } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
@@ -122,8 +122,7 @@ export default function ChangePhoto() {
           return;
         }
       }
-      const { error: saveError } = await db.from("people").update({ photo_path: next }).eq("id", me.id);
-      if (saveError) throw saveError;
+      await setPhotoPath(me.id, next);
       // The old file goes. Best effort: the profile no longer points at it either way.
       if (edit.current && edit.current !== next) await db.storage.from("photos").remove([edit.current]);
       if (next) void askForCheck();

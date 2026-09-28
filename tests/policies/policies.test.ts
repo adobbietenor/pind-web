@@ -9,10 +9,13 @@
 //
 // Cases run in order: later cases change the world (blocks, removed pins, reports).
 
+import { randomUUID } from "node:crypto";
 import { after, before, describe, it } from "node:test";
 import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEnv } from "./env.ts";
+import { optInMissing } from "../../packages/shared/src/optin.ts";
+import { photoDest } from "../../src/account/merge-checks.ts";
 import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, markHarness, newClient, sweep, type Member, type World } from "./world.ts";
 
 interface Result {
@@ -599,34 +602,20 @@ describe("After the gathering — V1 (list closes 24h after effective end)", () 
   });
 
   // Asked by Alex in M2.2 and written down here rather than inferred: nothing about
-  // publishing lead times reaches pinning. The only conditions on inserting a pin are
-  // "it is me" and "the gathering is published, not withdrawn, not seeded".
+  // publishing lead times reaches pinning. Pinning an hour before doors works, and
+  // nothing about publish_lead_days_min reaches it.
   //
-  // The first half is the rule and is meant to hold: pinning an hour before doors
-  // works, and nothing about publish_lead_days_min reaches it.
-  //
-  // THE SECOND HALF RECORDS A BUG, NOT AN INTENTION. There is no upper bound either,
-  // so a pin can be taken after the gathering has ended. That is a gap left over from
-  // M1.1, not a decision, and M3.2 closes it when A26 exists: pins close at the
-  // effective end. WHEN M3.2 LANDS THIS ASSERTION IS SUPPOSED TO FAIL — invert it to
-  // `assert.ok(ended.error)` and rename the case. It is here so the gap is visible and
-  // dated rather than discovered again, not because anyone wants it (Alex, M2.2).
-  it("P37b pinning has no lower time gate (intended) / and no upper one either — CURRENT BEHAVIOUR, A BUG M3.2 CLOSES", async () => {
+  // THE UPPER BOUND, INVERTED IN M3.2 as M2.2 asked. Until M3.2 a pin could be taken
+  // after the gathering had ended — a gap left from M1.1, recorded here so it stayed
+  // visible. Pinning now closes at the effective end (Alex, before M3.2): open during
+  // the gathering, shut after. Edits close with it; removing a pin never does.
+  it("P37b pinning has no lower time gate, and is REFUSED after the effective end (inverted in M3.2)", async () => {
     const ava = c(M("Ava"));
-    const ended = await ava
-      .from("pins")
-      .insert({ gathering_id: w.P, person_id: id("Ava"), party_total: 1, open_to_meeting: false })
-      .select("id")
-      .single();
-    // Pending M3.2: this is the bug, recorded. Invert it there, do not "fix" the test.
-    assert.equal(
-      ended.error,
-      null,
-      "pinning after the end was refused — if M3.2 closed the bound, invert this assertion rather than treating it as a regression",
+    await denied(
+      ava.from("pins").insert({ gathering_id: w.P, person_id: id("Ava"), party_total: 1, open_to_meeting: false }),
+      "42501",
     );
-    await ok(w.service.from("pins").delete().eq("id", ended.data!.id));
 
-    // The same for a gathering about to start: published is the only gate.
     const soon = await ok(
       w.service
         .from("gatherings")
@@ -635,12 +624,62 @@ describe("After the gathering — V1 (list closes 24h after effective end)", () 
         .single(),
     );
     await ok(w.service.from("gatherings").update({ published_at: new Date().toISOString() }).eq("id", soon.id));
-    const late = await ava
+    const early = await ava
       .from("pins")
       .insert({ gathering_id: soon.id, person_id: id("Ava"), party_total: 1, open_to_meeting: false })
       .select("id")
       .single();
-    assert.equal(late.error, null, `pinning an hour before doors was refused: ${late.error?.message}`);
+    assert.equal(early.error, null, `pinning an hour before doors was refused: ${early.error?.message}`);
+  });
+
+  // Both sides of the new edge, and the one thing it must never touch.
+  it("P90 pinning is OPEN during the gathering — started an hour ago, not yet ended (the 9pm case)", async () => {
+    const now = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} Under Way`, starts_at: new Date(Date.now() - 3_600_000).toISOString(), venue_id: w.venue })
+        .select("id")
+        .single(),
+    );
+    await ok(w.service.from("gatherings").update({ published_at: new Date().toISOString() }).eq("id", now.id));
+    const ava = c(M("Ava"));
+    const pin = await ava
+      .from("pins")
+      .insert({ gathering_id: now.id, person_id: id("Ava"), party_total: 1, open_to_meeting: false })
+      .select("id")
+      .single();
+    assert.equal(pin.error, null, `pinning during the gathering was refused: ${pin.error?.message}`);
+    const edited = await ava.from("pins").update({ party_total: 2 }).eq("id", pin.data!.id).select("id");
+    assert.equal(edited.data?.length, 1, "editing a pin during the gathering was refused");
+  });
+
+  it("P91 after the effective end a pin CANNOT be edited, and CAN always be removed", async () => {
+    // A pin taken while it was open, then the gathering ends (moved into the past by
+    // the service key, the only way a test can make time pass).
+    const g = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} Ends Now`, starts_at: new Date(Date.now() - 3_600_000).toISOString(), venue_id: w.venue })
+        .select("id")
+        .single(),
+    );
+    await ok(w.service.from("gatherings").update({ published_at: new Date().toISOString() }).eq("id", g.id));
+    const ava = c(M("Ava"));
+    const pin = await ok(
+      ava.from("pins").insert({ gathering_id: g.id, person_id: id("Ava"), party_total: 1, open_to_meeting: false }).select("id").single(),
+    );
+    await ok(
+      w.service.from("gatherings").update({ starts_at: new Date(Date.now() - 5 * 3_600_000).toISOString() }).eq("id", g.id),
+    );
+
+    // An update the policy refuses matches no row: no error, nothing changed.
+    const edited = await ava.from("pins").update({ party_total: 3, open_to_meeting: true }).eq("id", pin.id).select("id");
+    assert.equal(edited.data?.length ?? 0, 0, "a pin was edited after the gathering ended");
+    const after = await ok(w.service.from("pins").select("party_total, open_to_meeting").eq("id", pin.id).single());
+    assert.deepEqual(after, { party_total: 1, open_to_meeting: false }, "the ended pin changed");
+
+    const removed = await ava.from("pins").delete().eq("id", pin.id).select("id");
+    assert.equal(removed.data?.length, 1, "removing a pin after the end was refused — it never may be");
   });
 });
 
@@ -1263,6 +1302,108 @@ describe("Seed rows never reach the public — V18 (Alex, M2.1)", () => {
     await denied(c(M("Ava")).from("gatherings").update({ is_seed: true }).eq("id", w.G), "42501");
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — the testers list, a V18 change (Alex, M3.2; on M4.2's review list)
+// ---------------------------------------------------------------------------
+
+describe("Testers see the seed gathering while signed in — and nothing else moves (V18, M3.2)", () => {
+  let avaUser = "";
+  const setTester = (on: boolean) =>
+    w.service.rpc("admin_set_tester", { p_auth_user: avaUser, p_on: on, p_actor: ACTOR, p_note: "harness" });
+
+  before(async () => {
+    avaUser = (await c(M("Ava")).auth.getUser()).data.user!.id;
+    // The seed person from V18's block, opted in at the SEED gathering too.
+    await ok(w.service.from("pins").insert({ gathering_id: seedG, person_id: seedPerson, open_to_meeting: true, party_total: 1 }));
+    await ok(setTester(true));
+  });
+
+  after(async () => {
+    await ok(setTester(false));
+    await ok(w.service.from("pins").delete().eq("gathering_id", seedG));
+  });
+
+  it("P92 a tester CAN read the seed gathering, its venue, spots and options / a signed-in non-tester and anon CANNOT", async () => {
+    const ava = c(M("Ava"));
+    assert.equal(await readable(ava, seedG), true, "the tester could not read the seed gathering");
+    assert.equal((await rows(ava.from("venues").select("id").eq("id", seedVenue))).length, 1, "tester: seed venue");
+    assert.equal((await rows(ava.from("meeting_spots").select("id").eq("venue_id", seedVenue))).length, 1, "tester: seed spots");
+    for (const client of [w.anon, c(M("Ben"))]) {
+      assert.equal(await readable(client, seedG), false, "a non-tester read the seed gathering");
+      assert.equal((await rows(client.from("venues").select("id").eq("id", seedVenue))).length, 0, "non-tester: seed venue");
+    }
+  });
+
+  it("P93 a tester CAN pin at the seed gathering and remove it / a non-tester CANNOT pin there", async () => {
+    await denied(
+      c(M("Ben")).from("pins").insert({ gathering_id: seedG, person_id: id("Ben"), party_total: 1, open_to_meeting: false }),
+      "42501",
+    );
+    const pin = await ok(
+      c(M("Ava")).from("pins").insert({ gathering_id: seedG, person_id: id("Ava"), party_total: 1, open_to_meeting: true }).select("id").single(),
+    );
+    assert.ok(pin.id, "the tester could not pin at the seed gathering");
+  });
+
+  it("P94 a tester opted in at the seed gathering CAN see the seed person opted in there / the seed person stays invisible to non-testers", async () => {
+    const ava = c(M("Ava"));
+    assert.equal((await rows(ava.from("people").select("id").eq("id", seedPerson))).length, 1, "the tester could not see the seed person");
+    assert.equal(
+      (await rows(ava.from("pins").select("id").eq("person_id", seedPerson).eq("gathering_id", seedG))).length,
+      1,
+      "the tester could not see the seed person's pin",
+    );
+    assert.equal((await rows(c(M("Ben")).from("people").select("id").eq("id", seedPerson))).length, 0, "a non-tester saw the seed person");
+  });
+
+  it("P95 a tester gets the seed gathering's counts, seed people counted / anon and a non-tester get no row", async () => {
+    const row = await counts(c(M("Ava")), seedG);
+    assert.equal(row.open_to_meeting, 2, "the tester's counts should hold Ava and the seed person");
+    for (const client of [w.anon, c(M("Ben"))]) {
+      assert.equal((await rows(client.rpc("gathering_counts", { gathering_ids: [seedG] }))).length, 0, "a non-tester got seed counts");
+    }
+  });
+
+  it("P96 no public page changes: the public doors, asked WITH a tester's session, return no seed row", async () => {
+    const ava = c(M("Ava"));
+    assert.equal((await publicList(ava)).includes(seedGSlug), false, "a tester's week list included the seed gathering");
+    assert.equal((await publicDoor(ava, seedGSlug)).status, "gone", "a tester opened the seed crowd page");
+  });
+
+  it("P97 nobody can add themselves: the list is service-key only, unreadable to visitors", async () => {
+    const ben = c(M("Ben"));
+    const benUser = (await ben.auth.getUser()).data.user!.id;
+    for (const client of [ben, c(M("Ava")), w.anon]) {
+      const add = await client.rpc("admin_set_tester", { p_auth_user: benUser, p_on: true, p_actor: "self", p_note: null });
+      assert.ok(add.error, "a visitor ran admin_set_tester");
+      const list = await client.rpc("admin_testers");
+      assert.ok(list.error, "a visitor read the testers list");
+    }
+    assert.equal(await readable(ben, seedG), false, "Ben became a tester");
+  });
+
+  it("P98 at a REAL gathering a tester sees no seed person, and counts do not move (the seed rule holds there)", async () => {
+    // The seed person is pinned and opted in at G (V18's P56); Ava is opted in at G.
+    const ava = c(M("Ava"));
+    assert.equal(
+      (await rows(ava.from("pins").select("id").eq("person_id", seedPerson).eq("gathering_id", w.G))).length,
+      0,
+      "a tester saw a seed person's pin at a real gathering",
+    );
+    assert.deepEqual(await counts(ava, w.G), await counts(w.anon, w.G), "a tester's counts at a real gathering differ from anon's");
+  });
+
+  it("P99 taking a tester off the list takes the sight away at once — both sides of the flag", async () => {
+    await ok(setTester(false));
+    const ava = c(M("Ava"));
+    assert.equal(await readable(ava, seedG), false, "the seed gathering stayed visible after the flag came off");
+    assert.equal((await rows(ava.from("people").select("id").eq("id", seedPerson))).length, 0, "the seed person stayed visible");
+    await ok(setTester(true));
+    assert.equal(await readable(ava, seedG), true, "putting the flag back did not restore sight");
+  });
+});
+
 
 describe("The public web layer reads through one door — M2.1 (W1–W4)", () => {
   it("P59 publishing mints a public URL / a gathering without one is on no public list and has no public page", async () => {
@@ -2289,10 +2430,12 @@ describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.
       client.from("people").insert({ auth_user_id: authId, first_name: label }).select("id").single(),
       "A26 makes the person",
     );
+    await ok(client.from("age_attestations").insert({ person_id: person.id, source: "a26" }), "A26 records the 19+ tick");
     const pin = await ok(
       client
         .from("pins")
-        .insert({ gathering_id: w.G, person_id: person.id, open_to_meeting: true, party_total: 2 })
+        // Closed: an anonymous pinner may not be open to meeting (the gate, M3.2).
+        .insert({ gathering_id: w.G, person_id: person.id, open_to_meeting: false, party_total: 2 })
         .select("id")
         .single(),
       "A26 pins",
@@ -2308,13 +2451,13 @@ describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.
     assert.equal(person[0].auth_user_id, authId);
     const pin = await rows(client.from("pins").select("id, open_to_meeting, party_total").eq("id", pinId));
     assert.equal(pin.length, 1, "the pin did not survive");
-    assert.equal(pin[0].open_to_meeting, true, "the opt-in did not survive");
+    assert.equal(pin[0].open_to_meeting, false, "the pin changed state across the link");
     assert.equal(pin[0].party_total, 2, "the party size did not survive");
     // And it is still the person's to change — the write half of RLS, not only reads.
     await ok(client.from("pins").update({ party_total: 3 }).eq("id", pinId), "edit my pin after the link");
   }
 
-  it("P84 an anonymous pinner made permanent keeps the same id, and the person, the pin, the party size and the opt-in come with it", async () => {
+  it("P84 an anonymous pinner made permanent keeps the same id, the person, the pin and the party size — and the SAME pin opens to meeting once A27 is done (the gate, M3.2)", async () => {
     const q = await quickPin("Link");
     try {
       // The conversion itself, as the email code will do it once verified: the same
@@ -2331,6 +2474,12 @@ describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.
       assert.equal(claims.sub, q.authId, "the new token is for a different user");
       assert.equal(claims.is_anonymous, false, "the new token still says anonymous");
       await stillMine(q.client, q.authId, q.personId, q.pinId);
+
+      // A27's details (date of birth and gender, a photo) — and now the SAME pin opens.
+      await ok(w.service.from("people_private").insert({ person_id: q.personId, gender: "woman", birth_year: 1995 }));
+      await ok(w.service.from("people").update({ photo_path: `${q.authId}/face.png` }).eq("id", q.personId));
+      const opened = await ok(q.client.from("pins").update({ open_to_meeting: true }).eq("id", q.pinId).select("open_to_meeting"));
+      assert.deepEqual(opened, [{ open_to_meeting: true }], "after the link and A27 the pin could not open");
     } finally {
       await w.service.from("pins").delete().eq("id", q.pinId);
       await w.service.from("people").delete().eq("id", q.personId);
@@ -2480,5 +2629,768 @@ describe("Changing or removing a photo — P89 (M3.1)", () => {
       await w.service.storage.from(BUCKET).remove([first, second]);
       await w.service.auth.admin.deleteUser(authId);
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — the 19+ attestation, and under 19 at A27 (Alex, M3.2; H8)
+// ---------------------------------------------------------------------------
+
+describe("A pin needs the 19+ tick, recorded where nobody else can read it (M3.2)", () => {
+  async function anonPerson(label: string) {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signedIn = await client.auth.signInAnonymously();
+    assert.equal(signedIn.error, null, signedIn.error?.message);
+    const authId = signedIn.data.user!.id;
+    await markHarness(w.service, authId);
+    const person = await ok(
+      client.from("people").insert({ auth_user_id: authId, first_name: label }).select("id").single(),
+      "the person",
+    );
+    return { client, authId, personId: person.id as string };
+  }
+
+  async function cleanUp(q: { authId: string; personId: string }) {
+    await w.service.from("people").delete().eq("id", q.personId);
+    await w.service.auth.admin.deleteUser(q.authId);
+  }
+
+  it("P100 without the 19+ record a pin is REFUSED — a token calling the API directly cannot skip the tick", async () => {
+    const q = await anonPerson("NoTick");
+    try {
+      await denied(
+        q.client.from("pins").insert({ gathering_id: w.G, person_id: q.personId, party_total: 1, open_to_meeting: false }),
+        "42501",
+      );
+    } finally {
+      await cleanUp(q);
+    }
+  });
+
+  it("P101 with the record the same pin WORKS; everyone who finished A2 already has one", async () => {
+    const q = await anonPerson("Ticked");
+    try {
+      await ok(q.client.from("age_attestations").insert({ person_id: q.personId, source: "a26" }), "tick");
+      await ok(
+        q.client.from("pins").insert({ gathering_id: w.G, person_id: q.personId, party_total: 1, open_to_meeting: false }),
+        "pin after the tick",
+      );
+      // A2's people were backfilled and the trigger keeps doing it: Ava finished A2.
+      const ava = await rows(w.service.from("age_attestations").select("source").eq("person_id", id("Ava")));
+      assert.deepEqual(ava.map((r) => r.source), ["a2"], "an A2 person has no attestation");
+    } finally {
+      await cleanUp(q);
+    }
+  });
+
+  it("P102 the record is the owner's alone: nobody else can read it, even someone who can see them; the owner cannot change, remove or forge it", async () => {
+    // Ava and Eve can see each other at G (V1). Neither may read the other's record.
+    assert.equal((await rows(c(M("Ava")).from("people").select("id").eq("id", id("Eve")))).length, 1, "the world is wrong: Ava cannot see Eve");
+    assert.equal((await rows(c(M("Ava")).from("age_attestations").select("person_id").eq("person_id", id("Eve")))).length, 0, "Ava read Eve's attestation");
+    assert.equal((await rows(c(M("Ava")).from("age_attestations").select("person_id").eq("person_id", id("Ava")))).length, 1, "Ava cannot read her own");
+    await noAccess(w.anon, "age_attestations");
+
+    const changed = await c(M("Ava")).from("age_attestations").update({ source: "a26" }).eq("person_id", id("Ava")).select("person_id");
+    assert.ok(changed.error || (changed.data?.length ?? 0) === 0, "Ava changed her attestation");
+    const removed = await c(M("Ava")).from("age_attestations").delete().eq("person_id", id("Ava")).select("person_id");
+    assert.ok(removed.error || (removed.data?.length ?? 0) === 0, "Ava removed her attestation");
+    await denied(c(M("Ava")).from("age_attestations").insert({ person_id: id("Ben"), source: "a26" }), "42501");
+  });
+
+  it("P103 under 19 at A27 removes them COMPLETELY — the pin, the person, the record and the anonymous auth user — and the count drops", async () => {
+    const q = await anonPerson("Under");
+    await ok(q.client.from("age_attestations").insert({ person_id: q.personId, source: "a26" }), "tick");
+    await ok(q.client.from("pins").insert({ gathering_id: w.G, person_id: q.personId, party_total: 2, open_to_meeting: false }), "pin");
+    const before = (await counts(w.anon, w.G)).pinned;
+
+    await ok(q.client.rpc("remove_me_under_19"), "remove me");
+
+    assert.equal((await rows(w.service.from("pins").select("id").eq("person_id", q.personId))).length, 0, "the pin survived");
+    assert.equal((await rows(w.service.from("people").select("id").eq("id", q.personId))).length, 0, "the person survived");
+    assert.equal((await rows(w.service.from("age_attestations").select("person_id").eq("person_id", q.personId))).length, 0, "the 19+ record survived");
+    const user = await w.service.auth.admin.getUserById(q.authId);
+    assert.ok(user.error || !user.data.user, "the anonymous auth user survived");
+    assert.equal((await counts(w.anon, w.G)).pinned, before - 2, "the count did not drop by the party");
+  });
+
+  it("P104 only an anonymous session can use it, and only on itself — a permanent account and a stranger cannot", async () => {
+    const before = await rows(w.service.from("people").select("id").eq("id", id("Ava")));
+    const r = await c(M("Ava")).rpc("remove_me_under_19");
+    assert.ok(r.error, "a permanent account removed itself through the under-19 path");
+    assert.equal((await rows(w.service.from("people").select("id").eq("id", id("Ava")))).length, before.length, "Ava was removed");
+    const a = await w.anon.rpc("remove_me_under_19");
+    assert.ok(a.error, "a visitor with no session ran it");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — the opt-in gate: "open to meeting" only after A27 (Alex, M3.2)
+// ---------------------------------------------------------------------------
+
+describe("Open to meeting only for someone who has finished A27 — permanent, dated, with a photo (M3.2)", () => {
+  // A person made the way each case needs: anonymous or permanent, with or without the
+  // private row and the photo. Every one has the 19+ record, so only the gate decides.
+  async function someone(label: string, o: { permanent: boolean; privateRow: boolean; photo: boolean }) {
+    const client = newClient(w.env, w.env.publishableKey);
+    let authId: string;
+    if (o.permanent) {
+      const email = `${PREFIX}-${w.run}-gate-${label.toLowerCase()}@example.com`;
+      const password = randomUUID();
+      const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+      assert.equal(made.error, null, made.error?.message);
+      authId = made.data.user!.id;
+      const signIn = await client.auth.signInWithPassword({ email, password });
+      assert.equal(signIn.error, null, signIn.error?.message);
+    } else {
+      const signIn = await client.auth.signInAnonymously();
+      assert.equal(signIn.error, null, signIn.error?.message);
+      authId = signIn.data.user!.id;
+      await markHarness(w.service, authId);
+    }
+    const person = await ok(
+      w.service
+        .from("people")
+        .insert({ auth_user_id: authId, first_name: label, photo_path: o.photo ? `${authId}/face.png` : null })
+        .select("id")
+        .single(),
+    );
+    if (o.privateRow) {
+      await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "woman", birth_year: 1995 }));
+    }
+    await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    return { client, authId, personId: person.id as string };
+  }
+  const gone = async (q: { authId: string; personId: string }) => {
+    await w.service.from("people").delete().eq("id", q.personId);
+    await w.service.auth.admin.deleteUser(q.authId);
+  };
+  const pinOpen = (q: { client: SupabaseClient; personId: string }, open: boolean) =>
+    q.client.from("pins").insert({ gathering_id: w.G, person_id: q.personId, party_total: 1, open_to_meeting: open }).select("id").single();
+
+  it("P105 an ANONYMOUS pinner cannot be open to meeting — not on insert, not by a later update; closed is fine", async () => {
+    const q = await someone("GateAnon", { permanent: false, privateRow: false, photo: false });
+    try {
+      await denied(pinOpen(q, true), "42501");
+      const pin = await ok(pinOpen(q, false), "a closed pin is fine");
+      await denied(q.client.from("pins").update({ open_to_meeting: true }).eq("id", pin.id).select("id"), "42501");
+      assert.equal(await ok(q.client.rpc("i_may_meet")), false);
+    } finally {
+      await gone(q);
+    }
+  });
+
+  it("P106 permanent but no photo, or no date of birth and gender, cannot be open to meeting either", async () => {
+    const noPhoto = await someone("GateNoPhoto", { permanent: true, privateRow: true, photo: false });
+    const noPrivate = await someone("GateNoPrivate", { permanent: true, privateRow: false, photo: true });
+    try {
+      await denied(pinOpen(noPhoto, true), "42501");
+      await denied(pinOpen(noPrivate, true), "42501");
+    } finally {
+      await gone(noPhoto);
+      await gone(noPrivate);
+    }
+  });
+
+  it("P107 someone who HAS finished A27 — permanent, dated, with a photo — CAN be open to meeting, on insert and on update", async () => {
+    const q = await someone("GateDone", { permanent: true, privateRow: true, photo: true });
+    try {
+      assert.equal(await ok(q.client.rpc("i_may_meet")), true);
+      const pin = await ok(pinOpen(q, false));
+      const up = await ok(q.client.from("pins").update({ open_to_meeting: true }).eq("id", pin.id).select("open_to_meeting"));
+      assert.deepEqual(up, [{ open_to_meeting: true }], "a complete person could not opt in");
+    } finally {
+      await gone(q);
+    }
+  });
+
+  it("P108 turning it OFF is never refused, even for someone the gate would refuse now", async () => {
+    const q = await someone("GateOff", { permanent: false, privateRow: false, photo: false });
+    try {
+      // Set open by the service key, as a pin made before the gate existed would be.
+      const pin = await ok(w.service.from("pins").insert({ gathering_id: w.G, person_id: q.personId, party_total: 1, open_to_meeting: true }).select("id").single());
+      const off = await ok(q.client.from("pins").update({ open_to_meeting: false }).eq("id", pin.id).select("open_to_meeting"));
+      assert.deepEqual(off, [{ open_to_meeting: false }], "opting out was refused");
+    } finally {
+      await gone(q);
+    }
+  });
+
+  it("P109 i_may_meet answers for the caller only, and a visitor with no session cannot ask", async () => {
+    const a = await someone("GateAsk", { permanent: true, privateRow: true, photo: true });
+    try {
+      assert.equal(await ok(a.client.rpc("i_may_meet")), true);
+      assert.ok((await w.anon.rpc("i_may_meet")).error, "a visitor with no session called i_may_meet");
+    } finally {
+      await gone(a);
+    }
+  });
+
+  it("P126 A27's rule and the gate agree on what \"complete\" means — every combination, read the way A27 reads it", async () => {
+    // M3.2 walk: A27 reached the safety sheet for someone the gate refused, and the
+    // refusal came back as "not allowed". The screen now asks optInMissing (shared)
+    // before writing; this proves its idea of complete IS the database's, on real rows.
+    for (const permanent of [true, false]) {
+      for (const privateRow of [true, false]) {
+        for (const photo of [true, false]) {
+          const label = `Agree${permanent ? "P" : "A"}${privateRow ? "D" : "x"}${photo ? "F" : "x"}`;
+          const q = await someone(label, { permanent, privateRow, photo });
+          try {
+            // A27's own reads, as the person: their row, their private row, their session.
+            const me = await ok(q.client.from("people").select("id, photo_path").eq("auth_user_id", q.authId).single());
+            const priv = await rows(q.client.from("people_private").select("person_id").eq("person_id", me.id));
+            const { data: session } = await q.client.auth.getSession();
+            const facts = { permanent: !session.session!.user.is_anonymous, hasPrivate: priv.length > 0, hasPhoto: !!me.photo_path };
+            assert.deepEqual(facts, { permanent, hasPrivate: privateRow, hasPhoto: photo }, `${label}: A27's reads do not see what was built`);
+            const screen = optInMissing(facts).missing.length === 0;
+            const gate = await ok(q.client.rpc("i_may_meet"));
+            assert.equal(screen, gate, `${label}: A27 says ${screen ? "complete" : "not complete"}, the gate says ${gate}`);
+            // And the gate is what the write meets: open is refused exactly when A27 says so.
+            const pin = await q.client.from("pins").insert({ gathering_id: w.G, person_id: q.personId, party_total: 1, open_to_meeting: true }).select("id");
+            assert.equal(!pin.error, screen, `${label}: the open pin was ${pin.error ? "refused" : "allowed"} while A27 said ${screen ? "complete" : "not complete"}`);
+          } finally {
+            await gone(q);
+          }
+        }
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — which policy version a person accepted (Alex, M3.2)
+// ---------------------------------------------------------------------------
+
+describe("Policy acceptances: one row per acceptance, owner-only, never changed (M3.2)", () => {
+  const V = `pindhx-test-version-${Date.now()}`;
+
+  after(async () => {
+    await w.service.from("policy_acceptances").delete().eq("version", V);
+  });
+
+  it("P110 a person CAN record their own acceptance, and CANNOT record one for someone else", async () => {
+    await ok(c(M("Ava")).from("policy_acceptances").insert({ person_id: id("Ava"), version: V }), "own acceptance");
+    await denied(c(M("Ava")).from("policy_acceptances").insert({ person_id: id("Ben"), version: V }), "42501");
+  });
+
+  it("P111 only the person reads it — not someone who can see them, not a visitor", async () => {
+    assert.equal((await rows(c(M("Ava")).from("policy_acceptances").select("version").eq("version", V))).length, 1, "Ava cannot read her own");
+    assert.equal(
+      (await rows(c(M("Eve")).from("policy_acceptances").select("person_id").eq("person_id", id("Ava")))).length,
+      0,
+      "Eve read Ava's acceptance",
+    );
+    await noAccess(w.anon, "policy_acceptances");
+  });
+
+  it("P112 an acceptance cannot be changed or removed by anyone signed in; a new version is a new row", async () => {
+    const ava = c(M("Ava"));
+    const changed = await ava.from("policy_acceptances").update({ version: "forged" }).eq("version", V).select("id");
+    assert.ok(changed.error || (changed.data?.length ?? 0) === 0, "Ava changed her acceptance");
+    const removed = await ava.from("policy_acceptances").delete().eq("version", V).select("id");
+    assert.ok(removed.error || (removed.data?.length ?? 0) === 0, "Ava removed her acceptance");
+    await ok(ava.from("policy_acceptances").insert({ person_id: id("Ava"), version: `${V}-next` }), "a new version adds a row");
+    await w.service.from("policy_acceptances").delete().eq("version", `${V}-next`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — the existing-email merge (Alex, M3.2): only from anonymous, only into
+// permanent, only by the service key, and the moved pin wins on party size
+// ---------------------------------------------------------------------------
+
+describe("Merging an anonymous pinner into their existing account (M3.2)", () => {
+  async function anonWithPin(label: string, gathering: string, party: number) {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInAnonymously();
+    assert.equal(signIn.error, null, signIn.error?.message);
+    const authId = signIn.data.user!.id;
+    await markHarness(w.service, authId);
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label }).select("id").single());
+    await ok(w.service.from("age_attestations").insert({ person_id: person.id, source: "a26" }));
+    await ok(w.service.from("pins").insert({ gathering_id: gathering, person_id: person.id, party_total: party, open_to_meeting: false }));
+    return { authId, personId: person.id as string };
+  }
+  async function permanent(label: string, withPerson: boolean) {
+    const made = await w.service.auth.admin.createUser({
+      email: `${PREFIX}-${w.run}-merge-${label.toLowerCase()}@example.com`,
+      password: randomUUID(),
+      email_confirm: true,
+      app_metadata: { pind_harness: true },
+    });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    let personId: string | null = null;
+    if (withPerson) personId = (await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label }).select("id").single())).id;
+    return { authId, personId };
+  }
+  const merge = (anon: string, perm: string) => w.service.rpc("admin_merge_anonymous", { p_anon: anon, p_perm: perm });
+  const userGone = async (authId: string) => {
+    const u = await w.service.auth.admin.getUserById(authId);
+    return !!u.error || !u.data.user;
+  };
+  const cleanup = async (...ids: (string | null)[]) => {
+    for (const id of ids) if (id) await w.service.auth.admin.deleteUser(id).catch(() => undefined);
+  };
+
+  it("P113 the anonymous pin MOVES into the account; the anonymous person and user are gone", async () => {
+    const a = await anonWithPin("MergeA", w.G, 2);
+    const p = await permanent("MergeP", true);
+    try {
+      await ok(merge(a.authId, p.authId));
+      const pins = await rows(w.service.from("pins").select("party_total").eq("person_id", p.personId!).eq("gathering_id", w.G));
+      assert.deepEqual(pins, [{ party_total: 2 }], "the pin did not arrive in the account");
+      assert.equal((await rows(w.service.from("people").select("id").eq("id", a.personId))).length, 0, "the anonymous person survived");
+      assert.ok(await userGone(a.authId), "the anonymous user survived");
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P114 both pinned at one gathering: ONE pin remains, the moved one's party size wins, the count does not double", async () => {
+    const a = await anonWithPin("MergeBothA", w.H, 3);
+    const p = await permanent("MergeBothP", true);
+    await ok(w.service.from("age_attestations").insert({ person_id: p.personId, source: "a26" }));
+    await ok(w.service.from("pins").insert({ gathering_id: w.H, person_id: p.personId, party_total: 1, open_to_meeting: false }));
+    const before = (await counts(w.anon, w.H)).pinned;
+    try {
+      const out = await ok(merge(a.authId, p.authId));
+      assert.equal((out as { merged: number }).merged, 1);
+      const pins = await rows(w.service.from("pins").select("party_total").eq("person_id", p.personId!).eq("gathering_id", w.H));
+      assert.deepEqual(pins, [{ party_total: 3 }], "the moved pin's party size did not win");
+      assert.equal((await counts(w.anon, w.H)).pinned, before - 1, "the count doubled or did not settle to the moved party");
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P115 an account with no profile takes the anonymous person WHOLE — re-homed, not copied", async () => {
+    const a = await anonWithPin("MergeRehome", w.G, 1);
+    const p = await permanent("MergeRehomeP", false);
+    try {
+      const out = await ok(merge(a.authId, p.authId));
+      assert.equal((out as { rehomed: boolean }).rehomed, true);
+      const person = await rows(w.service.from("people").select("id, auth_user_id").eq("id", a.personId));
+      assert.deepEqual(person, [{ id: a.personId, auth_user_id: p.authId }], "the person was not re-homed onto the account");
+      assert.equal((await rows(w.service.from("pins").select("id").eq("person_id", a.personId))).length, 1, "the pin did not come with the person");
+      assert.ok(await userGone(a.authId), "the anonymous user survived");
+    } finally {
+      await w.service.from("people").delete().eq("id", a.personId);
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P116 every refusal FIRES: a permanent source, an anonymous target, the same user twice — and nothing moves", async () => {
+    const a = await anonWithPin("MergeRefA", w.G, 1);
+    const p = await permanent("MergeRefP", true);
+    const a2 = await anonWithPin("MergeRefA2", w.H, 1);
+    try {
+      for (const [from, to, why] of [
+        [p.authId, a.authId, "a permanent user as the source"],
+        [a.authId, a2.authId, "an anonymous user as the target"],
+        [a.authId, a.authId, "the same user twice"],
+      ] as const) {
+        const r = await merge(from, to);
+        assert.ok(r.error, `the merge accepted ${why}`);
+      }
+      assert.equal((await rows(w.service.from("pins").select("id").eq("person_id", a.personId))).length, 1, "a refused merge moved the pin");
+      assert.equal(await userGone(a.authId), false, "a refused merge deleted the anonymous user");
+    } finally {
+      await cleanup(a.authId, a2.authId, p.authId);
+    }
+  });
+
+  it("P117 nobody signed in, and no visitor, can call it — the service key only", async () => {
+    for (const client of [c(M("Ava")), w.anon]) {
+      const r = await client.rpc("admin_merge_anonymous", { p_anon: randomUUID(), p_perm: randomUUID() });
+      assert.ok(r.error, "a visitor ran the merge");
+    }
+    for (const client of [c(M("Ava")), w.anon]) {
+      const r = await client.rpc("admin_merge_photo_plan", { p_anon: randomUUID(), p_perm: randomUUID() });
+      assert.ok(r.error, "a visitor asked for the merge's photo plan");
+    }
+  });
+
+  // The merge fills the account's gaps (Alex, M3.2 walk): never overwrite, fill only what
+  // is missing, delete what is not moved. The photo FILE moves in the Worker; these prove
+  // the rows, with the destination the Worker's own photoDest() produces.
+  async function anonGave(label: string, o: { photo?: "approved" | "pending" | "rejected"; details?: boolean }) {
+    const a = await anonWithPin(label, w.G, 1);
+    if (o.photo) {
+      await ok(w.service.from("people").update({ photo_path: `${a.authId}/face.jpg` }).eq("id", a.personId));
+      await ok(w.service.from("people").update({ photo_status: o.photo }).eq("id", a.personId));
+    }
+    if (o.details) await ok(w.service.from("people_private").insert({ person_id: a.personId, gender: "woman", birth_year: 1996 }));
+    return a;
+  }
+  const personOf = async (authId: string) =>
+    (await rows(w.service.from("people").select("id, first_name, photo_path, photo_status").eq("auth_user_id", authId)))[0];
+  const privateOf = async (personId: string) => (await rows(w.service.from("people_private").select("gender, birth_year").eq("person_id", personId)))[0];
+  const plan = async (anon: string, perm: string) => (await ok(w.service.rpc("admin_merge_photo_plan", { p_anon: anon, p_perm: perm }))) as string | null;
+  const mergeWith = (anon: string, perm: string, dest: string | null) =>
+    w.service.rpc("admin_merge_anonymous", { p_anon: anon, p_perm: perm, p_photo_dest: dest });
+
+  it("P127 an account with NO photo takes the anonymous person's, in its own folder — checked again, as V6 requires", async () => {
+    const a = await anonGave("FillPhotoA", { photo: "approved", details: true });
+    const p = await permanent("FillPhotoP", true);
+    try {
+      const from = await plan(a.authId, p.authId);
+      assert.equal(from, `${a.authId}/face.jpg`, "the plan does not offer the photo to an account without one");
+      const dest = photoDest(p.authId, from!);
+      const out = await ok(mergeWith(a.authId, p.authId, dest));
+      assert.equal((out as { photo: boolean }).photo, true);
+      const me = await personOf(p.authId);
+      assert.equal(me.photo_path, dest, "the account did not take the photo");
+      assert.equal(me.photo_status, "pending", "a moved photo skipped the check (V6)");
+      assert.equal((await rows(w.service.from("people").select("id").eq("id", a.personId))).length, 0, "the anonymous person survived");
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P128 an account WITH a photo is never replaced — not by the plan, not by a destination passed anyway", async () => {
+    const a = await anonGave("KeepPhotoA", { photo: "approved" });
+    const p = await permanent("KeepPhotoP", true);
+    await ok(w.service.from("people").update({ photo_path: `${p.authId}/mine.jpg` }).eq("id", p.personId!));
+    await ok(w.service.from("people").update({ photo_status: "approved" }).eq("id", p.personId!));
+    try {
+      assert.equal(await plan(a.authId, p.authId), null, "the plan offered to replace the account's photo");
+      // Even if the Worker passed a destination, the database does not take it.
+      const out = await ok(mergeWith(a.authId, p.authId, `${p.authId}/face.jpg`));
+      assert.equal((out as { photo: boolean }).photo, false);
+      const me = await personOf(p.authId);
+      assert.deepEqual([me.photo_path, me.photo_status], [`${p.authId}/mine.jpg`, "approved"], "the account's photo was replaced or re-checked");
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P129 date of birth and gender fill an account that has none, and NEVER overwrite one that has them", async () => {
+    const a1 = await anonGave("FillDetailsA", { details: true });
+    const p1 = await permanent("FillDetailsP", true);
+    const a2 = await anonGave("KeepDetailsA", { details: true });
+    const p2 = await permanent("KeepDetailsP", true);
+    await ok(w.service.from("people_private").insert({ person_id: p2.personId, gender: "man", birth_year: 1980 }));
+    try {
+      const filled = await ok(mergeWith(a1.authId, p1.authId, null));
+      assert.equal((filled as { details: boolean }).details, true);
+      assert.deepEqual(await privateOf(p1.personId!), { gender: "woman", birth_year: 1996 }, "the account without details did not take them");
+      const kept = await ok(mergeWith(a2.authId, p2.authId, null));
+      assert.equal((kept as { details: boolean }).details, false);
+      assert.deepEqual(await privateOf(p2.personId!), { gender: "man", birth_year: 1980 }, "the account's own details were overwritten");
+      assert.equal(await privateOf(a2.personId), undefined, "the anonymous details not moved were left behind");
+      // Never the first name either.
+      assert.equal((await personOf(p2.authId)).first_name, "KeepDetailsP");
+    } finally {
+      await cleanup(a1.authId, p1.authId, a2.authId, p2.authId);
+    }
+  });
+
+  it("P130 an account with no profile takes the person whole — its photo moved to the account's folder, or none", async () => {
+    const a = await anonGave("RehomePhotoA", { photo: "pending" });
+    const p = await permanent("RehomePhotoP", false);
+    const a2 = await anonGave("RehomeNoCopyA", { photo: "pending" });
+    const p2 = await permanent("RehomeNoCopyP", false);
+    try {
+      const dest = photoDest(p.authId, (await plan(a.authId, p.authId))!);
+      const out = await ok(mergeWith(a.authId, p.authId, dest));
+      assert.deepEqual([(out as { rehomed: boolean }).rehomed, (out as { photo: boolean }).photo], [true, true]);
+      assert.equal((await personOf(p.authId)).photo_path, dest, "the re-homed person's photo still points into the anonymous folder");
+      // No copy made (the Worker's copy failed): no photo, rather than a path nobody owns.
+      await ok(mergeWith(a2.authId, p2.authId, null));
+      assert.equal((await personOf(p2.authId)).photo_path, null, "a re-homed person kept a path into a deleted user's folder");
+    } finally {
+      await w.service.from("people").delete().in("id", [a.personId, a2.personId]);
+      await cleanup(a.authId, p.authId, a2.authId, p2.authId);
+    }
+  });
+
+  it("P131 the photo can only go to the ACCOUNT's own folder — anywhere else is refused, and nothing moves", async () => {
+    const a = await anonGave("DestA", { photo: "pending" });
+    const p = await permanent("DestP", true);
+    try {
+      for (const bad of [`${a.authId}/face.jpg`, `${randomUUID()}/face.jpg`, `${p.authId}/x/face.jpg`, `${p.authId}/../face.jpg`, "face.jpg"]) {
+        await denied(mergeWith(a.authId, p.authId, bad), "22023");
+      }
+      assert.equal((await rows(w.service.from("pins").select("id").eq("person_id", a.personId))).length, 1, "a refused merge moved the pin");
+      // And the Worker's own producer passes the database's rule.
+      await ok(mergeWith(a.authId, p.authId, photoDest(p.authId, `${a.authId}/face.jpg`)));
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P132 a REJECTED photo is never carried into the account", async () => {
+    const a = await anonGave("RejectedA", { photo: "rejected" });
+    const p = await permanent("RejectedP", true);
+    try {
+      assert.equal(await plan(a.authId, p.authId), null, "the plan offered a rejected photo");
+      const out = await ok(mergeWith(a.authId, p.authId, `${p.authId}/face.jpg`));
+      assert.equal((out as { photo: boolean }).photo, false);
+      assert.equal((await personOf(p.authId)).photo_path, null, "a rejected photo came in");
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  // A27 now asks "where" before a way to sign in (one set of profile steps), so the
+  // neighbourhood and tags an anonymous person gave must survive a merge the same way.
+  const someTags = async (n: number) => (await rows(w.service.from("tags").select("slug").order("slug").limit(n))).map((t) => t.slug as string);
+  const tagsOf = async (personId: string) => (await rows(w.service.from("person_tags").select("tag").eq("person_id", personId))).map((t) => t.tag as string).sort();
+  const hoodOf = async (personId: string) => (await rows(w.service.from("people").select("neighbourhood").eq("id", personId)))[0]?.neighbourhood ?? null;
+
+  it("P133 an account with no neighbourhood and no tags takes the anonymous person's — the tags as a set", async () => {
+    const a = await anonGave("FillWhereA", {});
+    const p = await permanent("FillWhereP", true);
+    const tags = await someTags(3);
+    await ok(w.service.from("people").update({ neighbourhood: "dundas-west" }).eq("id", a.personId));
+    await ok(w.service.from("person_tags").insert(tags.map((tag) => ({ person_id: a.personId, tag }))));
+    try {
+      const out = await ok(mergeWith(a.authId, p.authId, null));
+      assert.deepEqual([(out as { neighbourhood: boolean }).neighbourhood, (out as { tags: boolean }).tags], [true, true]);
+      assert.equal(await hoodOf(p.personId!), "dundas-west", "the neighbourhood did not come in");
+      assert.deepEqual(await tagsOf(p.personId!), tags.slice().sort(), "the tags did not come in");
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  it("P134 an account WITH a neighbourhood and tags keeps exactly its own — never overwritten, never mixed", async () => {
+    const a = await anonGave("KeepWhereA", {});
+    const p = await permanent("KeepWhereP", true);
+    const [t1, t2, t3, t4, t5, t6] = await someTags(6);
+    await ok(w.service.from("people").update({ neighbourhood: "dundas-west" }).eq("id", a.personId));
+    await ok(w.service.from("person_tags").insert([t1, t2, t3].map((tag) => ({ person_id: a.personId, tag }))));
+    await ok(w.service.from("people").update({ neighbourhood: "king-west" }).eq("id", p.personId!));
+    await ok(w.service.from("person_tags").insert([t4, t5, t6].map((tag) => ({ person_id: p.personId, tag }))));
+    try {
+      const out = await ok(mergeWith(a.authId, p.authId, null));
+      assert.deepEqual([(out as { neighbourhood: boolean }).neighbourhood, (out as { tags: boolean }).tags], [false, false]);
+      assert.equal(await hoodOf(p.personId!), "king-west", "the account's neighbourhood was overwritten");
+      assert.deepEqual(await tagsOf(p.personId!), [t4, t5, t6].sort(), "the account's tags were overwritten or mixed");
+      assert.deepEqual(await tagsOf(a.personId), [], "the anonymous tags not moved were left behind");
+    } finally {
+      await cleanup(a.authId, p.authId);
+    }
+  });
+
+  // **The tester flag follows the person** (Alex, M3.2 walk, 28 Sept). The walk was
+  // impossible: every way Alex signed in at A27 was a merge into an account he already
+  // had, the merge deleted the anonymous tester, and the test crowd vanished. Proved the
+  // way it failed — can this account SEE the seed gathering after signing in — not by
+  // reading the list.
+  async function accountWithSession(label: string) {
+    const email = `${PREFIX}-${w.run}-tester-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    return { authId, client };
+  }
+  const makeAnonTester = (authId: string) => w.service.rpc("admin_add_anonymous_tester", { p_user: authId, p_actor: "harness" });
+
+  it("P136 an anonymous TESTER who signs in to an account they already have makes it a tester — the test crowd is still there", async () => {
+    const a = await anonWithPin("TesterMergeA", w.G, 1);
+    await ok(makeAnonTester(a.authId));
+    const acct = await accountWithSession("TesterMergeP");
+    try {
+      assert.equal(await readable(acct.client, seedG), false, "the account could see the test crowd BEFORE the merge");
+      const out = await ok(merge(a.authId, acct.authId));
+      assert.equal((out as { tester: boolean }).tester, true);
+      assert.equal(await readable(acct.client, seedG), true, "after signing in from a tester session, the test crowd vanished — the walk's failure");
+      // Visible and removable like any other tester, with how it got there.
+      const listed = (await rows(w.service.rpc("admin_testers"))).find((t: { auth_user_id: string }) => t.auth_user_id === acct.authId);
+      assert.match(String(listed?.note), /anonymous tester session/, "the account is a tester with no note saying how");
+    } finally {
+      await ok(w.service.rpc("admin_set_tester", { p_auth_user: acct.authId, p_on: false, p_actor: "harness" }));
+      await cleanup(a.authId, acct.authId);
+    }
+  });
+
+  it("P137 a merge from someone who is NOT a tester never makes the account one — the flag is never created from nothing", async () => {
+    const a = await anonWithPin("PlainMergeA", w.G, 1);
+    const acct = await accountWithSession("PlainMergeP");
+    try {
+      const out = await ok(merge(a.authId, acct.authId));
+      assert.equal((out as { tester: boolean }).tester, false);
+      assert.equal(await readable(acct.client, seedG), false, "a merge from a non-tester made the account a tester");
+    } finally {
+      await cleanup(a.authId, acct.authId);
+    }
+  });
+
+  it("P138 an anonymous tester who becomes permanent by LINK (same user) keeps the test crowd", async () => {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInAnonymously();
+    assert.equal(signIn.error, null, signIn.error?.message);
+    const authId = signIn.data.user!.id;
+    await markHarness(w.service, authId);
+    await ok(makeAnonTester(authId));
+    try {
+      assert.equal(await readable(client, seedG), true, "the anonymous tester could not see the test crowd");
+      // What a confirmed email code does to the same user: an identity, no longer anonymous.
+      const linked = await w.service.auth.admin.updateUserById(authId, { email: `${PREFIX}-${w.run}-tester-link@example.com`, email_confirm: true });
+      assert.equal(linked.error, null, linked.error?.message);
+      const refreshed = await client.auth.refreshSession();
+      assert.equal(refreshed.error, null, refreshed.error?.message);
+      assert.equal(refreshed.data.session?.user.is_anonymous, false, "the link did not make the user permanent");
+      assert.equal(await readable(client, seedG), true, "linking lost the test crowd");
+    } finally {
+      await w.service.rpc("admin_set_tester", { p_auth_user: authId, p_on: false, p_actor: "harness" });
+      await cleanup(authId);
+    }
+  });
+
+  it("P135 an ANONYMOUS pinner can set their own neighbourhood and tags (A27's 'where' comes before sign-in) — and nobody else's", async () => {
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInAnonymously();
+    assert.equal(signIn.error, null, signIn.error?.message);
+    const authId = signIn.data.user!.id;
+    await markHarness(w.service, authId);
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: "WhereAnon" }).select("id").single());
+    const other = await anonGave("WhereOther", {});
+    const [t1, t2, t3] = await someTags(3);
+    try {
+      await ok(client.from("people").update({ neighbourhood: "king-west" }).eq("id", person.id).select("id"));
+      assert.equal(await hoodOf(person.id), "king-west", "an anonymous pinner could not set their own neighbourhood");
+      await ok(client.from("person_tags").insert([t1, t2, t3].map((tag) => ({ person_id: person.id, tag }))));
+      assert.deepEqual(await tagsOf(person.id), [t1, t2, t3].sort(), "an anonymous pinner could not set their own tags");
+      // Someone else's: refused, and nothing changes.
+      const theirs = await client.from("people").update({ neighbourhood: "king-west" }).eq("id", other.personId).select("id");
+      assert.deepEqual(theirs.data ?? [], [], "an anonymous pinner changed someone else's neighbourhood");
+      assert.equal(await hoodOf(other.personId), null);
+      await denied(client.from("person_tags").insert({ person_id: other.personId, tag: t1 }));
+    } finally {
+      await w.service.from("people").delete().eq("id", person.id);
+      await cleanup(authId, other.authId);
+    }
+  });
+});
+
+describe("The client's copy of effective_end matches the database's (M3.2)", () => {
+  it("P118 effectiveEnd(starts_at, ends_at) equals public.effective_end on real rows, with and without ends_at", async () => {
+    const { effectiveEnd } = await import("../../packages/shared/src/copy.ts");
+    const withEnd = await ok(
+      w.service.from("gatherings").insert({ name: `pindhx ${w.run} Ends`, starts_at: inDays(3), ends_at: inDays(3.2), venue_id: w.venue }).select("id").single(),
+    );
+    const rowsBack = (await ok(
+      w.service.from("gatherings").select("id, starts_at, ends_at, effective_end").in("id", [withEnd.id, w.G]),
+    )) as { id: string; starts_at: string; ends_at: string | null; effective_end: string }[];
+    assert.equal(rowsBack.length, 2, "the database did not return both rows (the check found nothing)");
+    assert.ok(rowsBack.some((r) => r.ends_at === null) && rowsBack.some((r) => r.ends_at !== null), "need one row of each kind");
+    for (const r of rowsBack) {
+      assert.equal(Date.parse(effectiveEnd(r.starts_at, r.ends_at)), Date.parse(r.effective_end), `drifted on ${r.id}`);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — a person's gathering count for A22: a number, never which (Alex)
+// ---------------------------------------------------------------------------
+
+describe("A person's gathering count — readable as widely as their first name, written only by the nightly job (M3.2)", () => {
+  it("P119 the person reads their own count; someone who can see them reads it too", async () => {
+    const own = await rows(c(M("Ava")).from("people").select("gatherings_count").eq("id", id("Ava")));
+    assert.equal(own.length, 1, "Ava cannot read her own count");
+    assert.equal(typeof own[0].gatherings_count, "number");
+    const seen = await rows(c(M("Ava")).from("people").select("gatherings_count").eq("id", id("Eve")));
+    assert.equal(seen.length, 1, "someone who can see Eve could not read her count");
+  });
+
+  it("P120 someone who cannot see them gets nothing — no count, no row", async () => {
+    // Ben is not open at G with Pam; P-cases above establish Pam sees nobody at G.
+    assert.equal((await rows(c(M("Pam")).from("people").select("gatherings_count").eq("id", id("Ava")))).length, 0, "Pam read Ava's count");
+    await noAccess(w.anon, "people");
+  });
+
+  it("P121 nobody signed in can write a count, their own included", async () => {
+    await denied(c(M("Ava")).from("people").update({ gatherings_count: 999 }).eq("id", id("Ava")), "42501");
+  });
+
+  it("P122 the job counts each ENDED gathering once — not an upcoming one, and never twice", async () => {
+    const ended = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} Counted`, starts_at: inDays(-2), venue_id: w.venue, published_at: new Date().toISOString() })
+        .select("id")
+        .single(),
+    );
+    const upcoming = await ok(
+      w.service
+        .from("gatherings")
+        .insert({ name: `pindhx ${w.run} Not Yet`, starts_at: inDays(4), venue_id: w.venue, published_at: new Date().toISOString() })
+        .select("id")
+        .single(),
+    );
+    const before = (await serviceRow("people", "id", id("Dev"), "gatherings_count")).gatherings_count as number;
+    await ok(w.service.from("pins").insert([
+      { gathering_id: ended.id, person_id: id("Dev"), party_total: 1, open_to_meeting: false },
+      { gathering_id: upcoming.id, person_id: id("Dev"), party_total: 1, open_to_meeting: false },
+    ]));
+    await ok(w.service.rpc("admin_count_ended_gatherings"));
+    await ok(w.service.rpc("admin_count_ended_gatherings"));
+    const after = (await serviceRow("people", "id", id("Dev"), "gatherings_count")).gatherings_count as number;
+    assert.equal(after, before + 1, "the ended gathering was not counted exactly once, or the upcoming one was counted");
+    assert.ok((await c(M("Ava")).rpc("admin_count_ended_gatherings")).error, "a visitor ran the counting job");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.2 — anonymous tester sessions: only ever anonymous, visible, clearable,
+// service key only (Alex's conditions)
+// ---------------------------------------------------------------------------
+
+describe("Anonymous tester sessions (M3.2)", () => {
+  async function anon() {
+    const client = newClient(w.env, w.env.publishableKey);
+    const s = await client.auth.signInAnonymously();
+    assert.equal(s.error, null, s.error?.message);
+    return { client, authId: s.data.user!.id };
+  }
+
+  it("P123 only an ANONYMOUS user can be made an anonymous tester — a permanent account is refused and left untouched", async () => {
+    const a = await anon();
+    try {
+      await ok(w.service.rpc("admin_add_anonymous_tester", { p_user: a.authId, p_actor: ACTOR }));
+      const g = await rows(a.client.from("gatherings").select("id").eq("is_seed", true).limit(1));
+      assert.equal(g.length, 1, "the anonymous tester cannot see a seed gathering");
+      const avaUser = (await c(M("Ava")).auth.getUser()).data.user!.id;
+      assert.ok((await w.service.rpc("admin_add_anonymous_tester", { p_user: avaUser, p_actor: ACTOR })).error, "a permanent account was made an anonymous tester");
+      assert.equal(await readable(c(M("Ava")), (await rows(w.service.from("gatherings").select("id").eq("is_seed", true).limit(1)))[0].id), false, "Ava was elevated");
+    } finally {
+      await w.service.auth.admin.deleteUser(a.authId);
+    }
+  });
+
+  it("P124 no visitor can make, list or clear anonymous tester sessions", async () => {
+    for (const client of [c(M("Ava")), w.anon]) {
+      assert.ok((await client.rpc("admin_add_anonymous_tester", { p_user: randomUUID(), p_actor: "self" })).error, "a visitor made one");
+      assert.ok((await client.rpc("admin_anonymous_testers")).error, "a visitor listed them");
+      assert.ok((await client.rpc("admin_clear_anonymous_tester", { p_user: randomUUID() })).error, "a visitor cleared one");
+      assert.ok((await client.rpc("admin_clear_stale_anonymous_testers")).error, "a visitor ran the clean-up");
+    }
+  });
+
+  it("P125 a session is listed, and clearing it deletes the anonymous user; the clean-up removes only stale still-anonymous ones", async () => {
+    const a = await anon();
+    const b = await anon();
+    await ok(w.service.rpc("admin_add_anonymous_tester", { p_user: a.authId, p_actor: ACTOR }));
+    await ok(w.service.rpc("admin_add_anonymous_tester", { p_user: b.authId, p_actor: ACTOR }));
+    const listed = (await ok(w.service.rpc("admin_anonymous_testers"))) as { auth_user_id: string }[];
+    assert.ok(listed.some((r) => r.auth_user_id === a.authId), "the session is not listed");
+
+    await ok(w.service.rpc("admin_clear_anonymous_tester", { p_user: a.authId }));
+    const goneA = await w.service.auth.admin.getUserById(a.authId);
+    assert.ok(goneA.error || !goneA.data.user, "clearing left the anonymous user alive");
+
+    // A fresh session is not stale; with a zero cutoff it is.
+    assert.equal(await ok(w.service.rpc("admin_clear_stale_anonymous_testers", { p_older_than: "3 days", p_only: b.authId })), 0, "a fresh session was cleared as stale");
+    // Only the session this test made — never one someone is walking with.
+    assert.equal(await ok(w.service.rpc("admin_clear_stale_anonymous_testers", { p_older_than: "0 seconds", p_only: b.authId })), 1, "a stale session was not cleared");
+    const goneB = await w.service.auth.admin.getUserById(b.authId);
+    assert.ok(goneB.error || !goneB.data.user, "the stale session survived the clean-up");
   });
 });

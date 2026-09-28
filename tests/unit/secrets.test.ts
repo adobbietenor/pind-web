@@ -14,6 +14,7 @@ const FULL = {
   ACCESS_AUD: "aud",
   ADMIN_EMAILS: "alex@example.com",
   TICKETMASTER_CONSUMER_KEY: "tm",
+  SESSION_SECRET: "s",
 };
 
 const state = (env: Record<string, unknown>, name: string) => checkSecrets(env).find((c) => c.name === name)!.state;

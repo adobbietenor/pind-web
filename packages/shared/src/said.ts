@@ -49,7 +49,13 @@ export function uploadReason(err: unknown): string {
 // schema-qualified or snake_case identifier (every table and column name has an
 // underscore or is one of the bare table names below), a JWT, an HTTP status line.
 const TABLES = ["people", "pins", "crews", "blocks", "reports", "photos", "gatherings", "venues"];
-export function looksTechnical(text: string): boolean {
+// Our own public domain is meant for people — privacy@pind.social, safety@pind.social,
+// pind.social itself — so it is taken out first; every other host still counts
+// (a lookalike such as notpind.social included: the boundary is checked, L01/L02).
+const OUR_DOMAIN = /(?<![a-z0-9-])(?:[a-z0-9.+-]+@)?(?:www\.)?pind\.social\b/gi;
+
+export function looksTechnical(raw: string): boolean {
+  const text = raw.replace(OUR_DOMAIN, "");
   if (/https?:\/\//i.test(text)) return true;
   if (/\b[a-z0-9-]+(\.[a-z0-9-]+)*\.(co|com|social|io|net|org|dev|app|workers\.dev)\b/i.test(text)) return true;
   // SQLSTATE: two digits, a digit or letter, two digits (42501, 22P02, 42P01).

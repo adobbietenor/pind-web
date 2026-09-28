@@ -68,6 +68,42 @@ function base64(bytes: ArrayBuffer): string {
 // One call about one image. Streamed and aborted at four minutes, with at most one
 // retry, per the M1.3b pattern. It never throws: a thrown error here would be a
 // check that left no record.
+// **Pinned to the US** (Alex, M3.2). Without `inference_geo` a request follows the
+// workspace default, "global" — any geography — and the privacy policy could only say
+// "may be processed in any country". Pinned, a photo is processed and stored in the
+// US, a sentence that can be defended. It costs 1.1x on these calls only; the import
+// vetting sends no personal data and is left alone. P-cases cannot reach this, so
+// tests/unit/photo.test.ts reads the request itself (R01) and the cost (R02).
+export const PHOTO_INFERENCE_GEO = "us";
+export const US_GEO_MULTIPLIER = 1.1;
+
+export function photoRequest(image: { data: string; mediaType: string }) {
+  return {
+    model: PHOTO_MODEL,
+    max_tokens: 300,
+    inference_geo: PHOTO_INFERENCE_GEO,
+    system: PHOTO_SYSTEM,
+    output_config: {
+      effort: "low" as const,
+      format: { type: "json_schema" as const, schema: PHOTO_SCHEMA as unknown as Record<string, unknown> },
+    },
+    messages: [
+      {
+        role: "user" as const,
+        content: [
+          { type: "image" as const, source: { type: "base64" as const, media_type: image.mediaType as "image/jpeg", data: image.data } },
+          { type: "text" as const, text: "Check this profile photo." },
+        ],
+      },
+    ],
+  };
+}
+
+// What a pinned call costs, so the daily cap counts what is actually billed.
+export function photoCost(usage: Parameters<typeof costUsd>[0]): number {
+  return Math.round(costUsd(usage) * US_GEO_MULTIPLIER * 1_000_000) / 1_000_000;
+}
+
 export async function judge(
   apiKey: string,
   image: { data: string; mediaType: string },
@@ -77,28 +113,11 @@ export async function judge(
   try {
     const res = await client.messages
       .stream(
-        {
-          model: PHOTO_MODEL,
-          max_tokens: 300,
-          system: PHOTO_SYSTEM,
-          output_config: {
-            effort: "low",
-            format: { type: "json_schema", schema: PHOTO_SCHEMA as unknown as Record<string, unknown> },
-          },
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "image", source: { type: "base64", media_type: image.mediaType as "image/jpeg", data: image.data } },
-                { type: "text", text: "Check this profile photo." },
-              ],
-            },
-          ],
-        },
+        photoRequest(image),
         { signal: AbortSignal.timeout(PHOTO_CALL_MS) },
       )
       .finalMessage();
-    const cost = costUsd(res.usage);
+    const cost = photoCost(res.usage);
     const durationMs = Date.now() - started;
     if (res.stop_reason !== "end_turn") {
       return { verdict: null, cost, durationMs, error: `the call stopped early (${res.stop_reason})` };
@@ -119,7 +138,7 @@ export async function judge(
     // estimate rather than at nothing (M1.3b's cost blind spot).
     return {
       verdict: null,
-      cost: ESTIMATE_PER_PHOTO,
+      cost: Math.round(ESTIMATE_PER_PHOTO * US_GEO_MULTIPLIER * 1_000_000) / 1_000_000,
       durationMs: Date.now() - started,
       error: err instanceof Error ? err.message.slice(0, 200) : "the photo check failed",
     };

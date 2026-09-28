@@ -18,6 +18,9 @@ export interface Env {
   SUPABASE_PUBLISHABLE_KEY?: string;
   // Signs the Test 0 session cookie. Declared now, used from T3 onwards.
   SESSION_SECRET?: string;
+  // "on" forwards the visitor’s IP to Supabase’s per-IP limit at the quick pin, using the
+  // secret key for that one sign-in call (M3.2 — off until Alex decides; see decisions).
+  QUICKPIN_FORWARD_IP?: string;
   // Cloudflare Access, checked by the Worker on every /admin request (M1.2).
   // The team domain, e.g. https://<team>.cloudflareaccess.com — the tokens' issuer.
   ACCESS_TEAM_DOMAIN?: string;

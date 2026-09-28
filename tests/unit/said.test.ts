@@ -30,6 +30,7 @@ const RAW = [
   "Database error saving new user",
   "HTTP 503 Service Unavailable",
   "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIn0",
+  "Write to someone@notpind.social about it", // a lookalike of our domain is still a host
 ];
 
 describe("The leak check fires on every raw shape (both sides of the guard)", () => {
@@ -43,6 +44,7 @@ describe("The leak check fires on every raw shape (both sides of the guard)", ()
       "We could not upload your photo — Pin'd could not be reached.",
       "That already exists.",
       "You are signed out on this device. Sign in again to carry on.",
+      "Write to privacy@pind.social, or see pind.social/privacy.",
     ])
       assert.ok(!looksTechnical(ok), `flagged: ${ok}`);
   });

@@ -178,3 +178,128 @@ export async function deleteAccount(): Promise<void> {
   }
   await db.auth.signOut();
 }
+
+// ---------------------------------------------------------------------------
+// **The one place a profile is written** (Alex, M3.2 walk). A2 and A27 each wrote their
+// own date of birth, gender and photo, and the women-only question had already drifted
+// between them. The shared steps (components/profile) call these; S27 fails if any
+// screen writes `people_private`, a photo path, a neighbourhood or tags itself.
+// ---------------------------------------------------------------------------
+
+export interface ProfileNow {
+  personId: string | null;
+  firstName: string;
+  permanent: boolean;
+  hasPrivate: boolean;
+  hasPhoto: boolean;
+  neighbourhood: string | null;
+  tagCount: number;
+}
+
+// Where this person's profile stands, read fresh as whoever is signed in NOW (CLAUDE.md:
+// re-read who you are after anything that can change it). No person yet is a profile
+// with nothing in it, not an error.
+export async function readProfile(): Promise<ProfileNow> {
+  const db = supabase();
+  const read = await whoAmI();
+  if (read.state !== "in") throw new SessionProblem(read);
+  const { data: person, error } = await db
+    .from("people")
+    .select("id, first_name, photo_path, neighbourhood")
+    .eq("auth_user_id", read.userId)
+    .maybeSingle();
+  if (error) throw error;
+  const { data: session } = await db.auth.getSession();
+  const permanent = !!session.session && !session.session.user.is_anonymous;
+  if (!person) return { personId: null, firstName: "", permanent, hasPrivate: false, hasPhoto: false, neighbourhood: null, tagCount: 0 };
+  const [priv, tags] = await Promise.all([
+    db.from("people_private").select("person_id").eq("person_id", person.id).maybeSingle(),
+    db.from("person_tags").select("tag").eq("person_id", person.id),
+  ]);
+  if (priv.error) throw priv.error;
+  if (tags.error) throw tags.error;
+  return {
+    personId: person.id,
+    firstName: person.first_name,
+    permanent,
+    hasPrivate: !!priv.data,
+    hasPhoto: !!person.photo_path,
+    neighbourhood: person.neighbourhood,
+    tagCount: tags.data?.length ?? 0,
+  };
+}
+
+export interface YouAnswers {
+  firstName: string;
+  // Only written when the person has no date of birth and gender yet: the birth year is
+  // asked once and is not editable (people_private grants UPDATE on gender and
+  // include_in_women_only alone).
+  birthYear: number | null;
+  gender: "woman" | "man" | "nonbinary" | "undisclosed" | null;
+  // Asked of nonbinary people only (the constraint says so too); anyone else is false.
+  womenOnly: boolean;
+  // A path already uploaded to the person's own folder, or null to leave the photo alone.
+  photoPath: string | null;
+}
+
+// "You": the person row (made here on the store path; already there from the pin on the
+// link path), then date of birth and gender. Returns the person's id.
+export async function saveYou(a: YouAnswers): Promise<string> {
+  const db = supabase();
+  const read = await whoAmI();
+  if (read.state !== "in") throw new SessionProblem(read);
+
+  // Insert or update, never upsert: `auth_user_id` is insert-only, so an upsert would
+  // ask for a privilege the person does not have.
+  const { data: mine, error: mineError } = await db.from("people").select("id").eq("auth_user_id", read.userId).maybeSingle();
+  if (mineError) throw mineError;
+  let personId = mine?.id ?? null;
+  if (personId) {
+    const { error } = await db
+      .from("people")
+      .update({ first_name: a.firstName.trim(), ...(a.photoPath ? { photo_path: a.photoPath } : {}) })
+      .eq("id", personId);
+    if (error) throw error;
+  } else {
+    const { data: made, error } = await db
+      .from("people")
+      .insert({ auth_user_id: read.userId, first_name: a.firstName.trim(), photo_path: a.photoPath })
+      .select("id")
+      .single();
+    if (error) throw error;
+    personId = made.id as string;
+  }
+
+  if (a.gender) {
+    // **Never an upsert here, and this cost a walk** (M3.1): an upsert is checked for
+    // UPDATE privileges on every column statically, and `birth_year` has none — so the
+    // first insert of a brand-new person was refused for an update that would never run.
+    const womenOnly = a.gender === "nonbinary" ? a.womenOnly : false;
+    const { data: priv, error: privError } = await db.from("people_private").select("person_id").eq("person_id", personId).maybeSingle();
+    if (privError) throw privError;
+    const { error } = priv
+      ? await db.from("people_private").update({ gender: a.gender, include_in_women_only: womenOnly }).eq("person_id", personId)
+      : await db.from("people_private").insert({
+          person_id: personId,
+          gender: a.gender,
+          include_in_women_only: womenOnly,
+          birth_year: a.birthYear,
+          age_attested_at: new Date().toISOString(),
+        });
+    if (error) throw error;
+  }
+  return personId;
+}
+
+// The photo alone (Profile → Change photo): a new path sends it back to the check (V6),
+// null removes it.
+export async function setPhotoPath(personId: string, path: string | null): Promise<void> {
+  const { error } = await supabase().from("people").update({ photo_path: path }).eq("id", personId);
+  if (error) throw error;
+}
+
+// The neighbourhood — A3, A27's "where", and Profile → Neighbourhood. Null clears it.
+export async function saveNeighbourhood(personId: string, slug: string | null): Promise<void> {
+  const { error } = await supabase().from("people").update({ neighbourhood: slug }).eq("id", personId);
+  if (error) throw error;
+}

@@ -1,6 +1,14 @@
-// A22 — someone else's profile. **A shell in M3.1** (build-plan §8): the list that
-// leads here is M3.2, and the shared context, crews and connections it will show are
-// M3.3. What is real now is the shape, and the four absences that are the design.
+// A22 — someone else's profile (M3.2, built properly; the shell was M3.1).
+//
+// **It answers "nothing to read"** (Alex, M3.1) without a bio, a handle leak or a grid:
+//   * **the shared context** — "You're both going to Leafs vs Bruins": the gatherings
+//     where the database lets you see each other, which is exactly the pins of theirs
+//     it returns to you (V1, scoped to the gathering). Crews and connections join this
+//     in M3.3;
+//   * **all their tags, grouped** as the vocabulary groups them — not only the three on
+//     the list. V19: readable exactly when you can see the person at all;
+//   * **how many gatherings they have been to — a number, never which ones** (Alex):
+//     `people.gatherings_count`, readable exactly as their first name is (P119–P122).
 //
 // **Visible only reciprocally.** Nothing here filters: the screen asks the database
 // for the person and renders what comes back. If the policies say no, there is no row
@@ -24,9 +32,14 @@ import { Body, Heading } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
 
 const tagName = (slug: string) => ALL_TAGS.find((t) => t.slug === slug)?.name ?? slug;
+const groupOf = (slug: string) => ALL_TAGS.find((t) => t.slug === slug)?.group ?? "";
+// The groups in the vocabulary's own order.
+const TAG_GROUPS = [...new Set(ALL_TAGS.map((t) => t.group))];
 const hoodName = (slug: string | null) => NEIGHBOURHOODS.find((n) => n.slug === slug)?.name ?? null;
 
 interface Them {
+  shared: { slug: string; name: string }[];
+  gatherings: number;
   firstName: string;
   neighbourhood: string | null;
   photoUrl: string | null;
@@ -45,15 +58,18 @@ export default function Person() {
       const db = supabase();
       const { data: person } = await db
         .from("people")
-        .select("first_name, neighbourhood, photo_path")
+        .select("first_name, neighbourhood, photo_path, gatherings_count")
         .eq("id", id)
         .maybeSingle();
       if (!live) return;
       if (!person) return setThem(null);
 
-      const [handle, tags] = await Promise.all([
+      const [handle, tags, theirPins] = await Promise.all([
         db.from("person_handles").select("instagram").eq("person_id", id).maybeSingle(),
         db.from("person_tags").select("tag").eq("person_id", id),
+        // The shared context: their pins the database shows you are exactly the
+        // gatherings where you can see each other. Nothing is filtered here.
+        db.from("pins").select("gatherings(slug, name, starts_at)").eq("person_id", id),
       ]);
       // **The database decides, alone** (H11). Storage issues a signed URL only when
       // `can_see_photo` allows it — a rejected or invisible photo simply has no URL.
@@ -65,7 +81,14 @@ export default function Person() {
         url = signed.data?.signedUrl ?? null;
       }
       if (!live) return;
+      const shared = (theirPins.data ?? [])
+        .map((p) => (p as unknown as { gatherings: { slug: string; name: string; starts_at: string } | null }).gatherings)
+        .filter((g): g is { slug: string; name: string; starts_at: string } => !!g)
+        .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
+        .map((g) => ({ slug: g.slug, name: g.name }));
       setThem({
+        shared,
+        gatherings: person.gatherings_count ?? 0,
         firstName: person.first_name,
         neighbourhood: person.neighbourhood,
         photoUrl: url,
@@ -111,18 +134,37 @@ export default function Person() {
           <View style={{ flex: 1 }}>
             <Text style={styles.name}>{them.firstName}</Text>
             {hoodName(them.neighbourhood) ? <Text style={styles.hood}>{hoodName(them.neighbourhood)}</Text> : null}
+            {/* A number, never which gatherings (Alex, M3.2). */}
+            <Text style={styles.hood}>
+              {them.gatherings === 0 ? "New to Pin'd" : `${them.gatherings} gathering${them.gatherings === 1 ? "" : "s"} on Pin'd`}
+            </Text>
           </View>
         </View>
 
-        {them.tags.length ? (
-          <View style={styles.chips}>
-            {them.tags.map((t) => (
-              <View key={t} style={styles.chip}>
-                <Text style={styles.chipLabel}>{tagName(t)}</Text>
-              </View>
-            ))}
+        {them.shared.length ? (
+          <View style={styles.context}>
+            <Text style={styles.contextLine}>
+              {`You're both going to ${them.shared.map((g) => g.name).join(" and ")}`}
+            </Text>
           </View>
         ) : null}
+
+        {/* All their tags, in the vocabulary's own groups (V19). */}
+        {TAG_GROUPS.map((group) => {
+          const mine = them.tags.filter((t) => groupOf(t) === group);
+          return mine.length ? (
+            <View key={group} style={{ marginBottom: spacing.sm }}>
+              <Text style={styles.sectionName}>{group}</Text>
+              <View style={styles.chips}>
+                {mine.map((t) => (
+                  <View key={t} style={styles.chip}>
+                    <Text style={styles.chipLabel}>{tagName(t)}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null;
+        })}
 
         {them.instagram ? (
           <View style={styles.card}>
@@ -132,18 +174,27 @@ export default function Person() {
         ) : null}
 
         {/* Report and block are two taps from everywhere (H9). The sheet itself is
-            A24, in M3.5; this is the tap that will open it. */}
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="More"
-          onPress={() => router.push(`/person/${id}/report`)}
-          style={styles.more}
-        >
-          <Text style={styles.moreLabel}>⋯</Text>
-        </Pressable>
+            A24, in M3.5, and until it exists the tap is HIDDEN, not pointed at a
+            "coming soon" (Alex, M3.2: "H9 isn't satisfied by a promise"). S24 names
+            this target as its one exception and fails the day A24's route exists —
+            which is when A24_EXISTS flips and the ⋯ comes back. */}
+        {A24_EXISTS ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="More"
+            onPress={() => router.push(`/person/${id}/report`)}
+            style={styles.more}
+          >
+            <Text style={styles.moreLabel}>⋯</Text>
+          </Pressable>
+        ) : null}
       </AppScreen>
   );
 }
+
+// A24 (report and block) lands in M3.5. S24 fails when its route exists and this is
+// still false.
+const A24_EXISTS = false;
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.background },
@@ -159,6 +210,8 @@ const styles = StyleSheet.create({
   chipLabel: { fontSize: 14, color: palette.text },
   card: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md },
   sectionName: { fontFamily: fonts.headline, fontSize: 14, color: palette.textMuted, marginBottom: spacing.xs },
+  context: { marginBottom: spacing.lg, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderLeftWidth: 3, borderLeftColor: palette.accent },
+  contextLine: { fontSize: 16, color: palette.text },
   more: { alignSelf: "flex-start", paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
   moreLabel: { fontSize: 22, color: palette.textMuted },
 });

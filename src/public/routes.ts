@@ -10,8 +10,10 @@ import type { Env } from "../env";
 import { crowd } from "./data";
 import { appSiteAssociation, ogImage } from "./og";
 import { pngResponse, rasterise } from "./ogpng";
-import { ensureVenueMap, venueMapImage, venueMapUpload } from "./mapserve";
-import { about, favicon, ics, robots, w1, w2, w3 } from "./pages";
+import { venueMapImage, venueMapUpload } from "./mapserve";
+import { about, favicon, ics, robots, w1, w2, w2FactsJson, w3 } from "./pages";
+import { privacy, terms } from "./policy";
+import { quickPinPage } from "./quickpin";
 
 // Anything that is not one of ours is the app's (M2.0).
 function toApp(request: Request, env: Env): Promise<Response> {
@@ -40,6 +42,9 @@ export async function publicRoutes(request: Request, env: Env, ctx?: ExecutionCo
   if (pathname === "/") return w1(request, env, "events");
   if (pathname === "/community") return w1(request, env, "community");
   if (pathname === "/about") return about();
+  // Drafts, at exactly the URLs the Google consent screen links to (M3.2).
+  if (pathname === "/privacy") return privacy();
+  if (pathname === "/terms") return terms();
   if (pathname === "/robots.txt") return robots();
   if (pathname === "/favicon.svg") return favicon();
   if (pathname === "/.well-known/apple-app-site-association") return appSiteAssociation();
@@ -60,8 +65,14 @@ export async function publicRoutes(request: Request, env: Env, ctx?: ExecutionCo
 
   if (tail.length === 0 || (tail.length === 1 && tail[0] === "")) return w2(request, env, slug, ctx);
   if (tail.length === 1 && tail[0] === "spot") return w3(request, env, slug);
+  // W2’s facts as data, for the app’s A8 (M3.2): one copy of W2’s decisions.
+  if (tail.length === 1 && tail[0] === "facts.json") return w2FactsJson(request, env, slug);
 
-  // /g/<slug>/pin and anything else under a gathering belong to the app.
+  // A26, the quick pin — the Worker's since M3.2 (spec §4). Its POST is routed in
+  // router.ts, because this function answers GET and HEAD only.
+  if (tail.length === 1 && tail[0] === "pin") return quickPinPage(env, slug);
+
+  // Anything else under a gathering belongs to the app.
   return toApp(request, env);
 }
 

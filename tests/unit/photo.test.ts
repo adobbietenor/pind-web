@@ -4,7 +4,8 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { ESTIMATE_PER_PHOTO, parseUnreadable, parseVerdict, PHOTO_SCHEMA, PHOTO_SYSTEM } from "../../src/photo/ai.ts";
-import { mediaTypeOf } from "../../src/photo/check.ts";
+import { mediaTypeOf, photoCost, photoRequest } from "../../src/photo/check.ts";
+import { costUsd } from "../../src/import/ai.ts";
 import { compare, fingerprint, type WebhookHealth } from "../../src/admin/secretmatch.ts";
 
 describe("Reading the verdict — an answer that is not a verdict decides nothing", () => {
@@ -146,5 +147,20 @@ describe("Comparing two secrets — both sides measured the same way", () => {
     // Normalising at the point of comparison keeps the evidence that something
     // upstream is adding it. Normalising on the way in would destroy it.
     assert.equal(half({ secret_padded: true }).secret_padded, true);
+  });
+});
+
+describe("Where a photo is processed (M3.2: pinned to the US for the privacy policy)", () => {
+  it("R01 every photo-check request asks for US inference — the sentence the policy makes", () => {
+    const req = photoRequest({ data: "AAAA", mediaType: "image/jpeg" });
+    assert.equal(req.inference_geo, "us");
+    // The image is still the thing sent, so the request built here is the one used.
+    assert.equal(req.messages[0].content[0].type, "image");
+  });
+
+  it("R02 a US-pinned call is counted at 1.1x, so the daily cap measures what is billed", () => {
+    const usage = { input_tokens: 1_000_000, output_tokens: 0 };
+    assert.equal(photoCost(usage), Math.round(costUsd(usage) * 1.1 * 1e6) / 1e6);
+    assert.ok(photoCost(usage) > costUsd(usage));
   });
 });
