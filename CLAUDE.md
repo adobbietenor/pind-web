@@ -60,6 +60,10 @@ There is no separate `pind-app` repo. `app/` and `packages/shared/` arrived in M
     fresh address, an existing account (a real code typed in, then the merge), and a
     skip at "where" that Profile then fixes. Run it after anything that touches A26,
     A27, the shared profile steps or the merge.
+  - `npm run check:after` (M3.3) walks after the night in real Chrome: a group finished
+    by the lifecycle job, then A17 → A16's ticks, match and keep in touch, the question,
+    and A20's invite reaching the connection. Run it after anything that touches A16,
+    A17, A20 or V23.
   - `npm run check:orphan-photos` lists every photo file whose user no longer exists.
     Add `-- --delete` to remove them. Run it after anything that deletes users.
 - EAS, from `app/`: `npx eas-cli@24.7.0 build --profile <development|internal|production>
