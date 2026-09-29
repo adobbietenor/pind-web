@@ -231,6 +231,7 @@ describe("The web app claims a handed-over session before any screen renders (M3
     const PROPOSED: Record<string, string> = {
       "packages/shared/src/crowd.ts": "A9's pinned-not-open copy — Alex, on the M3.2 walk",
       "packages/shared/src/room.ts": "the room and groups (M3.3) — Tatiana's doc replaces it",
+      "packages/shared/src/share.ts": "the group's share message (M3.3) — Tatiana's doc replaces it",
     };
     assert.ok(/\bPROPOSED\b/.test("// PROPOSED, for Alex") && !/\bPROPOSED\b/.test("UNPROPOSED"), "the marker test cannot see a marker");
     const marked = (function walk(dir: string): string[] {

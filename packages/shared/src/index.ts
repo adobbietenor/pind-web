@@ -16,6 +16,7 @@ export * from "./notify";
 export * from "./quickpin";
 export * from "./said";
 export * from "./session";
+export * from "./share";
 export * from "./signin";
 export * from "./tags";
 export * from "./tokens";

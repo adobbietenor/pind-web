@@ -13,8 +13,8 @@
 // Everything here is readable by the group's members only (V21).
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { colors as palette, fonts, GROUP_COPY, radius, spacing, type Convening } from "@pind/shared";
+import { ActivityIndicator, Image, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { colors as palette, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, spacing, type Convening } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
@@ -23,13 +23,31 @@ import { readProfile } from "@/lib/profile";
 import { loadRoom, sendGroupMessage, type Member } from "@/lib/room";
 import { supabase } from "@/lib/supabase";
 
+const SITE = process.env.EXPO_PUBLIC_SITE_URL || "https://pind.social";
+
+// "Share spot & time with a friend" (W3): the phone's share sheet; on a browser without
+// one, the link is copied and the button says so, where the tap was.
+async function shareCard(text: string, url: string): Promise<"shared" | "copied" | "failed"> {
+  if (Platform.OS !== "web") {
+    await Share.share({ message: `${text}
+${url}` });
+    return "shared";
+  }
+  const nav = globalThis.navigator as Navigator | undefined;
+  if (nav?.share) {
+    await nav.share({ text, url }).catch(() => undefined);
+    return "shared";
+  }
+  return nav?.clipboard ? nav.clipboard.writeText(url).then(() => "copied" as const, () => "failed" as const) : "failed";
+}
+
 const clock = (iso: string) => new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit" }).format(new Date(iso));
 const dayClock = (iso: string) => new Intl.DateTimeFormat("en-CA", { weekday: "short", hour: "numeric", minute: "2-digit" }).format(new Date(iso));
 
 interface GroupView {
   id: string;
   state: "forming" | "spot_set" | "live" | "done" | "dissolved";
-  gathering: { id: string; name: string; startsAt: string };
+  gathering: { id: string; name: string; slug: string; startsAt: string };
   convening: Convening;
   roomId: string | null;
   meId: string;
@@ -49,7 +67,7 @@ async function loadGroup(id: string): Promise<GroupView | null> {
   if (error) throw error;
   if (!c) return null;
   const [g, conv, mem, props, votes, msgs, closes, spot] = await Promise.all([
-    db.from("gatherings").select("id, name, starts_at").eq("id", c.gathering_id).maybeSingle(),
+    db.from("gatherings").select("id, name, slug, starts_at").eq("id", c.gathering_id).maybeSingle(),
     db.rpc("convening_of", { p_gathering: c.gathering_id }),
     db.from("crew_members").select("person_id, arrived_at, arrival_note, left_at").eq("crew_id", id),
     db.from("crew_proposals").select("id, spot_id, meet_at, meeting_spots(name)").eq("crew_id", id),
@@ -70,7 +88,7 @@ async function loadGroup(id: string): Promise<GroupView | null> {
   return {
     id,
     state: c.state as GroupView["state"],
-    gathering: { id: g.data.id, name: g.data.name, startsAt: g.data.starts_at },
+    gathering: { id: g.data.id, name: g.data.name, slug: g.data.slug ?? g.data.id, startsAt: g.data.starts_at },
     convening: (conv.data as Convening) ?? "a_spot_first",
     roomId: c.room_id,
     meId: me.personId,
@@ -105,6 +123,7 @@ export default function Group() {
   const [trouble, setTrouble] = useState<Described | null>(null);
   const [draft, setDraft] = useState("");
   const [note, setNote] = useState("");
+  const [shared, setShared] = useState<"shared" | "copied" | "failed" | null>(null);
   const [inviting, setInviting] = useState(false);
   const [roomPeople, setRoomPeople] = useState<Member[]>([]);
   const [picked, setPicked] = useState<string[]>([]);
@@ -241,7 +260,17 @@ export default function Group() {
               ))}
             </>
           ) : view.meetAt ? (
-            <Body>{view.spot ? GROUP_COPY.meets(view.spot, dayClock(view.meetAt)) : GROUP_COPY.atTheStart}</Body>
+            <>
+              <Body>{view.spot ? GROUP_COPY.meets(view.spot, dayClock(view.meetAt)) : GROUP_COPY.atTheStart}</Body>
+              <Button
+                kind="quiet"
+                label={shared === "copied" ? "Link copied" : shared === "failed" ? "Couldn't share — try again" : SHARE_COPY.button}
+                onPress={async () => {
+                  const url = shareCardUrl(SITE, view.gathering.slug, view.spot, view.meetAt);
+                  setShared(await shareCard(SHARE_COPY.message(view.gathering.name, view.spot, view.meetAt ? dayClock(view.meetAt) : null), url).catch(() => "failed" as const));
+                }}
+              />
+            </>
           ) : null}
         </View>
       )}
