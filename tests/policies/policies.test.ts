@@ -3925,4 +3925,12 @@ describe("A group's deadline moves with it, and a group under 3 can invite someo
     assert.equal(await state(late), "dissolved", "a group under 3 past its deadline did not close");
     assert.equal(await inviteFor("Ty"), undefined, "a closed group's invite was still open");
   });
+
+  it("P166 #3: an invite tells the invitee; a decline tells nobody; a closed group tells everyone in it, the same words, attributing nothing", async () => {
+    const note = async (label: string) =>
+      (await rows(w.service.from("notifications").select("body").eq("person_id", people[label].personId).eq("kind", "plan_status"))).map((n: { body: string }) => n.body);
+    assert.ok((await note("Rex")).some((b: string) => /^Pia wants to go together to /.test(b)), "an invitee was not told");
+    assert.ok(!(await note("Pia")).some((b: string) => /declin|said no|turned/i.test(b)), "an inviter was told of a decline");
+    assert.ok((await note("Quin")).some((b: string) => /^Not enough people joined your group for .*, so it's closed\. You're all still in the room\.$/.test(b)), "a closed group did not say so");
+  });
 });
