@@ -337,6 +337,52 @@ export type Database = {
           },
         ]
       }
+      connection_invites: {
+        Row: {
+          created_at: string
+          from_person: string
+          gathering_id: string
+          id: string
+          to_person: string
+        }
+        Insert: {
+          created_at?: string
+          from_person: string
+          gathering_id: string
+          id?: string
+          to_person: string
+        }
+        Update: {
+          created_at?: string
+          from_person?: string
+          gathering_id?: string
+          id?: string
+          to_person?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connection_invites_from_person_fkey"
+            columns: ["from_person"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_invites_gathering_id_fkey"
+            columns: ["gathering_id"]
+            isOneToOne: false
+            referencedRelation: "gatherings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_invites_to_person_fkey"
+            columns: ["to_person"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connections: {
         Row: {
           created_at: string
@@ -1397,6 +1443,7 @@ export type Database = {
         Row: {
           day_of: boolean
           digest: boolean
+          invites: boolean
           next_morning: boolean
           person_id: string
           plan_status: boolean
@@ -1407,6 +1454,7 @@ export type Database = {
         Insert: {
           day_of?: boolean
           digest?: boolean
+          invites?: boolean
           next_morning?: boolean
           person_id: string
           plan_status?: boolean
@@ -1417,6 +1465,7 @@ export type Database = {
         Update: {
           day_of?: boolean
           digest?: boolean
+          invites?: boolean
           next_morning?: boolean
           person_id?: string
           plan_status?: boolean
@@ -1694,6 +1743,7 @@ export type Database = {
           include_in_women_only: boolean
           person_id: string
           updated_at: string
+          women_only_rooms: boolean
         }
         Insert: {
           age_attested_at?: string
@@ -1703,6 +1753,7 @@ export type Database = {
           include_in_women_only?: boolean
           person_id: string
           updated_at?: string
+          women_only_rooms?: boolean
         }
         Update: {
           age_attested_at?: string
@@ -1712,6 +1763,7 @@ export type Database = {
           include_in_women_only?: boolean
           person_id?: string
           updated_at?: string
+          women_only_rooms?: boolean
         }
         Relationships: [
           {
@@ -2458,7 +2510,7 @@ export type Database = {
           created_at: string
           gathering_id: string
           id: string
-          met: Database["public"]["Enums"]["survey_met"]
+          met: Database["public"]["Enums"]["survey_met"] | null
           person_id: string | null
           would_have_gone: Database["public"]["Enums"]["survey_would_have_gone"]
         }
@@ -2467,7 +2519,7 @@ export type Database = {
           created_at?: string
           gathering_id: string
           id?: string
-          met: Database["public"]["Enums"]["survey_met"]
+          met?: Database["public"]["Enums"]["survey_met"] | null
           person_id?: string | null
           would_have_gone: Database["public"]["Enums"]["survey_would_have_gone"]
         }
@@ -2476,7 +2528,7 @@ export type Database = {
           created_at?: string
           gathering_id?: string
           id?: string
-          met?: Database["public"]["Enums"]["survey_met"]
+          met?: Database["public"]["Enums"]["survey_met"] | null
           person_id?: string | null
           would_have_gone?: Database["public"]["Enums"]["survey_would_have_gone"]
         }
@@ -2775,6 +2827,7 @@ export type Database = {
         Returns: undefined
       }
       admin_mint_slug: { Args: { p_gathering: string }; Returns: string }
+      admin_next_morning_tick: { Args: { p_now?: string }; Returns: number }
       admin_pending_notifications: {
         Args: { p_limit?: number }
         Returns: {
@@ -3019,6 +3072,16 @@ export type Database = {
         }
         Returns: undefined
       }
+      after_state: { Args: { p_gathering: string }; Returns: Json }
+      after_tick: {
+        Args: {
+          p_crew: string
+          p_kind: Database["public"]["Enums"]["confirmation_kind"]
+          p_on: boolean
+          p_to: string
+        }
+        Returns: undefined
+      }
       chip_category: {
         Args: { p_classification: string }
         Returns: Database["public"]["Enums"]["gathering_category"]
@@ -3045,11 +3108,37 @@ export type Database = {
       }
       group_closes_at: { Args: { p_crew: string }; Returns: string }
       i_may_meet: { Args: never; Returns: boolean }
+      invite_connection: {
+        Args: { p_gathering: string; p_to: string }
+        Returns: undefined
+      }
       invite_more: {
         Args: { p_crew: string; p_invitees: string[] }
         Returns: undefined
       }
+      invite_options: {
+        Args: { p_to: string }
+        Returns: {
+          already: string
+          gathering_id: string
+          name: string
+          slug: string
+          starts_at: string
+        }[]
+      }
+      join_general_room: { Args: { p_gathering: string }; Returns: undefined }
       leave_group: { Args: { p_crew: string }; Returns: undefined }
+      my_connections: {
+        Args: never
+        Returns: {
+          first_name: string
+          gathering_id: string
+          met_at: string
+          person_id: string
+          photo_path: string
+          since: string
+        }[]
+      }
       my_invites: {
         Args: { p_gathering: string }
         Returns: {
@@ -3103,6 +3192,8 @@ export type Database = {
         Returns: undefined
       }
       room_seen: { Args: { p_room: string }; Returns: undefined }
+      set_women_only_rooms: { Args: { p_on: boolean }; Returns: undefined }
+      showed_up: { Args: { p_person: string }; Returns: boolean }
       spot_poll: {
         Args: { p_gathering: string }
         Returns: {
@@ -3115,6 +3206,10 @@ export type Database = {
         Returns: string
       }
       venue_map_key: { Args: { p_lat: number; p_lng: number }; Returns: string }
+      waiting_for_women_only_room: {
+        Args: { p_gathering: string }
+        Returns: boolean
+      }
       women_only_offer: { Args: { p_gathering: string }; Returns: boolean }
     }
     Enums: {
@@ -3150,6 +3245,7 @@ export type Database = {
         | "day_of"
         | "next_morning"
         | "room_activity"
+        | "invite"
       outbound_kind: "threshold" | "survey"
       photo_status: "pending" | "approved" | "needs_review" | "rejected"
       publish_mark: "publish" | "never"
@@ -3323,6 +3419,7 @@ export const Constants = {
         "day_of",
         "next_morning",
         "room_activity",
+        "invite",
       ],
       outbound_kind: ["threshold", "survey"],
       photo_status: ["pending", "approved", "needs_review", "rejected"],

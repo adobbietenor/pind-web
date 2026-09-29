@@ -643,6 +643,39 @@ fixed it.
 
 ---
 
+## 12i · After the night, and connections — V23 (Alex, M3.3, 29 Sept 2026)
+
+**On the independent review's list before real users see it.**
+
+### V23 · Who you can see once the gathering is over
+
+`can_see` (V1) gains one branch, `private.after_peer`. Besides everyone V1 already
+allows, you can see a person — their row, their photo, and so their name and face — when:
+
+- **you are connected** (a mutual "keep in touch", A16), always, outside any gathering; or
+- **you were both in the same group of 3+ that reached the end of its gathering**, for
+  the 7 days A16 is open after the effective end — so the faces you tick are there.
+
+Never across a block in either direction, never a hidden person, never a seed person to
+anyone but a tester. After the 7 days a crewmate who is not a connection is gone again.
+The handle is unchanged: V17 already let crewmates and connections read it.
+
+**The ticks** (`confirmations`) stay unreadable. `after_state` returns only your own
+ticks, and "matched" only where a tick of yours meets one of theirs, so nobody learns of
+a tick they did not return (Q6). `after_tick` refuses outside the group, outside the 7
+days, "keep in touch" before a matched "we met", and taking back a matched tick.
+**Connections** are read only through `my_connections`, which leaves out a blocked or
+hidden person. **Invites between connections** (#7) are unreadable; `invite_options`
+tells the inviter only whether the other person is already going or already invited.
+
+**The after-event question** (`survey_responses`): answerable once, after the effective
+end, only by someone who was open to meeting there; readable only by its author.
+
+**"Women-only rooms only"** (V20): someone who sets it is placed in the women-only room
+and never the general one. While that room is under 3 it is not offered (unchanged), and
+`waiting_for_women_only_room` answers true or false — **never a count**, which next to the
+public mix would tell how many nonbinary people opted in (Q9's reasoning).
+
 ## 13 · Spot poll
 
 - **One vote per person per gathering, changeable** (Alex, M1.1). Enforced by the
@@ -712,6 +745,7 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | V20 the room (M3.3) | tables `rooms`, `room_members`, `room_messages`; `private.room_peer` (V1 without the list's closing time, for Q11's read-only days), `private.in_room`, `private.room_writable`, `private.place_in_room` via trigger `pins_place_in_rooms`; policies `rooms_read_own`, `room_members_read`, `room_messages_read`, `room_messages_post`, `room_messages_delete_own`, `reports_insert_on_readable_room_message`; rate limits in `private.room_messages_rate_limit` (people only); a safety report hides the message (`private.reports_hide_room_message`); retention `admin_delete_expired_room_messages` | P139–P148 |
 | V21 small groups (M3.3) | `crews` (+ `room_id`), `crew_members`, `crew_proposals`, `crew_proposal_votes`, `crew_messages`, `crew_invites`; `private.can_invite` (both in the room, both posted, `room_peer`, not already in a group), `private.in_group`; `public.start_group`, `public.respond_to_invite`, `public.my_invites`, `public.leave_group`; policies `crews_read_members`, `crew_members_read_members`, `crew_proposals_read_members`, `crew_votes_*`, `crew_invites_read_invitee` (the inviter never reads an invite, so a decline is silent), `crew_messages_*_members`, `crew_members_arrive_own`; the lifecycle `admin_groups_tick` (pg_cron, every 10 min); `public.convening_of` | P149–P158; P04, P70 updated |
 | V22 notifications (M3.3) | `notifications` (no person reads it; service-key delivery through `admin_pending_notifications`, `admin_mark_notification`, `admin_forget_device`, `admin_switch_off`); `notification_settings` and `device_tokens` own-only (`register_device`); #2 by trigger `room_members_notify_open`, #6 by `room_messages_notify_activity` — never across a block, never to a hidden person, never to the author, off by the person's switch | P159–P162 |
+| V23 after the night (M3.3) | `private.after_peer` inside `private.can_see`; `private.after_open`, `public.after_tick`, `public.after_state`, `public.showed_up`, `public.my_connections`; `survey_responses_insert_own` (after the end, open to meeting); `people_private.women_only_rooms` via `public.set_women_only_rooms`, `public.join_general_room`, `public.waiting_for_women_only_room`, `pins_place_in_rooms`; #2 for a women-only room at 3; #4 in `crews_notify_change`, #5 `admin_next_morning_tick` (pg_cron hourly), #7 `connection_invites` via `public.invite_connection` and `public.invite_options` | P167–P181; P32, P69 updated |
 | The public web's one door | `public.public_gatherings`, `public.public_gathering` | P55, P59, P61, P65 |
 | The chip a Ticketmaster gathering wears (M2.3) | `public.chip_category`, `public.admin_categorise_gatherings` — both `service_role` only; written once, never over an existing value | P66 |
 | The public slug and its 301 | `gatherings.slug`, `gathering_slug_history`, trigger `gatherings_slug_history`; `admin_mint_slug`, `admin_set_slug`, `admin_publish_gathering` | P59, P60 |
