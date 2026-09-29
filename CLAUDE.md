@@ -153,6 +153,14 @@ own cron, not inside the nightly import.
 ## Data
 
 - **Never run seeds against production.** Seed rows are tagged and live on staging only.
+- **Any job that sends something to a person checks it is not a test person — and a
+  test makes that check fire** (M3.3). When the notification delivery went live, it
+  started emailing the policy harness's own people (`@example.com`, which bounces)
+  in the middle of a run: test data reaching a real inbox, the same shape as seed rows
+  reaching a public page, and it was caught by a race rather than by a rule. The queue
+  now sends harness people nowhere (`private.is_harness_user`), and P162 fails if one is
+  ever actually emailed or pushed. The same goes for any future sender (the digest, a
+  day-of reminder): the check lives in the query that picks who to send to.
 - The service key never reads people on behalf of a visitor.
 - Review-only rows are the only non-real data allowed anywhere, and only on production
   for App Review (H6).
