@@ -3,6 +3,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { channelFor, emailFor, KINDS, stopToken, stopTokenValid, stopUrl } from "../../src/notify/rules.ts";
 import { jobsFor, NOTIFY_CRON } from "../../src/cron.ts";
+import { NOTIFICATIONS } from "../../packages/shared/src/notify.ts";
+import { Constants } from "../../packages/shared/src/database.types.ts";
 
 const SECRET = "test-secret-not-real";
 
@@ -54,5 +56,14 @@ describe("The one-tap stop link", () => {
 
   it("N07 every kind has words for its stop line", () => {
     for (const k of KINDS) assert.ok(emailFor({ title: "x", body: "y", path: "/", kind: k }, "z").text.includes("Stop "));
+  });
+});
+
+describe("The six kinds, one list", () => {
+  it("N08 the app's switches, the Worker's kinds and the database's enum are the same six", () => {
+    const db = [...Constants.public.Enums.notification_kind].sort();
+    assert.deepEqual(NOTIFICATIONS.map((n) => n.kind).sort(), db, "Settings' switches differ from the database's kinds");
+    assert.deepEqual([...KINDS].sort(), db, "the Worker's kinds differ from the database's");
+    assert.equal(db.length, 6);
   });
 });

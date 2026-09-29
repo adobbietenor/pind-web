@@ -1,6 +1,6 @@
 // A23 — Safety & settings. The M3.1 half: export my data, and delete my account.
-// Blocked people, my reports, the women-only toggle and the five notification
-// switches arrive with the milestones that create them (M3.3, M3.5).
+// The six notification switches arrived in M3.3. Blocked people, my reports and the
+// women-only toggle arrive with the milestones that create them (M3.5).
 //
 // **The visibility line is not a setting.** "Visible only after I pin in and opt in"
 // is how the product works, so it is stated, not offered — a toggle implies there is
@@ -16,6 +16,7 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Platform, Share, StyleSheet, Text, View } from "react-native";
 import { colors as palette, fonts, radius, spacing } from "@pind/shared";
+import { NotificationSwitches } from "@/components/NotificationSwitches";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice } from "@/components/ui";
@@ -92,6 +93,14 @@ export default function Settings() {
           </View>
         </View>
 
+        <Text style={styles.sectionName}>Notifications</Text>
+        <View style={styles.card}>
+          <Body muted>By push on the app, and by email when you use Pin&#39;d on the web.</Body>
+          <View style={{ marginTop: spacing.md }}>
+            <NotificationSwitches />
+          </View>
+        </View>
+
         <Text style={styles.sectionName}>Your data</Text>
         <View style={styles.card}>
           <Body muted>
@@ -149,8 +158,7 @@ export default function Settings() {
         <Text style={styles.sectionName}>Coming with the rest</Text>
         <View style={styles.card}>
           <Body muted>
-            Blocked people, the reports you have filed and women-only crews arrive with crews. The five notifications get their
-            switches when they start being sent.
+            Blocked people and the reports you have filed arrive with the safety tools.
           </Body>
         </View>
       </AppScreen>

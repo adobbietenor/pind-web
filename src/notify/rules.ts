@@ -2,9 +2,11 @@
 // without the Worker: where each goes, the signed stop link, the email's words.
 // Used by src/notify/deliver.ts and src/notify/stop.ts.
 
+import { NOTIFICATION_NAME, type NotificationKind } from "../../packages/shared/src/notify.ts";
+export type { NotificationKind };
+
 export const SITE = "https://pind.social";
 
-export type NotificationKind = "digest" | "room_open" | "plan_status" | "day_of" | "next_morning" | "room_activity";
 
 export interface Pending {
   id: string;
@@ -64,14 +66,7 @@ export async function stopTokenValid(secret: string, personId: string, kind: str
 
 export const KINDS: NotificationKind[] = ["digest", "room_open", "plan_status", "day_of", "next_morning", "room_activity"];
 
-export const KIND_NAME: Record<NotificationKind, string> = {
-  digest: "the Monday digest",
-  room_open: "\"someone else wants to meet\"",
-  plan_status: "group and plan updates",
-  day_of: "day-of reminders",
-  next_morning: "the next-morning check-in",
-  room_activity: "room activity",
-};
+export const KIND_NAME = NOTIFICATION_NAME;
 
 // ---------------------------------------------------------------------------
 // The email

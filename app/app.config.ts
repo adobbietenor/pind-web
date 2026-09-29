@@ -37,6 +37,9 @@ const config: ExpoConfig = {
     // in-app browser session; this plugin is what closes it and hands the redirect
     // back to the app through the `scheme` above.
     "expo-web-browser",
+    // Push (M3.3): the entitlement and the permission prompt. The prompt is never shown
+    // at launch — only after the room's own "Turn on" card (app/src/lib/push.ts).
+    "expo-notifications",
     // Org and project slugs are not secret. The auth token for source-map upload is
     // SENTRY_AUTH_TOKEN, an EAS secret, never in the repo.
     ["@sentry/react-native/expo", { organization: "pind-9y", project: "pind-app" }],
