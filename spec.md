@@ -1680,6 +1680,31 @@ leaves the aggregate.
 **The one number** is **Met** — people who mutually confirmed they met, per week —
 split by mode. Everything else explains it.
 
+### The metrics — re-registered 29 Sept 2026 for the room design (Alex)
+
+The room design (decisions, "The room, then a small group, then solo", 28 Sept) retired
+the crew threshold of 5 that the table below it was built on. Re-registered by Alex on 29
+Sept 2026 (decisions, "§7 re-registered"); **the crew-based table is kept below, marked
+superseded, so the old bar stays visible.**
+
+| Metric | Room and groups | Solo | Counted from |
+|---|---|---|---|
+| Opt-in rate | open-to-meeting ÷ pinned | solo-opted ÷ pinned (and both ÷ pinned) | pins |
+| Opened | gatherings whose room opened — **a room is opened once it has had 2 members** | gatherings with ≥ 2 solo opt-ins | room_members |
+| **Spoke** | **people in an opened room who posted at least one message ÷ people in an opened room — per person, not per room.** Denominator: every person who was a member of an opened room at a gathering, counted **once per gathering** (someone in both the general and the women-only room counts once). Numerator: those of them who posted at least one message in any room at that gathering. "Posted" is `room_members.first_posted_at` being set, so **a message later deleted still counts** — the person spoke. Someone waiting for a women-only room that never opened was in no opened room and is in neither. | — | room_members |
+| One-voice rooms | opened rooms in which **exactly one person** ever posted ÷ opened rooms (the pass criterion below). Rooms in which nobody posted are reported beside it, separately, and are not counted in it | — | room_members |
+| Plan formed | groups on (3 or more) ÷ gatherings whose room opened; groups with a plan ÷ groups on; closed-under-3 rate | accepted plans ÷ proposals; proposals per solo-opted person | crews, proposals |
+| Showed up | "I'm here" ÷ members of groups with a plan | same, per plan | check-ins |
+| **Met** | people with ≥ 1 mutual "we met" ÷ **people open to meeting** | people with a mutual "we met" ÷ solo-opted people | confirmations |
+| Women's share | of pinned, of open to meeting, of met | same | aggregate only |
+| Safety | reports per 100 open to meeting; auto-hides; incidents and hours to first human action | same | reports, moderation_log |
+| Repeat | pinners who pin a second gathering within 6 weeks | same, for solo-opted people | pins |
+| Cannibalisation | group rate and groups-with-a-plan rate at gatherings with solo activity vs without; share of solo-opted people who were also in a group | | crews × pins |
+| Session lost (web) | people who arrive at a pin with no session and turn out to have an account — merges into an existing account per week, split by "Already on Pin'd?" or the email/Apple/Google branch, and as a share of returning web pinners | | `account_merges`, written by the merge when it happens (M3.3) |
+| Attendance created | "Would you have gone alone anyway?" — one question in the after-event screen (A16) for everyone open to meeting (yes / no / I wasn't going to go at all) | | after-event answers |
+
+### The metrics — the crew design, superseded 29 Sept 2026
+
 | Metric | Crews | Solo | Counted from |
 |---|---|---|---|
 | Opt-in rate | crew-opted ÷ pinned | solo-opted ÷ pinned (and both ÷ pinned) | pins |
@@ -1696,7 +1721,32 @@ split by mode. Everything else explains it.
 
 **The number that decides a longer-lived web session** (Alex, 28 Sept 2026; "fix 3", not built). Safari deletes a site's stored data after 7 days without a visit, so a returning web person can arrive as a stranger. Build a session the browser keeps longer (a sealed, server-set cookie) **when more than 1 in 5 returning web pinners arrive with their session lost, over any four weeks with at least 25 returning web pinners.** Below that, "Already on Pin'd? Sign in" at the top of A27 is the fix.
 
-### Pass criteria for the first crowds, fixed now
+### Pass criteria for the first crowds — re-registered 29 Sept 2026 (Alex)
+Over 6–8 weeks of seeded and unseeded gatherings:
+- ≥ 20 pins at each seeded stadium-scale crowd and ≥ 8 at each mid-size one;
+- opt-in (either mode) ≥ 50% of pinners;
+- **a group with a plan at ≥ 60% of gatherings whose room reached 5 people** — the old
+  bar, at the same crowd size;
+- **one-voice rooms under 50% of opened rooms** — rooms in which exactly one person ever
+  posted ÷ rooms that had 2 members (the table above). **Not a target: the definitional
+  floor.** The room exists so that nobody has to go first; if more than half of opened
+  rooms are one-voice rooms, the room did not do its job. Anything above the floor is
+  observation, not a bar — a real target for the second cohort is set once the first has
+  been seen;
+- Met ≥ 3 at ≥ 2 gatherings;
+- women ≥ 35% of pinners;
+- repeat ≥ 25%;
+- every report acted on by a human within 24 hours.
+
+**Declined, and why** (Alex, 29 Sept): a 70% bar on "someone besides the first person
+posted". Nobody has run this design, so there is no prior for it — and a threshold nobody
+chose deliberately becomes a rule nobody can defend later. Behaviour never observed is
+not given a pre-registered threshold.
+
+Miss two and the finding is the assessment's: reveal does not convene itself — stop
+building and decide what Pin'd is instead. Pass and the store submission proceeds.
+
+### Pass criteria for the first crowds, fixed now — superseded 29 Sept 2026
 Over 6–8 weeks of seeded and unseeded gatherings:
 - ≥ 20 pins at each seeded stadium-scale crowd and ≥ 8 at each mid-size one;
 - opt-in (either mode) ≥ 50% of pinners;
@@ -1709,7 +1759,20 @@ Over 6–8 weeks of seeded and unseeded gatherings:
 Miss two and the finding is the assessment's: reveal does not convene itself — stop
 building and decide what Pin'd is instead. Pass and the store submission proceeds.
 
-### The solo decision rule, pre-registered
+### The solo decision rule — re-registered 29 Sept 2026 (Alex)
+The same rule in the room design's words; its logic does not change.
+Evaluate after at least 20 published gatherings reached 5 opted-in people, comparing
+*per opted-in person* — raw counts favour solo by construction because its threshold is
+lower (2, against a group's 3).
+- **Keep it and start mentioning it** if solo Met per opted-in ≥ groups' Met per
+  opted-in, *and* reports per 100 solo-opted ≤ groups', *and* women are ≥ 30% of
+  solo-opted people, *and* the group rate is not lower where solo is active.
+- **Keep it quiet** (as it is now) if it produces meetings but fails one of the safety
+  or gender tests.
+- **Turn it off** if reports per 100 exceed twice the group rate, or any incident traces
+  to a solo plan and was handled badly.
+
+### The solo decision rule, pre-registered — superseded 29 Sept 2026
 Evaluate after at least 20 published gatherings reached 5 opted-in people, comparing
 *per opted-in person* — raw counts favour solo by construction because its threshold is
 lower (2, against crews' 5).

@@ -3378,7 +3378,7 @@ commit to a plan with strangers before anyone had spoken. The design doc
   - the H2 line;
   - which version M3.3 builds (the first version, 22–31 h, is recommended);
   - Tatiana's copy;
-  - §7 re-registered.
+  - §7 re-registered. **Done 29 Sept** — "§7 re-registered", below.
 - **Decided (Alex, 28 Sept):** M3.3 builds the **first version** (22–31 h). Its three deferrals — seeing and switching rooms, groups growing after they form, the manual "Set spot & time" — are on **M3.6's list by name**, held there by D04. **The H2 line** is added to the rule, with Alex's reason: nobody chose who is in a room, and everyone in it can already see everyone else.
 - **The room at 1, 2, 3 and 5 people is specified, not left to copy** (Alex: "two people and an empty thread is the same cold start in a different costume"). The room never opens empty: arrival cards (face, name, neighbourhood, three on-list tags, shared tags marked), and three openers that fill the message box but are never sent for anyone. The first person is told by #2; the second arrives with the box ready. "Enough to go together" appears once at 3; the mix chip at 5. Build plan §8 M3.3 has it in full.
 
@@ -3466,3 +3466,37 @@ state knows), and #4 (day-of, when a group goes live) and #5 (next morning, 9am 
   to it, so "Alex is going to X" is true), one per pair per gathering, at most five a
   day per inviter, off in one tap. "Alex is going to X — want to come?", with the crowd
   link. A18's rule is now seven moments.
+
+### §7 re-registered (Alex, 29 Sept 2026)
+
+The room design retired the crew threshold of 5 that §7's metrics and pass criteria were
+built on. Re-registered in spec §7; **the crew-based versions stay there, marked
+superseded 29 Sept 2026**, because the point of pre-registration is that the old bar
+stays visible.
+
+- **Approved as drafted:** the move from crew to room and group words across the metrics;
+  Opened (a room opens at 2), Plan formed, Showed up, Met, Cannibalisation; **Met ÷ people
+  open to meeting** rather than crew-opted; and the pass criterion **"a group with a plan
+  at ≥ 60% of gatherings whose room reached 5 people"** — the old bar at the same crowd
+  size.
+- **Spoke — approved as a metric, its definition written down rather than inferred
+  later:** people in an opened room who posted at least one message ÷ people in an opened
+  room, **per person, not per room**, with the denominator stated in §7 so nobody has to
+  reconstruct it from a query in three months.
+- **Declined: a 70% bar on "someone besides the first person posted".** A pass criterion
+  invented by the thing being measured is the wrong shape, and there is no prior for a
+  second-speaker rate because nobody has run this design. **We do not pre-register a
+  threshold for behaviour we have never observed: a number nobody chose deliberately
+  becomes a rule nobody can defend later** — the same reason the publishing target moved
+  when it was looked at properly (M2.2).
+- **Registered instead: one-voice rooms under 50% of opened rooms.** Not a number picked
+  from the air but the definitional floor: the room exists so that nobody has to go first,
+  and if more than half of opened rooms are one-voice rooms, the room did not do its job —
+  better found out from a number than a feeling. Anything above the floor is observation;
+  a real target is set for the second cohort once the first has been seen.
+- **Written down with it** (so the count is never reconstructed later): "posted" is
+  `room_members.first_posted_at`, so a message later deleted still counts; a room is
+  opened once it has had 2 members; someone in two rooms at one gathering counts once for
+  Spoke. **One-voice means exactly one person posted, as registered; rooms where nobody
+  posted are reported beside it, separately, and not folded into it** — whether they
+  should be is Alex's to say.
