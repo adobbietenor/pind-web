@@ -591,6 +591,7 @@ any of it.
   - **Groups growing after they form** — any member invites someone they have talked with in the room, up to 8. 1–2 h.
   - **The manual "Set spot & time"** — any member sets the group's plan before the leader is taken three hours out. About 1 h.
 - **The tester invite link** (filed by Alex, M3.2 — build here, when several people need to walk something): from /admin/testers, a single-use link that expires in 24 hours. Opening it gives what the tester button gives — an anonymous tester session on the test crowd — with no Access and no admin. Only the code's hash is stored; the admin lists, and can cancel, links made. Harness cases prove a used or expired code grants nothing. About 2–3 h. Until then, a tester's own account goes on /admin/testers.
+- **Owed to the copy pass with Tatiana: the sign-in flow feels clunky** (Alex, 29 Sept 2026 — feedback, not yet a change). He can't yet say what: he has walked it too many times to see it, and will come back with something sharper after watching someone do it cold. Nothing is changed until then.
 
 **Acceptance**
 
