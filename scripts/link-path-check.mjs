@@ -61,6 +61,11 @@ if (!crowd?.slug) throw new Error("no test crowd — build it first");
 async function walk(kind) {
   const made = [];
   let secondGathering = null;
+  // The merge's own record (M3.3, spec §7), read after the live /account/merge.
+  const mergeRecord = async (authId) => {
+    const [acct] = await must(await rest(`/rest/v1/people?auth_user_id=eq.${authId}&select=id`), "account person");
+    return must(await rest(`/rest/v1/account_merges?person_id=eq.${acct.id}&select=method,platform,via`), "merge record");
+  };
   const log = (s) => console.log(`[${kind}] ${s}`);
   let chrome;
   const result = {};
@@ -152,6 +157,7 @@ async function walk(kind) {
       await click("Continue");
       step("straight to the safety sheet — nothing asked again", await until(OPTIN_COPY.safetyHeading, 25000));
       step("never shown a date-of-birth field", !(await body()).includes("Date of birth"));
+      step("the merge recorded itself: email, web, through 'Already on Pin'd?'", JSON.stringify(await mergeRecord(accountId)) === JSON.stringify([{ method: "email", platform: "web", via: "already_on_pind" }]));
       await click(OPTIN_COPY.accept);
       await sleep(300);
       await click(OPTIN_COPY.finish);
@@ -252,6 +258,9 @@ async function walk(kind) {
 
     // What the database holds now, for whoever this ended up as.
     const who = kind === "merge" ? accountId : anonId;
+    if (kind === "merge") {
+      step("the merge recorded itself: email, web, at the sign-in step", JSON.stringify(await mergeRecord(accountId)) === JSON.stringify([{ method: "email", platform: "web", via: "sign_in_step" }]));
+    }
     const [p] = await must(await rest(`/rest/v1/people?auth_user_id=eq.${who}&select=id,first_name,photo_path,neighbourhood`), "person");
     const priv = await must(await rest(`/rest/v1/people_private?person_id=eq.${p.id}&select=gender,birth_year`), "private");
     const tags = await must(await rest(`/rest/v1/person_tags?person_id=eq.${p.id}&select=tag`), "tags");
@@ -295,6 +304,9 @@ async function walk(kind) {
     chrome?.kill();
     if (secondGathering) await rest(`/rest/v1/gatherings?id=eq.${secondGathering}`, { method: "DELETE" });
     for (const id of made) {
+      // A test merge's record never stays in the table §7 counts from.
+      const [person] = await (await rest(`/rest/v1/people?auth_user_id=eq.${id}&select=id`)).json().catch(() => []);
+      if (person?.id) await rest(`/rest/v1/account_merges?person_id=eq.${person.id}`, { method: "DELETE" });
       const files = await (await fetch(`${base}/storage/v1/object/list/photos`, { method: "POST", headers: { ...S, "content-type": "application/json" }, body: JSON.stringify({ prefix: `${id}/`, limit: 100 }) })).json().catch(() => []);
       const paths = (Array.isArray(files) ? files : []).filter((f) => f.id).map((f) => `${id}/${f.name}`);
       if (paths.length) await fetch(`${base}/storage/v1/object/photos`, { method: "DELETE", headers: { ...S, "content-type": "application/json" }, body: JSON.stringify({ prefixes: paths }) });

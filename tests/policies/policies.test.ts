@@ -3279,6 +3279,31 @@ describe("Merging an anonymous pinner into their existing account (M3.2)", () =>
       await cleanup(authId, other.authId);
     }
   });
+
+  it("P182 every merge writes its record in its own transaction — how, where and by which route; a refused merge writes none; nobody signed in reads or calls it", async () => {
+    const a = await anonWithPin("RecA", w.G, 1);
+    const p = await permanent("RecP", true);
+    const recorded = async () => rows(w.service.from("account_merges").select("method, platform, via").eq("person_id", p.personId!));
+    try {
+      // Refused (the same user twice): no merge, and no record of one.
+      await denied(w.service.rpc("admin_merge_recorded", { p_anon: p.authId, p_perm: p.authId, p_photo_dest: null, p_method: "email", p_platform: "web", p_via: "already_on_pind" }));
+      assert.deepEqual(await recorded(), [], "a refused merge left a record");
+      await ok(w.service.rpc("admin_merge_recorded", { p_anon: a.authId, p_perm: p.authId, p_photo_dest: null, p_method: "email", p_platform: "web", p_via: "already_on_pind" }));
+      assert.deepEqual(await recorded(), [{ method: "email", platform: "web", via: "already_on_pind" }]);
+      assert.equal((await rows(w.service.from("pins").select("id").eq("person_id", p.personId!).eq("gathering_id", w.G))).length, 1, "the record was written but the merge did not happen");
+      // Anything but a known value is recorded as not known, never guessed.
+      const b = await anonWithPin("RecB", w.G, 1);
+      await ok(w.service.rpc("admin_merge_recorded", { p_anon: b.authId, p_perm: p.authId, p_photo_dest: null, p_method: "EMAIL ", p_platform: "windows", p_via: "" }));
+      assert.ok((await recorded()).some((r: { method: string | null; platform: string | null; via: string | null }) => r.method === null && r.platform === null && r.via === null), "an unknown value was recorded as if known");
+      await noAccess(c(M("Ava")), "account_merges");
+      for (const client of [c(M("Ava")), w.anon]) {
+        assert.ok((await client.rpc("admin_merge_recorded", { p_anon: randomUUID(), p_perm: randomUUID(), p_photo_dest: null, p_method: null, p_platform: null, p_via: null })).error, "a visitor ran the merge");
+      }
+    } finally {
+      await w.service.from("account_merges").delete().eq("person_id", p.personId!);
+      await cleanup(a.authId, p.authId);
+    }
+  });
 });
 
 describe("The client's copy of effective_end matches the database's (M3.2)", () => {
@@ -4186,6 +4211,17 @@ describe("Women-only rooms only — a real only (Alex, 29 Sept 2026)", () => {
     assert.equal((await rows(cl("Mo").rpc("my_rooms", { p_gathering: W }))).some((r: { women_only: boolean }) => r.women_only), false, "a man was offered the women-only room");
     await ok(cl("Wen").rpc("set_women_only_rooms", { p_on: false }));
     assert.deepEqual(await memberships("Wen"), [false, true]);
+  });
+});
+
+describe("'Get the app' is seen once — per person, on their own row (M3.3)", () => {
+  it("P183 a person marks their own nudge seen; nobody else's", async () => {
+    const ava = c(M("Ava"));
+    const now = new Date().toISOString();
+    assert.equal((await rows(ava.from("people_private").update({ app_nudge_seen_at: now }).eq("person_id", id("Ava")).select("person_id"))).length, 1);
+    assert.equal((await rows(ava.from("people_private").update({ app_nudge_seen_at: now }).eq("person_id", id("Ben")).select("person_id"))).length, 0, "someone marked another person's nudge");
+    assert.equal((await serviceRow("people_private", "person_id", id("Ben"), "app_nudge_seen_at")).app_nudge_seen_at, null);
+    await ok(w.service.from("people_private").update({ app_nudge_seen_at: null }).eq("person_id", id("Ava")));
   });
 });
 

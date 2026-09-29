@@ -28,7 +28,7 @@ describe("A27: the existing-account branch", () => {
   });
 });
 
-import { mergeRefusal } from "../../src/account/merge-checks.ts";
+import { mergeContext, mergeRefusal } from "../../src/account/merge-checks.ts";
 
 describe("The merge's four checks, each made to fire (Alex: a refusal nobody has seen refuse is not proven)", () => {
   const anon = { id: "a", is_anonymous: true };
@@ -51,6 +51,12 @@ describe("The merge's four checks, each made to fire (Alex: a refusal nobody has
   });
   it("M08 check 4 fires: the same person twice", () => {
     assert.ok(mergeRefusal({ id: "x", is_anonymous: true }, { id: "x", is_anonymous: false }));
+  });
+  it("M09 the merge's record keeps what the app said only when it is a known value — anything else is not known, never guessed", () => {
+    assert.deepEqual(mergeContext({ method: "apple", platform: "ios", via: "already_on_pind" }), { method: "apple", platform: "ios", via: "already_on_pind" });
+    assert.deepEqual(mergeContext({ method: "EMAIL ", platform: "windows", via: "" }), { method: null, platform: null, via: null });
+    assert.deepEqual(mergeContext({}), { method: null, platform: null, via: null });
+    assert.deepEqual(mergeContext(null), { method: null, platform: null, via: null });
   });
 });
 

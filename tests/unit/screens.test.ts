@@ -303,6 +303,19 @@ describe("The web app claims a handed-over session before any screen renders (M3
     assert.deepEqual(asking(/options=\{GENDER_CHOICES\}/), ["components/profile/YouStep.tsx"], "gender is asked in more than one place");
   });
 
+  it("S30 'Get the app' shows only on the web, only with somewhere real to go, and is marked seen only by itself", () => {
+    const SRC = join(process.cwd(), "app", "src");
+    const nudge = readFileSync(join(SRC, "components", "GetTheApp.tsx"), "utf8").replace(/^\s*\/\/.*$/gm, "");
+    const guard = /if \(Platform\.OS !== "web" \|\| !GET_THE_APP\.url\) return;/;
+    assert.ok(guard.test('    if (Platform.OS !== "web" || !GET_THE_APP.url) return;'), "S30's pattern cannot see a guard");
+    assert.match(nudge, guard, "the nudge can show on the phone, or with no link");
+    assert.match(nudge, /if \(!show \|\| !GET_THE_APP\.url\) return null;/, "the nudge renders without a link");
+    const callers = (function walk(dir: string): string[] {
+      return readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? walk(join(dir, n)) : /\.tsx$/.test(n) && /markAppNudgeSeen\(/.test(readFileSync(join(dir, n), "utf8")) ? [n] : []));
+    })(SRC);
+    assert.deepEqual(callers, ["GetTheApp.tsx"], "something other than the nudge marks it seen");
+  });
+
   it("S29 nothing is ever sent for anyone: a message is written only by the Send buttons, and an opener only fills the box", () => {
     // Alex, M3.3: "never send anything for anyone — keep it as a test".
     const SRC = join(process.cwd(), "app", "src");

@@ -14,6 +14,41 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_merges: {
+        Row: {
+          id: string
+          merged_at: string
+          method: string | null
+          person_id: string | null
+          platform: string | null
+          via: string | null
+        }
+        Insert: {
+          id?: string
+          merged_at?: string
+          method?: string | null
+          person_id?: string | null
+          platform?: string | null
+          via?: string | null
+        }
+        Update: {
+          id?: string
+          merged_at?: string
+          method?: string | null
+          person_id?: string | null
+          platform?: string | null
+          via?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_merges_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       age_attestations: {
         Row: {
           attested_at: string
@@ -1737,6 +1772,7 @@ export type Database = {
       people_private: {
         Row: {
           age_attested_at: string
+          app_nudge_seen_at: string | null
           birth_year: number | null
           created_at: string
           gender: Database["public"]["Enums"]["gender"]
@@ -1747,6 +1783,7 @@ export type Database = {
         }
         Insert: {
           age_attested_at?: string
+          app_nudge_seen_at?: string | null
           birth_year?: number | null
           created_at?: string
           gender: Database["public"]["Enums"]["gender"]
@@ -1757,6 +1794,7 @@ export type Database = {
         }
         Update: {
           age_attested_at?: string
+          app_nudge_seen_at?: string | null
           birth_year?: number | null
           created_at?: string
           gender?: Database["public"]["Enums"]["gender"]
@@ -2821,6 +2859,17 @@ export type Database = {
       admin_merge_photo_plan: {
         Args: { p_anon: string; p_perm: string }
         Returns: string
+      }
+      admin_merge_recorded: {
+        Args: {
+          p_anon: string
+          p_method: string
+          p_perm: string
+          p_photo_dest: string
+          p_platform: string
+          p_via: string
+        }
+        Returns: Json
       }
       admin_merge_venues: {
         Args: { p_actor: string; p_from: string; p_into: string }

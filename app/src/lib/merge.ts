@@ -22,6 +22,14 @@ export interface Held {
   refresh_token: string;
 }
 
+// How this merge came about, for the record the merge writes (M3.3, spec §7 "Session
+// lost (web)"): the sign-in that proved the account, and whether the person came
+// through "Already on Pin'd?" or met their account at the sign-in step.
+export interface MergeHow {
+  method: "email" | "apple" | "google";
+  via: "already_on_pind" | "sign_in_step";
+}
+
 // The anonymous session, as it is right now — taken before signing in to the account.
 export async function holdAnonymous(): Promise<Held | null> {
   const { data } = await supabase().auth.getSession();
@@ -49,7 +57,7 @@ async function fresh(held: Held): Promise<Held> {
 
 // With the ACCOUNT signed in and the anonymous session held: the merge. On any failure
 // the anonymous session is put back and this throws — the pin is exactly where it was.
-export async function mergeHeld(held: Held): Promise<void> {
+export async function mergeHeld(held: Held, how: MergeHow): Promise<void> {
   const db = supabase();
   const { data } = await db.auth.getSession();
   const account = data.session;
@@ -59,7 +67,7 @@ export async function mergeHeld(held: Held): Promise<void> {
     const res = await fetch(`${WORKER}/account/merge`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${account.access_token}` },
-      body: JSON.stringify({ anon_access_token: anon.access_token }),
+      body: JSON.stringify({ anon_access_token: anon.access_token, method: how.method, via: how.via, platform: Platform.OS }),
     });
     if (!res.ok) throw Object.assign(new Error(`merge ${res.status}`), { status: res.status });
   } catch (err) {
@@ -74,20 +82,20 @@ export async function mergeHeld(held: Held): Promise<void> {
 
 export type Provider = "apple" | "google";
 
-export function stashForMerge(held: Held): void {
+export function stashForMerge(held: Held, how: MergeHow): void {
   try {
-    sessionStorage.setItem(HELD_KEY, JSON.stringify(held));
+    sessionStorage.setItem(HELD_KEY, JSON.stringify({ held, how }));
   } catch {
     // No storage: the merge cannot survive the redirect. The caller says so.
     throw new Error("session storage unavailable");
   }
 }
 
-function takeStash(): Held | null {
+function takeStash(): { held: Held; how: MergeHow } | null {
   try {
     const raw = sessionStorage.getItem(HELD_KEY);
     sessionStorage.removeItem(HELD_KEY);
-    return raw ? (JSON.parse(raw) as Held) : null;
+    return raw ? (JSON.parse(raw) as { held: Held; how: MergeHow }) : null;
   } catch {
     return null;
   }
@@ -122,10 +130,10 @@ export type WebReturn =
 export async function finishWebReturn(): Promise<WebReturn> {
   if (Platform.OS !== "web") return { kind: "none" };
   const back = readReturn();
-  const held = takeStash();
-  if (held) {
+  const stashed = takeStash();
+  if (stashed?.held) {
     try {
-      await mergeHeld(held);
+      await mergeHeld(stashed.held, stashed.how);
       return { kind: "merged" };
     } catch {
       return { kind: "merge-failed" };

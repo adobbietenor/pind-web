@@ -23,3 +23,24 @@ export function photoDest(permId: string, fromPath: string): string {
   if (!name || name === ".." || name === ".") throw new Error("no file name to move");
   return `${permId}/${name}`;
 }
+
+// How this merge came about, for its record (M3.3, spec §7 "Session lost (web)"): what
+// the app says, kept only when it is one of the known values — anything else is recorded
+// as not known, never guessed. The database checks the same lists (admin_merge_recorded).
+export interface MergeContext {
+  method: "email" | "apple" | "google" | null;
+  platform: "web" | "ios" | "android" | null;
+  via: "already_on_pind" | "sign_in_step" | null;
+}
+
+const oneOf = <T extends string>(value: unknown, allowed: readonly T[]): T | null =>
+  typeof value === "string" && (allowed as readonly string[]).includes(value) ? (value as T) : null;
+
+export function mergeContext(body: unknown): MergeContext {
+  const b = (body ?? {}) as Record<string, unknown>;
+  return {
+    method: oneOf(b.method, ["email", "apple", "google"] as const),
+    platform: oneOf(b.platform, ["web", "ios", "android"] as const),
+    via: oneOf(b.via, ["already_on_pind", "sign_in_step"] as const),
+  };
+}

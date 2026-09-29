@@ -25,10 +25,14 @@
 //   4. remove everything left in the anonymous folder, the copy's source included, and
 //      the copy itself if the database did not take it.
 // A file this cannot remove is logged; `npm run check:orphan-photos` finds any that remain.
+//
+// **Every merge records itself** (M3.3): how the person signed in, web or app, and
+// whether they came through "Already on Pin'd?" — from the app, kept only when it is a
+// known value (mergeContext) — written by the merge's own transaction.
 
 import type { Env } from "../env";
 import { projectUrl, serviceClient } from "../supabase.ts";
-import { mergeRefusal, photoDest, type VouchedUser } from "./merge-checks.ts";
+import { mergeContext, mergeRefusal, photoDest, type VouchedUser } from "./merge-checks.ts";
 
 const BUCKET = "photos";
 
@@ -53,6 +57,7 @@ export async function mergeAccount(request: Request, env: Env): Promise<Response
 
   const permToken = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? null;
   const body = (await request.json().catch(() => ({}))) as { anon_access_token?: string };
+  const how = mergeContext(body);
   const [anon, perm] = await Promise.all([vouch(env, body.anon_access_token), vouch(env, permToken)]);
 
   const refused = mergeRefusal(anon, perm);
@@ -73,8 +78,15 @@ export async function mergeAccount(request: Request, env: Env): Promise<Response
     else dest = to;
   }
 
-  // 3. The merge itself, one transaction.
-  const { data, error } = await db.rpc("admin_merge_anonymous", { p_anon: anon!.id, p_perm: perm!.id, p_photo_dest: dest });
+  // 3. The merge itself, and its record (M3.3, spec §7), in one transaction.
+  const { data, error } = await db.rpc("admin_merge_recorded", {
+    p_anon: anon!.id,
+    p_perm: perm!.id,
+    p_photo_dest: dest as string,
+    p_method: how.method as string,
+    p_platform: how.platform as string,
+    p_via: how.via as string,
+  });
   if (error) {
     console.error("merge failed:", error.message);
     // Nothing moved: the anonymous person keeps their photo; only the copy goes.

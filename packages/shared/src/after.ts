@@ -62,3 +62,18 @@ export const WOMEN_ONLY_COPY = {
   joinGeneralWhat: "Just for this one. Your setting stays as it is.",
   room: "Women-only room",
 } as const;
+
+// "Get the app" — once, when someone first joins a group: the first moment push is worth
+// having (build plan §8 M3.3). On the web only; on the phone they already have it.
+//
+// **`url` is null until there is somewhere real to send people** — a public TestFlight
+// link arrives with M4.3's Beta App Review, the App Store with Phase 5. While it is null
+// the nudge is not shown at all, rather than pointing at nothing. Which link it carries,
+// and when, is Alex's call.
+export const GET_THE_APP = {
+  url: null as string | null,
+  heading: "You're in a group — get the app",
+  line: "Your group's plan, the day-of note and \"I'm here\", on your lock screen instead of your inbox.",
+  yes: "Get the app",
+  no: "Not now",
+} as const;

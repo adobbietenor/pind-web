@@ -17,6 +17,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
 import { AFTER_COPY, colors as palette, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, spacing, type Convening } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
+import { GetTheApp } from "@/components/GetTheApp";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
@@ -196,6 +197,8 @@ export default function Group() {
     <AppScreen>
       <Heading>{GROUP_COPY.heading}</Heading>
       <Body muted>{view.gathering.name}</Body>
+      {/* Once per person, the first time they are in a group (M3.3). */}
+      {me && view.state !== "dissolved" && view.state !== "done" ? <GetTheApp /> : null}
 
       <View style={styles.faces}>
         {view.members.map((m) =>

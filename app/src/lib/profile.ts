@@ -303,3 +303,16 @@ export async function saveNeighbourhood(personId: string, slug: string | null): 
   const { error } = await supabase().from("people").update({ neighbourhood: slug }).eq("id", personId);
   if (error) throw error;
 }
+
+// "Get the app", once per person (M3.3): whether it has been shown, and marking it shown.
+// Written here because this file is the only writer of people_private (S27).
+export async function appNudgeSeen(personId: string): Promise<boolean> {
+  const { data, error } = await supabase().from("people_private").select("app_nudge_seen_at").eq("person_id", personId).maybeSingle();
+  if (error) throw error;
+  return !!data?.app_nudge_seen_at;
+}
+
+export async function markAppNudgeSeen(personId: string): Promise<void> {
+  const { error } = await supabase().from("people_private").update({ app_nudge_seen_at: new Date().toISOString() }).eq("person_id", personId);
+  if (error) throw error;
+}

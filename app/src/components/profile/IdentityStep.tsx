@@ -19,7 +19,7 @@ import { CODE_SENT_TO, codeLengthMismatch, EMAIL_CODE_LENGTH, isEmailTaken, OPTI
 import { SignInButton } from "@/components/SignInButton";
 import { Body, Button, Field, Notice } from "@/components/ui";
 import { linkEmail, linkProvider, methodsFor, sendEmailCode, signInError, signInForMerge, signInWithApple, signInWithGoogle, verifyEmailCode } from "@/lib/auth";
-import { holdAnonymous, mergeHeld, stashForMerge, type Held, type Provider } from "@/lib/merge";
+import { holdAnonymous, mergeHeld, stashForMerge, type Held, type MergeHow, type Provider } from "@/lib/merge";
 import { report } from "@/lib/sentry";
 import { supabase } from "@/lib/supabase";
 
@@ -35,9 +35,11 @@ export interface IdentityStepProps {
   hasAccount?: Provider | null;
   // A sentence to start with (a merge that failed on the way back, say).
   notice?: string | null;
+  // For the merge's record: did they come through "Already on Pin'd?" (M3.3).
+  via?: MergeHow["via"];
 }
 
-export function IdentityStep({ mode, returnTo, onDone, hasAccount = null, notice = null }: IdentityStepProps) {
+export function IdentityStep({ mode, returnTo, onDone, hasAccount = null, notice = null, via = "sign_in_step" }: IdentityStepProps) {
   const methods = methodsFor();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
@@ -68,7 +70,7 @@ export function IdentityStep({ mode, returnTo, onDone, hasAccount = null, notice
   // the anonymous session back (lib/merge.ts); this says so.
   const merge = async (held: Held, method: Method) => {
     try {
-      await mergeHeld(held);
+      await mergeHeld(held, { method, via });
       onDone({ method, merged: true });
     } catch (err) {
       report(err, "merge into the existing account");
@@ -101,7 +103,7 @@ export function IdentityStep({ mode, returnTo, onDone, hasAccount = null, notice
       if (!held) throw new Error("no anonymous session to bring in");
       if (Platform.OS === "web") {
         // The page leaves; A27 finishes the merge when it comes back (finishWebReturn).
-        stashForMerge(held);
+        stashForMerge(held, { method: p, via });
         await signInForMerge(p, returnTo);
         return;
       }

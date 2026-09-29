@@ -321,6 +321,7 @@ export default function OptIn() {
       {signInFirst && step !== "identity" ? (
         <IdentityStep
           mode="link"
+          via="already_on_pind"
           returnTo={`/opt-in/${slug}`}
           hasAccount={hasAccount}
           notice={notice}
