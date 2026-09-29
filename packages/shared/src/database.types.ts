@@ -3043,7 +3043,12 @@ export type Database = {
           women: number
         }[]
       }
+      group_closes_at: { Args: { p_crew: string }; Returns: string }
       i_may_meet: { Args: never; Returns: boolean }
+      invite_more: {
+        Args: { p_crew: string; p_invitees: string[] }
+        Returns: undefined
+      }
       leave_group: { Args: { p_crew: string }; Returns: undefined }
       my_invites: {
         Args: { p_gathering: string }

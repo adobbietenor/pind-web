@@ -3843,11 +3843,86 @@ describe("Notifications #2 and #6 — written by the act itself, and refused whe
       assert.ok((await people.Jo.client.rpc(fn, {})).error, `${fn} was callable by a person`);
     }
     // The Worker's view of the queue carries where each can go.
-    const pending = await ok(w.service.rpc("admin_pending_notifications", { p_limit: 500 }));
-    // Jo is a harness person: the queue sends her nowhere — no phone, no email — so a
-    // harness run never emails @example.com (m3_3_notifications_skip_harness).
-    const jo = (pending as { person_id: string; tokens: string[]; email: string | null }[]).find((p) => p.person_id === people.Jo.personId);
-    assert.ok(jo, "Jo's notification was not in the queue");
-    assert.deepEqual([jo!.tokens, jo!.email], [[], null], "a harness person would have been emailed or pushed");
+    // Jo is a harness person: sent nowhere — no phone, no email — so a harness run never
+    // emails @example.com (m3_3_notifications_skip_harness). The live delivery runs every
+    // minute, so her notification is either still queued (and the queue shows nowhere to
+    // send it) or already delivered (and its channel is "none"). Either way, never sent.
+    const pending = (await ok(w.service.rpc("admin_pending_notifications", { p_limit: 500 }))) as { person_id: string; tokens: string[]; email: string | null }[];
+    const queued = pending.find((p) => p.person_id === people.Jo.personId);
+    if (queued) assert.deepEqual([queued.tokens, queued.email], [[], null], "a harness person would have been emailed or pushed");
+    const delivered = await rows(w.service.from("notifications").select("channel").eq("person_id", people.Jo.personId).not("sent_at", "is", null));
+    for (const d of delivered) assert.equal(d.channel, "none", "a harness person was emailed or pushed");
+    assert.ok(queued || delivered.length, "Jo's notification was neither queued nor delivered");
+  });
+});
+
+describe("A group's deadline moves with it, and a group under 3 can invite someone else (M3.3)", () => {
+  let Z = "";
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+  async function meeter(label: string) {
+    const email = `${PREFIX}-${w.run}-late-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1991 }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    await ok(client.from("pins").insert({ gathering_id: Z, person_id: person.id, party_total: 1, open_to_meeting: true }).select("id").single());
+    people[label] = { authId, personId: person.id, client };
+  }
+  const room = async (label: string) =>
+    (await rows(people[label].client.rpc("my_rooms", { p_gathering: Z }))).find((r: { women_only: boolean }) => !r.women_only)?.room_id as string;
+  const inviteFor = async (label: string) => (await rows(people[label].client.rpc("my_invites", { p_gathering: Z })))[0] as { invite_id: string } | undefined;
+  const state = async (crew: string) => (await serviceRow("crews", "id", crew, "state")).state as string;
+  let crew = "";
+
+  before(async () => {
+    // Four hours out: already inside the six-hour mark.
+    Z = (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Late`, starts_at: new Date(Date.now() + 4 * 3_600_000).toISOString(), venue_id: w.venue, published_at: new Date().toISOString(), source: "manual" }).select("id").single())).id;
+    for (const n of ["Pia", "Quin", "Rex", "Sam", "Ty", "Uri"]) await meeter(n);
+    for (const n of ["Pia", "Quin", "Rex", "Sam"]) await ok(people[n].client.from("room_messages").insert({ room_id: await room(n), author_id: people[n].personId, body: `hi, ${n}` }));
+  });
+  after(async () => {
+    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+  });
+
+  it("P163 a group started inside the six-hour mark is NOT closed by the next run — it has until its own deadline", async () => {
+    crew = await ok(people.Pia.client.rpc("start_group", { p_room: await room("Pia"), p_invitees: [people.Quin.personId, people.Rex.personId] }));
+    await ok(w.service.rpc("admin_groups_tick"));
+    assert.equal(await state(crew), "forming", "a group started late closed on the next run");
+    // Its deadline: the later of −6 h and started + 2 h, capped at −3 h — here, −3 h.
+    const closes = new Date(await ok(people.Pia.client.rpc("group_closes_at", { p_crew: crew }))).getTime();
+    const starts = new Date((await serviceRow("gatherings", "id", Z, "starts_at")).starts_at).getTime();
+    assert.ok(Math.abs(closes - (starts - 3 * 3_600_000)) < 60_000, "the deadline was not three hours before the start");
+    assert.equal(await ok(people.Ty.client.rpc("group_closes_at", { p_crew: crew })), null, "someone outside the group read its deadline");
+  });
+
+  it("P164 while under 3, a member can invite someone else they've talked with — not someone silent, not as an outsider, and not once the group is on", async () => {
+    const quin = (await inviteFor("Quin"))!;
+    await ok(people.Quin.client.rpc("respond_to_invite", { p_invite: quin.invite_id, p_accept: false }));
+    await denied(people.Pia.client.rpc("invite_more", { p_crew: crew, p_invitees: [people.Ty.personId] }), "42501"); // Ty never posted
+    await denied(people.Sam.client.rpc("invite_more", { p_crew: crew, p_invitees: [people.Quin.personId] }), "42501"); // Sam is not in it
+    await ok(people.Pia.client.rpc("invite_more", { p_crew: crew, p_invitees: [people.Sam.personId] }));
+    for (const n of ["Rex", "Sam"]) {
+      const inv = (await inviteFor(n))!;
+      await ok(people[n].client.rpc("respond_to_invite", { p_invite: inv.invite_id, p_accept: true }));
+    }
+    await denied(people.Pia.client.rpc("invite_more", { p_crew: crew, p_invitees: [people.Quin.personId] }), "42501"); // on at 3
+  });
+
+  it("P165 under 3 past its own deadline, a late group closes — and its open invites lapse with it", async () => {
+    for (const n of ["Ty", "Uri"]) await ok(people[n].client.from("room_messages").insert({ room_id: await room(n), author_id: people[n].personId, body: `hi, ${n}` }));
+    const late = await ok(people.Quin.client.rpc("start_group", { p_room: await room("Quin"), p_invitees: [people.Ty.personId, people.Uri.personId] }));
+    await ok(w.service.rpc("admin_groups_tick"));
+    assert.equal(await state(late), "forming", "a group started late closed at once");
+    // Three hours pass (moved by the service key): its deadline, two hours after it started, is gone.
+    await ok(w.service.from("crews").update({ created_at: new Date(Date.now() - 3 * 3_600_000).toISOString() }).eq("id", late));
+    await ok(w.service.rpc("admin_groups_tick"));
+    assert.equal(await state(late), "dissolved", "a group under 3 past its deadline did not close");
+    assert.equal(await inviteFor("Ty"), undefined, "a closed group's invite was still open");
   });
 });
