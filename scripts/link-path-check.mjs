@@ -60,6 +60,7 @@ if (!crowd?.slug) throw new Error("no test crowd — build it first");
 
 async function walk(kind) {
   const made = [];
+  let secondGathering = null;
   const log = (s) => console.log(`[${kind}] ${s}`);
   let chrome;
   const result = {};
@@ -74,6 +75,17 @@ async function walk(kind) {
 
     const email = `delivered+pind-${kind}-${Date.now()}@resend.dev`;
     let accountId = null;
+    if (kind === "returning") {
+      // Alex in November: a complete account (photo, date of birth and gender, where),
+      // and a browser that has forgotten him.
+      const u = await must(await rest("/auth/v1/admin/users", { method: "POST", body: JSON.stringify({ email, password: randomUUID(), email_confirm: true, app_metadata: { pind_harness: true } }) }), "account");
+      accountId = u.id;
+      made.push(accountId);
+      const [acct] = await must(await rest("/rest/v1/people", { method: "POST", body: JSON.stringify({ auth_user_id: accountId, first_name: "Returner", photo_path: `${accountId}/face.png`, neighbourhood: HOOD.slug }) }), "account person");
+      await must(await rest("/rest/v1/people_private", { method: "POST", body: JSON.stringify({ person_id: acct.id, gender: "man", birth_year: 1990 }) }), "account private");
+      await must(await rest("/rest/v1/age_attestations?on_conflict=person_id", { method: "POST", headers: { prefer: "resolution=ignore-duplicates" }, body: JSON.stringify({ person_id: acct.id, source: "a26" }) }), "19+");
+      await must(await rest("/rest/v1/person_tags", { method: "POST", body: JSON.stringify(TAGS.map((t) => ({ person_id: acct.id, tag: t.slug }))) }), "tags");
+    }
     if (kind === "merge") {
       // An existing account with nothing on it, and NOT a tester — exactly Alex's. The
       // first version of this check made it a tester "as Alex's would be", and so walked
@@ -118,13 +130,49 @@ async function walk(kind) {
 
     // A26 in the app: pin in, ticking "meet up".
     await send("Page.navigate", { url: `${SITE}/pin/${crowd.slug}` });
-    step("A26 opens", await until(QUICKPIN_COPY.meetUp));
+    const opened = await until(QUICKPIN_COPY.meetUp);
+    if (!opened) log((await body()).slice(0, 600));
+    step("A26 opens", opened);
     await type(QUICKPIN_COPY.firstName, "Walker");
     await click(QUICKPIN_COPY.meetUp);
     await click(QUICKPIN_COPY.nineteen);
     await click(QUICKPIN_COPY.submit);
     step("You're in, with the primary button", await until(QUICKPIN_COPY.nextDetails));
     await click(QUICKPIN_COPY.nextDetails);
+
+    if (kind === "returning") {
+      step("'Already on Pin'd? Sign in' is at the top", await until(OPTIN_COPY.alreadyOnPind));
+      await click(OPTIN_COPY.signIn);
+      step("it goes straight to signing in", await until("Email me a code", 15000));
+      await type("Email me a code", email);
+      await click("Send the code");
+      step("the existing account is named", await until(OPTIN_COPY.emailHasAccount));
+      const link = await must(await rest("/auth/v1/admin/generate_link", { method: "POST", body: JSON.stringify({ type: "magiclink", email }) }), "mint a code");
+      await type(CODE_SENT_TO(email), link.email_otp ?? link.properties?.email_otp);
+      await click("Continue");
+      step("straight to the safety sheet — nothing asked again", await until(OPTIN_COPY.safetyHeading, 25000));
+      step("never shown a date-of-birth field", !(await body()).includes("Date of birth"));
+      await click(OPTIN_COPY.accept);
+      await sleep(300);
+      await click(OPTIN_COPY.finish);
+      for (let t = 0; t < 30; t++) { if ((await evaluate("location.pathname")) === `/crowd/${crowd.slug}`) break; await sleep(500); }
+      step("lands on A9", (await evaluate("location.pathname")) === `/crowd/${crowd.slug}`);
+      // The second pin: another gathering, one tap.
+      const [second] = await must(await rest("/rest/v1/gatherings", { method: "POST", body: JSON.stringify({ name: `Second pin ${Date.now()}`, starts_at: new Date(Date.now() + 5 * 86_400_000).toISOString(), venue_id: (await must(await rest(`/rest/v1/gatherings?slug=eq.${crowd.slug}&select=venue_id`), "venue"))[0].venue_id, published_at: new Date().toISOString(), source: "manual" }) }), "second gathering");
+      secondGathering = second.id;
+      const slug2 = await must(await rest("/rest/v1/rpc/admin_mint_slug", { method: "POST", body: JSON.stringify({ p_gathering: second.id }) }), "slug");
+      await send("Page.navigate", { url: `${SITE}/pin/${slug2}` });
+      step("the second pin opens", await until(QUICKPIN_COPY.meetUp));
+      const pinPage = await body();
+      step("the second pin asks no 19+ tick", !pinPage.includes(QUICKPIN_COPY.nineteen));
+      await click(QUICKPIN_COPY.submit);
+      for (let t = 0; t < 30; t++) { if ((await evaluate("location.pathname")) === `/crowd/${slug2}`) break; await sleep(500); }
+      step("one tap: straight to the crowd page", (await evaluate("location.pathname")) === `/crowd/${slug2}`);
+      const [pin2] = await must(await rest(`/rest/v1/pins?gathering_id=eq.${second.id}&select=open_to_meeting`), "pin2");
+      step("…open to meeting, so in the room", pin2?.open_to_meeting === true);
+      ws.close();
+      return true;
+    }
 
     // A27 "you": date of birth first, gender, the photo through the real picker.
     step("A27 asks date of birth first", await until("Date of birth"));
@@ -245,6 +293,7 @@ async function walk(kind) {
     return false;
   } finally {
     chrome?.kill();
+    if (secondGathering) await rest(`/rest/v1/gatherings?id=eq.${secondGathering}`, { method: "DELETE" });
     for (const id of made) {
       const files = await (await fetch(`${base}/storage/v1/object/list/photos`, { method: "POST", headers: { ...S, "content-type": "application/json" }, body: JSON.stringify({ prefix: `${id}/`, limit: 100 }) })).json().catch(() => []);
       const paths = (Array.isArray(files) ? files : []).filter((f) => f.id).map((f) => `${id}/${f.name}`);
@@ -256,7 +305,7 @@ async function walk(kind) {
   }
 }
 
-const which = process.argv[2] ? [process.argv[2]] : ["fresh", "merge", "skip"];
+const which = process.argv[2] ? [process.argv[2]] : ["fresh", "merge", "skip", "returning"];
 let ok = true;
 for (const kind of which) ok = (await walk(kind)) && ok;
 console.log(ok ? "PASS" : "FAIL");

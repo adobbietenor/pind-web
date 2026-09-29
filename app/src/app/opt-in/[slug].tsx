@@ -132,6 +132,8 @@ export default function OptIn() {
   const [why, setWhy] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [hasAccount, setHasAccount] = useState<Provider | null>(null);
+  // "Already on Pin'd? Sign in": jump to the sign-in step before anything is asked.
+  const [signInFirst, setSignInFirst] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [trouble, setTrouble] = useState<Described | null>(null);
   const [busy, setBusy] = useState(false);
@@ -304,7 +306,34 @@ export default function OptIn() {
         </View>
       ) : null}
 
-      {step === "you" && mine ? (
+      {/* Before the first field, where it can't be missed (Alex): someone whose browser
+          forgot them signs in first and is asked nothing they already gave. */}
+      {(step === "you" || step === "where") && mine && !mine.permanent && !signInFirst ? (
+        <View style={styles.why}>
+          <Body>{OPTIN_COPY.alreadyOnPind}</Body>
+          <Body muted>{OPTIN_COPY.alreadyOnPindLine}</Body>
+          <View style={{ marginTop: spacing.sm }}>
+            <Button label={OPTIN_COPY.signIn} onPress={() => setSignInFirst(true)} />
+          </View>
+        </View>
+      ) : null}
+
+      {signInFirst && step !== "identity" ? (
+        <IdentityStep
+          mode="link"
+          returnTo={`/opt-in/${slug}`}
+          hasAccount={hasAccount}
+          notice={notice}
+          onDone={() => {
+            setSignInFirst(false);
+            setHasAccount(null);
+            setNotice(null);
+            afterStep();
+          }}
+        />
+      ) : null}
+
+      {step === "you" && mine && !signInFirst ? (
         <YouStep
           firstName={mine.firstName}
           hasPrivate={mine.hasPrivate}
@@ -315,7 +344,7 @@ export default function OptIn() {
         />
       ) : null}
 
-      {step === "where" && mine ? (
+      {step === "where" && mine && !signInFirst ? (
         <WhereStep
           personId={mine.personId}
           neighbourhood={mine.neighbourhood}

@@ -91,13 +91,18 @@ export async function buildTestCrowd(db: SupabaseClient, render: Render): Promis
   }
 
   // The gathering, three days out at 7pm, published, with a slug the app can open.
-  let g = (await db.from("gatherings").select("id, slug").eq("name", TEST_CROWD_NAME).eq("is_seed", true).maybeSingle()).data as
-    | { id: string; slug: string | null }
+  let g = (await db.from("gatherings").select("id, slug, starts_at").eq("name", TEST_CROWD_NAME).eq("is_seed", true).maybeSingle()).data as
+    | { id: string; slug: string | null; starts_at?: string }
     | null;
+  const start = new Date();
+  start.setUTCDate(start.getUTCDate() + 3);
+  start.setUTCHours(23, 0, 0, 0); // 7pm Toronto
+  // It was built once and kept its date, so three days later it had finished and every
+  // walk of it said "Pinning has closed" (M3.3). Refresh keeps it at least two days out.
+  if (g?.starts_at && Date.parse(g.starts_at) < Date.now() + 2 * 86_400_000) {
+    await must(db.from("gatherings").update({ starts_at: start.toISOString() }).eq("id", g.id).select("id"), "move the test crowd");
+  }
   if (!g) {
-    const start = new Date();
-    start.setUTCDate(start.getUTCDate() + 3);
-    start.setUTCHours(23, 0, 0, 0); // 7pm Toronto
     g = (await must(
       db
         .from("gatherings")

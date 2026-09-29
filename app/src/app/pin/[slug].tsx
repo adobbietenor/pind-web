@@ -78,6 +78,10 @@ export default function QuickPin() {
   const [fieldError, setFieldError] = useState<{ field: string; says: string } | null>(null);
   const [trouble, setTrouble] = useState<Described | null>(null);
   const [busy, setBusy] = useState(false);
+  // A returning person who may already meet (M3.3, Alex: "the second pin being one tap
+  // is the whole reason anyone comes back"): "meet up" comes ticked, 19+ is not asked
+  // again (their record exists, P100), and "Pin in" lands them in the room.
+  const [returning, setReturning] = useState(false);
   const [result, setResult] = useState<{ already: boolean; needsOptIn: boolean; pinned?: number; open?: number } | null>(null);
 
   const load = useCallback(async () => {
@@ -127,6 +131,12 @@ export default function QuickPin() {
           }
           // The 19+ record exists for anyone already pinned (P100).
           setNineteen(true);
+        } else if ((await db.rpc("i_may_meet")).data === true) {
+          // Someone who has been through A27: may meet means they have pinned before, so
+          // the 19+ record exists — nothing to tick again.
+          setReturning(true);
+          setMeetUp(true);
+          setNineteen(true);
         }
       }
     }
@@ -173,6 +183,11 @@ export default function QuickPin() {
       const userId = who.state === "in" ? who.userId : who.state === "out" ? await ensureAnonymousUser() : await myAuthId();
       const written = await writeQuickPin(supabase() as unknown as QuickPinDb, userId, gathering.id, read.value);
       markPinned(gathering.slug, true);
+      // One tap for someone who may meet: straight to the room on the crowd page.
+      if (returning && meetUp && !written.needsOptIn && !written.already) {
+        router.replace(`/crowd/${gathering.slug}`);
+        return;
+      }
       setResult({ already: written.already, needsOptIn: written.needsOptIn, ...(await counts(gathering.id)) });
       setStage("done");
     } catch (err) {
@@ -307,12 +322,14 @@ export default function QuickPin() {
           ) : null}
           {errorFor(QUICKPIN_FIELDS.party) ? <Body muted>{errorFor(QUICKPIN_FIELDS.party)}</Body> : null}
           <Tick label={QUICKPIN_COPY.meetUp} hint={QUICKPIN_COPY.meetUpHint} value={meetUp} onChange={setMeetUp} />
-          <Tick
-            label={QUICKPIN_COPY.nineteen}
-            value={nineteen}
-            onChange={setNineteen}
-            error={errorFor(QUICKPIN_FIELDS.nineteen)}
-          />
+          {!returning ? (
+            <Tick
+              label={QUICKPIN_COPY.nineteen}
+              value={nineteen}
+              onChange={setNineteen}
+              error={errorFor(QUICKPIN_FIELDS.nineteen)}
+            />
+          ) : null}
           {/* Beside the button that was tapped (CLAUDE.md: "seen" is part of a refusal). */}
           {trouble ? <Trouble what={trouble} onRetry={submit} busy={busy} /> : null}
           <Button label={pinId ? QUICKPIN_COPY.save : QUICKPIN_COPY.submit} busy={busy} onPress={submit} />
