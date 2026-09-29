@@ -33,6 +33,7 @@ import {
   radius,
   spacing,
   THRESHOLD,
+  WOMEN_ONLY_COPY,
 } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
@@ -40,6 +41,7 @@ import { Body, Button, Heading } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
 import { PushAsk } from "@/components/PushAsk";
 import { myRooms, type RoomSummary } from "@/lib/room";
+import { joinGeneralRoom, waitingForWomenOnlyRoom } from "@/lib/after";
 import { whoAmI } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 
@@ -93,6 +95,8 @@ interface View9 {
   faces: Face[];
   // The room (M3.3), when open to meeting here.
   rooms: RoomSummary[];
+  // "Women-only rooms only", and that room is not open yet (never how many — Q9).
+  waitingWomenOnly: boolean;
   lastLines: { who: string; body: string }[];
   invites: { inviteId: string; from: string; members: string[] }[];
   group: { id: string; state: string } | null;
@@ -175,13 +179,17 @@ async function load(slug: string): Promise<View9 | null> {
 
   // The room, invites and my group (M3.3) — all through RLS.
   let rooms: RoomSummary[] = [];
+  let waitingWomenOnly = false;
   let lastLines: View9["lastLines"] = [];
   let invites: View9["invites"] = [];
   let group: View9["group"] = null;
   let email: string | null = null;
   if (mine?.open && meId) {
     rooms = await myRooms(g.id);
-    const general = rooms.find((r) => !r.womenOnly);
+    waitingWomenOnly = await waitingForWomenOnlyRoom(g.id);
+    // Someone with "women-only rooms only" talks in that room: it leads, as the general
+    // room does for everyone else.
+    const general = rooms.find((r) => !r.womenOnly) ?? rooms.find((r) => r.womenOnly);
     if (general?.open) {
       const { data: last } = await db.from("room_messages").select("author_id, body, created_at").eq("room_id", general.roomId).order("created_at", { ascending: false }).limit(2);
       lastLines = (last ?? []).reverse().map((m) => ({
@@ -197,7 +205,7 @@ async function load(slug: string): Promise<View9 | null> {
     email = session.session?.user.email ?? null;
   }
 
-  return { facts: await factsFor(slug), gathering, going: c?.pinned ?? 0, open: c?.open_to_meeting ?? 0, mix, mine, mayMeet, faces, rooms, lastLines, invites, group, email };
+  return { facts: await factsFor(slug), gathering, going: c?.pinned ?? 0, open: c?.open_to_meeting ?? 0, mix, mine, mayMeet, faces, rooms, waitingWomenOnly, lastLines, invites, group, email };
 }
 
 export default function CrowdPage() {
@@ -342,8 +350,36 @@ export default function CrowdPage() {
             </Pressable>
           ) : null}
           {(() => {
-            const general = view.rooms.find((r) => !r.womenOnly);
-            const wo = view.rooms.find((r) => r.womenOnly);
+            if (view.waitingWomenOnly) {
+              // "Women-only rooms only", and it isn't open yet: waiting, said plainly —
+              // what for, and the one-tap way out (Alex). Never how many (Q9).
+              return (
+                <View style={[styles.oneStep, { marginTop: spacing.md }]}>
+                  <Text style={styles.oneStepHeading}>{WOMEN_ONLY_COPY.waitingHeading}</Text>
+                  <Body>{WOMEN_ONLY_COPY.waitingLine}</Body>
+                  <PushAsk />
+                  <Button
+                    kind="quiet"
+                    label={WOMEN_ONLY_COPY.joinGeneral}
+                    busy={busy}
+                    onPress={async () => {
+                      setBusy(true);
+                      try {
+                        await joinGeneralRoom(view.gathering.id);
+                        refresh();
+                      } catch (err) {
+                        setTrouble(failed("join the general room", err));
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  />
+                  <Body muted>{WOMEN_ONLY_COPY.joinGeneralWhat}</Body>
+                </View>
+              );
+            }
+            const general = view.rooms.find((r) => !r.womenOnly) ?? view.rooms.find((r) => r.womenOnly);
+            const wo = view.rooms.find((r) => r.womenOnly && r !== general);
             if (!general) return null;
             if (!general.open) {
               // 1 — just you: a good place to be, and the promise is notification #2.
@@ -360,12 +396,14 @@ export default function CrowdPage() {
             }
             return (
               <View style={[styles.oneStep, { marginTop: spacing.md }]}>
-                <Text style={styles.oneStepHeading}>{ROOM_COPY.inRoom(general.members)}</Text>
+                <Text style={styles.oneStepHeading}>{general.womenOnly ? WOMEN_ONLY_COPY.room : ROOM_COPY.inRoom(general.members)}</Text>
                 {view.lastLines.map((l, n) => (
                   <Body key={n} muted>{`${l.who}: ${l.body}`}</Body>
                 ))}
                 <Button label={view.lastLines.length ? ROOM_COPY.openRoom : ROOM_COPY.sayHi} onPress={() => router.push({ pathname: "/room/[id]", params: { id: general.roomId } })} />
-                {wo ? <Button kind="quiet" label={`Women-only room · ${wo.members}`} onPress={() => router.push({ pathname: "/room/[id]", params: { id: wo.roomId } })} /> : null}
+                {/* No count on it: next to the public mix, one would tell how many nonbinary
+                    people opted in (decisions Q9, "never a number"). */}
+                {wo ? <Button kind="quiet" label={WOMEN_ONLY_COPY.room} onPress={() => router.push({ pathname: "/room/[id]", params: { id: wo.roomId } })} /> : null}
               </View>
             );
           })()}

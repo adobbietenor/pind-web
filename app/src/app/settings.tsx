@@ -1,6 +1,10 @@
 // A23 — Safety & settings. The M3.1 half: export my data, and delete my account.
-// The six notification switches arrived in M3.3. Blocked people, my reports and the
-// women-only toggle arrive with the milestones that create them (M3.5).
+// The notification switches (seven) and "women-only rooms only" arrived in M3.3.
+// Blocked people and my reports arrive with the milestone that creates them (M3.5).
+//
+// **"Women-only rooms only" is a real only** (Alex, 29 Sept): shown only to someone
+// eligible (a woman, or nonbinary and included), it places you in the women-only room
+// and never the general one — and A9 says plainly when you are waiting for it.
 //
 // **The visibility line is not a setting.** "Visible only after I pin in and opt in"
 // is how the product works, so it is stated, not offered — a toggle implies there is
@@ -12,16 +16,17 @@
 // Delete is a two-step confirm and says exactly what goes and what stays before the
 // second tap. Everything in that list is Alex's decision, restated here rather than
 // rediscovered (decisions Part 3, and M3.1).
-import { useRouter } from "expo-router";
-import { useState } from "react";
+import { useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useState } from "react";
 import { Platform, Share, StyleSheet, Text, View } from "react-native";
-import { colors as palette, fonts, radius, spacing } from "@pind/shared";
+import { colors as palette, fonts, radius, spacing, WOMEN_ONLY_COPY } from "@pind/shared";
 import { NotificationSwitches } from "@/components/NotificationSwitches";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
-import { Body, Button, Heading, Notice } from "@/components/ui";
+import { Body, Button, Heading, Notice, Tick } from "@/components/ui";
+import { switchWomenOnlyRooms, womenOnlyRooms } from "@/lib/after";
 import { failed, type Described } from "@/lib/errors";
-import { deleteAccount, exportMyData } from "@/lib/profile";
+import { deleteAccount, exportMyData, readProfile } from "@/lib/profile";
 
 export default function Settings() {
   const router = useRouter();
@@ -29,6 +34,34 @@ export default function Settings() {
   const [error, setError] = useState<Described | null>(null);
   const [done, setDone] = useState("");
   const [confirming, setConfirming] = useState(false);
+  const [womenOnly, setRoomsOnly] = useState<{ eligible: boolean; on: boolean } | null>(null);
+  const [roomsTrouble, setRoomsTrouble] = useState<Described | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      let live = true;
+      void readProfile()
+        .then((me) => (me.personId ? womenOnlyRooms(me.personId) : null))
+        .then((w) => live && setRoomsOnly(w))
+        .catch(() => live && setRoomsOnly(null));
+      return () => {
+        live = false;
+      };
+    }, []),
+  );
+
+  const flipWomenOnly = async (on: boolean) => {
+    setRoomsTrouble(null);
+    setBusy("women-only");
+    try {
+      await switchWomenOnlyRooms(on);
+      setRoomsOnly((w) => (w ? { ...w, on } : w));
+    } catch (err) {
+      setRoomsTrouble(failed("change that", err));
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const runExport = async () => {
     setBusy("export");
@@ -92,6 +125,17 @@ export default function Settings() {
             <Body muted>There is no location permission to manage. Pin&#39;d never asks where you are.</Body>
           </View>
         </View>
+
+        {womenOnly?.eligible ? (
+          <>
+            <Text style={styles.sectionName}>Safety</Text>
+            <View style={styles.card}>
+              <Tick label={WOMEN_ONLY_COPY.setting} value={womenOnly.on} onChange={(v) => void flipWomenOnly(v)} />
+              <Body muted>{WOMEN_ONLY_COPY.settingWhat}</Body>
+              {roomsTrouble ? <Trouble what={roomsTrouble} /> : null}
+            </View>
+          </>
+        ) : null}
 
         <Text style={styles.sectionName}>Notifications</Text>
         <View style={styles.card}>

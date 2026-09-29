@@ -1443,7 +1443,7 @@ export type Database = {
         Row: {
           day_of: boolean
           digest: boolean
-          invites: boolean
+          invite: boolean
           next_morning: boolean
           person_id: string
           plan_status: boolean
@@ -1454,7 +1454,7 @@ export type Database = {
         Insert: {
           day_of?: boolean
           digest?: boolean
-          invites?: boolean
+          invite?: boolean
           next_morning?: boolean
           person_id: string
           plan_status?: boolean
@@ -1465,7 +1465,7 @@ export type Database = {
         Update: {
           day_of?: boolean
           digest?: boolean
-          invites?: boolean
+          invite?: boolean
           next_morning?: boolean
           person_id?: string
           plan_status?: boolean

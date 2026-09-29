@@ -420,9 +420,9 @@ The same screen serves a solo plan's two members.
 have gone alone anyway?" — Yes / No / I wasn't going to go at all. It is the
 **attendance metric** (§7): did Pin'd create attendance, or only company.
 
-### A18 — Notifications (exactly six)
+### A18 — Notifications (exactly seven)
 
-**Six since 28 Sept** (Alex): the room made conversation the first thing that happens, so #6 below was added. #2 now fires for the room, and #3 covers group invites and plans. The rest of this section is rewritten with M3.3.
+**Six since 28 Sept** (Alex): the room made conversation the first thing that happens, so #6 below was added. #2 now fires for the room, and #3 covers group invites and plans. **Seven since 29 Sept**: #7, an invite from a connection (decisions, "The night and after"). The rest of this section is rewritten with M3.3.
 
 1. **Monday 6:00 PM** — this week's crowds digest → A7
 2. **Threshold** — "5 people going to X want to meet up — crews are open" → A10
@@ -431,9 +431,16 @@ have gone alone anyway?" — Yes / No / I wasn't going to go at all. It is the
    (A10) when dissolved, changed or withdrawn.
 4. **Day-of, ~3h before** — "Tonight: your crew meets at [spot] at [time] — tap when
    you're there" → A13
-5. **Next morning** — "Did you meet up?" → A16
+5. **Next morning** — "Did you meet up?" → A16. **To everyone who was open to meeting**
+   (Alex, 29 Sept): a group's members are asked who they met; everyone else only the
+   after-event question, gently.
+6. **Room activity, batched** — the first message since you last looked, then an hour's
+   silence from that room (28 Sept).
+7. **Invite** — "Maya's going to X — want to come?" → the crowd page. Only from a
+   connection, only to a gathering they are pinned to, one per pair per gathering, five a
+   day (29 Sept).
 
-Nothing else. Never "someone viewed your profile". The rule is six moments (#6, room activity, batched, since 28 Sept), all
+Nothing else. Never "someone viewed your profile". The rule is seven moments (#6 since 28 Sept, #7 since 29 Sept), all
 about a plan — a ban on engagement bait, not a count to defend.
 **Every notification is mirrored by email to people without a device token** (web-only
 people), through Resend on pind.social; the digest email has an unsubscribe link.
@@ -445,7 +452,8 @@ Upcoming (pinned, with crew and spot if any; one day-of reminder toggle) and pas
 
 ### A20 — Connections
 People from your crews, with where you met them. The **only verb is "invite"**, which
-opens this week's crowds to pick one. Deliberately not an inbox. Empty state explains
+opens the gatherings you are pinned to (until M3.2b brings this week's crowds into the
+app) and sends #7. Deliberately not an inbox. Empty state explains
 that connections come from crews.
 
 ### A21–A22 — Profile
@@ -461,7 +469,9 @@ that connections come from crews.
   is the design. "⋯" opens report and block.
 
 ### A23 — Safety & settings
-Safety: blocked people, my reports, "women-only crews only" toggle.
+Safety: blocked people, my reports, **"women-only rooms only"** (a real only — Alex, 29
+Sept: placed only in the women-only room, told plainly while waiting, one tap to join the
+general room for a gathering).
 Visibility: "Visible only after I pin in + opt in — **always on**" (not a setting),
 show my neighbourhood. There is no "count me in the gender mix" setting (Alex, Phase 1
 M1.1): anyone who doesn't want to be counted as a woman or man chooses "Prefer not to
@@ -470,7 +480,7 @@ count (Q3).
 "Meet 1-on-1" appears here only as a summary of the per-gathering setting (on at which
 gatherings, and who can see you); it is switched on and off on the pinned crowd page
 (A28), never here.
-Notifications: the six, toggleable.
+Notifications: the seven, toggleable.
 Data: export my data, delete account (in-app, required by both stores).
 Note on screen: no location permission exists to manage — the app never asks.
 

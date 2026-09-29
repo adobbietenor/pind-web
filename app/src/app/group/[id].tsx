@@ -9,12 +9,13 @@
 //   * on, a spot first: the poll — vote, and three hours before the leader is the plan;
 //   * the plan: "You meet at Spot B, 6:00 pm", or "You'll find each other at the start";
 //   * live: "I'm here", with a line so they can find you (Q7, never geofenced);
-//   * closed under 3: said plainly, with the way back into the room.
+//   * closed under 3: said plainly, with the way back into the room;
+//   * done (A17): finished, counted, and its one action is A16 "Who did you meet?".
 // Everything here is readable by the group's members only (V21).
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
-import { colors as palette, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, spacing, type Convening } from "@pind/shared";
+import { AFTER_COPY, colors as palette, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, spacing, type Convening } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
@@ -341,7 +342,15 @@ export default function Group() {
           </View>
         </>
       ) : null}
-      {view.state === "done" ? <Notice>This gathering has finished.</Notice> : null}
+      {/* A17 — done: said, counted, and its only action points at A16. */}
+      {view.state === "done" ? (
+        <View style={styles.card}>
+          <Text style={styles.section}>{AFTER_COPY.finished}</Text>
+          <Body muted>{AFTER_COPY.finishedCounts(view.members.length, view.members.filter((m) => m.arrivedAt).length)}</Body>
+          <Body muted>{AFTER_COPY.finishedLine}</Body>
+          <Button label={AFTER_COPY.howDidItGo} onPress={() => router.push({ pathname: "/after/[slug]", params: { slug: view.gathering.slug } })} />
+        </View>
+      ) : null}
     </AppScreen>
   );
 }

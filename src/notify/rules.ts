@@ -64,7 +64,7 @@ export async function stopTokenValid(secret: string, personId: string, kind: str
   return diff === 0;
 }
 
-export const KINDS: NotificationKind[] = ["digest", "room_open", "plan_status", "day_of", "next_morning", "room_activity"];
+export const KINDS: NotificationKind[] = ["digest", "room_open", "plan_status", "day_of", "next_morning", "room_activity", "invite"];
 
 export const KIND_NAME = NOTIFICATION_NAME;
 

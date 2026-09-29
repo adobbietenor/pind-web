@@ -3436,3 +3436,33 @@ commit to a plan with strangers before anyone had spoken. The design doc
 - **Why push can wait:** it is the one thing that wants native eyes early, and a push
   bug found at that build reworks nothing in M3.2b.
 - **The order:** M3.3 → M3.2b → one build. D05 holds this in the build plan.
+
+### The night and after (Alex, 29 Sept 2026 — for M3.3)
+
+Approved as written: A16's ticks (per person, "we met", then "keep in touch" once
+matched; a tick can be taken back until it is matched, a match cannot; open for 7 days
+after the effective end), the connection rule (V23: connected people see each other's
+first name, photo and where they met, outside any gathering; a block hides it both
+ways), the after-event question (Test 0's "did you meet" no longer asked — the group
+state knows), and #4 (day-of, when a group goes live) and #5 (next morning, 9am local).
+
+- **a · #5 goes to everyone who was open to meeting, group or not.** "That's the metric
+  the whole product is judged on and without it we'd only ever hear from people the loop
+  already worked for — the most flattering possible sample." To someone not in a group
+  it carries only the question, gently, with no implication they failed at anything.
+- **b · "Women-only rooms only" is a real only.** Set, you are placed only in the
+  women-only room; until three eligible people are there you are in no room, and the
+  page says so plainly, with a one-tap way to join the general room instead. "Waiting is
+  fine if you know you're waiting; being silently alone is not." "Prefer" was rejected:
+  someone who chose women-only and was placed in a mixed room has been overruled on the
+  one setting where that is least acceptable.
+  - **Built without the "how many so far" Alex asked for, and raised with him:** Q9's
+    "never a number" still applies to any women-only signal — next to the public mix, a
+    count of the women-only room tells how many nonbinary people opted in. The page says
+    what you are waiting for and that you will be told; not the count.
+- **c · Invite is a seventh notification, narrow.** Not the share sheet: "connections
+  exist precisely for people who met once and have no other way to reach each other."
+  Only between connected people, only about a specific gathering (the inviter is pinned
+  to it, so "Alex is going to X" is true), one per pair per gathering, at most five a
+  day per inviter, off in one tap. "Alex is going to X — want to come?", with the crowd
+  link. A18's rule is now seven moments.

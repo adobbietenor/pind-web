@@ -4240,7 +4240,7 @@ describe("Invite — #7, between connections only (Alex, 29 Sept 2026)", () => {
 
   it("P181 five a day, the sixth refused; switched off, the invite is recorded and nobody is told; a block ends it", async () => {
     for (const g of gs.slice(2)) await pinTo("Ivy", g);
-    await ok(cl("Jon").from("notification_settings").upsert({ person_id: id("Jon"), invites: false }).select("person_id"));
+    await ok(cl("Jon").from("notification_settings").upsert({ person_id: id("Jon"), invite: false }).select("person_id"));
     for (const g of gs.slice(2, 6)) await ok(invite("Ivy", "Jon", g)); // 2nd–5th today
     assert.equal((await invites("Jon")).length, 1, "an invite reached someone who switched them off");
     await denied(invite("Ivy", "Jon", gs[6]!), "42501"); // the sixth

@@ -480,6 +480,6 @@ one of these is the next step rather than trying to work around it.
 - The service key is used server-side only, for admin, cron jobs, AI jobs and sending messages, and never to read people on behalf of a visitor. People lists are always read as the signed-in person, so RLS policies decide visibility.
 - There is no WhatsApp Test 0 (decisions.md Part 5, "Build direction"). What replaced its rules:
   - A pin needs a first name and the 19+ tick, nothing else, and creates a Supabase anonymous user (A26). Opting in to meeting (A27) needs date of birth, gender, a face photo and a permanent identity (email code, Apple or Google), linked to the same user id (decisions Part 5, "Identity"; Q2).
-  - Notifications are the six in spec A18 (the sixth, room activity, batched, since 28 Sept): push to the app, mirrored by email (Resend) for people without a device token. SMS is never used (Q8).
+  - Notifications are the seven in spec A18 (the sixth, room activity, batched, since 28 Sept; the seventh, an invite from a connection, since 29 Sept): push to the app, mirrored by email (Resend) for people without a device token. SMS is never used (Q8).
   - RLS policies and their harness cases are built and pass before any screen that shows people (M3.2 onward).
 - Flag anything touching visibility for the independent review before real users see it.

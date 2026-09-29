@@ -1,15 +1,17 @@
-// The six notifications (spec A18, six since the room — Alex, 28 Sept 2026): their
+// The seven notifications (spec A18: six since the room, Alex 28 Sept 2026; the seventh,
+// an invite from someone you've met, 29 Sept): their
 // names, in one place. Settings shows them as switches; the Worker's emails name the one
 // they are stopping. A switch is on unless the person switched it off.
 
-export type NotificationKind = "digest" | "room_open" | "plan_status" | "day_of" | "next_morning" | "room_activity";
+export type NotificationKind = "digest" | "room_open" | "plan_status" | "day_of" | "next_morning" | "room_activity" | "invite";
 
 export const NOTIFICATIONS: { kind: NotificationKind; label: string; what: string }[] = [
   { kind: "room_open", label: "Someone else wants to meet", what: "The first time someone else at a gathering you pinned says they'd like to meet." },
   { kind: "room_activity", label: "Room activity", what: "New messages in a room since you last looked — at most once an hour." },
   { kind: "plan_status", label: "Groups and plans", what: "An invite, a group's plan, or a group that closed." },
   { kind: "day_of", label: "On the day", what: "About three hours before, where and when your group meets." },
-  { kind: "next_morning", label: "The morning after", what: "Did you meet up?" },
+  { kind: "next_morning", label: "The morning after", what: "Did you meet up, or how the night went." },
+  { kind: "invite", label: "Invites from people you've met", what: "Someone you kept in touch with is going to something and asks if you'd like to come." },
   { kind: "digest", label: "Monday's crowds", what: "This week's crowds, every Monday at 6 pm." },
 ];
 
