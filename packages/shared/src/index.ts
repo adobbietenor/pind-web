@@ -11,6 +11,7 @@ export * from "./neighbourhoods";
 export * from "./optin";
 export * from "./policy";
 export * from "./profile";
+export * from "./room";
 export * from "./notify";
 export * from "./quickpin";
 export * from "./said";

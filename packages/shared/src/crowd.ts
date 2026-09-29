@@ -14,7 +14,7 @@
 export const CROWD_COPY = {
   // Pinned, not open — PROPOSED, for Alex.
   notOpenHeading: "You're going",
-  notOpenLine: "Say you'd like to meet, and you'll see everyone else here who has — their first name and photo. They see yours only then too.",
+  notOpenLine: "Say you'd like to meet, and you'll be in the room with everyone else here who has — first names and photos, and they see yours only then too.",
   notOpenOthers: (open: number) =>
     open === 0 ? "Nobody has yet — you could be the first." : `${open} ${open === 1 ? "person has" : "people have"} said yes so far.`,
   openToMeeting: "I'd like to meet people here",

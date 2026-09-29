@@ -230,6 +230,7 @@ describe("The web app claims a handed-over session before any screen renders (M3
     // marker, which fails here until the entry goes too.
     const PROPOSED: Record<string, string> = {
       "packages/shared/src/crowd.ts": "A9's pinned-not-open copy — Alex, on the M3.2 walk",
+      "packages/shared/src/room.ts": "the room and groups (M3.3) — Tatiana's doc replaces it",
     };
     assert.ok(/\bPROPOSED\b/.test("// PROPOSED, for Alex") && !/\bPROPOSED\b/.test("UNPROPOSED"), "the marker test cannot see a marker");
     const marked = (function walk(dir: string): string[] {
@@ -299,5 +300,26 @@ describe("The web app claims a handed-over session before any screen renders (M3
     const asking = (re: RegExp) => files.filter((f) => re.test(readFileSync(f, "utf8").replace(/^\s*\/\/.*$/gm, ""))).map((f) => f.slice(SRC.length + 1).split("\\").join("/"));
     assert.deepEqual(asking(/[Ww]omen-only crews"|include_in_women_only|setWomenOnly/), ["components/profile/YouStep.tsx"], "the women-only question is asked in more than one place");
     assert.deepEqual(asking(/options=\{GENDER_CHOICES\}/), ["components/profile/YouStep.tsx"], "gender is asked in more than one place");
+  });
+
+  it("S29 nothing is ever sent for anyone: a message is written only by the Send buttons, and an opener only fills the box", () => {
+    // Alex, M3.3: "never send anything for anyone — keep it as a test".
+    const SRC = join(process.cwd(), "app", "src");
+    const files = (function walk(dir: string): string[] {
+      return readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? walk(join(dir, n)) : /\.tsx?$/.test(n) ? [join(dir, n)] : []));
+    })(SRC).map((f) => ({ path: f.slice(SRC.length + 1).split("\\").join("/"), src: readFileSync(f, "utf8").replace(/^\s*\/\/.*$/gm, "") }));
+    const inserts = /from\("(room_messages|crew_messages)"\)\s*\.insert/;
+    assert.ok(inserts.test('db.from("room_messages").insert({})'), "S29 cannot see a message insert");
+    assert.deepEqual(files.filter((f) => inserts.test(f.src)).map((f) => f.path), ["lib/room.ts"], "a message is written somewhere other than the two send functions");
+    const room = files.find((f) => f.path === "app/room/[id].tsx")!.src;
+    const group = files.find((f) => f.path === "app/group/[id].tsx")!.src;
+    // Each send function is called once, from the code behind that screen's Send button.
+    assert.equal((room.match(/sendRoomMessage\(/g) ?? []).length, 1);
+    assert.match(room, /const send = async \(\) => \{[\s\S]{0,200}sendRoomMessage\(/, "the room sends from somewhere other than its Send button");
+    assert.match(room, /label=\{ROOM_COPY\.send\}[^>]*onPress=\{\(\) => void send\(\)\}/, "the room's Send button does not send");
+    assert.equal((group.match(/sendGroupMessage\(/g) ?? []).length, 1);
+    // An opener's tap fills the box and does nothing else.
+    assert.match(room, /openers\.map\(\(o\) => \([\s\S]{0,200}onPress=\{\(\) => setDraft\(o\)\}/, "an opener does something other than fill the box");
+    assert.doesNotMatch(room.slice(room.indexOf("openers.map"), room.indexOf("openers.map") + 400), /send|insert/i, "an opener sends");
   });
 });

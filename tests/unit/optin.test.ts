@@ -128,3 +128,19 @@ describe("A27's order, and the gaps Profile names", () => {
     assert.equal(profileGapLine(profileGaps({ hasPhoto: true, neighbourhood: "x", tagCount: 2 }), 2), "Your profile is still missing 1 more tag — it's what the people you meet go on.");
   });
 });
+
+import { openersFor } from "../../packages/shared/src/room.ts";
+
+describe("The room's openers (M3.3)", () => {
+  it("O10 three lines: a shared tag first when there is one, then the gathering, then a hello — each short enough to read at a glance", () => {
+    const withTag = openersFor({ convening: "a_spot_first", sharedTag: "food before" });
+    assert.equal(withTag.length, 3);
+    assert.match(withTag[0], /food before/);
+    const without = openersFor({ convening: "at_the_gathering", sharedTag: null });
+    assert.equal(without.length, 3);
+    assert.equal(without[0], "First time at this one?");
+    for (const c of ["a_spot_first", "at_the_gathering", "after"] as const) {
+      for (const line of openersFor({ convening: c, sharedTag: "a long-ish tag name" })) assert.ok(line.length <= 60, line);
+    }
+  });
+});
