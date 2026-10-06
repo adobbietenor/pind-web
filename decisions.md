@@ -3520,3 +3520,23 @@ stays visible.
 - **"Get the app" is unaffected.** An external TestFlight link needs Beta App Review
   (M4.3); internal testers do not. The nudge stays built and showing nothing until then.
   It is not an open decision.
+
+### §7: silent rooms count — the room criterion in the positive (Alex, 6 Oct 2026)
+
+Settles what "§7 re-registered" (29 Sept) left open: whether rooms where nobody posted
+count.
+
+- **They count.** A room where nobody speaks is a worse failure than a room where one
+  person speaks. Leaving silent rooms out of the measure means **the number improves as
+  the product degrades**: a room sliding from one speaker to none would make the
+  criterion look better.
+- **Registered, in the positive form, which cannot invert:** *at least two different
+  people post in ≥ 50% of opened rooms.* Every opened room (one that has had 2 members)
+  is in the denominator. It replaces "one-voice rooms under 50% of opened rooms"; spec
+  §7 keeps the old line visible, marked superseded, as pre-registration requires.
+- **Zero-voice and one-voice rooms are reported beside it as diagnostics.** They fail
+  differently and Alex wants to see which. They change neither the numerator nor the
+  denominator.
+- **The 70% bar stays declined** (29 Sept, above): it was proposed by Claude while
+  building the room, and **we do not pre-register a threshold for behaviour we have never
+  observed.** 50% is the definitional floor, not a target.

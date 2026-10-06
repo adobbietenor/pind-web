@@ -1693,7 +1693,7 @@ superseded, so the old bar stays visible.**
 | Opt-in rate | open-to-meeting ÷ pinned | solo-opted ÷ pinned (and both ÷ pinned) | pins |
 | Opened | gatherings whose room opened — **a room is opened once it has had 2 members** | gatherings with ≥ 2 solo opt-ins | room_members |
 | **Spoke** | **people in an opened room who posted at least one message ÷ people in an opened room — per person, not per room.** Denominator: every person who was a member of an opened room at a gathering, counted **once per gathering** (someone in both the general and the women-only room counts once). Numerator: those of them who posted at least one message in any room at that gathering. "Posted" is `room_members.first_posted_at` being set, so **a message later deleted still counts** — the person spoke. Someone waiting for a women-only room that never opened was in no opened room and is in neither. | — | room_members |
-| One-voice rooms | opened rooms in which **exactly one person** ever posted ÷ opened rooms (the pass criterion below). Rooms in which nobody posted are reported beside it, separately, and are not counted in it | — | room_members |
+| **Two voices** | opened rooms in which **at least two different people** ever posted ÷ opened rooms (the pass criterion below; Alex, 6 Oct 2026). **Every opened room is in the denominator, including rooms where nobody posted.** Reported beside it as diagnostics, changing neither its numerator nor its denominator: zero-voice rooms ÷ opened rooms, and one-voice rooms ÷ opened rooms — they fail differently | — | room_members |
 | Plan formed | groups on (3 or more) ÷ gatherings whose room opened; groups with a plan ÷ groups on; closed-under-3 rate | accepted plans ÷ proposals; proposals per solo-opted person | crews, proposals |
 | Showed up | "I'm here" ÷ members of groups with a plan | same, per plan | check-ins |
 | **Met** | people with ≥ 1 mutual "we met" ÷ **people open to meeting** | people with a mutual "we met" ÷ solo-opted people | confirmations |
@@ -1728,19 +1728,27 @@ Over 6–8 weeks of seeded and unseeded gatherings:
 - opt-in (either mode) ≥ 50% of pinners;
 - **a group with a plan at ≥ 60% of gatherings whose room reached 5 people** — the old
   bar, at the same crowd size;
-- **one-voice rooms under 50% of opened rooms** — rooms in which exactly one person ever
-  posted ÷ rooms that had 2 members (the table above). **Not a target: the definitional
-  floor.** The room exists so that nobody has to go first; if more than half of opened
-  rooms are one-voice rooms, the room did not do its job. Anything above the floor is
+- **at least two different people post in ≥ 50% of opened rooms** (Alex, 6 Oct 2026) —
+  rooms in which two or more different people ever posted ÷ rooms that had 2 members
+  (the table above). **Rooms where nobody posted are in the denominator.** A silent room
+  is a worse failure than a one-voice room, so leaving silent rooms out would make the
+  number improve as the product degrades: a room sliding from one speaker to none would
+  make the criterion look better. Written in the positive form, which cannot invert.
+  Zero-voice and one-voice rooms are reported beside it as diagnostics and change
+  neither its numerator nor its denominator. **Not a target: the definitional floor.**
+  The room exists so that nobody has to go first; if fewer than half of opened rooms
+  hear a second voice, the room did not do its job. Anything above the floor is
   observation, not a bar — a real target for the second cohort is set once the first has
   been seen;
+  - *Superseded 6 Oct 2026, kept visible:* "one-voice rooms under 50% of opened rooms",
+    which counted only rooms where exactly one person posted and left silent rooms out;
 - Met ≥ 3 at ≥ 2 gatherings;
 - women ≥ 35% of pinners;
 - repeat ≥ 25%;
 - every report acted on by a human within 24 hours.
 
-**Declined, and why** (Alex, 29 Sept): a 70% bar on "someone besides the first person
-posted". Nobody has run this design, so there is no prior for it — and a threshold nobody
+**Declined, and why** (Alex, 29 Sept; restated 6 Oct): a 70% bar on "someone besides the first person
+posted", proposed by Claude while building the room. Nobody has run this design, so there is no prior for it — and a threshold nobody
 chose deliberately becomes a rule nobody can defend later. Behaviour never observed is
 not given a pre-registered threshold.
 
