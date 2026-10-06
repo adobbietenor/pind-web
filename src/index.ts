@@ -5,6 +5,7 @@ import { spotSuggestionsOn, type Env } from "./env";
 import { escape, page } from "./html";
 import { IMPORTER, runImport } from "./import/run";
 import { checkExpiringCredentials } from "./ops/watch";
+import { keepTestCrowdAhead } from "./admin/testcrowd";
 import { sweepPhotos } from "./photo/sweep";
 import { route } from "./router";
 import { ConfigError, serviceClient } from "./supabase";
@@ -50,6 +51,7 @@ export default {
       for (const job of [
         () => sweepPhotos(env),
         ...(jobs.includes("credentials") ? [() => checkExpiringCredentials(env)] : []),
+        ...(jobs.includes("test-crowd") ? [() => keepTestCrowdAhead(serviceClient(env))] : []),
       ]) {
         try {
           console.log((await job()).message);

@@ -55,7 +55,11 @@ const must = async (res, what) => {
 const HOOD = NEIGHBOURHOODS[1];
 const TAGS = ALL_TAGS.slice(0, 3);
 
-const [crowd] = await must(await rest(`/rest/v1/gatherings?name=eq.${encodeURIComponent("Test crowd — walk the list")}&is_seed=eq.true&select=id,slug`), "test crowd");
+const [crowd] = await must(await rest(`/rest/v1/gatherings?name=eq.${encodeURIComponent("Test crowd — walk the list")}&is_seed=eq.true&select=id,slug,starts_at`), "test crowd");
+// A finished test crowd closes pinning, and every walk then fails at "A26 opens" with
+// nothing saying why (6 Oct 2026). Say why instead.
+if (!crowd) throw new Error("no test crowd — build it on /admin/testers first");
+if (Date.parse(crowd.starts_at) < Date.now() + 60 * 60_000) throw new Error(`the test crowd starts ${crowd.starts_at} — it has finished or is about to; refresh it on /admin/testers (the daily 09:00 run keeps it ahead)`);
 if (!crowd?.slug) throw new Error("no test crowd — build it first");
 
 async function walk(kind) {
@@ -130,6 +134,10 @@ async function walk(kind) {
     await send("Page.enable");
     await send("Network.enable");
     await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 1600, deviceScaleFactor: 2, mobile: true });
+    // The returning person is walked on an iPhone's Safari in the acceptance list: the page
+    // gets Safari's user agent here, and a fresh profile is the cleared browser. (What
+    // Chrome cannot copy is Safari's own 7-day deletion — the cleared profile stands in.)
+    if (kind === "returning" && process.env.PIND_UA !== "off") await send("Emulation.setUserAgentOverride", { userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1", platform: "iPhone" });
     await send("Page.setInterceptFileChooserDialog", { enabled: true });
     await send("Network.setCookie", { name: "pind_pin", value: cookie, domain: new URL(SITE).hostname, path: "/", secure: true, httpOnly: true, sameSite: "Lax" });
 
@@ -163,6 +171,7 @@ async function walk(kind) {
       await click(OPTIN_COPY.finish);
       for (let t = 0; t < 30; t++) { if ((await evaluate("location.pathname")) === `/crowd/${crowd.slug}`) break; await sleep(500); }
       step("lands on A9", (await evaluate("location.pathname")) === `/crowd/${crowd.slug}`);
+      step("…in the room: A9 offers it, nothing asked again", await (async () => { for (let t = 0; t < 40; t++) { if (/\d+ in the room/.test(await body())) return true; await sleep(500); } return false; })());
       // The second pin: another gathering, one tap.
       const [second] = await must(await rest("/rest/v1/gatherings", { method: "POST", body: JSON.stringify({ name: `Second pin ${Date.now()}`, starts_at: new Date(Date.now() + 5 * 86_400_000).toISOString(), venue_id: (await must(await rest(`/rest/v1/gatherings?slug=eq.${crowd.slug}&select=venue_id`), "venue"))[0].venue_id, published_at: new Date().toISOString(), source: "manual" }) }), "second gathering");
       secondGathering = second.id;

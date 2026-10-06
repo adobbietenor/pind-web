@@ -24,6 +24,7 @@
     "dev": "wrangler dev",
     "types": "wrangler types",
     "test:policies": "node --env-file=.dev.vars --test --test-concurrency=1 tests/policies/policies.test.ts",
+    "test:review": "node --env-file=.dev.vars --test --test-concurrency=1 tests/policies/review-v20-v23.test.ts",
     "check:tester-session": "node --env-file=.dev.vars scripts/tester-session-check.mjs",
     "check:optin-refusal": "node --env-file=.dev.vars scripts/optin-refusal-check.mjs",
     "check:orphan-photos": "node --env-file=.dev.vars scripts/orphan-photos.mjs",

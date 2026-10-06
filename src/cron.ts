@@ -23,14 +23,17 @@ export const NOTIFY_CRON = "* * * * *";
 
 export const CRONS = [IMPORT_CRON, PHOTO_SWEEP_CRON, LIVENESS_CRON, NOTIFY_CRON] as const;
 
-export type Job = "import" | "photo-sweep" | "credentials" | "liveness" | "notify";
+export type Job = "import" | "photo-sweep" | "credentials" | "test-crowd" | "liveness" | "notify";
 
 export function jobsFor(cron: string, scheduledTime: number): Job[] {
   if (cron === IMPORT_CRON) return ["import"];
   if (cron === LIVENESS_CRON) return ["liveness"];
   if (cron === NOTIFY_CRON) return ["notify"];
   if (cron === PHOTO_SWEEP_CRON) {
-    return new Date(scheduledTime).getUTCHours() === CREDENTIALS_HOUR_UTC ? ["photo-sweep", "credentials"] : ["photo-sweep"];
+    // The test crowd is kept two days ahead by the same daily run (M3.3): it used to move
+    // only when someone pressed "Refresh", so it finished on 2 Oct and every walk of it
+    // said pinning had closed.
+    return new Date(scheduledTime).getUTCHours() === CREDENTIALS_HOUR_UTC ? ["photo-sweep", "credentials", "test-crowd"] : ["photo-sweep"];
   }
   return [];
 }
