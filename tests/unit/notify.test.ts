@@ -1,6 +1,7 @@
 // Delivering notifications (M3.3): where each goes, the signed stop link, the email.
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { channelFor, emailFor, KINDS, stopToken, stopTokenValid, stopUrl } from "../../src/notify/rules.ts";
 import { jobsFor, NOTIFY_CRON } from "../../src/cron.ts";
 import { NOTIFICATIONS } from "../../packages/shared/src/notify.ts";
@@ -69,5 +70,24 @@ describe("The six kinds, one list", () => {
     // every kind must be a column. M3.3 named one `invites` for the kind `invite`.
     const columns: (keyof Database["public"]["Tables"]["notification_settings"]["Row"])[] = ["digest", "room_open", "plan_status", "day_of", "next_morning", "room_activity", "invite"];
     assert.deepEqual([...columns].sort(), db, "a kind has no switch column of its own name");
+  });
+
+  // Five became seven by editing A18's heading, with no entry weighing either against the
+  // ban on bait (Alex, 6 Oct 2026). A new kind is an enum value, so it cannot arrive
+  // without A18 naming it and saying why it is not bait.
+  it("N09 spec A18 names every kind in the database, one numbered line each, and each says why it is not bait", () => {
+    const spec = readFileSync("spec.md", "utf8").replace(/\r\n/g, "\n");
+    const a18 = spec.slice(spec.indexOf("### A18 "), spec.indexOf("### A19 "));
+    assert.ok(a18.length > 200, "could not find spec A18");
+    const items = a18.split("\n").filter((l) => /^\d+\. \*\*/.test(l)).map((l, i) => ({ line: l, at: a18.indexOf(l), i }));
+    const db = [...Constants.public.Enums.notification_kind];
+    assert.equal(items.length, db.length, `A18 lists ${items.length} moments; the database has ${db.length} kinds`);
+    for (const kind of db) {
+      const item = items.find((it) => it.line.includes(`(\`${kind}\`)`));
+      assert.ok(item, `the database's kind "${kind}" is not named in A18`);
+      const next = items.find((it) => it.i === item.i + 1);
+      const body = a18.slice(item.at, next ? next.at : a18.indexOf("**Nothing else.**"));
+      assert.match(body, /\*Not bait/, `A18's "${kind}" has no reason it is not bait`);
+    }
   });
 });

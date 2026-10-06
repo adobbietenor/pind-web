@@ -3363,8 +3363,11 @@ commit to a plan with strangers before anyone had spoken. The design doc
     there are no requests and no approvals. The spot and the meet plan live here.
   - **Solo:** the same move with one person.
 - **How the shapes work:**
-  - **Who can see a message:** exactly the people who can see its author on the list
-    (`can_see_at`).
+  - **Who can see a message:** the people **in your room** who can see its author on the
+    list (`can_see_at`). *(Corrected 6 Oct 2026: this line first read "exactly the people
+    who can see its author on the list", which overstated it. The room scopes the
+    conversation; the list is unchanged — two people in different rooms still see each
+    other on it.)*
   - **Who you can invite:** people you've both posted with in the same room, enforced
     in the database.
   - **Rooms at scale:** you are assigned to the fullest room with space. Seeing and
@@ -3554,3 +3557,66 @@ count.
 - **Tatiana's starting list stays filed** (spec A11, "Crew vibe"), in case the design
   changes. It comes off her copy list this week. "The vibe chips own the night; the
   tags own the person" (M3.1) is history now: the tags own the person.
+
+### A18: the rule is the ban, not the count — and how five became seven (Alex, 6 Oct 2026)
+
+- **The rule** (Alex): A18 always said the five moments were "a ban on engagement bait,
+  not a count to defend" — and he was defending the count. A18 is rewritten around the
+  principle: **a notification earns its place only by being something the person would
+  want even if it cost the product nothing to withhold.** All seven are registered, each
+  with its reason in A18. Nothing is cut.
+- **How the count changed — the audit trail, so #8 is caught:**
+  - **Five → six, 28 Sept.** Commit `761ed87` added "A sixth notification: room activity,
+    batched" to the list of things decided in "The room, then a small group, then solo",
+    **with no reasoning**. Commit `52128db`, a docs-consistency pass, raised A18's heading
+    to "exactly six".
+  - **Six → seven, 28–29 Sept.** Commit `cc52921` added "c · Invite is a seventh
+    notification" to "The night and after", with Alex's reasoning, and raised A18 to seven
+    in the same commit.
+  - **What no entry did.** Alex asked for this to record that no entry authorised the
+    change. The record is narrower than that, and is written as it is: each new kind had
+    a line in a decisions entry, but **no entry addressed A18's rule** — none weighed a
+    new kind against the ban, #6 had no reason at all, and the count rose by editing A18's
+    heading. **#2 and #3 also changed meaning with no entry**: #2 went from "crews are
+    open" to "someone else is here", and #3 widened to cover group invites. A18's list was
+    never rewritten, and M3.5 said "six" in three places. All fixed 6 Oct.
+- **How the next one is caught:** a new kind is a database enum value. N08 already fails
+  if the app's switches, the Worker and the enum disagree; **N09 fails if the enum has a
+  kind A18 does not name, or a line in A18 has no "Not bait" reason.** It cannot check
+  that the reason is good — that stays a decisions entry Alex reads.
+
+### #6: why room activity is not bait, and its bound (Alex, 6 Oct 2026)
+
+- **Why it is the one to justify:** "activity happened, come back" is the exact pattern
+  the ban exists to stop, and #6 was registered without a reason (above).
+- **Why it passes** (Alex): a room nobody returns to is a dead room, and the product's
+  whole claim is that people meet there. A room is a conversation among people who are
+  not watching it — at work, then on their way — over the hours before a gathering.
+  Someone who said hi at 2pm and was answered at 4pm needs to know they were answered;
+  without #6 they find out at the gathering, or never.
+- **Passing is conditional on the bound — an unbounded re-engagement ping is bait no
+  matter how it is described.** As built (`private.notify_room_activity`, 28 Sept):
+  - never per message;
+  - **at most one per room per person in any hour**;
+  - **none again until the person has opened the room since the last one** — someone who
+    never opens it gets **one, all evening**, however many messages follow;
+  - not while they are in it (opened in the last 2 minutes), not for their own message,
+    not from someone blocked either way, not to a hidden person, off in one tap.
+  - **The maximum over one evening, 6pm to midnight: 7 from one room**, and only if the
+    person opens the room each hour (one at 6:00, then one each hour on the hour). Someone
+    in a general and a women-only room can get that from each.
+- **Proved by the review suite:** a 50-message room, asserting one #6 to someone who never
+  opens it, none more inside the hour after they do, and one more only after the hour.
+
+### 30 a room: arbitrary and tunable (Alex, 6 Oct 2026)
+
+- **What it is:** a city default of 30 (`cities.room_size`), overridable per gathering
+  (`gatherings.room_size`, which is how the harness proves a second room at 3), between 2
+  and 200. Chosen in the 28 Sept redesign. **There is no derivation behind the number:
+  it is arbitrary and tunable**, and no rationale is retrofitted.
+- **What it scopes: the conversation, not visibility.** `can_see_at` has no room in it, so
+  two people opted in at the same gathering see each other on the list whichever rooms
+  they are in. The room decides who reads your messages, who you can invite, and who
+  #2 and #6 are about. The 28 Sept entry's "who can see a message" is corrected above.
+- **Why it had no reason attached:** it came from the design doc "M3.3 — The Room", which
+  was never in the repo. Its load-bearing parts go into spec.md.

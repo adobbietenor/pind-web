@@ -427,31 +427,64 @@ The same screen serves a solo plan's two members.
 have gone alone anyway?" — Yes / No / I wasn't going to go at all. It is the
 **attendance metric** (§7): did Pin'd create attendance, or only company.
 
-### A18 — Notifications (exactly seven)
+### A18 — Notifications (seven, under one rule)
 
-**Six since 28 Sept** (Alex): the room made conversation the first thing that happens, so #6 below was added. #2 now fires for the room, and #3 covers group invites and plans. **Seven since 29 Sept**: #7, an invite from a connection (decisions, "The night and after"). The rest of this section is rewritten with M3.3.
+**The rule is a ban on engagement bait** (Alex, 6 Oct 2026; decisions, "A18: the rule is
+the ban, not the count"). **A notification earns its place only by being something the
+person would want even if it cost the product nothing to withhold.** Pin'd never tells
+someone that something happened so that they come back: never "someone viewed your
+profile", never a streak, never a nudge to return for its own sake.
 
-1. **Monday 6:00 PM** — this week's crowds digest → A7
-2. **Threshold** — "5 people going to X want to meet up — crews are open" → A10
-3. **Plan status** — formed / spot set / dissolved / **gathering date changed or
-   withdrawn** (Alex, revised build plan). Deep-links to the crew, or to the crowd page
-   (A10) when dissolved, changed or withdrawn.
-4. **Day-of, ~3h before** — "Tonight: your crew meets at [spot] at [time] — tap when
-   you're there" → A13
-5. **Next morning** — "Did you meet up?" → A16. **To everyone who was open to meeting**
-   (Alex, 29 Sept): a group's members are asked who they met; everyone else only the
-   after-event question, gently.
-6. **Room activity, batched** — the first message since you last looked, then an hour's
-   silence from that room (28 Sept).
-7. **Invite** — "Maya's going to X — want to come?" → the crowd page. Only from a
-   connection, only to a gathering they are pinned to, one per pair per gathering, five a
-   day (29 Sept).
+**The count is a record, not the rule.** It says how many moments have passed the test.
+Adding one means a decisions entry saying why it is not bait, and a line below with its
+reason; `tests/unit/notify.test.ts` (N09) fails if the database has a kind this list
+does not name. It was five until 28 Sept; how it became seven is recorded in decisions.
 
-Nothing else. Never "someone viewed your profile". The rule is seven moments (#6 since 28 Sept, #7 since 29 Sept), all
-about a plan — a ban on engagement bait, not a count to defend.
-**Every notification is mirrored by email to people without a device token** (web-only
-people), through Resend on pind.social; the digest email has an unsubscribe link.
-SMS is never used (decisions Part 5, "Email delivery", "Notification delivery").
+1. **Digest** (`digest`) — Monday 6:00 PM, this week's crowds → A7. Delivery is M3.5.
+   *Not bait:* it is the list itself, once a week, with an unsubscribe link — the crowds,
+   not a reason to open the app.
+2. **Someone to talk to** (`room_open`) — once per person per gathering, when there is
+   first someone else open to meeting there: "Maya's going to X too — say hi" → the room
+   (A9). *Not bait:* it is A9's promise to the first person, "We'll tell you the moment
+   someone else does"; without it they have to keep checking an empty room.
+3. **Plan status** (`plan_status`) — an invite to a group ("Maya wants to go together to
+   X"); a group on, its spot set, or dissolved; **and, from M3.5, the gathering's date
+   changed or withdrawn** → the group, or the crowd page (A10) when dissolved, changed or
+   withdrawn. *Not bait:* each is a change to a plan the person is part of; missing one
+   means being expected somewhere they never answered, or turning up at the wrong time or
+   place.
+4. **Day-of** (`day_of`) — when a group goes live, about 3 hours before: where and when →
+   A13. *Not bait:* the meeting point on the day, only to people with a plan.
+5. **Next morning** (`next_morning`) — 9am local the day after → A16. **To everyone who
+   was open to meeting** (Alex, 29 Sept): a group's members are asked who they met;
+   everyone else only the after-event question, gently. *Not bait:* A16's ticks are open
+   for 7 days and a connection exists only if both tick; and the question is the one the
+   product is judged on — "without it we'd only ever hear from people the loop already
+   worked for — the most flattering possible sample" (Alex).
+6. **Room activity, batched** (`room_activity`) — "New messages in the X room" → the
+   room. *Not bait — justified in full, with its bound* (decisions, "#6: why room
+   activity is not bait, and its bound"): a room is a conversation among people who are
+   not watching it, spread over the hours before a gathering, and a room nobody returns
+   to is a dead room — the product's whole claim is that people meet there. Someone who
+   said hi at 2pm and was answered at 4pm needs to know they were answered. **The bound:**
+   never per message; **at most one per room per person in any hour**; and **none again
+   until the person has opened the room since the last one** — so someone who never opens
+   it gets **one, all evening**, however busy the room is; never while they are in it
+   (opened in the last 2 minutes), never for their own message, never from someone
+   blocked. Between 6pm and midnight a room can send one person **at most 7**, and only
+   if they open it every hour. Off in one tap. Proved by a 50-message case in the review
+   suite.
+7. **Invite** (`invite`) — "Maya's going to X — want to come?" → the crowd page. Only from a
+   connection, only to a gathering the inviter is pinned to, one per pair per gathering,
+   five a day (29 Sept). *Not bait:* "connections exist precisely for people who met once
+   and have no other way to reach each other" (Alex); it is a person asking, about a real
+   plan, never the product.
+
+**Nothing else.** Each kind has its own switch in Settings (A23), and every email its stop
+link. **Every notification is mirrored by email to people without a device token**
+(web-only people), through Resend on pind.social; the digest email has an unsubscribe
+link. **Nobody is ever sent anything while they are a test person** (P162). SMS is never
+used (decisions Part 5, "Email delivery", "Notification delivery").
 
 ### A19 — My Events
 Upcoming (pinned, with crew and spot if any; one day-of reminder toggle) and past
