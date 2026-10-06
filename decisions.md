@@ -3424,7 +3424,10 @@ commit to a plan with strangers before anyone had spoken. The design doc
     more than 1 in 5 returning web pinners arrive with their session lost, over any
     four weeks with at least 25 returning web pinners.
 
-### No TestFlight build until M3.2b is done (Alex, 28 Sept 2026)
+### No TestFlight build until M3.2b is done (Alex, 28 Sept 2026) — superseded 6 Oct 2026
+
+**Superseded** by "The TestFlight build moves ahead of M3.2b" (Alex, 6 Oct 2026), below.
+Kept as written.
 
 - **Why:** a build before M3.2b opens to three M2.0 tabs and has no way into a crowd from
   inside the app. The home list and links opening the app are both M3.2b.
@@ -3500,3 +3503,20 @@ stays visible.
   Spoke. **One-voice means exactly one person posted, as registered; rooms where nobody
   posted are reported beside it, separately, and not folded into it** — whether they
   should be is Alex's to say.
+
+### The TestFlight build moves ahead of M3.2b (Alex, 6 Oct 2026)
+
+- **The order: M3.3 → the build (M3.3b) → M3.2b** (search, the home list, interests,
+  My Events). It was M3.3 → M3.2b → one build (28 Sept, above).
+- **Why:** three milestones of Expo work have shipped (M3.1, M3.2, M3.3), and none of it
+  has been on Alex's phone. The app half has not been checked on a device since M2.0.
+- **Nothing is dropped from the build; it just stops being last.** It still carries
+  everything D05 guards: M3.1's native list, universal links, M3.3's push, and the icon
+  and splash. Universal links and the native walk move with it, out of M3.2b
+  (`docs/build-plan.md` §8 M3.3b; D01 and D05 hold them there).
+- **What the 28 Sept reason still says, and why it no longer decides:** the installed app
+  opens to M2.0's home tabs with no list of crowds until M3.2b. Inside the app a crowd is
+  reached through a link (universal links, built with the build) or a tapped notification.
+- **"Get the app" is unaffected.** An external TestFlight link needs Beta App Review
+  (M4.3); internal testers do not. The nudge stays built and showing nothing until then.
+  It is not an open decision.
