@@ -381,7 +381,14 @@ link out, pins, opt-ins, gender mix, crews badge. **No map, no feed, no algorith
 - **A17 done** — terminal state; member count and check-in count; thread closure
   explained; the only action points at A16.
 
-#### Crew vibe — presets, shown on the crew card (Alex, M2.1; built in M3.3)
+#### Crew vibe — retired (Alex, 6 Oct 2026); the design and Tatiana's starting list kept on file
+
+**Retired, not built, not owed.** The chips existed solely so that someone choosing
+between two open crews had something to choose on. The room design removed the choice:
+everyone open to meeting is placed in one room, and small groups are invite-only from
+inside it, so nobody chooses between groups either. Nothing uses them; no code exists.
+The design below is kept in case the design changes (decisions.md, "Vibe chips
+retired"). It was: *(Alex, M2.1; was to be built in M3.3)*
 
 Someone choosing between two open crews has **nothing to choose on** today. A crew can
 say what kind of night it is.

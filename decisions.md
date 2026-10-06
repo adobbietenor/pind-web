@@ -3540,3 +3540,17 @@ count.
 - **The 70% bar stays declined** (29 Sept, above): it was proposed by Claude while
   building the room, and **we do not pre-register a threshold for behaviour we have never
   observed.** 50% is the definitional floor, not a target.
+
+### Vibe chips retired (Alex, 6 Oct 2026)
+
+- **Retired.** The chips existed solely so that someone choosing between two open crews
+  had something to choose on. Nothing in the room design asks anyone to choose: everyone
+  open to meeting is placed in one room, and **groups are invite-only from inside the
+  room, so nobody chooses between groups either** — moving the chips down to the small
+  groups would give them no job.
+- **Why the record is fixed now:** spec A11 still said "built in M3.3" while the build
+  plan said "shelved" and no code used them — a feature the spec promises and nothing
+  builds, the worst of the three states.
+- **Tatiana's starting list stays filed** (spec A11, "Crew vibe"), in case the design
+  changes. It comes off her copy list this week. "The vibe chips own the night; the
+  tags own the person" (M3.1) is history now: the tags own the person.
