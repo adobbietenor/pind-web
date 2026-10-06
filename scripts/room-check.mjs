@@ -7,6 +7,12 @@
 //      Send writes one (Alex: "never send anything for anyone")
 //   3  a third → "enough to go together" → Go together → pick two who have posted →
 //      the group page: "Just you so far — a group needs 3", and its deadline
+//   5  two more → the cards fold into "5 here", and the mix chip shows
+//   *  long-press your own message → Delete → gone for everyone; long-press someone
+//      else's → a reason → a report that keeps the words (H9)
+//   *  Settings → "Room activity" off → a message that would have sent #6 does not
+//      (and the control, with the switch on, gets it)
+//   (Alex, 6 Oct 2026: these were walk steps; the per-milestone checking lives here now.)
 //
 //   npm run check:room
 //
@@ -115,6 +121,62 @@ try {
   await click(GROUP_COPY.start);
   step("the group page: progress without attribution", await until(GROUP_COPY.soFar([])));
   step("…and its deadline", (await body()).includes("If there aren't 3 of you by"));
+
+  // 5 — the room fills out (Alex, 6 Oct: the steps once given as a walk are checked here).
+  await person("Dee");
+  await person("Eve");
+  await optIn("Dee");
+  await optIn("Eve");
+  await send("Page.navigate", { url: `${SITE}/room/${roomId}` });
+  const folded = await until(ROOM_COPY.morePeople(5));
+  if (!folded) console.log(`the room at 5 shows:\n${(await body()).slice(0, 1200)}`);
+  step("at 5: the arrival cards fold into '5 here'", folded);
+  step("…and no single arrival card is left", !(await body()).includes(`Dee ${ROOM_COPY.arrived}`));
+  step("at 5: the gender-mix chip in the room's header (Q3's floor)", /\d+ men/.test(await body()));
+  step("'enough to go together' does not come back — shown once, and Ari is in a group", !(await body()).includes(ROOM_COPY.enoughToGo));
+
+  // Long-press, the way a finger does it: press, hold, release.
+  const longPress = async (text) => {
+    const at = await evaluate(`(() => { const e=[...document.querySelectorAll('div')].filter(x=>x.innerText&&x.innerText.includes(${JSON.stringify(text)})).pop(); if(!e) return null; e.scrollIntoView({block:'center'}); const r=e.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2}; })()`);
+    if (!at) return false;
+    await send("Input.dispatchMouseEvent", { type: "mousePressed", x: at.x, y: at.y, button: "left", clickCount: 1 });
+    await sleep(900);
+    await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: at.x, y: at.y, button: "left", clickCount: 1 });
+    return true;
+  };
+
+  // Delete your own: long-press → "Delete" → gone from the database, for everyone.
+  step("long-press your own message", (await longPress(openers[0])) && (await until(ROOM_COPY.deleteOwn, 5000)));
+  await click("Delete");
+  for (let t = 0; t < 20 && (await countMessages("Ari")) > 0; t++) await sleep(500);
+  step("Delete removes it for everyone", (await countMessages("Ari")) === 0);
+
+  // Report someone else's: long-press → a reason → a report with the message's words kept.
+  await send("Page.reload");
+  await until("hi from Bea");
+  step("long-press someone else's message", (await longPress("hi from Bea")) && (await until(ROOM_COPY.report, 5000)));
+  await click("Spam");
+  const beaMsg = (await must(await rest(`/rest/v1/room_messages?author_id=eq.${people.Bea.personId}&select=id`), "Bea's message"))[0].id;
+  let reports = [];
+  for (let t = 0; t < 20 && reports.length === 0; t++) { await sleep(500); reports = await must(await rest(`/rest/v1/reports?reporter_id=eq.${people.Ari.personId}&select=*`), "reports"); }
+  step("the report is made, by Ari, for spam", reports.length === 1 && reports[0].reason === "spam");
+  step("…keeping the message's words (H9)", JSON.stringify(reports[0]).includes("hi from Bea") || JSON.stringify(reports[0]).includes(beaMsg));
+
+  // The room-activity switch: off in Settings, and then #6 really does not come.
+  await send("Page.navigate", { url: `${SITE}/settings` });
+  step("Settings shows the room-activity switch", await until("Room activity"));
+  await click("Room activity");
+  let off = false;
+  for (let t = 0; t < 20 && !off; t++) { await sleep(500); off = (await must(await rest(`/rest/v1/notification_settings?person_id=eq.${people.Ari.personId}&select=room_activity`), "switch"))[0]?.room_activity === false; }
+  step("the switch writes room_activity off", off);
+  // Make #6 due for Ari and for Cal (control): neither has looked for half an hour, no earlier #6.
+  await rest(`/rest/v1/notifications?room_id=eq.${roomId}&kind=eq.room_activity`, { method: "DELETE" });
+  await rest(`/rest/v1/room_members?room_id=eq.${roomId}`, { method: "PATCH", body: JSON.stringify({ last_seen_at: new Date(Date.now() - 30 * 60_000).toISOString() }) });
+  await must(await rest("/rest/v1/room_messages", { method: "POST", body: JSON.stringify({ room_id: roomId, author_id: people.Eve.personId, body: "anyone near the gate?" }) }), "Eve says");
+  await sleep(1500);
+  const sixFor = async (who) => (await must(await rest(`/rest/v1/notifications?person_id=eq.${people[who].personId}&room_id=eq.${roomId}&kind=eq.room_activity&select=id`), "#6")).length;
+  step("control: Cal, switch on, gets #6", (await sleep(0), await sixFor("Cal")) === 1);
+  step("Ari, switch off, gets nothing", (await sixFor("Ari")) === 0);
   ws.close();
 } catch (err) {
   console.log(String(err.message ?? err));

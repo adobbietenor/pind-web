@@ -53,12 +53,21 @@ export interface RoomView {
   roomId: string;
   gathering: { id: string; name: string; slug: string; convening: Convening; startsAt: string; closesAt: string };
   womenOnly: boolean;
-  me: { personId: string; posted: boolean; tags: string[] };
+  // The gathering's public mix (gathering_counts, the list's own numbers and its floor of
+  // 5) — never a count of this room, which next to it could single someone out.
+  mix: string | null;
+  me: { personId: string; posted: boolean; tags: string[]; inGroup: boolean };
   members: Member[];
   messages: Message[];
 }
 
 export const tagName = (slug: string) => ALL_TAGS.find((t) => t.slug === slug)?.name ?? slug;
+
+function mixLine(rows: unknown): string | null {
+  const c = (rows as { women: number | null; men: number | null; other: number | null }[] | null)?.[0];
+  if (!c || c.women === null || c.men === null) return null;
+  return [`${c.women} women`, `${c.men} men`, ...(c.other ? [`${c.other} other`] : [])].join(" · ");
+}
 
 export async function loadRoom(roomId: string): Promise<RoomView | null> {
   const db = supabase();
@@ -67,12 +76,15 @@ export async function loadRoom(roomId: string): Promise<RoomView | null> {
   const { data: room, error: roomError } = await db.from("rooms").select("id, gathering_id, women_only").eq("id", roomId).maybeSingle();
   if (roomError) throw roomError;
   if (!room) return null;
-  const [{ data: g, error: gError }, convening, rows, msgs, myTags] = await Promise.all([
+  const [{ data: g, error: gError }, convening, rows, msgs, myTags, counts, groups] = await Promise.all([
     db.from("gatherings").select("id, name, slug, starts_at, ends_at").eq("id", room.gathering_id).maybeSingle(),
     db.rpc("convening_of", { p_gathering: room.gathering_id }),
     db.from("room_members").select("person_id, joined_at, first_posted_at, left_at").eq("room_id", roomId),
     db.from("room_messages").select("id, author_id, body, created_at").eq("room_id", roomId).order("created_at").limit(300),
     db.from("person_tags").select("tag").eq("person_id", me.personId),
+    db.rpc("gathering_counts", { gathering_ids: [room.gathering_id] }),
+    // Only my own groups come back (crews_read_members).
+    db.from("crews").select("id").eq("gathering_id", room.gathering_id).in("state", ["forming", "spot_set", "live"]),
   ]);
   if (gError) throw gError;
   if (!g) return null;
@@ -101,7 +113,8 @@ export async function loadRoom(roomId: string): Promise<RoomView | null> {
       closesAt: new Date(effectiveEnd + 24 * 3_600_000).toISOString(),
     },
     womenOnly: room.women_only,
-    me: { personId: me.personId, posted: !!mine?.first_posted_at, tags: (myTags.data ?? []).map((t) => t.tag) },
+    mix: mixLine(counts.data),
+    me: { personId: me.personId, posted: !!mine?.first_posted_at, tags: (myTags.data ?? []).map((t) => t.tag), inGroup: (groups.data ?? []).length > 0 },
     // Only the people RLS lets me see come back from `people`: anyone else is left out.
     members: others
       .map((r) => {

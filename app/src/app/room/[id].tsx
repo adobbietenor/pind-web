@@ -13,7 +13,8 @@
 // Realtime through postgres_changes, which respects RLS; a 15-second poll is the net.
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import * as SecureStore from "expo-secure-store";
 import { colors as palette, fonts, GROUP_COPY, NEIGHBOURHOODS, openersFor, radius, REPORT_REASONS, ROOM_COPY, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { PushAsk } from "@/components/PushAsk";
@@ -24,6 +25,26 @@ import { deleteRoomMessage, loadRoom, markSeen, reportRoomMessage, sendRoomMessa
 import { supabase } from "@/lib/supabase";
 
 const hoodName = (slug: string | null) => NEIGHBOURHOODS.find((n) => n.slug === slug)?.name ?? null;
+// "Enough to go together" appears once per room (build plan §8 M3.3): marked seen on this
+// device the first time it shows, like "Get the app".
+const goKey = (roomId: string) => `pind.go-together.${roomId}`;
+async function goSeen(roomId: string): Promise<boolean> {
+  try {
+    if (Platform.OS === "web") return globalThis.localStorage?.getItem(goKey(roomId)) === "1";
+    return (await SecureStore.getItemAsync(goKey(roomId))) === "1";
+  } catch {
+    return false;
+  }
+}
+async function markGoSeen(roomId: string): Promise<void> {
+  try {
+    if (Platform.OS === "web") globalThis.localStorage?.setItem(goKey(roomId), "1");
+    else await SecureStore.setItemAsync(goKey(roomId), "1");
+  } catch {
+    // Not remembered: it shows again next time, which is the lesser fault.
+  }
+}
+
 const clock = (iso: string) => new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit" }).format(new Date(iso));
 
 export default function Room() {
@@ -37,8 +58,21 @@ export default function Room() {
   const [held, setHeld] = useState<Message | null>(null);
   const [picking, setPicking] = useState(false);
   const [picked, setPicked] = useState<string[]>([]);
-  const [goDismissed, setGoDismissed] = useState(false);
+  // null until read: the card waits for the answer rather than flashing.
+  const [goDismissed, setGoDismissed] = useState<boolean | null>(null);
   const live = useRef(true);
+
+  useEffect(() => {
+    let on = true;
+    void goSeen(id).then((seen) => on && setGoDismissed(seen));
+    return () => {
+      on = false;
+    };
+  }, [id]);
+  // Seen the moment it is shown — it stays for this visit, and never comes back.
+  useEffect(() => {
+    if (view && goDismissed === false && view.members.length + 1 >= 3 && !view.me.inGroup) void markGoSeen(id);
+  }, [view, goDismissed, id]);
 
   const refresh = useCallback(() => {
     loadRoom(id)
@@ -95,6 +129,7 @@ export default function Room() {
 
   const people = view.members;
   const count = people.length + 1;
+  const showGo = count >= 3 && goDismissed === false && !view.me.inGroup;
   const byId = new Map(people.map((p) => [p.personId, p]));
   const closed = Date.now() >= Date.parse(view.gathering.closesAt);
   const firstShared = people.map((p) => sharedTag(view.me.tags, p.tags)).find(Boolean) ?? null;
@@ -129,13 +164,15 @@ export default function Room() {
     <AppScreen>
       <Heading>{view.gathering.name}</Heading>
       <Body muted>{view.womenOnly ? `Women-only room · ${ROOM_COPY.inRoom(count)}` : ROOM_COPY.inRoom(count)}</Body>
+      {/* At 5, the mix (Q3's floor) — the gathering's public numbers, never the room's own. */}
+      {count >= 5 && view.mix ? <Body muted>{view.mix}</Body> : null}
 
       <View style={{ marginTop: spacing.md }}>
         <PushAsk />
       </View>
 
-      {/* The arrivals: who is here, with what you share. Past four, a strip. */}
-      {people.length <= 4 ? (
+      {/* The arrivals: who is here, with what you share. Past four in the room, a strip. */}
+      {count <= 4 ? (
         people.map((p) => {
           const shared = sharedTag(view.me.tags, p.tags);
           return (
@@ -159,7 +196,7 @@ export default function Room() {
       )}
 
       {/* At 3, once: the next step, never pushed. */}
-      {count >= 3 && !goDismissed && !picking ? (
+      {showGo && !picking ? (
         <View style={styles.go}>
           <Body>{ROOM_COPY.enoughToGo}</Body>
           <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
