@@ -676,6 +676,93 @@ and never the general one. While that room is under 3 it is not offered (unchang
 `waiting_for_women_only_room` answers true or false — **never a count**, which next to the
 public mix would tell how many nonbinary people opted in (Q9's reasoning).
 
+## 12j · The room, small groups, notifications — V20, V21, V22 (Alex, M3.3; written out 6 Oct 2026)
+
+**On the independent review's list before real users see it.** Until 6 Oct these three
+existed only as rows in §16 mapping each to its SQL; this is the plain English Alex reads
+and signs off (M4.2).
+
+### V20 · The room
+
+At each gathering, everyone open to meeting is placed in a room. Nobody starts a room,
+joins one or approves anyone.
+
+- **What places you — and why you cannot influence it.** Opting in places you; opting out
+  takes you out. Rooms fill in the order people opt in: you go into **the fullest room
+  that still has space**, so a second room opens only when the first is full. Opt out
+  and back in and you go back to your old room if it still has space, otherwise again
+  the fullest with space. Not you, not the other people, not the page: nothing lets
+  anyone choose a room (seeing and switching rooms is M3.6). A room holds **30** — a city
+  default, overridable per gathering, arbitrary and tunable (decisions, "30 a room").
+  - *Known gap, 6 Oct:* placement takes no lock. Two people opting in at the same instant
+    can put a room one over its size, and the first two people ever at a gathering, at
+    the same instant, can collide so that one person's opt-in fails. Raised with Alex.
+- **Rooms scope the conversation, not who sees whom.** Someone in another room at the same
+  gathering is still on your list (V1). The room decides who reads your messages, who you
+  can invite (V21), and who #2 and #6 are about (V22).
+- **Who can read a room message:** the people **in the same room** who could see its author
+  on the list — both opted in there, no block either way, neither hidden — and its author.
+  **Not** a visitor, someone pinned without opting in, someone in another room at the
+  same gathering, or anyone at another gathering.
+- **Who is in your room** (the arrival cards): you see who is in yours, and only the people
+  you could see on the list. You never see who is in another room.
+- **Posting:** only as yourself, in your own room, while you are opted in, once the room
+  has two people, and until 24 hours after the gathering ends. At most one message every
+  3 seconds and 200 a day.
+- **Deleting:** your own messages only. A report made before the delete keeps its copy of
+  the message (H9).
+- **After the gathering:** read-only for 30 days to the same people and nobody new, then
+  deleted (Q11).
+- **The women-only room** — only women, and nonbinary people who chose inclusion, are ever
+  placed in it (H7). It never shows a count (Q9). **It splits at 30 too**: the women-only
+  rooms are their own series, filled the same way, and a second women-only room opens
+  only when the first women-only room is full. It does not depend on the general room at
+  all: a woman who has not chosen "women-only rooms only" is in one general room and one
+  women-only room, each filled on its own; one who has chosen it is in women-only rooms
+  only (§12i).
+- **When the gathering's date changes**, the room stays — the same room, people and
+  messages — and every time attached to it moves with the gathering, because each is
+  worked out from the gathering's time whenever it is checked, never stored: when posting
+  closes, when the room is deleted, a group's deadline (V21), the plan's three-hour mark
+  and "live". Moving a gathering earlier can put a group past its deadline at once; the
+  next ten-minute run acts on it. Nobody is told until M3.5's #3 ("date changed or
+  withdrawn").
+- **When a gathering is withdrawn** (cancelled), its rooms go dark at once: nobody can read
+  or post, because both need the gathering published.
+  - *Open, 6 Oct (Alex):* its **groups are not touched** — members can still read and post
+    in their thread — but they can no longer see each other's names or faces, which also
+    need the gathering published. Nobody is told until M3.5's #3. What a withdrawn
+    gathering's group should be is undecided.
+
+### V21 · Small groups
+
+- **Inviting:** only between two people who are both in the same room, have both posted
+  there, and can see each other (no block, neither hidden).
+- **Who sees an invite:** only the person invited. Whoever sent it never learns of a
+  decline.
+- **Who sees a group:** only its members know it exists, and only they read or post in its
+  thread. The room cannot see who went with whom.
+- **Inside a group:** a member sees who is in, never who was invited or who said no.
+- **One group per person per gathering.** A group formed from the women-only room is
+  women-only.
+- **Its times move with the gathering** (V20): a group under 3 closes at the later of six
+  hours before the start or two hours after it was started, never later than three hours
+  before.
+- **After the gathering**, its members can see each other for A16's 7 days (V23, §12i).
+
+### V22 · Notifications
+
+- **Nobody can read the notifications table**, including the person a notification is for.
+  You see only your own switches and your own phone registrations.
+- **A notification is never written** across a block, to a hidden person, to the person
+  whose action caused it, to someone who has switched that kind off — and it is never sent
+  to a test person (P162).
+- **Each is written by the act itself** (a placement, a message, an invite), never
+  reconstructed later.
+- **#6, room activity, is bounded** (spec A18): never per message, at most one per room per
+  person in any hour, and none again until the person has opened the room since the last
+  one.
+
 ## 13 · Spot poll
 
 - **One vote per person per gathering, changeable** (Alex, M1.1). Enforced by the
