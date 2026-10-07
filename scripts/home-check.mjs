@@ -75,6 +75,8 @@ try {
   // Which city, on the screen itself (the header is hidden app-wide).
   // The label, not any card that happens to mention Toronto: it renders in capitals.
   step("the list says which city it is", (await body()).includes("TORONTO"));
+  const lede = await evaluate(`(() => { const e=[...document.querySelectorAll('div')].find(x=>x.childElementCount===0&&x.innerText.trim()===${JSON.stringify("See who's going, meet them there.")}); return e ? getComputedStyle(e).fontStyle : null; })()`);
+  step("under the heading: 'See who's going, meet them there.', in italic", lede === "italic");
 
   // Two kinds of control, two shapes (Alex, 6 Oct): told apart by shape and container,
   // measured from the page, not from the labels.

@@ -17,6 +17,7 @@ import {
   entryLine,
   fonts,
   HOME_COPY,
+  ONE_LINER,
   radius,
   spacing,
   TABS,
@@ -89,6 +90,8 @@ export default function CityList() {
       {/* The header is hidden app-wide, so the city is said here (Alex, 6 Oct). */}
       <Text style={styles.city}>{city.name}</Text>
       <Heading>{tab === "community" ? "Community this week" : "This week's crowds"}</Heading>
+      {/* W1's line under its heading, the same shared words (Alex, 6 Oct: smaller, italic). */}
+      <Text style={styles.lede}>{ONE_LINER}</Text>
 
       {/* Two kinds of control, two shapes (Alex, 6 Oct): the MODE is a segmented control —
           one enclosed track, full width, the chosen segment filled; the FILTERS within it
@@ -175,6 +178,7 @@ function Card({ g, onPress }: { g: ListGathering; onPress: () => void }) {
 }
 
 const styles = StyleSheet.create({
+  lede: { fontSize: 14, fontStyle: "italic", color: palette.textMuted, marginTop: 2 },
   city: { fontSize: 13, color: palette.accentText, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 2 },
   // The mode: one enclosed track, full width, squared-off segments inside it.
   track: { flexDirection: "row", alignSelf: "stretch", marginTop: spacing.md, padding: 3, borderRadius: radius.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
