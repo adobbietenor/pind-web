@@ -1,0 +1,60 @@
+name: Feature or change request
+description: A new feature, a change to something that exists, copy, or design
+labels: ["feature", "triage"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: What kind of change?
+      options:
+        - New feature - does not exist yet
+        - Enhancement - change to something that exists
+        - Copy or content - wording, labels, text
+        - Design or visual - look, layout, branding
+    validations:
+      required: true
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Which surface?
+      options:
+        - iOS app
+        - Web
+        - Admin
+        - Landing page
+        - Not sure
+        - All of them
+    validations:
+      required: true
+  - type: input
+    id: screen
+    attributes:
+      label: Screen ID
+      description: The T or A number from spec.md. Put "new" if it has no screen yet.
+      placeholder: T4
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What do you want it to do?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why does it matter?
+      description: One or two lines is plenty.
+    validations:
+      required: true
+  - type: checkboxes
+    id: first-test
+    attributes:
+      label: Timing
+      options:
+        - label: This has to be in before the first real crowd test
+  - type: textarea
+    id: reference
+    attributes:
+      label: Screenshot, sketch, or example
+      description: Drag in an image, or paste a link to another app doing it well.
