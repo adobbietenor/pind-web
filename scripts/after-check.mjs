@@ -19,9 +19,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { seal } from "../src/public/sealed.ts";
 import { AFTER_COPY, CONNECTIONS_COPY } from "../packages/shared/src/after.ts";
+import { needChrome, needEnv, sessionSecretMatches, testCrowd } from "./fixture.mjs";
+
+// Fixtures first: a check whose ground moved says so in a sentence (scripts/fixture.mjs).
+needEnv("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_PUBLISHABLE_KEY", "SESSION_SECRET");
 
 const SITE = process.env.PIND_SITE || "https://pind.social";
 const CHROME = process.env.CHROME || "C:/Program Files/Google/Chrome/Application/chrome.exe";
+needChrome(CHROME);
+await sessionSecretMatches(SITE);
 const base = process.env.SUPABASE_URL.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const pub = process.env.SUPABASE_PUBLISHABLE_KEY;
@@ -37,7 +43,7 @@ const must = async (res, what) => {
 const as = (label, fn, body) =>
   fetch(`${base}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: pub, authorization: `Bearer ${people[label].access}`, "content-type": "application/json" }, body: JSON.stringify(body) });
 
-const [crowd] = await must(await rest(`/rest/v1/gatherings?name=eq.${encodeURIComponent("Test crowd — walk the list")}&is_seed=eq.true&select=venue_id`), "test crowd");
+const crowd = await testCrowd({ pinnable: false });
 const people = {};
 const made = [];
 let chrome;

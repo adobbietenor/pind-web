@@ -66,6 +66,14 @@ There is no separate `pind-app` repo. `app/` and `packages/shared/` arrived in M
     A17, A20 or V23.
   - `npm run check:orphan-photos` lists every photo file whose user no longer exists.
     Add `-- --delete` to remove them. Run it after anything that deletes users.
+  - **Every browser check verifies its fixtures before it walks** (M3.3, `scripts/fixture.mjs`):
+    the `.dev.vars` keys, Chrome, the test crowd (there, and not started for a walk that
+    pins), and `SESSION_SECRET` matching the deployed Worker's. A moved fixture prints one
+    line, **`FIXTURE, not product:`**, and exits 2; a product failure exits 1. The test
+    crowd had finished on 2 Oct and every link-path walk failed at "A26 opens" with
+    nothing saying why — a fixture failure that looked like a product bug. **A new check
+    states its fixtures through `fixture.mjs`; a new fixture that can go stale gets a job
+    that keeps it fresh, not a button** (the daily 09:00 run keeps the test crowd ahead).
 - EAS, from `app/`: `npx eas-cli@24.7.0 build --profile <development|internal|production>
   --platform ios`. Profiles in `app/eas.json`; `APP_VARIANT` picks the staging or
   production bundle ID.

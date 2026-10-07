@@ -14,6 +14,10 @@
 // Needs .dev.vars. Every user it makes is a harness user (the photo check skips them) and
 // is deleted at the end, with their files.
 import { randomUUID } from "node:crypto";
+import { needEnv } from "./fixture.mjs";
+
+// Fixtures first: a check whose ground moved says so in a sentence (scripts/fixture.mjs).
+needEnv("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_PUBLISHABLE_KEY");
 
 const SITE = process.env.PIND_SITE || "https://pind.social";
 const base = process.env.SUPABASE_URL.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");

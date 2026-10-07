@@ -26,9 +26,15 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { seal } from "../src/public/sealed.ts";
 import { GROUP_COPY, ROOM_COPY, openersFor } from "../packages/shared/src/room.ts";
+import { needChrome, needEnv, sessionSecretMatches, testCrowd } from "./fixture.mjs";
+
+// Fixtures first: a check whose ground moved says so in a sentence (scripts/fixture.mjs).
+needEnv("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_PUBLISHABLE_KEY", "SESSION_SECRET");
 
 const SITE = process.env.PIND_SITE || "https://pind.social";
 const CHROME = process.env.CHROME || "C:/Program Files/Google/Chrome/Application/chrome.exe";
+needChrome(CHROME);
+await sessionSecretMatches(SITE);
 const base = process.env.SUPABASE_URL.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const pub = process.env.SUPABASE_PUBLISHABLE_KEY;
@@ -41,7 +47,7 @@ const must = async (res, what) => {
   return t ? JSON.parse(t) : null;
 };
 
-const [crowd] = await must(await rest(`/rest/v1/gatherings?name=eq.${encodeURIComponent("Test crowd — walk the list")}&is_seed=eq.true&select=venue_id`), "test crowd");
+const crowd = await testCrowd({ pinnable: false });
 const people = {};
 let gathering = null;
 let chrome;
@@ -60,7 +66,8 @@ async function person(label) {
   people[label] = { authId: u.id, personId: p.id, refresh: t.refresh_token };
 }
 const optIn = async (label) => must(await rest("/rest/v1/pins", { method: "POST", body: JSON.stringify({ gathering_id: gathering.id, person_id: people[label].personId, party_total: 1, open_to_meeting: true }) }), `opt in ${label}`);
-const countMessages = async (label) => (await must(await rest(`/rest/v1/room_messages?author_id=eq.${people[label].personId}&select=id`), "count")).length;
+// Messages that are there: a delete is a removal since 6 Oct (L9) — the row stays, cleared.
+const countMessages = async (label) => (await must(await rest(`/rest/v1/room_messages?author_id=eq.${people[label].personId}&deleted_at=is.null&select=id`), "count")).length;
 
 try {
   [gathering] = await must(await rest("/rest/v1/gatherings", { method: "POST", body: JSON.stringify({ name: `Room check ${Date.now()}`, starts_at: new Date(Date.now() + 3 * 86_400_000).toISOString(), venue_id: crowd.venue_id, published_at: new Date().toISOString(), source: "manual" }) }), "gathering");
@@ -150,6 +157,8 @@ try {
   await click("Delete");
   for (let t = 0; t < 20 && (await countMessages("Ari")) > 0; t++) await sleep(500);
   step("Delete removes it for everyone", (await countMessages("Ari")) === 0);
+  const removed = await must(await rest(`/rest/v1/room_messages?author_id=eq.${people.Ari.personId}&select=body,deleted_at`), "removed");
+  step("…a removal: its words cleared, not a row deleted (nothing broadcast)", removed.length === 1 && removed[0].body === "" && !!removed[0].deleted_at);
 
   // Report someone else's: long-press → a reason → a report with the message's words kept.
   await send("Page.reload");

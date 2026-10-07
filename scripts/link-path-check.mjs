@@ -37,9 +37,15 @@ import { NEIGHBOURHOODS } from "../packages/shared/src/neighbourhoods.ts";
 import { CODE_SENT_TO, PROFILE_GAP_ACTION, profileGapLine, profileGaps } from "../packages/shared/src/profile.ts";
 import { OPTIN_COPY } from "../packages/shared/src/optin.ts";
 import { QUICKPIN_COPY } from "../packages/shared/src/quickpin.ts";
+import { needChrome, needEnv, sessionSecretMatches, testCrowd } from "./fixture.mjs";
+
+// Fixtures first: a check whose ground moved says so in a sentence (scripts/fixture.mjs).
+needEnv("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_PUBLISHABLE_KEY", "SESSION_SECRET");
 
 const SITE = process.env.PIND_SITE || "https://pind.social";
 const CHROME = process.env.CHROME || "C:/Program Files/Google/Chrome/Application/chrome.exe";
+needChrome(CHROME);
+await sessionSecretMatches(SITE);
 const PHOTO = resolve("tests/photos/cartoon.jpg");
 const base = process.env.SUPABASE_URL.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -55,12 +61,7 @@ const must = async (res, what) => {
 const HOOD = NEIGHBOURHOODS[1];
 const TAGS = ALL_TAGS.slice(0, 3);
 
-const [crowd] = await must(await rest(`/rest/v1/gatherings?name=eq.${encodeURIComponent("Test crowd — walk the list")}&is_seed=eq.true&select=id,slug,starts_at`), "test crowd");
-// A finished test crowd closes pinning, and every walk then fails at "A26 opens" with
-// nothing saying why (6 Oct 2026). Say why instead.
-if (!crowd) throw new Error("no test crowd — build it on /admin/testers first");
-if (Date.parse(crowd.starts_at) < Date.now() + 60 * 60_000) throw new Error(`the test crowd starts ${crowd.starts_at} — it has finished or is about to; refresh it on /admin/testers (the daily 09:00 run keeps it ahead)`);
-if (!crowd?.slug) throw new Error("no test crowd — build it first");
+const crowd = await testCrowd({ pinnable: true });
 
 async function walk(kind) {
   const made = [];
