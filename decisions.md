@@ -2877,7 +2877,7 @@ the milestone does not stop for them.
    reach a real page.** *Open: the seed rule, as it stands, hides a seed person from
    every signed-in reader too — so they could not appear in the list being walked.
    How they are marked is put to Alex before any are made.*
-7. **Anonymous sign-in abuse: Supabase's rate limit, no CAPTCHA.** A third-party script
+7. **Anonymous sign-in abuse: Supabase's rate limit, no CAPTCHA.** *(The revisit is a line of its own on the pre-crowd checklist since 6 Oct 2026 — spec §6 "Before the first real crowd", build plan §9.)* A third-party script
    on A26 breaks the own-origin rule, on the page that has to be fastest. Revisit
    before the first real crowds.
 

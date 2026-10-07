@@ -844,6 +844,7 @@ Everything below is a gate. Items that only applied to the WhatsApp Test 0 are g
 - Women-only crews on every gathering; solo "women only" limiter
 - Photo check live; pending state respected; queue monitored
 - Delete account and export in-app; house rules verbatim on every crowd surface
+- Anonymous sign-in abuse revisited: anonymous accounts are made with only Supabase's rate limit and no CAPTCHA (decided before M3.2), on a product distributed through Reddit — the obvious vector. Measure what one source can create, decide the answer, and prove the chosen limit refuses. A CAPTCHA is a third-party script on the quick pin, which the own-origin rule forbids on the page that must be fastest, so the answer has to stay first-party (Alex, 6 Oct 2026)
 
 ### Moderation and incidents
 

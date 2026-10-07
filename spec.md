@@ -1723,6 +1723,7 @@ Everything below is a gate before real people can see each other (the build plan
 - [ ] Photo check live; pending state respected; queue monitored
 - [ ] Instagram handles visible only to crewmates, solo-plan partners and connections (V17)
 - [ ] Delete account and export in-app; house rules verbatim on every crowd surface
+- [ ] Anonymous sign-in abuse revisited: anonymous accounts are made with only Supabase's rate limit and no CAPTCHA (decided before M3.2), on a product distributed through Reddit — the obvious vector. Measure what one source can create, decide the answer, and prove the chosen limit refuses. A CAPTCHA is a third-party script on the quick pin, which the own-origin rule forbids on the page that must be fastest, so the answer has to stay first-party (Alex, 6 Oct 2026)
 
 **Moderation and incidents**
 - [ ] Reports post to the team channel; a human acts within 24 hours; the rota covers
