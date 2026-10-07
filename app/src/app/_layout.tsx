@@ -6,12 +6,12 @@ import { DarkTheme, Stack, ThemeProvider, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { Platform, View } from "react-native";
-import { colors as palette } from "@pind/shared";
+import { Alert, Platform, View } from "react-native";
+import { colors as palette, PUSH_TAKEN } from "@pind/shared";
 import { initAnalytics, track } from "@/lib/analytics";
 import { queryClient } from "@/lib/query";
 import { initSentry, wrapRoot } from "@/lib/sentry";
-import { keepPushRegistered, onNotificationTap } from "@/lib/push";
+import { forgetPushRegistration, keepPushRegistered, onNotificationTap, takePushBack } from "@/lib/push";
 import { claimOnce, whoAmI } from "@/lib/session";
 import { isQuickPinPath } from "@/lib/typeface";
 
@@ -52,7 +52,16 @@ function RootLayout() {
   useEffect(() => {
     let stop: (() => void) | undefined;
     void onNotificationTap((path) => router.push(path as never)).then((s) => (stop = s));
-    void whoAmI().then((who) => (who.state === "in" ? keepPushRegistered() : undefined));
+    void whoAmI()
+      .then((who) => (who.state === "in" ? keepPushRegistered() : undefined))
+      .then((kept) => {
+        // Another account took this phone's notifications (L8): say so, on open, and ask.
+        if (kept !== "taken") return;
+        Alert.alert(PUSH_TAKEN.title, PUSH_TAKEN.line, [
+          { text: PUSH_TAKEN.no, style: "cancel", onPress: () => void forgetPushRegistration() },
+          { text: PUSH_TAKEN.yes, onPress: () => void takePushBack().catch(() => undefined) },
+        ]);
+      });
     return () => stop?.();
   }, []);
 

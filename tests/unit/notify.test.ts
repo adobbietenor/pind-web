@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { channelFor, emailFor, KINDS, stopToken, stopTokenValid, stopUrl } from "../../src/notify/rules.ts";
 import { jobsFor, NOTIFY_CRON } from "../../src/cron.ts";
-import { NOTIFICATIONS } from "../../packages/shared/src/notify.ts";
+import { NOTIFICATIONS, pushWasTaken } from "../../packages/shared/src/notify.ts";
 import { Constants, type Database } from "../../packages/shared/src/database.types.ts";
 
 const SECRET = "test-secret-not-real";
@@ -89,5 +89,27 @@ describe("The six kinds, one list", () => {
       const body = a18.slice(item.at, next ? next.at : a18.indexOf("**Nothing else.**"));
       assert.match(body, /\*Not bait/, `A18's "${kind}" has no reason it is not bait`);
     }
+  });
+});
+
+describe("A phone's notifications taken by another account (L8)", () => {
+  const T = "ExponentPushToken[abc]";
+  it("N10 a phone that registered for me and is no longer mine is 'taken' — never silently taken back", () => {
+    assert.equal(pushWasTaken({ local: { token: T, userId: "me" }, token: T, userId: "me", serverHasIt: false }), true);
+  });
+  it("N11 not taken: still mine; never registered here; a phone that changed hands; a new token", () => {
+    assert.equal(pushWasTaken({ local: { token: T, userId: "me" }, token: T, userId: "me", serverHasIt: true }), false);
+    assert.equal(pushWasTaken({ local: null, token: T, userId: "me", serverHasIt: false }), false);
+    assert.equal(pushWasTaken({ local: { token: T, userId: "someone-else" }, token: T, userId: "me", serverHasIt: false }), false, "a phone handed over to me is not 'taken' from me");
+    assert.equal(pushWasTaken({ local: { token: "ExponentPushToken[old]", userId: "me" }, token: T, userId: "me", serverHasIt: false }), false);
+  });
+  it("N12 the app's start uses the rule and asks — it does not re-register over a taken phone", () => {
+    const push = readFileSync("app/src/lib/push.ts", "utf8");
+    const layout = readFileSync("app/src/app/_layout.tsx", "utf8");
+    assert.match(push, /pushWasTaken\(/, "push.ts decides 'taken' some other way");
+    assert.match(push, /return "taken";/);
+    assert.ok(push.indexOf('return "taken";') < push.indexOf("await register();\n    return \"ok\";".replace(/\n/g, push.includes("\r\n") ? "\r\n" : "\n")), "push.ts registers before it checks");
+    assert.match(layout, /kept !== "taken"/, "the app's start no longer says anything when its phone was taken");
+    assert.match(layout, /PUSH_TAKEN\.line/);
   });
 });

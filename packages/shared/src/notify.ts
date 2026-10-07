@@ -28,3 +28,25 @@ export const PUSH_ASK = {
   yes: "Turn on",
   no: "Not now",
 } as const;
+
+// A phone's push registration moved to another account (L8; Alex, 6 Oct 2026). Allowed —
+// re-registering is how a phone changes hands — but never silent: on the next start, a
+// phone that registered itself for this account, and finds the server no longer has it
+// for this account, says so instead of quietly taking it back. A phone that last
+// registered for someone ELSE is a phone that changed hands: no line, just register.
+export function pushWasTaken(o: {
+  local: { token: string; userId: string } | null;
+  token: string;
+  userId: string;
+  serverHasIt: boolean;
+}): boolean {
+  return !!o.local && o.local.token === o.token && o.local.userId === o.userId && !o.serverHasIt;
+}
+
+// PROPOSED copy (Tatiana's to reword).
+export const PUSH_TAKEN = {
+  title: "Notifications are off on this phone",
+  line: "Another Pin'd account turned them on for this phone, so they stopped coming to you.",
+  yes: "Turn them back on",
+  no: "Leave them off",
+} as const;
