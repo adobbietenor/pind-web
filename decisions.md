@@ -3701,3 +3701,26 @@ is indistinguishable from a broken hand-off). Both sentences were made to fire.
 - **the Sign in with Apple secret** — a JWT that lapses (the credentials watch covers it);
 - **the Supabase CLI and Chrome versions** on this laptop — not stale data, but ground
   that moves under a check.
+
+### A hidden person's messages already in a room vanish; the placement lock is written (Alex, 6 Oct 2026)
+
+- **Kept: at the moment of a hide, a hidden person's messages already in a room vanish for
+  everyone but their author, and come back if the hide is lifted.** Chosen, not inherited.
+  The reasons, all three stated:
+  - **It is the only option that breaks neither V1 nor H9.** Leaving the messages up keeps
+    the lines that got the person hidden in front of the people they were aimed at, under
+    a person nobody can see any more (V1). A "message removed" marker is the worst of
+    the three: three of them in a small room name the person and the action at once (H9).
+  - **It is fully reversible — a mistaken hide is completely undone.** The messages are
+    never deleted, only unreadable while the author is hidden; lifting the hide restores
+    them exactly as they were, in place. This is a property the design depends on, not a
+    side effect: anything that deletes or replaces a hidden person's messages has to
+    keep it, or say plainly that it gives it up.
+  - The cost, accepted: replies to a vanished line lose what they were answering.
+- **The placement lock per gathering is written** (Alex: "0.2 s worst case on 40
+  simultaneous opt-ins is nothing, and you measured it instead of guessing"). Measured
+  first: a placement is ~2 ms of database time. R98 failed without it — two of fifteen
+  simultaneous opt-ins refused on the room's unique number — and passes with it (five
+  rooms of three, nobody refused). Migration `20261007001216`.
+- **The fold, one phrasing everywhere:** the arrival cards fold into a strip **at 5 in the
+  room, you included** (the code shows cards while the room holds 4 or fewer).

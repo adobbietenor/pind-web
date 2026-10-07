@@ -1547,3 +1547,24 @@ test("R97 V4/V21 (L1): the accept re-checks on its own — a block with someone 
   assert.ok(acc.error, "Rk2 joined a group with someone who blocked them");
   assert.match(acc.error!.message, /no longer open/, "the refusal names the block rather than looking like a closed group (R59)");
 });
+
+test("R98 V20: simultaneous opt-ins never overfill a room, and the first two at an empty gathering both get in", async () => {
+  // Room size 3, so a race shows quickly: 15 opt-ins at the same instant.
+  await gathering("G11", 8, { room_size: 3 });
+  const names = Array.from({ length: 15 }, (_, i) => `Rush${i}`);
+  for (const n of names) await mk(n, { gender: "man" });
+  const res = await Promise.all(names.map((n) => service.from("pins").insert({ gathering_id: g.G11, person_id: ppl[n]!.id, open_to_meeting: true })));
+  const refused = res.filter((r) => r.error).map((r) => r.error!.message);
+  assert.deepEqual(refused, [], `an opt-in failed in the rush: ${refused.join("; ")}`);
+  const rs = (await rooms("G11")).filter((r) => !r.women_only);
+  const sizes = await Promise.all(rs.map(async (r) => (await membersOf(r.id)).length));
+  notes.push(`R98 room sizes: ${JSON.stringify(sizes)}`);
+  assert.ok(sizes.every((n) => n <= 3), `a room went over its size: ${JSON.stringify(sizes)}`);
+  assert.equal(sizes.reduce((a, b) => a + b, 0), 15, "not everyone was placed");
+  // The first two ever, at the same instant, at an empty gathering: both in, one room.
+  await gathering("G12", 8);
+  for (const n of ["Rush1st", "Rush2nd"]) await mk(n, { gender: "man" });
+  const two = await Promise.all(["Rush1st", "Rush2nd"].map((n) => service.from("pins").insert({ gathering_id: g.G12, person_id: ppl[n]!.id, open_to_meeting: true })));
+  assert.deepEqual(two.map((r) => r.error?.message ?? null), [null, null], "one of the first two was refused");
+  assert.equal((await rooms("G12")).filter((r) => !r.women_only).length, 1, "the first two made two rooms");
+});

@@ -372,8 +372,9 @@ marked **(no recorded reason)** is load-bearing and unsourced: what to look for 
   list already shows (H3); nothing to moderate.
 - **Three openers that fill the box and are never sent for anyone.** *Reason recorded:*
   "the message is still yours" (Alex; S29 holds it).
-- **"Enough to go together" once, at 3; the mix chip at 5 (Q3's floor); cards fold past
-  four.** **(no recorded reason** for folding at four**)**
+- **"Enough to go together" once, at 3; the mix chip at 5 (Q3's floor); the cards fold at
+  5 in the room, you included** (the code: cards while the room holds 4 or fewer, a strip
+  from 5). **(no recorded reason** for folding at 5**)**
 - **Messages: text only, up to 500 characters, one every 3 seconds, 200 a day.**
   **(no recorded reason** for any of the three numbers**)**
 - **Delete your own; no editing yet.** *Reason recorded:* "being unable to take something

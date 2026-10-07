@@ -699,10 +699,9 @@ joins one or approves anyone.
   - **Never placed:** a hidden person (and the moment someone is hidden they leave every
     room; unhidden, they are placed again), or a seed person at a real gathering
     (review L3, L5; 6 Oct 2026).
-  - *Known gap, 6 Oct:* placement takes no lock. Two people opting in at the same instant
-    can put a room one over its size, and the first two people ever at a gathering, at
-    the same instant, can collide so that one person's opt-in fails. The fix (a lock per
-    gathering) waits on Alex's answer about the worst-case wait.
+  - **One placement at a time per gathering**: two people opting in at the same instant
+    can never overfill a room, and the first two ever at a gathering both get in (R98;
+    the 40th of 40 simultaneous opt-ins waits ~0.1–0.2 s).
 - **Rooms scope the conversation, not who sees whom.** Someone in another room at the same
   gathering is still on your list (V1). The room decides who reads your messages, who you
   can invite (V21), and who #2 and #6 are about (V22).
@@ -722,7 +721,10 @@ joins one or approves anyone.
   the message (H9). *Residual:* the 30-day retention purge deletes rows, so the ids of
   month-old messages in closed rooms can reach a Realtime subscriber.
 - **A hidden person's messages** become unreadable to everyone but their author at the
-  moment of the hide. *Open (Alex):* whether that is what should happen.
+  moment of the hide — **and come back exactly as they were if the hide is lifted**
+  (Alex, 6 Oct: chosen for V1, for H9 — no "message removed" marker, which in a small
+  room names the person and the action — and because **a mistaken hide is fully
+  undone**).
 - **After the gathering:** read-only for 30 days to the same people and nobody new, then
   deleted (Q11).
 - **The women-only room** — only women, and nonbinary people who chose inclusion, are ever

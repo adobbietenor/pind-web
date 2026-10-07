@@ -3,7 +3,7 @@
 // Everyone open to meeting at a gathering, in one conversation, from the second person
 // on. **It never opens on an empty thread, and nobody is asked to go first cold:**
 //   * each person arrives as a card — face, name, neighbourhood, three tags — with the
-//     tags you share marked; past four, the cards fold into a strip;
+//     tags you share marked; the cards fold into a strip at 5 in the room, you included;
 //   * until you have posted, three openers sit over the box. Tapping one FILLS THE BOX,
 //     editable; nothing is ever sent for you (S29);
 //   * at 3, once: "enough to go together", and "Go together" invites 2 or 3 people you
@@ -171,7 +171,7 @@ export default function Room() {
         <PushAsk />
       </View>
 
-      {/* The arrivals: who is here, with what you share. Past four in the room, a strip. */}
+      {/* The arrivals: who is here, with what you share. At 5 in the room, you included, a strip. */}
       {count <= 4 ? (
         people.map((p) => {
           const shared = sharedTag(view.me.tags, p.tags);
