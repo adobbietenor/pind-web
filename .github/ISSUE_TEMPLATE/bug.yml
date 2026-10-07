@@ -3,23 +3,33 @@ description: Something is broken, missing, or behaving wrong
 labels: ["bug", "triage"]
 body:
   - type: dropdown
-    id: surface
-    attributes:
-      label: Where did you see it?
-      options:
-        - iOS app
-        - Web
-        - Admin
-        - Landing page
-        - Not sure
-    validations:
-      required: true
-  - type: input
     id: screen
     attributes:
-      label: Screen ID
-      description: The T or A number from spec.md. Put "unknown" if you cannot tell.
-      placeholder: A12
+      label: Which part of Pin'd?
+      options:
+        - "Not sure / cannot tell"
+        - "W1 - Web, this week's crowds (landing)"
+        - "W2 - Web, crowd page before pinning"
+        - "W3 - Web, share card"
+        - "W4 - Web, links"
+        - "A1-A4 - App, onboarding and sign up"
+        - "A5-A7 - App, home and this week's crowds"
+        - "A8-A10 - App, crowd page"
+        - "A11-A13, A15, A17 - App, crew"
+        - "A14 - App, crew thread"
+        - "A16 - App, after the event"
+        - "A18 - App, notifications"
+        - "A19 - App, my events"
+        - "A20 - App, connections"
+        - "A21-A22 - App, profile"
+        - "A23 - App, safety and settings"
+        - "A24 - App, report and block"
+        - "A26 - App, quick pin"
+        - "A27 - App, opt in"
+        - "A28 - App, solo crew opt-in"
+        - "A29 - App, proposals and plan"
+        - "T1 - Fan-channel post"
+        - "Something new, no screen yet"
     validations:
       required: true
   - type: textarea
@@ -42,10 +52,10 @@ body:
     attributes:
       label: How bad is it?
       options:
-        - Blocker - cannot continue past this
-        - Broken, but there is a way around it
-        - Annoying
-        - Cosmetic
+        - "Blocker - cannot continue past this"
+        - "Broken, but there is a way around it"
+        - "Annoying"
+        - "Cosmetic"
     validations:
       required: true
   - type: checkboxes
@@ -58,7 +68,7 @@ body:
     id: screenshot
     attributes:
       label: Screenshot or screen recording
-      description: Drag an image or video straight into this box and it uploads automatically.
+      description: Drag an image or video straight into this box.
   - type: input
     id: device
     attributes:
