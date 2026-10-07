@@ -30,6 +30,7 @@ import {
   effectiveEnd,
   fonts,
   NEIGHBOURHOODS,
+  QUICKPIN_COPY,
   radius,
   spacing,
   THRESHOLD,
@@ -294,7 +295,11 @@ export default function CrowdPage() {
             <Button label={CROWD_COPY.pinIn} onPress={() => router.push(`/pin/${slug}`)} />
             {view.facts?.cost ? <Text style={styles.cost}>{view.facts.cost}</Text> : null}
           </>
-        ) : null
+        ) : (
+          // Finished: pinning is closed (P37b), and the page says so — a button that
+          // silently vanishes reads as a broken page (Alex, 6 Oct, on the phone).
+          <Body muted>{QUICKPIN_COPY.closed}</Body>
+        )
       ) : !view.mine.open ? (
         // A9's empty state — one step away, and the step is the biggest thing here.
         <View style={styles.oneStep}>
