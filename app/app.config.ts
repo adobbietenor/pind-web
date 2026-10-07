@@ -25,6 +25,10 @@ const config: ExpoConfig = {
     appleTeamId: "93M6B4W5PR",
     supportsTablet: false,
     config: { usesNonExemptEncryption: false },
+    // Universal links (M3.3b): pind.social links open the app when it is installed. The
+    // Worker serves the other half, /.well-known/apple-app-site-association, listing both
+    // bundle IDs. webcredentials lets the phone offer saved pind.social sign-ins.
+    associatedDomains: ["applinks:pind.social", "webcredentials:pind.social"],
   },
   web: {
     output: "single",

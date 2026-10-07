@@ -551,6 +551,17 @@ any of it.
 - With the app installed, the same iMessage link opens the app on that crowd page; without it, Safari.
 - **M3.3's push on the phone:** the "Turn on" card asks (never at launch); each notification M3.3 sends arrives as push and opens its page when tapped, including from a cold start.
 
+- **Built for it (6 Oct 2026):** the app declares `applinks:pind.social` and
+  `webcredentials:pind.social`; the Worker's association file claims the paths the app
+  has pages for — the crowd link and its quick pin (`/g/*`), and every page a
+  notification or email links to (`/crowd`, `/room`, `/group`, `/after`, `/pin`, `/person`,
+  `/opt-in`, `/me`) — and keeps the share card (`/g/*/spot`) and the admin in the
+  browser. Until then it claimed `/crew/*`, which has no page, and nothing a notification
+  links to. `/g/<slug>` gained an app page that goes on to the crowd page. L01–L03
+  (`tests/unit/links.test.ts`) fail if a claimed path has no page or the share card's
+  exclusion stops applying. **A phone whose notifications another account took is told
+  on its next start** (L8; N10–N12) — native, so walked on this build.
+
 5–7 h, moved from M3.2b.
 
 #### M3.4 · Solo crew (A28 opt-in sheet, A29 proposals and plan)

@@ -85,18 +85,35 @@ ${nameLines}
 // (decisions Part 5, "Bundle identifiers"; Apple team 93M6B4W5PR).
 const APP_IDS = ["93M6B4W5PR.social.pind.app", "93M6B4W5PR.social.pind.app.staging"];
 
+// What opens in the app when it is installed. The crowd page and the quick pin (/g/...);
+// the app's own pages, which every notification and email links to (/crowd, /room,
+// /group, /after — private.crowd_path and the group paths); a person, the opt-in, the
+// profile. Not the share card (/g/<slug>/spot): it is for a friend, has no app screen,
+// and must open in the browser. Not the admin.
+export const APP_LINK_COMPONENTS: { "/": string; exclude?: true; comment: string }[] = [
+  { "/": "/admin*", exclude: true, comment: "the admin stays in the browser" },
+  { "/": "/g/*/spot", exclude: true, comment: "the share card is for a friend; no app screen" },
+  { "/": "/g/*", comment: "a crowd page and its quick pin" },
+  { "/": "/crowd/*", comment: "the crowd page in the app (notifications link here)" },
+  { "/": "/pin/*", comment: "the app's quick pin" },
+  { "/": "/room/*", comment: "a room" },
+  { "/": "/group/*", comment: "a group" },
+  { "/": "/after/*", comment: "after the night" },
+  { "/": "/person/*", comment: "a person" },
+  { "/": "/opt-in/*", comment: "opting in" },
+  { "/": "/me", comment: "the profile" },
+];
+
 export function appSiteAssociation(): Response {
   const body = {
     applinks: {
       details: [
         {
           appIDs: APP_IDS,
-          components: [
-            { "/": "/g/*", comment: "crowd pages, the pin path and share cards" },
-            { "/": "/crew/*", comment: "a crew" },
-            { "/": "/me", comment: "the profile" },
-            { "/": "/admin*", exclude: true, comment: "the admin stays in the browser" },
-          ],
+          // Order matters: the first component that matches decides. Every path claimed
+          // here has a route in the app (tests/unit/links.test.ts, L01) — a claimed path
+          // without one opens the app on "no such page" (M3.3b).
+          components: APP_LINK_COMPONENTS,
         },
       ],
     },
