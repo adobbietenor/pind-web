@@ -760,7 +760,7 @@ working. Hours are Alex's, agent-assisted.
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | **Done** — merged as `737bdb4` | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel (A8, A9, A22, A26, A27; one set of profile steps shared with A1–A3) | **Done** — merged as `b11908a` (28 Sept; the last three phone checks walked by Alex) | 28–35 |
-| M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | **Done** — merged to `main` 6 Oct 2026 (proved by the harness and browser checks; walked on the phone at M3.3b, Alex) | 22–31 |
+| M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | **Done** — merged as `cc8ff24` (6 Oct 2026; proved by the harness and browser checks; walked on the phone at M3.3b, Alex) | 22–31 |
 | M3.3b | The TestFlight build — universal links, M3.1's native walk, M3.3's push, the icon and splash; **moved ahead of M3.2b** (Alex, 6 Oct 2026) | Not started | 5–7 |
 | M3.2b | The app's front door — A5–A7, interests, search, A19 (the build and universal links moved to M3.3b, Alex, 6 Oct 2026) | Not started | 11–12 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
@@ -1156,7 +1156,7 @@ the current pace, raise the hours or shrink the phase.
   - **Considered, not built:** six photos (A/B/C priced at 9–12, 6–8, 8–11 h) and a bio
     (a V17 bypass). Revisit after the first real crowds.
 
-- **Phase 3 M3.3 complete** (branch `phase3/m3.3-room-and-groups`, merged to `main`
+- **Phase 3 M3.3 complete** (branch `phase3/m3.3-room-and-groups`, merged as `cc8ff24`
   on 6 Oct 2026): the room, small groups, the night and after — first version.
   - **Built.** The room at 1, 2, 3 and 5 (arrival cards, openers that fill the box and
     never send, the fold and the mix at 5, "go together" once); small groups by invite,
