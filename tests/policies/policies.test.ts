@@ -1177,7 +1177,7 @@ async function publicDoor(client: SupabaseClient, slug: string): Promise<any> {
 
 // The slugs the week's list would show, over a window wide enough for the world.
 async function publicList(client: SupabaseClient): Promise<string[]> {
-  const data = await rows(client.rpc("public_gatherings", { p_from: inDays(-90), p_to: inDays(90) }));
+  const data = await rows(client.rpc("public_gatherings", { p_from: inDays(-90), p_to: inDays(90), p_city: "toronto" }));
   return data.map((r: { slug: string }) => r.slug);
 }
 
@@ -1713,7 +1713,7 @@ describe("The public door's shape — the keys its readers need", () => {
       }
     }
 
-    const listed = await rows(w.anon.rpc("public_gatherings", { p_from: inDays(-90), p_to: inDays(90) }));
+    const listed = await rows(w.anon.rpc("public_gatherings", { p_from: inDays(-90), p_to: inDays(90), p_city: "toronto" }));
     assert.ok(listed.length > 0, "the list came back empty, so its shape proves nothing");
     for (const k of ["slug", "name", "starts_at", "ends_at", "entry", "door_price_cents", "entry_note", "category", "signup_required", "source", "venue_id", "venue_name", "city_name", "city_timezone", "pinned", "open_to_meeting", "crews_open"]) {
       assert.ok(k in listed[0], `public_gatherings is missing "${k}" — got ${Object.keys(listed[0]).join(", ")}`);
@@ -4314,5 +4314,63 @@ describe("Invite — #7, between connections only (Alex, 29 Sept 2026)", () => {
     await ok(w.service.from("blocks").insert({ blocker_id: id("Jon"), blocked_id: id("Ivy") }));
     await denied(invite("Ivy", "Jon", gs[6]!), "42501"); // room under the cap, but blocked
     assert.deepEqual(await rows(cl("Ivy").rpc("my_connections")), []);
+  });
+});
+
+// P185 (Alex, 6 Oct 2026 — the app's home, M3.3c): "prove a Toronto picker can never return
+// the staging Vancouver gathering". The public list (public_gatherings) was not
+// city-scoped; it now takes the city, and both W1 and the app pass the live one from
+// packages/shared/src/cities.ts. Proved from both sides, as a visitor and as a tester.
+describe("The public list is one city's (M3.3c)", () => {
+  it("P185 a Toronto list never returns a gathering in another city — to a visitor or a tester — and that city's own list does; a seed row is on neither", async () => {
+    const env = loadEnv();
+    const elsewhere = `${PREFIX}-${w.run}-elsewhere`.toLowerCase();
+    const made: { gatherings: string[]; venues: string[] } = { gatherings: [], venues: [] };
+    let tester: { authId: string } | null = null;
+    await ok(w.service.from("cities").insert({ slug: elsewhere, name: "Elsewhere", timezone: "America/Vancouver", centre_lat: 49.28, centre_lng: -123.12, country: "Canada", country_code: "CA" }));
+    try {
+      const venue = async (name: string, city: string | null, seed: boolean) => {
+        const v = await ok(w.service.from("venues").insert({ name: `${PREFIX} ${w.run} ${name}`, ...(city ? { city } : {}), is_seed: seed }).select("id").single());
+        made.venues.push(v.id);
+        return v.id as string;
+      };
+      const gathering = async (name: string, venueId: string) => {
+        const g = await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} ${name}`, starts_at: inDays(3), venue_id: venueId, published_at: new Date().toISOString(), source: "manual" }).select("id").single());
+        made.gatherings.push(g.id);
+        return (await ok(w.service.rpc("admin_mint_slug", { p_gathering: g.id }))) as string;
+      };
+      const there = await gathering("Elsewhere gig", await venue("Elsewhere Hall", elsewhere, false));
+      const thereSeed = await gathering("Elsewhere seed gig", await venue("Elsewhere Seed Hall", elsewhere, true));
+      const here = await gathering("Toronto gig", await venue("Toronto Hall", null, false));
+
+      const s = await newClient(env, env.publishableKey).auth.signInAnonymously({ options: { data: { harness: "pindhx" } } });
+      assert.equal(s.error, null, s.error?.message);
+      const testerClient = newClient(env, env.publishableKey);
+      await testerClient.auth.setSession({ access_token: s.data.session!.access_token, refresh_token: s.data.session!.refresh_token });
+      tester = { authId: s.data.user!.id };
+      await markHarness(w.service, tester.authId);
+      await ok(w.service.rpc("admin_add_anonymous_tester", { p_user: tester.authId, p_actor: ACTOR }));
+
+      const list = async (client: typeof w.anon, city: string) =>
+        (await rows(client.rpc("public_gatherings", { p_from: inDays(-1), p_to: inDays(10), p_city: city }))).map((r: { slug: string }) => r.slug);
+      for (const [who, client] of [["a visitor", w.anon], ["a tester", testerClient]] as const) {
+        const toronto = await list(client, "toronto");
+        assert.ok(toronto.includes(here), `control: ${who}'s Toronto list is missing a Toronto gathering — the absences below prove nothing`);
+        assert.ok(!toronto.includes(there), `${who}'s Toronto list returned a gathering in another city`);
+        assert.ok(!toronto.includes(thereSeed), `${who}'s Toronto list returned a seed gathering in another city`);
+        const other = await list(client, elsewhere);
+        assert.ok(other.includes(there), `control: ${who}'s list for the other city is missing its own gathering`);
+        assert.ok(!other.includes(here), `${who}'s list for the other city returned a Toronto gathering`);
+        assert.ok(!other.includes(thereSeed), `${who} sees a seed gathering on the public list (V18)`);
+      }
+      // And there is no "every city": asked without one, the list refuses.
+      const noCity = await w.anon.rpc("public_gatherings", { p_from: inDays(-1), p_to: inDays(10) });
+      assert.ok(noCity.error, "the public list answered without a city — every city's gatherings");
+    } finally {
+      for (const id of made.gatherings) await w.service.from("gatherings").delete().eq("id", id);
+      for (const id of made.venues) await w.service.from("venues").delete().eq("id", id);
+      await w.service.from("cities").delete().eq("slug", elsewhere);
+      if (tester) await removeUser(w.service, tester.authId);
+    }
   });
 });

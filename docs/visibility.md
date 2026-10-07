@@ -521,7 +521,11 @@ Review, which get their own rule (V15) in M5.1.
 W1, W2, W3, the OG image and the `.ics` read through **two functions and nothing
 else** — `public.public_gatherings` and `public.public_gathering` — so "what is on the
 public web" is one definition in one place rather than a filter repeated in Worker code
-(H11):
+(H11). **Since M3.3c the app's city list reads `public_gatherings` too** — the same
+definition, no copy — and **the list is asked for one city** (`p_city`, no default):
+a gathering appears only under the city its venue is in, so a Toronto list can never
+return another city's gathering, to a visitor or a tester (P185). A tester sees exactly
+the public list there; seed rows stay off it for everyone (V18):
 
 > **On the public web** = published, not withdrawn, not seeded, **and carrying a slug**.
 

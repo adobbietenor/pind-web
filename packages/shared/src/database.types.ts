@@ -3213,7 +3213,7 @@ export type Database = {
       }
       public_gathering: { Args: { p_slug: string }; Returns: Json }
       public_gatherings: {
-        Args: { p_from: string; p_to: string }
+        Args: { p_city: string; p_from: string; p_to: string }
         Returns: {
           blurb: string
           category: Database["public"]["Enums"]["gathering_category"]

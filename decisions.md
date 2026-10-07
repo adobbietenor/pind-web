@@ -3747,3 +3747,30 @@ is indistinguishable from a broken hand-off). Both sentences were made to fire.
     0 → 1. Its first version counted *after* the world was built — the world itself holds
     19 accountless people — and so passed with the probe in place: a guard that never
     fired, caught by making it fire.
+
+### The app's home: pick a city, pulled forward (Alex, 6 Oct 2026)
+
+- **What prompted it.** The first build's home tab was M2.0's empty shell — "nothing built
+  yet", not a fault — and Alex, in Vancouver, wondered whether the app was using his
+  location. It never does (H4): no location permission exists. A picker is how you get
+  to a city.
+- **Decided:** A5 is a city picker — Toronto, Vancouver, Calgary, Montreal; Toronto live,
+  the others "Coming soon" and not tappable. Toronto opens A6/A7, **the same list as W1,
+  native, through the same query — no webview**. Setting up a profile is offered there,
+  optional; skipping it changes nothing, and the pin-time flow is not touched.
+- **Pulled forward from M3.2b, with the picker added** (build plan §8, M3.3c). Interests,
+  search and My Events stay in M3.2b. The order: M3.3 → M3.3b → M3.3c → M3.2b.
+- **The cities are one list, fixed text in `packages/shared/src/cities.ts`** (Alex: "so
+  that when a city actually goes live it's one list to change"). Not the `cities` table:
+  staging's Vancouver row (the walk gathering's time zone) would otherwise show as live.
+- **The public list is now asked for one city** (P185). Alex asked to prove a Toronto
+  picker can never return the staging Vancouver gathering — and the premise was half
+  true: `public_gatherings` was *not* city-scoped; it returned every published, non-seed
+  gathering in every city, and only the seed rule kept the walk gathering out. It now
+  takes `p_city` with no default (the version without one is dropped), W1 and the app
+  pass the live city from `CITIES`, and P185 proves a Toronto list returns no other
+  city's gathering — to a visitor or a tester — while that city's own list does.
+- **A tester sees exactly W1 in the app's list** — never the seed test crowd or walk
+  gathering, which are reached by their links. S22 (app screens read gatherings under
+  RLS) keeps holding every other screen; the list's one reader is `app/src/lib/crowds.ts`
+  (K02).

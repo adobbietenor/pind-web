@@ -11,6 +11,7 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { Env } from "../env";
 import { ConfigError, projectUrl } from "../supabase";
+import { liveCity } from "../../packages/shared/src/cities.ts";
 
 export function anonClient(env: Env): SupabaseClient {
   const key = env.SUPABASE_PUBLISHABLE_KEY?.trim();
@@ -120,11 +121,14 @@ export type Door =
   | { status: "withdrawn" }
   | { status: "gone" };
 
-// W1: the crowds between two instants, by date, never by size (Q10).
-export async function crowds(env: Env, from: Date, to: Date): Promise<Crowd[]> {
+// W1: the crowds between two instants, by date, never by size (Q10) — in one city, the
+// live one from packages/shared/src/cities.ts (M3.3c: the query used to return every
+// city; the app's Toronto list reads the same query).
+export async function crowds(env: Env, from: Date, to: Date, city: string = liveCity().slug): Promise<Crowd[]> {
   const { data, error } = await anonClient(env).rpc("public_gatherings", {
     p_from: from.toISOString(),
     p_to: to.toISOString(),
+    p_city: city,
   });
   if (error) throw new Error(`public_gatherings: ${error.message}`);
   return (data ?? []) as Crowd[];
@@ -178,7 +182,7 @@ export interface City {
   countryCode: string;
 }
 
-export async function city(env: Env, slug = "toronto"): Promise<City | null> {
+export async function city(env: Env, slug = liveCity().slug): Promise<City | null> {
   const { data, error } = await anonClient(env)
     .from("cities")
     .select("name, country, country_code")

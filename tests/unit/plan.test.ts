@@ -50,6 +50,14 @@ describe("The build plan keeps what was carried", () => {
     assert.doesNotMatch(section("M3.2b"), /- \*\*No TestFlight build until M3\.2b is done/, "M3.2b still says the build waits for it");
   });
 
+  it("D06 the app's home (A5–A7) moved from M3.2b to M3.3c with the city picker (Alex, 6 Oct 2026); interests, search and My Events stay in M3.2b", () => {
+    const c = section("M3.3c");
+    for (const item of ["A5", "A6/A7", "cities.ts", "public_gatherings", "P185"]) assert.ok(c.includes(item), `M3.3c lost "${item}"`);
+    const b = section("M3.2b");
+    assert.doesNotMatch(b, /^- A5–A7 home from published gatherings/m, "M3.2b still builds the home list");
+    for (const item of ["Interests, remembered", "Search", "A19 My Events"]) assert.ok(b.includes(item), `M3.2b lost "${item}"`);
+  });
+
   it("D04 M3.6 holds M3.3's three deferrals by name: seeing and switching rooms, groups growing, the manual 'Set spot & time'", () => {
     const m = section("M3.6");
     for (const item of ["Seeing and switching rooms", "Groups growing after they form", "Set spot & time"]) {

@@ -216,7 +216,6 @@ describe("The web app claims a handed-over session before any screen renders (M3
 
     // Screens that are still the M2.0 scaffold: a title and nothing else.
     const SCAFFOLDS: Record<string, string> = {
-      "(tabs)/crowds.tsx": "A5–A7, This Week's Crowds — M3.2b",
       "(tabs)/my-events.tsx": "A19, My Events — M3.2b",
     };
     const isScaffold = (source: string) => /return <Screen title="[^"]*" \/>;/.test(source);
@@ -232,6 +231,7 @@ describe("The web app claims a handed-over session before any screen renders (M3
       "packages/shared/src/room.ts": "the room and groups (M3.3) — Tatiana's doc replaces it",
       "packages/shared/src/share.ts": "the group's share message (M3.3) — Tatiana's doc replaces it",
       "packages/shared/src/after.ts": "the night and after (M3.3) — Tatiana's doc replaces it",
+      "packages/shared/src/cities.ts": "the app's home — the city picker and its lines (M3.3c, 6 Oct) — Tatiana's to reword",
       "packages/shared/src/notify.ts": "a phone's notifications taken by another account (L8, 6 Oct) — Tatiana's to reword",
     };
     assert.ok(/\bPROPOSED\b/.test("// PROPOSED, for Alex") && !/\bPROPOSED\b/.test("UNPROPOSED"), "the marker test cannot see a marker");

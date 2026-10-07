@@ -51,7 +51,8 @@ Contents
 | M3.2 | Crowds, pins, the funnel                    | Link → pinned in 30 seconds; opt in → see the other person at 2 (universal links moved to M3.3b)       | 28–35   |
 | M3.3 | The room and small groups, the night, after | The room from 2, a small group with a plan, "I'm here" and a mutual "we met" (first version)          | 22–31   |
 | M3.3b | The TestFlight build (moved ahead, 6 Oct)  | The app installed; links open it; M3.1's native walk, M3.3's push, the icon and splash on the phone    | 5–7     |
-| M3.2b | The app's front door                       | A5–A7, interests, search, My Events                                                                    | 11–12   |
+| M3.3c | The app's home: pick a city (moved ahead) | Four cities, Toronto live; Toronto's list is W1's; a card opens the crowd page            | 6.5–9.5 |
+| M3.2b | The app's front door: the rest            | Interests, search, My Events (the home list moved to M3.3c)                                           | 6–7     |
 | M3.4 | Solo crew                                   | Opt-in, a proposal, a mutual accept, a two-person plan with the same thread and check-in               | 8–12    |
 | M3.5 | Safety and the notifications                | Report and block from every surface; the seven moments arrive by push and, for web people, by email    | 10–14   |
 | M3.6 | Dogfood                                     | The three of you walk the loop on staging on two phones and a laptop; the fix list is closed           | 6–8     |
@@ -467,7 +468,7 @@ any of it.
 
 **Why its own milestone** (Alex, M3.2). M3.2 ran to about 40–45 hours against 20–28, and M3.3 is the whole loop — the biggest milestone in the plan and the riskiest — so the app's front door neither stays in the milestone meant to be "showable to a friend" nor rides on the loop. Until it lands, people find a crowd through a link; nothing on M3.2's walk needs more. **It comes after M3.3 and after the TestFlight build, M3.3b** (Alex: M3.3 first, 28 Sept 2026; the build ahead of this, 6 Oct 2026), and **must land before M3.6**, whose TestFlight phones need it to find a crowd.
 
-- A5–A7 home from published gatherings, by day, honest counts, mix at 5+, "be the first" — the app's list, through the same door as W1 (spec §4: one door function, shared).
+- **A5–A7, the app's home and list, moved to M3.3c** (Alex, 6 Oct 2026), ahead of this milestone, with a city picker in front of it. Interests, search and My Events stay here.
 - **Interests, remembered** (Alex, M3.1, after walking A3): somebody picking a neighbourhood wanted to say what they are into as well, so the list shows more of what they like. **This is not the tags** — tags describe you to other people; this shapes what you see. The cheap, honest version is **remembering the chip selection** rather than inventing a second taxonomy: a stored set per person, defaulted onto the app's list, one tap to clear. 2–3 h, here, because this is where A5–A7 build the list it filters.
   - **Narrowing is a filter; reordering is an algorithm** (Alex, M3.1). Q10 says the calendar is the ordering, and a filter leaves that untouched — the remaining rows stay in date order. **The moment it becomes "things you like first", Q10 is dead.** That sentence is the acceptance test for this feature, not a note about it.
   - **It must be visibly on, with a one-tap clear.** A default-on filter that hides things is a new way to see an empty week and conclude the product is dead.
@@ -479,11 +480,10 @@ any of it.
 
 **Acceptance**
 
-- The app's home list shows the same gatherings W1 does for the same week, in date order, with honest counts; a chip narrows and never reorders (Q10), is visibly on, and clears in one tap; its empty state says why.
 - Search finds a gathering by name on W1 and in the app, through the one door, with scripting off on the web.
 - My Events shows the pinned gathering; removing the pin removes it.
 
-**11–12 h.** (The 5–7 h for universal links, the build and the native walk moved to M3.3b — Alex, 6 Oct 2026.)
+**6–7 h.** (The 5–7 h for universal links, the build and the native walk moved to M3.3b, and A5–A7 to M3.3c — Alex, 6 Oct 2026.)
 
 #### M3.3 · The room and small groups, the night, the morning after (A9–A17, A20)
 
@@ -563,6 +563,24 @@ any of it.
   on its next start** (L8; N10–N12) — native, so walked on this build.
 
 5–7 h, moved from M3.2b.
+
+#### M3.3c · The app's home: pick a city, and its list (A5–A7)
+
+**Pulled forward from M3.2b** (Alex, 6 Oct 2026 — decisions.md, "The app's home: pick a city, pulled forward"). The first build showed the app's home tab as M2.0's empty shell, which read as a broken list — and Alex, in Vancouver, wondered whether the app was using his location. It never does (H4); there was simply nothing built. **The order: M3.3 → M3.3b (the build) → M3.3c → M3.2b.** Interests, search and My Events stay in M3.2b.
+
+- **A5 — pick a city.** Toronto, Vancouver, Calgary, Montreal; Toronto is live, the others say "Coming soon" and do not respond to a tap. **One list, in `packages/shared/src/cities.ts`** — fixed text, not the `cities` table (staging's Vancouver row for the walk gathering would otherwise show as live). A city going live is one line there.
+- **Profile now, optional.** Offered to someone without a permanent account; it goes to the same sign-in Profile uses. Skipped, nothing changes — the pin-time flow (A27) is untouched.
+- **A6/A7 — Toronto's list is W1's.** The same query (`public_gatherings`, which now takes the city: it had returned every city), the same arithmetic (`packages/shared/src/list.ts`, moved there from the Worker) and the same words on a card (`crowdLine`, `entryLine`, `categoryLabel`, `clockLocal`). A card opens the app's crowd page (A8). A tester sees exactly W1 here — never the seed test crowd or walk gathering, which are reached by their links (S22's one exception, held by K02).
+
+**Acceptance**
+
+- A5 lists the four cities from `CITIES`; only Toronto opens; a tap on a coming-soon city goes nowhere (K01, K03; `check:home`).
+- The app's Toronto list holds exactly W1's gatherings for the same week (`check:home` compares them by name against the live page).
+- **A Toronto list can never return another city's gathering**, to a visitor or a tester, and the list cannot be asked for "every city" (P185).
+- A card opens A8; "Set up my profile" opens sign-in; skipping it leaves A27 as it was.
+- On the phone: a second build (the M3.3b build has the empty shell).
+
+6.5–9.5 h.
 
 #### M3.4 · Solo crew (A28 opt-in sheet, A29 proposals and plan)
 

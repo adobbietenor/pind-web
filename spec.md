@@ -763,7 +763,8 @@ working. Hours are Alex's, agent-assisted.
 | M3.2 | Crowds, pins, the link-path funnel (A8, A9, A22, A26, A27; one set of profile steps shared with A1–A3) | **Done** — merged as `b11908a` (28 Sept; the last three phone checks walked by Alex) | 28–35 |
 | M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | **Done** — merged as `cc8ff24` (6 Oct 2026; proved by the harness and browser checks; walked on the phone at M3.3b, Alex) | 22–31 |
 | M3.3b | The TestFlight build — universal links, M3.1's native walk, M3.3's push, the icon and splash; **moved ahead of M3.2b** (Alex, 6 Oct 2026) | Not started | 5–7 |
-| M3.2b | The app's front door — A5–A7, interests, search, A19 (the build and universal links moved to M3.3b, Alex, 6 Oct 2026) | Not started | 11–12 |
+| M3.3c | The app's home — A5 pick a city (Toronto live), A6/A7 Toronto's list, the same query as W1; **pulled forward from M3.2b** (Alex, 6 Oct 2026) | Built, being checked — branch `phase3/m3.3c-home` | 6.5–9.5 |
+| M3.2b | The app's front door — interests, search, A19 (the build moved to M3.3b and A5–A7 to M3.3c, Alex, 6 Oct 2026) | Not started | 6–7 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
 | M3.5 | Safety and the notifications (A18, A23, A24) | Not started | 10–14 |
 | M3.6 | Dogfood on staging | Not started | 6–8 |

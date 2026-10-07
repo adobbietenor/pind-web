@@ -3,7 +3,7 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { categoryLabel, countLine, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, readShareCard, SEE_WHO, SHARE_COPY, THRESHOLD, THRESHOLD_EXPLANATION } from "@pind/shared";
+import { categoryLabel, clockLocal, countLine, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, readShareCard, SEE_WHO, SHARE_COPY, THRESHOLD, THRESHOLD_EXPLANATION } from "@pind/shared";
 import type { Env } from "../env";
 import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
 import { markSvg } from "./brand";
@@ -47,7 +47,8 @@ function fmt(iso: string, tz: string, opts: Intl.DateTimeFormatOptions): string 
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz, ...opts }).format(new Date(iso));
 }
 
-const clock = (iso: string, tz: string) => fmt(iso, tz, { hour: "numeric", minute: "2-digit" });
+// The card's clock is the shared one, so the app's list says the same time (M3.3c).
+const clock = clockLocal;
 
 // The date in this product's own voice — "Saturday 26 September", not en-CA's
 // "Saturday, September 26" — with the time still on a 12-hour clock, which is what
