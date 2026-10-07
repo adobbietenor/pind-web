@@ -1,0 +1,66 @@
+name: Bug report
+description: Something is broken, missing, or behaving wrong
+labels: ["bug", "triage"]
+body:
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Where did you see it?
+      options:
+        - iOS app
+        - Web
+        - Admin
+        - Landing page
+        - Not sure
+    validations:
+      required: true
+  - type: input
+    id: screen
+    attributes:
+      label: Screen ID
+      description: The T or A number from spec.md. Put "unknown" if you cannot tell.
+      placeholder: A12
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: what-expected
+    attributes:
+      label: What you expected instead
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to make it happen again
+      description: Rough steps are fine. Leave blank if it was a one-off.
+  - type: dropdown
+    id: severity
+    attributes:
+      label: How bad is it?
+      options:
+        - Blocker - cannot continue past this
+        - Broken, but there is a way around it
+        - Annoying
+        - Cosmetic
+    validations:
+      required: true
+  - type: checkboxes
+    id: first-test
+    attributes:
+      label: Timing
+      options:
+        - label: This has to be fixed before the first real crowd test
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Screenshot or screen recording
+      description: Drag an image or video straight into this box and it uploads automatically.
+  - type: input
+    id: device
+    attributes:
+      label: Device and browser
+      placeholder: iPhone 14, Safari
