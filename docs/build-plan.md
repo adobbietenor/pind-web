@@ -757,6 +757,24 @@ any of it.
 - PostHog events still carry no `$geoip_*` properties and no `$ip`. Checked in M2.0 (2026-09-19) by querying the stored `app_open` events: none had either, so PostHog honours the app's per-event `$geoip_disable` flag. M4.5 re-checks this against live funnel events rather than building a transformation (Alex, M2.0).
 - Web counts are not inflated by pages the browser pre-loads. In M2.0 one phone visit produced two `app_open` events 1 ms apart, with different anonymous ids; the likely cause is iOS Safari pre-loading a top hit. Funnel counts skip pre-rendered loads, or the metrics say why they don't (Alex, M2.0).
 
+#### M4.6 · Add an event (a stranger submits a gathering)
+
+**Filed in M3.1, given a milestone 6 Oct 2026** (decisions.md, "Add an event — filed, not built"; it supersedes Part 5's mailto). Not needed for the first crowds — they run on the import, M4.4's run and Alex's hand — but it is **how a city starts populating itself**, and the one place a stranger writes text that other people read.
+
+- **Two hard rules (Alex):** nothing publishes without Alex's approval — a submission is a draft like any other (published, dismissed or merged into a duplicate); and nothing can be submitted less than 24 hours before it starts.
+- **Its own check, not the rubric** (Alex: "make sure that's on the record"): the AI rubric ranks *would a crowd form*; this asks *is this a gathering at all* — an advert, a scam, a rally, contact details in a name field — with three outcomes and an uncertain state meaning *a human looks*, like the photo check.
+- **A person attached**, so there is something to rate-limit and block; approval before a slug is minted (a link preview and the cache key outlive the row).
+- **Open, Alex's, to answer when it is built:** can a submitter create a venue that does not exist (invented addresses reach a map), and can they submit a recurring series. Also to settle: a ceiling to go with the 24-hour floor, and which side of the boundary rule the form sits on (Worker or app).
+
+**Acceptance**
+
+- A submission arrives as a draft and is never public until Alex publishes it; one starting in under 24 hours is refused, at the boundary on both sides.
+- The submission check refuses an advert dressed as a gathering and holds an uncertain one for Alex, proved by tests that make it refuse.
+- A submitter is rate-limited, and a blocked or hidden person cannot submit.
+- W1's footer mailto is replaced by the form.
+
+6–10 h.
+
 ### The first real crowds
 
 Six to eight weeks. The publisher runs; the team seeds two or three gatherings a week in their fan channels (the only per-event labour left, and it is marketing, not operations); the digest goes out on Mondays; the team pins in to things they were going to anyway as ordinary members (allowed — never as operators). Your time: about two hours a week of reading the metrics page, the report queue and the fix list. At the end, a decision meeting against §7's pass criteria and the solo rule. Then Phase 5, or a different plan.

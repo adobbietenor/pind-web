@@ -774,11 +774,13 @@ working. Hours are Alex's, agent-assisted.
 | M4.3 | Production project (`pind-prod`) + external TestFlight | Not started | 6–8 |
 | M4.4 | Community & free sourcing | **Partly** — the Community tab has been on W1 since M2.3 with hand-entered gatherings (the manual community pass), with what it costs to walk in, the category chips, and a weekly check that recurring ones are still running (M2.3b). **Not built:** the automated weekly sourcing run and its admin tab | 8–12 |
 | M4.5 | Metrics (§7) + adaptive publishing on (§8) | Not started | 6–8 |
+| M4.6 | Add an event — a stranger submits a gathering; Alex approves every one; none under 24 hours before it starts (filed M3.1; supersedes the mailto) | Not started — recorded in decisions.md | 6–10 |
 | — | **The first real crowds** — 6–8 weeks, 2–3 seeded gatherings a week, then a decision meeting against §7 | Not started | ~2/week |
 | **Phase 5** | **The App Store** | | 22–34 |
 | M5.1 | Store readiness (listing, labels, manifest, EULA, review-only gathering) | Not started | 8–12 |
 | M5.2 | M1.3b — automated spots | Not started (code built, switched off) | 10–14 |
 | M5.3 | Submission, rejections, and Android when Alex chooses | Not started | 4–8 |
+| — | **Live photos and vibe** — people at a gathering post photos and rate the vibe, so someone deciding can see how it's going | **Unscheduled — needs a decision on H10 first** (decisions.md, 6 Oct 2026) | — |
 
 About 115–165 hours to the first real crowds and 140–200 to the App Store. Apple's
 calendars (Beta App Review, App Review) sit outside those hours. 20 December to

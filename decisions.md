@@ -187,7 +187,9 @@ profile.
   sending messages — never to read people on behalf of a visitor.
   `people.auth_user_id` stays nullable.
 - **Admin** sits behind Cloudflare Access. There is no admin table.
-- **"Suggest a gathering"** is a mailto link. Nothing is stored.
+- **"Suggest a gathering"** is a mailto link. Nothing is stored. **Superseded (Alex, M3.1)** by
+  "Add an event — filed, not built", below, which is milestone **M4.6** (6 Oct 2026). The mailto
+  stays as the interim — W1's footer still carries it — until M4.6 replaces it.
 - **Crew state** is stored as a column; time-driven transitions (live, done,
   auto-dissolve) are applied by pg_cron. `dissolved` is a fifth, terminal state; the
   row is never deleted.
@@ -2231,7 +2233,7 @@ with the rest so they are cheap now rather than expensive later):
   already does — worth keeping deliberately, because a slug is what a link preview and
   Cloudflare's cache key are built from, and both outlive the row.
 
-**Where it goes:** most naturally alongside **M4.4** (community sourcing), since a
+**Milestone: M4.6** (6 Oct 2026; `docs/build-plan.md` §8, spec §6). **Where it goes:** most naturally alongside **M4.4** (community sourcing), since a
 submitted gathering is community sourcing through a different door — but its gate is
 the opposite of M4.4's auto-publishing, and that difference is the point, not an
 inconsistency to iron out.
@@ -3774,3 +3776,74 @@ is indistinguishable from a broken hand-off). Both sentences were made to fire.
   gathering, which are reached by their links. S22 (app screens read gatherings under
   RLS) keeps holding every other screen; the list's one reader is `app/src/lib/crowds.ts`
   (K02).
+
+### Live photos and vibe — recorded; needs a decision on H10 first (Alex, 6 Oct 2026)
+
+**The idea.** While a gathering is happening, people at it post photos of the place and
+rate the vibe, so someone deciding whether to pin can see how it is actually going.
+Recorded here for the first time: an earlier request to note it never reached the repo.
+
+**Why it is not a backlog item.** It runs against **H10** — "the company is never
+present at a gathering", whose stated reason is "the product's job finishes before the
+event starts". Everything is built around that line, and it is the prepared answer to
+App Review's "what protects people at an in-person meetup" (build plan §5). So the
+feature needs a decision on H10 before it needs a milestone.
+
+**What is true today, which the decision has to start from:**
+
+- **The rule itself is intact; its reason has already been stretched.** H10's rule —
+  no hosting, no staffing, no attending as operators — is untouched by people posting
+  photos: the company is still not there. But "the product's job finishes before the
+  event starts" stopped being literally true in M3.3, by Alex's own decisions: "I'm here"
+  from three hours before, the group live on the night, and A16's ticks and #5 the
+  morning after. Those all stay **inside the people already committed** (a group, a
+  room, your own ticks). Live photos and vibe would be the first thing the product
+  shows **from inside a gathering to people who have not committed** — which is a
+  different line, and the one that matters.
+- **The prepared App Review answer already needs rewording**, whatever is decided here:
+  "the product's job finishes before the event starts" is no longer accurate after
+  M3.3. Filed for M5.1's review notes.
+
+**What else it runs into, so the decision is made with all of it in view:**
+
+- **H4 (no location, the stalking class of risk).** A photo posted "now" from a venue
+  says *this person is there right now* to anyone who can see it. "I'm here" says that
+  only to a group of three who chose each other. A public, live version is the risk H4
+  exists to remove, arriving by a different door.
+- **Other people's faces.** A photo of a crowded bar is mostly people who never agreed
+  to be in it, shown to strangers. Nothing in Pin'd today shows a face without its
+  owner's choice (H3).
+- **H9 and App Review 1.2.** Public images from strangers need filtering, report and
+  block on every image, and timely human response — the same reasoning that put "Add an
+  event" behind Alex's approval: it is public content on a public page. Images are
+  harder than text: the automated photo check judges one face for a profile, not a
+  crowd scene.
+- **H6 (honest counts).** A vibe rating is a number about a gathering made by a few
+  people in it; read by someone deciding whether to come, it is a claim about the night
+  that the product publishes. It has to be as honest as the counts, including "two
+  people rated this".
+
+**The decision Alex owes (H10), with the shapes it could take:**
+
+1. **Keep H10 as it is, and restate its reason honestly** — "the product convenes people
+   and steps back; nothing is broadcast from inside a gathering". Live photos and vibe
+   are then out.
+2. **Allow it inside the commitment line only** — photos and vibe visible to people
+   already pinned *and* opted in there (the room's audience), never to the public or
+   before a pin. H3 and H4 hold; it adds less to the pin decision, because the people it
+   would persuade cannot see it yet.
+3. **Allow it publicly, with guardrails** — no faces (or faces blurred), posted with a
+   delay so it never says *now*, rated only in aggregate with its count, every image
+   moderated. The biggest change to H10, H4 and the App Review story.
+
+**No milestone until the decision is made.** If it is (2) or (3), it comes after the
+first crowds have shown what the product is — it is how a city that already works shows
+itself off, not how one starts.
+
+### "Add an event" gets a milestone: M4.6 (Alex, 6 Oct 2026)
+
+- **M4.6**, after M4.5, in `docs/build-plan.md` §8 and spec §6, so it is visible in the
+  plan rather than only in this file. Its record is "Add an event — filed, not built"
+  (above): both hard rules, the reason the approval gate inverts "automate by default",
+  and the open questions. Part 5's mailto line is marked superseded, with the mailto as
+  the interim until M4.6 replaces it.

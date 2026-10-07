@@ -58,6 +58,13 @@ describe("The build plan keeps what was carried", () => {
     for (const item of ["Interests, remembered", "Search", "A19 My Events"]) assert.ok(b.includes(item), `M3.2b lost "${item}"`);
   });
 
+  it("D07 'Add an event' has its milestone, M4.6, carrying both of Alex's hard rules and its own check (6 Oct 2026)", () => {
+    const m = section("M4.6");
+    assert.match(m, /nothing publishes without Alex's approval/i, "M4.6 lost the approval gate");
+    assert.match(m, /less than 24 hours before it starts/i, "M4.6 lost the 24-hour floor");
+    assert.match(m, /Its own check, not the rubric/, "M4.6 lost 'scoring is not moderation'");
+  });
+
   it("D04 M3.6 holds M3.3's three deferrals by name: seeing and switching rooms, groups growing, the manual 'Set spot & time'", () => {
     const m = section("M3.6");
     for (const item of ["Seeing and switching rooms", "Groups growing after they form", "Set spot & time"]) {
