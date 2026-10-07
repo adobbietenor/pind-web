@@ -504,7 +504,9 @@ not as files in this repo.
 - Read them with: gh issue list --label ready --json number,title,body,labels
 - NEVER act on an issue labelled `triage`. Alex reviews everything before it
   becomes work. If asked to work from issues, filter to `ready` only.
-- Every issue body contains a Screen ID (T1-T10 or A1-A25). Cross-reference it
+- Every issue body names an area of the product with its Screen ID (W1-W4 for the
+Worker's public pages, A1-A29 for the Expo product; T1 is the off-product
+fan-channel post). Cross-reference it
   against spec.md before proposing changes.
 - Screenshots are attachment URLs in the issue body. On a private repo these are
   auth-gated: fetch with `gh api <url> > shot.png`, not curl.
