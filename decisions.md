@@ -94,7 +94,7 @@ planless until it is too late to matter.
 
 ### Q6 — Keep-in-touch mechanics
 **Call:** ticks are **invisible until mutual** (A16), gated behind a mutual "we met",
-and **expire 72 hours after the event**. No pending state, no rejection receipt.
+and **expire 72 hours after the event**. *(Superseded 29 Sept 2026: ticks stay open **7 days** after the effective end, and one can be taken back until it is matched — Part 5, "The night and after".)* No pending state, no rejection receipt.
 **Alternative:** show one-way interest. Higher connection rates, reinvents the like button.
 
 ### Q7 — "I'm here" without location
@@ -145,7 +145,7 @@ screenshot the plan.
 |--------|-----------|
 | Pins | Deleted 30 days after the gathering; aggregate counts kept |
 | Crew threads | Read-only 24h after the gathering; deleted at +30 days (Q11) |
-| Keep-in-touch ticks | Expire 72h after the gathering if not mutual (Q6) |
+| Keep-in-touch ticks | Expire 72h after the gathering if not mutual (Q6) — *superseded 29 Sept 2026: open 7 days after the effective end ("The night and after")* |
 | Gender | Kept on the person; never shown per-person, only in the aggregate chip and women-only eligibility |
 | Reports and moderation decisions | Kept 12 months |
 | Reported message content | Retained with the report for 12 months, independent of thread deletion |
@@ -164,7 +164,7 @@ Device location, contacts, phone numbers (until OTP is ever needed), surnames be
 an initial, ticket or seat data, message content for any purpose beyond delivery and
 moderation, advertising identifiers, third-party ad or attribution SDKs, employer,
 school, sexual orientation. Tags are optional on the link path and nudged later
-(Alex, revised build plan); "exactly 3" defines a complete profile.
+(Alex, revised build plan); "exactly 3" defines a complete profile. *(Since M3.1: three to ten tags, three of them on the list — `tagsCanContinue` in packages/shared; spec A3.)*
 
 Collected only if the person chooses to add it: an **Instagram handle** — optional,
 never required, never a substitute for the photo, and visible only to crewmates,
@@ -197,7 +197,7 @@ profile.
   stays 1–10 and is independent. **Retired 28 Sept** (the room design).
 - **Dissolve notification** is folded into A18 notification 3 ("Crew status — formed /
   spot set / dissolved"). Still five — **six since 28 Sept** (room activity). A18's rule is five moments, all about a plan — a
-  ban on engagement bait, not a count to defend; a dissolve is a plan-state change.
+  ban on engagement bait, not a count to defend; a dissolve is a plan-state change. *(Superseded 6 Oct 2026: seven notifications, and the rule is the ban on bait, not the count — "A18: the rule is the ban, not the count".)*
 - **Contact details** (email; phone is not collected — Q8, Part 4) live in their own
   table, never on the person row.
 - **Product domain: pind.social** (Alex, Phase 1 M1.1). Crowd pages, share links and
@@ -212,7 +212,7 @@ profile.
   Community & free run, **M4.4**); and manual entry, as a fallback only. AI vets and
   scores every draft with a one-line reason. The auto-publisher publishes them (M2.2,
   "Auto-publishing, adaptive" below); Alex can still publish by hand. **Publishing
-  selectively is deliberate: pins must concentrate so crowds reach 5.** A draft is
+  selectively is deliberate: pins must concentrate so crowds reach 5.** *(Reversed in M2.2: the target is 50 a week — build plan §8 M2.2 and the M2.2 entries below.)* A draft is
   published, dismissed or merged into a duplicate found by another source; an
   importer never changes a published gathering (it only flags it — M1.3, "Importer
   and status changes" below), and a dismissed or merged event is never re-created by
@@ -248,7 +248,7 @@ profile.
   people going alone or in small groups (0–20), time and place to meet before (0–15),
   shared identity (0–10). Hard caps: kids' and family shows, and audiences mostly under
   19, at most 10 (H8); seated theatre and classical at most 35; not an event, 0. Drafts
-  below **70** after the distance adjustment are collapsed in the queue (Alex, M1.3,
+  below **70** after the distance adjustment are collapsed in the queue *(the score floor is 60 since M2.2 — read from the cities row, 6 Oct 2026)* (Alex, M1.3,
   after the first real run: at 40, 79% of the next 14 days' drafts showed; raised from
   40 to 70). "Venues needing spots" still lists venues with a draft at 40+. Only new
   drafts are scored; a failed score leaves the draft unscored and it is retried next
@@ -320,7 +320,7 @@ profile.
 - **Automate by default** (Alex, after Phase 1 M1.3). Wherever possible, AI does the
   work and Alex removes what is wrong, rather than approving everything by hand.
 - **Auto-publishing** (Alex, after Phase 1 M1.3). The system publishes the **top 5
-  drafts per week by final score** (the number is a setting); Alex withdraws or
+  drafts per week by final score** (the number is a setting); *(50 a week since M2.2.)* Alex withdraws or
   unpublishes anything unwanted. Manual publish stays. Built as a fixed target in
   **M2.2** and made adaptive in **M4.5** — see "Auto-publishing, adaptive" below.
 - **Spots, automated** (Alex, after Phase 1 M1.3; M1.3b and later).
@@ -346,7 +346,7 @@ profile.
   near-black background, purple `#582883`, white text, the logo — matching the app and
   pindscene.com. Mobile-first, and still loading in under a second inside a Reddit tab.
   Replaces "white pages" (spec §2).
-- **Future and beta features** (Alex, after Phase 1 M1.3).
+- **Future and beta features** (Alex, after Phase 1 M1.3). *(Open, Alex's — 6 Oct 2026: the room design (28 Sept) makes solo "the same move with one person"; the solo design below, build plan M3.4 and spec A28/A29 still describe the crew era and are reconciled before M3.4 starts.)*
   - **"Put me in a crew"**: an optional button that places a person in an open crew
     with room, for people who don't want to choose. **Decided yes** (Alex, revised
     build plan): built in M3.3 — it places the person in the open crew with the most
@@ -370,7 +370,7 @@ profile.
     with its own harness cases. In scope for the first beta, measured separately from
     crews (crew meetups vs solo meetups).
 - **Build direction** (Alex, after Phase 1 M1.3 — decided). The product is built
-  **once in Expo for iOS and web**: accounts, required face photo with the AI check,
+  **once in Expo for iOS and web**: accounts, required face photo with the AI check, *(the photo is asked at opt-in, not required to pin — Q2; and nothing waits on the check — "Nothing waits on the photo check", M3.1)*
   profile, pinning in, crews, solo crew, chat and notifications. The **Worker** keeps
   the admin, the nightly import and AI jobs, and the fast public crowd pages (W1, W2,
   W3 `/spot`, share links) that lead into the app or the web product. **The
@@ -384,7 +384,7 @@ profile.
   pins. Enforced in the database.
 - **Pin-in button for free events** (Alex, Phase 1 M1.2). Ticketed gatherings keep
   "Pin in — I've got a ticket". Gatherings with `is_free = true` use **"Pin in — I'm
-  going"**. The crowd-page milestone (M2.1, W2; A8 in M3.2) implements it.
+  going"**. The crowd-page milestone (M2.1, W2; A8 in M3.2) implements it. *(Superseded after the M2.2 walk: every crowd page reads "Pin in — I'm going", whatever it costs — "One button on every crowd page"; one constant, `PIN_IN`.)*
 - **Admin CSV export** (Alex, Phase 1 M1.2) has one row per pin and never includes
   contact details or gender.
 - **Venue map images are public** (Alex, Phase 1 M1.2), in their own public bucket
@@ -399,6 +399,7 @@ profile.
     photo (V6);
   - **uncertain** — possible minor, not a real person, or possibly someone else's
     photo → the admin photo queue, for a human decision.
+  *(Superseded in M3.1 — "The photo check holds almost nothing now" and "Nothing waits on the photo check": a photo is visible from upload unless rejected, and the uncertain state is `needs_review`, a note for Alex rather than a verdict.)*
 
   The AI **never decides "under 19" alone**: it can only flag a photo for review;
   the 19+ rule (H8) stays with the person's attestation, reports and admin review.
@@ -432,15 +433,15 @@ change). Where the plan has more detail, the plan is the reference.
 - **Email delivery** (Alex, revised build plan). **Resend on pind.social**,
   transactional only. The five notifications (spec A18) are mirrored by email for
   people without a device token; the Monday digest email carries an unsubscribe link.
-  **SMS is never used**; Twilio is out of the stack.
+  **SMS is never used**; Twilio is out of the stack. *(The five are seven since 29 Sept 2026 — spec A18.)*
 - **Notification delivery** (Alex, revised build plan). The database decides *what*:
   triggers and pg_cron enqueue rows in `notification_queue`. The Worker decides *how*:
   a cron every **5 minutes** delivers by Expo Push or Resend, with **one retry**, and
-  its failures are visible in the admin. Monday 6:00 PM Toronto is handled across DST.
+  its failures are visible in the admin. Monday 6:00 PM Toronto is handled across DST. *(As built in M3.3: every **minute**, up to **three** attempts, from the table `notifications` — `NOTIFY_CRON` in src/cron.ts and `admin_pending_notifications`. The Monday digest is not built — M3.5.)*
 - **Date changes message pinned people** (Alex, revised build plan; closes the open
   item from M1.3). A date change applied from a flag, or a withdrawal, reaches pinned
   people through notification 3, renamed **"plan status"** (formed / spot set /
-  dissolved / gathering date changed or withdrawn). Still five notifications — **six since 28 Sept**.
+  dissolved / gathering date changed or withdrawn). Still five notifications — **six since 28 Sept**. *(Seven since 29 Sept 2026. A withdrawal reaches a group since 6 Oct; the date-change half is not built — M3.5.)*
 - **Photo check on the Worker via a database webhook** (Alex, revised build plan). The
   app uploads the photo and inserts the row; a database webhook calls a Worker endpoint,
   which runs the Claude vision check and writes approve / reject / queue to
@@ -449,7 +450,7 @@ change). Where the plan has more detail, the plan is the reference.
 - **Generated maps are schematic SVGs from coordinates** (Alex, revised build plan).
   The Worker draws the venue, each spot with its name and walking minutes, a north
   arrow and a scale bar, cached at the edge. No tiles, no API key, nothing but the
-  building and its spots (H1). Upload stays an optional override.
+  building and its spots (H1). Upload stays an optional override. *(Superseded in M2.1: a real map image, fetched server-side — "A real map, not a schematic".)*
 - **OG images carry no counts** (Alex, revised build plan). A link preview is cached at
   post time, so a number in it would go stale and be dishonest (H6). Counts live in
   the post title and on the page.
@@ -471,7 +472,7 @@ change). Where the plan has more detail, the plan is the reference.
   Fallback: poll every 10 seconds while the thread is open.
 - **Auto-publishing, adaptive** (Alex, revised build plan). Settings on the `cities`
   row (target 5, floor 3, ceiling 20, lead window 4–21 days, 2 per venue per week, 1
-  community slot, score floor 70). A nightly fill publishes the highest-scoring eligible
+  community slot, score floor 70). *(The cities row as read on 6 Oct 2026: target 50, floor 3, ceiling 75, lead 0–21 days, 6 per venue, 1 community slot, score floor 60, at most 40% of one category.)* A nightly fill publishes the highest-scoring eligible
   drafts up to the target; Alex's "publish" and "never" marks override the score. A
   weekly adjust on Mondays grows the target by 2 when `reach_rate ≥ 0.60` and median
   pins ≥ 8, shrinks it by 1 when `reach_rate < 0.30`, otherwise holds; it holds when
@@ -485,7 +486,7 @@ change). Where the plan has more detail, the plan is the reference.
   per platform can switch solo off (for example if App Review rejects it) while the web
   keeps it.
 - **Neighbourhood and tags on the link path** (Alex, revised build plan). Optional,
-  nudged later; "exactly 3 tags" defines a complete profile, never a gate before a pin.
+  nudged later; "exactly 3 tags" defines a complete profile, never a gate before a pin. *(Since M3.1: three to ten tags, three of them on the list — `tagsCanContinue` in packages/shared; spec A3.)*
 - **Instagram handle** (Alex, revised build plan — Alex's own change to the plan, which
   had dropped it). A person may add an Instagram handle to their profile. It is
   **always optional**, never required, and **never a substitute for the photo**.
@@ -997,7 +998,7 @@ change). Where the plan has more detail, the plan is the reference.
   already even and a category cap would bind on nothing. At 50 concerts are **68% of
   the queue**, and a list meant to say "going out in Toronto" becomes a concert
   listing. So: keep the floor at 70 until the category cap exists; ship them together.
-- **The per-venue cap stays at 2** (checked at the new target, M2.2). At a floor of 70
+- **The per-venue cap stays at 2** (checked at the new target, M2.2). *(6 per venue on the cities row, read 6 Oct 2026.)* At a floor of 70
   it binds almost nowhere — in the busiest week only Scotiabank Arena had more than two
   eligible drafts — so it costs the list nothing today and is exactly what stops a Jays
   homestand or an arena run dominating once the floor drops. Keeping it cheap and in
@@ -1019,7 +1020,7 @@ change). Where the plan has more detail, the plan is the reference.
   50 would never bind on a queue supplying 28 — which is exactly when crowding happens.
   `min_per_category` (3) is the allowance before the share applies, or the first pick
   would be 100% of one kind. Gatherings already published that week count against the
-  share, so a week filled by hand is not doubled. Per-venue stays at 2.
+  share, so a week filled by hand is not doubled. Per-venue stays at 2. *(Now 6 — the cities row, 6 Oct 2026.)*
   Measured after the change: **41 published over three weeks — concerts 49%, clubs 32%,
   sports 20%**, with 33 concerts held back. The arithmetic to know before changing the
   share: a week can only reach (everything that is not the dominant category) ÷
@@ -1145,7 +1146,7 @@ change). Where the plan has more detail, the plan is the reference.
     oversight (Alex).
 - **"Crews open at 5" describes the rule, not the thing people want** (Alex, after
   M2.2 — filed for M3.3, and for the M2.1 copy pass since the line is on the public
-  page). `THRESHOLD_EXPLANATION` currently reads "Crews open when 5 people opt in.",
+  page). *(Retired with the crew design, 28 Sept 2026: there is no threshold of 5 to open — the room opens at 2 — "The room, then a small group, then solo".)* `THRESHOLD_EXPLANATION` currently reads "Crews open when 5 people opt in.",
   which asks a reader to wait on a mechanism. It should describe what they came for —
   "See who's going, form a crew" or near it — and tapping it should lead somewhere
   rather than count down. **The pinned crowd page should lead with the people, with
@@ -1166,7 +1167,7 @@ change). Where the plan has more detail, the plan is the reference.
   - Still to answer when A9/A10 are built: **what the locked state offers beyond a
     number.** "3 of 5 · 2 to go" is honest and inert, which is the worst pair.
 - **Messaging while crews are forming, and the phrase "Start a crew"** (Alex, after
-  M2.2 — filed for M3.3). There is a cold-start gap: five people have opted in, nobody
+  M2.2 — filed for M3.3). There is a cold-start gap: *(Retired 28 Sept 2026: the room is where somebody says "shall we?" — build plan §8 M3.3, "Retired with the crew design".)* five people have opted in, nobody
   has started a crew, and there is no way to say "shall we?". Starting one asks somebody
   to go first with no conversation, and **that hesitation is exactly what the product
   exists to remove**.
@@ -3161,7 +3162,7 @@ or solo."* Where the two meet and where they do not:
     lost — your pin is still there." Never silence, never a person unsure whether
     their pin survived.
 - **M3.2b — the app's front door** (A5–A7, interests, search, A19 My Events), about
-  11–12 hours, **between M3.2 and M3.3**. M3.3 stays the loop and nothing else. The
+  11–12 hours, **between M3.2 and M3.3**. *(Superseded: M3.3 went first (28 Sept); the build moved ahead of M3.2b and the home and list to M3.3c (6 Oct) — "The TestFlight build moves ahead of M3.2b", "The app's home: pick a city, pulled forward".)* M3.3 stays the loop and nothing else. The
   "get the app" nudge moves to M3.3 (it is shown when crews open); the admin control
   to block a pair moves to M3.5 (Safety). **Checked:** nothing on M3.2's walk needs the
   home list (it enters by link); M3.3's one reliance — "invite" opens this week's
@@ -3399,7 +3400,7 @@ commit to a plan with strangers before anyone had spoken. The design doc
   stored.
 - **What the device stores:**
   - **In the app:** the session is in the iOS Keychain. It survives app updates, and is
-    expected to survive delete-and-reinstall. That is checked on M3.2b's build
+    expected to survive delete-and-reinstall. That is checked on M3.2b's build *(now M3.3b's build, 6 Oct 2026)*
     (on its native list).
   - **On the web:** the session is in localStorage, which is where it breaks.
 - **What breaks it on the web:**

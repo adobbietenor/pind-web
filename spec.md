@@ -260,7 +260,7 @@ Public, no account, shareable. Contains:
   decoration** — it is what App Review is pointed at under Guideline 1.2, and what
   says meetings happen somewhere public, before the event (H5, H10). It stays on
   every crowd surface.
-- Primary action: **"Pin in — I've got a ticket"**; for free gatherings, **"Pin in —
+- Primary action: *(since the M2.2 walk every crowd page reads "Pin in — I'm going" — §6, "Superseded copy — the pin-in button"; kept as written:)* **"Pin in — I've got a ticket"**; for free gatherings, **"Pin in —
   I'm going"** (§5). It opens the product's quick pin (A26) at `/g/<slug>/pin`. If a
   signed-in session exists in this browser, a small script swaps the button to
   "Open"; the page still works with JavaScript off.
@@ -396,7 +396,7 @@ marked **(no recorded reason)** is load-bearing and unsourced: what to look for 
 
 - **A8 pre-pin** — same anatomy as W2 so a shared link feels continuous. Facts, the
   **only map in the app** (venue + named spots, never people, H1), counts, house rules,
-  one button: "Pin in — I've got a ticket". Works logged-out via the share link.
+  one button, "Pin in" (`CROWD_COPY.pinIn`; "I've got a ticket" was retired after the M2.2 walk). Works logged-out via the share link.
 - **A9 pinned, below threshold** — "Open to meeting" toggle; reciprocal list already
   works at n=2; **crews locked** with the reason and the number named ("3 of 5 · 2 to
   go · we'll push you the moment it happens"); nudge to share the page.
@@ -674,7 +674,7 @@ the web build must be the complete product.
 
 - Tagline: "Know where you're headed, find what you're looking for."
 - One-liner: "See who's going, meet them there."
-- Primary action: **"Pin in — I've got a ticket"**. For gatherings with `is_free = true`:
+- Primary action: *(retired after the M2.2 walk — every crowd page reads `PIN_IN`, "Pin in — I'm going"; §6, "Superseded copy"; kept as written:)* **"Pin in — I've got a ticket"**. For gatherings with `is_free = true`:
   **"Pin in — I'm going"** (Alex, Phase 1 M1.2).
 - Threshold explanation: "Crews form once 5 people are open to meeting." (Alex, M3.2:
   one word for the second number everywhere, "open to meeting" — it read "opt in" here
@@ -781,6 +781,68 @@ working. Hours are Alex's, agent-assisted.
 | M5.2 | M1.3b — automated spots | Not started (code built, switched off) | 10–14 |
 | M5.3 | Submission, rejections, and Android when Alex chooses | Not started | 4–8 |
 | — | **Live photos and vibe** — people at a gathering post photos and rate the vibe, so someone deciding can see how it's going | **Unscheduled — needs a decision on H10 first** (decisions.md, 6 Oct 2026) | — |
+
+#### Recorded, not scheduled (6 Oct 2026)
+
+Decided or recorded in decisions.md, with no milestone yet — listed here so nothing
+decided is invisible to someone reading this table (Alex, 6 Oct 2026; found by an audit
+of decisions.md against the plan). Each points at its decisions.md entry by name.
+**When one is scheduled, it moves into a milestone and leaves this list.**
+
+**Owed before the first real crowds — no milestone holds them yet:**
+
+- **The full copy pass with Tatiana** — owed "before the first real crowds" (spec §5,
+  "The voice"; decisions, M2.3). Everything marked PROPOSED (S25 lists the files), and
+  the sign-in flow's feel (owed to it, Alex 29 Sept).
+- **DMARC moved to `p=quarantine`** after a week of reports (decisions, "DMARC").
+- **A watchdog for the community check's cron** — the pg_cron watchdog covers only the
+  import (decisions, M2.3b, the liveness check).
+- **Where Resend stores data** — "Resend: not yet read" in the privacy facts (decisions,
+  "the ruler, the privacy facts, data location"); M4.1's line-by-line promise check
+  should name it.
+- **Whether to count searches that find nothing** — a privacy question filed for M4.1
+  and not in its section (decisions, "A search bar").
+- **M3.6's dogfood includes at least one web-only person** (decisions, "A steer on
+  emphasis: the app is the product, the web is the on-ramp") — not in M3.6's section.
+- *(The anonymous sign-in abuse revisit is now its own line on the checklist below.)*
+
+**Filed for a milestone that never picked it up:**
+
+- **An interactive map on the app's crowd page** (Protomaps on R2) — filed for when M3.2
+  built A8; M3.2 shipped the static image (decisions, "A real map, not a schematic",
+  Shape A, and the map-view entries).
+- **A spot's card, and the manual spot pass** — "picked up with M5.2 or M3.3, whichever
+  reaches the spot poll first"; neither did (decisions, "A spot is a card, not a maps
+  link", "Spot content starts as a manual pass").
+- **A spot must be open at the meeting time** — filed for M5.2's automated check; M5.2
+  says only "currently open" (decisions, M2.2 spots).
+- **Topping up a series from its source, with a clamp on `confirmed_through`** — costed
+  at 2–3 h, "belongs with M4.4's daily run"; M4.4 is silent (decisions, M2.3b).
+- **A "going out" chip, and splitting the concerts/clubs cap** — expected from M4.4's own
+  sources; M4.4 is silent (decisions, M2.3).
+
+**Ideas and features decided or filed, for after the first crowds:**
+
+- **The city map view**, a toggle beside the list (decisions, "Map view — considered,
+  deferred").
+- **A "popular" sort the reader chooses**, never the default; **venue and neighbourhood
+  filters** (decisions, M2.2, "The three surfaces").
+- **"Hotspots"** — a button, not a tab, when there are real pins (decisions, "Hotspots —
+  filed, not built").
+- **W2's zoom switch, and a real map behind a tap** (decisions, M2.3, the venue map).
+- **Spots may belong to a place, not a venue** (decisions, "Spots may belong to a place,
+  not to a venue").
+- **Renaming the chips and the Community tab** (decisions, M2.3).
+- **Six photos, and a bio** — considered, not built; revisit after the first crowds
+  (decisions, "Six photos — considered, not built", "A bio is a V17 bypass").
+- **A longer-lived web session ("fix 3")** — built only when its trigger fires: more than
+  1 in 5 returning web pinners arriving with their session lost, over four weeks with at
+  least 25 of them (spec §7; decisions, "Fix 3 … waits for a number").
+- **The photo check's labelled set: two cases still missing** — swimwear and a group
+  photo (`tests/photos/SET-NOTES.md`).
+- **Live photos and vibe** — needs a decision on H10 first (the row in the table above).
+- **The Realtime residual**: the 30-day purge's deletes still reach subscribers as ids
+  of month-old messages in closed rooms (decisions, the V20–V23 review).
 
 About 115–165 hours to the first real crowds and 140–200 to the App Store. Apple's
 calendars (Beta App Review, App Review) sit outside those hours. 20 December to

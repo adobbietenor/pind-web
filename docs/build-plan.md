@@ -154,7 +154,7 @@ Supabase anonymous sign-in (already on for staging) gives a real JWT, so RLS app
 
 #### Push-back 3 — neighbourhood and three tags are not a gate
 
-Tags are conversation handles, not match criteria (A3). On the link path, make neighbourhood optional and tags a nudge afterwards ("add 3 tags so your crew has something to say"). Keep "exactly 3" as the rule for what a complete profile looks like, not as a wall between a person and their first pin.
+Tags are conversation handles, not match criteria (A3). On the link path, make neighbourhood optional and tags a nudge afterwards ("add 3 tags so your crew has something to say"). Keep "exactly 3" as the rule for what a complete profile looks like, not as a wall between a person and their first pin. *(Three to ten since M3.1 — `tagsCanContinue`.)*
 
 ### Two doors, one product
 
@@ -739,7 +739,7 @@ any of it.
 - A run finishes within its budget and fills the tab with real, dated, free or low-cost gatherings with links Alex can open.
 - Each candidate carries what was confirmed and from where, and anything unconfirmed is held rather than published.
 - At least one community gathering is published and visible on pind.social before the first real crowd.
-- **That gathering has meeting spots** — its location, whatever shape it is, has somewhere a crew can actually meet.
+- **That gathering's meeting is clear** — with `at_the_gathering`, the Community default, no spot is needed (decisions.md, "Community gatherings do not need meeting spots"; this line read "has meeting spots" until 6 Oct 2026, against the decision).
 - A run that stalls is aborted and reported, not hung.
 
 6–8 h
@@ -909,7 +909,7 @@ Everything below is a gate. Items that only applied to the WhatsApp Test 0 are g
 | The +1 claim page (T10)?                        | **Drop it.** A +1 shows as "+1 friend" and pins in themselves via the share link if they want to be seen                 | Thirty seconds on the quick-pin screen replaces a page, a token and a rule                                            |
 | "Put me in a crew"?                             | **Retired 28 Sept** — the room places everyone; a group is by invite                                                   | 2–3 hours, and it is the closest thing to a host you will ever ship                                                   |
 | Solo's user-facing name and default visibility  | **"Meet 1-on-1"**; a forced choice between "everyone who opted in" and "women only"                                      | Say what it is; do not choose for people whose safety it affects                                                      |
-| Neighbourhood and 3 tags on the link path       | **Optional, nudged later**; "exactly 3" defines a complete profile                                                       | §4. Conversation handles are not a gate                                                                               |
+| Neighbourhood and 3 tags on the link path       | **Optional, nudged later**; "exactly 3" defines a complete profile *(three to ten since M3.1)*                                                       | §4. Conversation handles are not a gate                                                                               |
 | Where the web build is hosted                   | **Same host, Worker static assets**                                                                                      | §2. One domain, one deploy, one link file                                                                             |
 | Incorporation and account ownership             | **Start now; done before store submission at the latest**; Apple, Play, Supabase, Cloudflare and Resend under the entity | The terms name an entity; the Play account rule; billing kept away from your other companies                          |
 | First crowds on TestFlight or web?              | **Web and email first**; TestFlight for volunteers                                                                       | No install for a Reddit visitor; Android covered; push is a bonus, not a gate                                         |
