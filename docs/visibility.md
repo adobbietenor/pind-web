@@ -665,7 +665,9 @@ ticks, and "matched" only where a tick of yours meets one of theirs, so nobody l
 a tick they did not return (Q6). `after_tick` refuses outside the group, outside the 7
 days, "keep in touch" before a matched "we met", and taking back a matched tick.
 **Connections** are read only through `my_connections`, which leaves out a blocked or
-hidden person. **Invites between connections** (#7) are unreadable; `invite_options`
+hidden person. **A block or a hide ends a connection for every purpose** — the list, the
+handle (V17), the invite picker, the invite (review L2, 6 Oct 2026) — and the picker's
+"already going" counts only a pin that is open to meeting. **Invites between connections** (#7) are unreadable; `invite_options`
 tells the inviter only whether the other person is already going or already invited.
 
 **The after-event question** (`survey_responses`): answerable once, after the effective
@@ -694,9 +696,13 @@ joins one or approves anyone.
   the fullest with space. Not you, not the other people, not the page: nothing lets
   anyone choose a room (seeing and switching rooms is M3.6). A room holds **30** — a city
   default, overridable per gathering, arbitrary and tunable (decisions, "30 a room").
+  - **Never placed:** a hidden person (and the moment someone is hidden they leave every
+    room; unhidden, they are placed again), or a seed person at a real gathering
+    (review L3, L5; 6 Oct 2026).
   - *Known gap, 6 Oct:* placement takes no lock. Two people opting in at the same instant
     can put a room one over its size, and the first two people ever at a gathering, at
-    the same instant, can collide so that one person's opt-in fails. Raised with Alex.
+    the same instant, can collide so that one person's opt-in fails. The fix (a lock per
+    gathering) waits on Alex's answer about the worst-case wait.
 - **Rooms scope the conversation, not who sees whom.** Someone in another room at the same
   gathering is still on your list (V1). The room decides who reads your messages, who you
   can invite (V21), and who #2 and #6 are about (V22).
@@ -705,16 +711,24 @@ joins one or approves anyone.
   **Not** a visitor, someone pinned without opting in, someone in another room at the
   same gathering, or anyone at another gathering.
 - **Who is in your room** (the arrival cards): you see who is in yours, and only the people
-  you could see on the list. You never see who is in another room.
+  you could see on the list. You never see who is in another room. **When someone last
+  looked at the room is readable by nobody** — not a read receipt (review L11).
 - **Posting:** only as yourself, in your own room, while you are opted in, once the room
   has two people, and until 24 hours after the gathering ends. At most one message every
   3 seconds and 200 a day.
-- **Deleting:** your own messages only. A report made before the delete keeps its copy of
-  the message (H9).
+- **Deleting:** your own messages only. **A delete is a removal**: the words are cleared at
+  once and nobody, the author included, can read it; nothing about it is broadcast to
+  anyone outside the room (review L9). A report made before the delete keeps its copy of
+  the message (H9). *Residual:* the 30-day retention purge deletes rows, so the ids of
+  month-old messages in closed rooms can reach a Realtime subscriber.
+- **A hidden person's messages** become unreadable to everyone but their author at the
+  moment of the hide. *Open (Alex):* whether that is what should happen.
 - **After the gathering:** read-only for 30 days to the same people and nobody new, then
   deleted (Q11).
 - **The women-only room** — only women, and nonbinary people who chose inclusion, are ever
-  placed in it (H7). It never shows a count (Q9). **It splits at 30 too**: the women-only
+  placed in it (H7). It never shows a count (Q9). **Below 3 it is closed in the database,
+  not only on the screen:** nobody can read its row, its members or its messages, or post
+  in it (review L6) — so two eligible people never learn there are two of them. **It splits at 30 too**: the women-only
   rooms are their own series, filled the same way, and a second women-only room opens
   only when the first women-only room is full. It does not depend on the general room at
   all: a woman who has not chosen "women-only rooms only" is in one general room and one
@@ -728,21 +742,27 @@ joins one or approves anyone.
   next ten-minute run acts on it. Nobody is told until M3.5's #3 ("date changed or
   withdrawn").
 - **When a gathering is withdrawn** (cancelled), its rooms go dark at once: nobody can read
-  or post, because both need the gathering published.
-  - *Open, 6 Oct (Alex):* its **groups are not touched** — members can still read and post
-    in their thread — but they can no longer see each other's names or faces, which also
-    need the gathering published. Nobody is told until M3.5's #3. What a withdrawn
-    gathering's group should be is undecided.
+  or post, because both need the gathering published. **Its groups stay** (Alex, 6 Oct):
+  members keep each other's names and faces, can still read and post until the group's
+  normal deadline, and #3 tells each of them the moment it happens.
 
 ### V21 · Small groups
 
 - **Inviting:** only between two people who are both in the same room, have both posted
-  there, and can see each other (no block, neither hidden).
+  there, and can see each other (no block, neither hidden). **Accepting checks it all
+  again**: an invite across a block made since — with the inviter or anyone already in
+  the group — vanishes and cannot be accepted (review L1). **A group invites a person
+  once**: after a decline, nobody in it can invite them again.
 - **Who sees an invite:** only the person invited. Whoever sent it never learns of a
   decline.
 - **Who sees a group:** only its members know it exists, and only they read or post in its
   thread. The room cannot see who went with whom.
 - **Inside a group:** a member sees who is in, never who was invited or who said no.
+  People in a group together see each other while it is forming, set or live.
+- **Blocking someone in your group: you leave it** (Alex, 6 Oct — review L7). The person
+  you blocked stays. Ejecting would let any member remove any other ("block, gone,
+  unblock"). The cost, accepted: someone harassed inside a group gives up the group; the
+  harassment case is block + report + a moderation hide, which removes that person.
 - **One group per person per gathering.** A group formed from the women-only room is
   women-only.
 - **Its times move with the gathering** (V20): a group under 3 closes at the later of six
@@ -756,7 +776,13 @@ joins one or approves anyone.
   You see only your own switches and your own phone registrations.
 - **A notification is never written** across a block, to a hidden person, to the person
   whose action caused it, to someone who has switched that kind off — and it is never sent
-  to a test person (P162).
+  to a test person (P162). **Nor is one ever caused by, or naming, a hidden person**
+  (review L3/L4).
+- **A phone's push registration can move to another account** — that is how a phone
+  changes hands — **but never silently** (Alex, 6 Oct — review L8): the account that lost
+  it is told on its next start and asked whether to take it back. *Residual:* until then
+  its notifications go to the other account; taking one needs the phone's push token,
+  which nothing shows anyone but its owner.
 - **Each is written by the act itself** (a placement, a message, an invite), never
   reconstructed later.
 - **#6, room activity, is bounded** (spec A18): never per message, at most one per room per

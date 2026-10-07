@@ -3620,3 +3620,84 @@ count.
   #2 and #6 are about. The 28 Sept entry's "who can see a message" is corrected above.
 - **Why it had no reason attached:** it came from the design doc "M3.3 — The Room", which
   was never in the repo. Its load-bearing parts go into spec.md.
+
+### The independent review of V20–V23, and what was fixed (Alex, 6 Oct 2026)
+
+A fresh session with no prior context attacked V20–V23 from the rules alone, then from
+the SQL (`tests/policies/review-v20-v23.test.ts`, now part of `npm run test:policies`).
+79 of 94 attacks were refused. What got through sat at the edges — code acting later on
+an earlier check. Fixed as migrations `20261006230939`–`20261006230954`, each with the
+case that failed turning green:
+
+- **L2 — a block or a hide ends a connection everywhere** (fixed first: "a block that
+  leaks where I'm going is worse than no block, because the person using it believes it
+  worked"). The invite picker no longer tells a blocked or hidden connection where you
+  are going (R88, R88h).
+- **L1 — an invite is re-checked when accepted** (R86): no block with the inviter or
+  anyone in the group, neither hidden, still in the room; across a block it vanishes.
+- **L3/L4 — a hidden person is out of every room**, never placed while hidden, placed
+  again when unhidden, and never causes or appears in #2 or #6 (R47h, R48h, R49, R96).
+- **L5 — a seed person is never placed at a real gathering** (R81–R83).
+- **L6 — the women-only room opens at 3 in the database**, not only on the screen (R23).
+- **L9 — deleting a message is a removal**: words cleared, unreadable to all, and no
+  Realtime DELETE broadcast (R85). Group threads lost their unused delete.
+- **L10 — the limits hold under concurrent requests**: a lock per author for posting
+  (R90), per inviter for five invites a day (R89).
+- **L11 — last-seen is not readable through the API** (R91).
+- **Re-invites — a group invites a person once** (R94).
+
+**Alex's four calls:**
+
+- **L7 — blocking someone in your group: the blocker leaves** (R87). Against the
+  recommendation that the blocked person be removed: "If blocking ejects, then every
+  member holds a unilateral power to remove any other member — block, they're gone,
+  unblock — and nobody consented to being in a group where that is possible. 'You leave'
+  cannot be weaponised, and it costs the person who made the choice rather than the
+  person who didn't." **The cost, recorded honestly and accepted: someone harassed inside
+  a group gives up the group.** The harassment case is answered by block + report + an
+  upheld moderation hide, which removes that person from rooms (L3/L4) — the right path,
+  not the group mechanic.
+- **L8 — a push-token takeover is allowed; the silence is not.** Re-registering is how a
+  phone legitimately changes hands, so it stays. When a phone that registered for an
+  account finds on its next start that another account has it, the app says so and asks
+  ("Turn them back on" / "Leave them off") instead of silently taking it back — which
+  would have had two accounts trading it forever with neither told (`pushWasTaken`,
+  N10–N12; R46). **Residual limit:** a takeover needs the phone's push token, which no
+  screen or API shows anyone but its owner; until the owner next opens the app, their
+  notifications go to the other account.
+- **A withdrawn gathering's group stays, with names, writable until its normal
+  deadline, and #3 tells it** (R93). "The moment a gathering is withdrawn is the exact
+  moment people who had agreed to meet most need to say 'still on?' — and that group is
+  the only place real commitment ever happened." People in a group together now see each
+  other while it is forming, set or live.
+- **"Already going" counts only pins open to meeting** (R95): anything else leaks that
+  someone is going somewhere without their ever having opted into being seen.
+
+**Open, Alex's:** what becomes of a hidden person's messages already in a room (today
+they vanish for everyone at the hide — the read rule needs the author visible); and the
+placement lock per gathering, pending the worst-case wait.
+
+**Residual, recorded:** the 30-day retention purge still deletes rows, so Realtime
+subscribers can learn the ids of month-old messages in closed rooms.
+
+### Fixtures say so when they are the problem (Alex, 6 Oct 2026)
+
+The test crowd moved only when someone pressed "Refresh"; it finished on 2 Oct and every
+link-path walk failed at "A26 opens" with nothing saying why. **Made permanent, not just
+fixed:** the daily 09:00 run keeps it two days ahead (`keepTestCrowdAhead`), and every
+browser check verifies its fixtures first (`scripts/fixture.mjs`) and, when one has
+moved, prints one line beginning **`FIXTURE, not product:`** and exits 2 (a product
+failure exits 1). Checked before each walk: the `.dev.vars` keys; Chrome; the test crowd
+(there, not withdrawn, and — for walks that pin — not started); and **`SESSION_SECRET`
+matching the deployed Worker's** (a mismatch makes every hand-off come back empty, which
+is indistinguishable from a broken hand-off). Both sentences were made to fire.
+
+**Other fixtures that can go stale the same way, named:**
+- the **room-at-one gathering** — dated three days out when made; `scripts/room-at-one.mjs`
+  remakes it (and the walks it served are now checks);
+- the **test crowd's seed people** — built once by Refresh, never re-checked; a sweep
+  that removed them would leave a crowd with nobody in it;
+- **a tester's flag** on Alex's own accounts (`/admin/testers`) — a merge once dropped it;
+- **the Sign in with Apple secret** — a JWT that lapses (the credentials watch covers it);
+- **the Supabase CLI and Chrome versions** on this laptop — not stale data, but ground
+  that moves under a check.

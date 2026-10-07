@@ -345,6 +345,51 @@ link out, pins, opt-ins, gender mix, crews badge. **No map, no feed, no algorith
   at 5+ opted in (Q3).
 - **A7 populated** — crews badge is the only purple element per row.
 
+### The room, small groups, the night — the design in force (M3.3)
+
+**Why this is here** (Alex, 6 Oct 2026): the design came from "M3.3 — The Room" (Alex,
+with Tatiana and Jayme, 28 Sept), a doc that was never in the repo — which is why "30 a
+room" had no reason attached. Until it is found, this is the record, assembled from
+`docs/build-plan.md` §8 M3.3, decisions.md ("The room, then a small group, then solo";
+"The night and after"; the 6 Oct entries) and `docs/visibility.md` §12i–§12j. Each line
+marked **(no recorded reason)** is load-bearing and unsourced: what to look for in the doc.
+
+- **Three shapes, each opted into from the one above:** the room (everyone open to meeting
+  at a gathering), a small group (people you've talked with, invited), solo (M3.4).
+  *Reason recorded:* the crew design asked people to commit to strangers before anyone
+  had spoken (decisions, 28 Sept).
+- **The room opens at 2.** Before that, A9 says you are first, and #2 tells you when the
+  second person arrives. *Reason recorded:* "two people and an empty thread is the same
+  cold start in a different costume" — so it never opens empty.
+- **30 a room** — city default, per-gathering override; arbitrary and tunable
+  (decisions, "30 a room"). **(no recorded reason)**
+- **Placement into the fullest room with space**, back to your old room if it has space.
+  **(no recorded reason** for "fullest" over, say, the newest or a random room**)**
+- **The women-only room alongside, opening at 3 eligible**, never with a count (H7, Q9).
+  **(no recorded reason** for 3 rather than 2 — Q9's count argument suggests it**)**
+- **Arrival cards** (face, first name, neighbourhood, three on-list tags, shared tags
+  marked) drawn from membership, not stored as messages. *Reason recorded:* only what the
+  list already shows (H3); nothing to moderate.
+- **Three openers that fill the box and are never sent for anyone.** *Reason recorded:*
+  "the message is still yours" (Alex; S29 holds it).
+- **"Enough to go together" once, at 3; the mix chip at 5 (Q3's floor); cards fold past
+  four.** **(no recorded reason** for folding at four**)**
+- **Messages: text only, up to 500 characters, one every 3 seconds, 200 a day.**
+  **(no recorded reason** for any of the three numbers**)**
+- **Delete your own; no editing yet.** *Reason recorded:* "being unable to take something
+  back is the wrong default" (Alex).
+- **Retention:** closes 24 h after the effective end, read-only 30 days, deleted (Q11).
+- **A small group: you invite 2 or 3 people you have both posted with; on at 3; one
+  group per person per gathering; no requests, no approvals.** **(no recorded reason** for
+  2–3 at the start, or "both posted"**)**
+- **A forming group under 3 closes at the later of six hours before or two hours after it
+  started, never later than three hours before.** *Reason recorded* for the moving
+  deadline (it punished the person who did what we want); **(no recorded reason** for
+  six hours itself**)**.
+- **The plan: the spot poll's leader becomes the plan three hours before.** **(no recorded
+  reason** for three hours; it is also when "I'm here" and #4 start**)**
+- **A16's ticks are open 7 days after the effective end.** **(no recorded reason** for 7**)**
+
 ### A8–A10 — Crowd page
 **A10 and A11–A17 below are superseded 28 Sept: the room → small group → solo design — build plan §8 M3.3.** A9 leads with the room.
 
@@ -715,7 +760,7 @@ working. Hours are Alex's, agent-assisted.
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | **Done** — merged as `737bdb4` | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel (A8, A9, A22, A26, A27; one set of profile steps shared with A1–A3) | **Done** — merged as `b11908a` (28 Sept; the last three phone checks walked by Alex) | 28–35 |
-| M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | **Built, being walked** — branch `phase3/m3.3-room-and-groups`, pushed, not merged; on pind-staging and pind.social | 22–31 |
+| M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | **Done** — merged to `main` 6 Oct 2026 (proved by the harness and browser checks; walked on the phone at M3.3b, Alex) | 22–31 |
 | M3.3b | The TestFlight build — universal links, M3.1's native walk, M3.3's push, the icon and splash; **moved ahead of M3.2b** (Alex, 6 Oct 2026) | Not started | 5–7 |
 | M3.2b | The app's front door — A5–A7, interests, search, A19 (the build and universal links moved to M3.3b, Alex, 6 Oct 2026) | Not started | 11–12 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
@@ -1110,6 +1155,28 @@ the current pace, raise the hours or shrink the phase.
     work); re-pointing the Services ID and minting a fresh Apple secret.
   - **Considered, not built:** six photos (A/B/C priced at 9–12, 6–8, 8–11 h) and a bio
     (a V17 bypass). Revisit after the first real crowds.
+
+- **Phase 3 M3.3 complete** (branch `phase3/m3.3-room-and-groups`, merged to `main`
+  on 6 Oct 2026): the room, small groups, the night and after — first version.
+  - **Built.** The room at 1, 2, 3 and 5 (arrival cards, openers that fill the box and
+    never send, the fold and the mix at 5, "go together" once); small groups by invite,
+    the plan, the deadline, "I'm here"; A16's ticks, connections, the after-event
+    question, A20's invite; "women-only rooms only"; the share card; the returning
+    person ("Already on Pin'd?", the one-tap second pin, every merge recorded); seven
+    notifications under A18's rule — a ban on bait, each with its reason (N09).
+  - **Reviewed.** The independent review of V20–V23 (`tests/policies/review-v20-v23.test.ts`,
+    now part of `test:policies`): 15 leaks found, all fixed as migrations with the
+    failing case turned green; Alex decided L7 (the blocker leaves), L8 (a takeover is
+    told), the withdrawn group (it stays) and "already going" (open pins only). V20–V22
+    written out in plain English (visibility.md §12j).
+  - **Not walked on a phone** (Alex, 6 Oct: nothing is walked until the whole flow is on
+    his phone, at M3.3b). Its walk steps became checks: `check:room` (the room at 1, 2,
+    3 and 5, delete, report, the room-activity switch), `check:link-path` (four ways, the
+    returning person as iPhone Safari), `check:after`. Every check verifies its fixtures
+    first and says `FIXTURE, not product:` when one has moved.
+  - **Open, Alex's:** a hidden person's messages already in a room; the placement lock's
+    worst case. The two-person steps (the second arrival and #2 on a phone, "go
+    together", the women-only card) are M3.6's.
 
 #### M2.2 — the nightly import had never actually run on schedule
 Found on 2026-09-20, when the admin showed "TICKETMASTER_CONSUMER_KEY is missing" and
