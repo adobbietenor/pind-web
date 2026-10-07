@@ -4374,3 +4374,32 @@ describe("The public list is one city's (M3.3c)", () => {
     }
   });
 });
+
+// P186 (6 Oct 2026): a seed person is never sent anything. The test crowd's people have
+// accounts that are not marked as harness people, so delivery would have emailed them
+// (example.com, which bounces, on the domain real sign-in codes are sent from).
+describe("Delivery never reaches a seed person (M3.3c)", () => {
+  it("P186 a seed person's notification goes out with no phone and no address — and the same person, not seed, gets them back (control)", async () => {
+    const email = `delivered+pind-p186-${w.run}@resend.dev`;
+    const u = await w.service.auth.admin.createUser({ email, password: crypto.randomUUID(), email_confirm: true });
+    assert.equal(u.error, null, u.error?.message);
+    const authId = u.data.user!.id;
+    try {
+      const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: "SeedP186", is_seed: true }).select("id").single());
+      await ok(w.service.from("device_tokens").insert({ token: `ExponentPushToken[p186-${w.run}]`, person_id: person.id, platform: "ios" }));
+      const n = await ok(w.service.from("notifications").insert({ person_id: person.id, kind: "room_activity", title: "P186", body: "P186", path: "/" }).select("id").single());
+      const queued = async () => (await rows(w.service.rpc("admin_pending_notifications", { p_limit: 1000 }))).find((r: { id: string }) => r.id === n.id);
+      const asSeed = await queued();
+      assert.ok(asSeed, "setup: the notification is not in the queue at all — the check below would prove nothing");
+      assert.deepEqual(asSeed.tokens, [], "a seed person's phone was handed to delivery");
+      assert.equal(asSeed.email, null, "a seed person's address was handed to delivery");
+      await ok(w.service.from("people").update({ is_seed: false }).eq("id", person.id));
+      const asReal = await queued();
+      assert.equal(asReal?.email, email, "control: the same person, not seed, gets no address — the refusal above proves nothing");
+      assert.equal(asReal?.tokens.length, 1, "control: the same person, not seed, gets no phone");
+      await ok(w.service.from("notifications").delete().eq("id", n.id));
+    } finally {
+      await removeUser(w.service, authId);
+    }
+  });
+});
