@@ -761,18 +761,18 @@ working. Hours are Alex's, agent-assisted.
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | **Done** — merged as `737bdb4` | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel (A8, A9, A22, A26, A27; one set of profile steps shared with A1–A3) | **Done** — merged as `b11908a` (28 Sept; the last three phone checks walked by Alex) | 28–35 |
-| M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | **Done** — merged as `cc8ff24` (6 Oct 2026; proved by the harness and browser checks; walked on the phone at M3.3b, Alex) | 22–31 |
-| M3.3b | The TestFlight build — universal links, M3.1's native walk, M3.3's push, the icon and splash; **moved ahead of M3.2b** (Alex, 6 Oct 2026) | Not started | 5–7 |
-| M3.3c | The app's home — A5 pick a city (Toronto live), A6/A7 Toronto's list, the same query as W1; **pulled forward from M3.2b** (Alex, 6 Oct 2026) | Built, being checked — branch `phase3/m3.3c-home` | 6.5–9.5 |
-| M3.2b | The app's front door — interests, search, A19 (the build moved to M3.3b and A5–A7 to M3.3c, Alex, 6 Oct 2026) | Not started | 6–7 |
+| M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | **Done** — merged as `cc8ff24` (6 Oct 2026; proved by the harness and browser checks; to be walked on the phone with M3.3b) | 22–31 |
+| M3.3b | The TestFlight build — universal links, M3.1's native walk, M3.3's push, the icon and splash; **moved ahead of M3.2b** (Alex, 6 Oct 2026) | **In progress** — builds 8 and 9 on internal TestFlight (6 Oct); universal links, push, the icon and splash are built. **Not yet walked on the phone:** the native list (photo picker, HEIC, native Apple sign-in, offline, a reinstall keeping the session) and push arriving. Branch `phase3/m3.3b-build`, not merged | 5–7 |
+| M3.3c | The app's home — pick a city (Toronto live), Toronto's list, the same query as W1; **pulled forward from M3.2b** (Alex, 6 Oct 2026) | **Built, being checked on the phone** — in build 9; `check:home` passes on the web. Branch `phase3/m3.3c-home` (on top of M3.3b), not merged | 6.5–9.5 |
+| M3.2b | The app's front door — interests, search, My Events (the build moved to M3.3b and the home and list to M3.3c, Alex, 6 Oct 2026) | Not started | 6–7 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
-| M3.5 | Safety and the notifications (A18, A23, A24) | Not started | 10–14 |
+| M3.5 | Safety and the notifications (A18, A23, A24) | **Partly built, in M3.3** — the seven notifications are written by the acts themselves and **delivered** (push to a phone, email otherwise, every minute; stop links), Settings has the seven switches, and a room message can be reported. **Not built:** the Monday digest (nothing writes it), #3 for a date change (withdrawal is done), block and report from a profile or group (A24; the control is hidden until it exists), blocked people and my reports in Settings, the admin block control, sign-in email monitoring. **Not walked:** push on the phone | 10–14 |
 | M3.6 | Dogfood on staging | Not started | 6–8 |
 | **Phase 4** | **Before the first real crowd** | | 28–42 |
-| M4.1 | Policy, terms, operations (moderation rota, incident scripts) | Not started | 4–6 |
-| M4.2 | Independent adversarial review of the visibility rules | Not started | 4–8 |
+| M4.1 | Policy, terms, operations (moderation rota, incident scripts) | **Partly** — the privacy and terms pages are live (published early, in M3.2). **Not done:** the moderation rota, incident scripts, and the line-by-line check of every privacy-page promise | 4–6 |
+| M4.2 | Independent adversarial review of the visibility rules | **Partly** — the room, groups, notifications and after-the-night rules (V20–V23) were reviewed on 6 Oct; every leak it found was fixed as a migration, with the cases in `test:policies`. **Not done:** the review of V1–V19 (`docs/m1.1-review-brief.md`, never run), the solo cases (M3.4 is not built), and Alex's end-to-end read and sign-off of `docs/visibility.md` | 4–8 |
 | M4.3 | Production project (`pind-prod`) + external TestFlight | Not started | 6–8 |
-| M4.4 | Community & free sourcing | Not started | 8–12 |
+| M4.4 | Community & free sourcing | **Partly** — the Community tab has been on W1 since M2.3 with hand-entered gatherings (the manual community pass), with what it costs to walk in, the category chips, and a weekly check that recurring ones are still running (M2.3b). **Not built:** the automated weekly sourcing run and its admin tab | 8–12 |
 | M4.5 | Metrics (§7) + adaptive publishing on (§8) | Not started | 6–8 |
 | — | **The first real crowds** — 6–8 weeks, 2–3 seeded gatherings a week, then a decision meeting against §7 | Not started | ~2/week |
 | **Phase 5** | **The App Store** | | 22–34 |
