@@ -6,6 +6,7 @@ import { escape, page } from "./html";
 import { IMPORTER, runImport } from "./import/run";
 import { checkExpiringCredentials } from "./ops/watch";
 import { keepTestCrowdAhead } from "./admin/testcrowd";
+import { runJobsLoudly } from "./loud";
 import { sweepPhotos } from "./photo/sweep";
 import { route } from "./router";
 import { ConfigError, serviceClient } from "./supabase";
@@ -46,19 +47,14 @@ export default {
       return;
     }
     if (jobs.includes("photo-sweep")) {
-      // Each is wrapped so neither can stop the other — the failure this whole area
-      // keeps hitting is one thing quietly preventing another from running at all.
-      for (const job of [
-        () => sweepPhotos(env),
-        ...(jobs.includes("credentials") ? [() => checkExpiringCredentials(env)] : []),
-        ...(jobs.includes("test-crowd") ? [() => keepTestCrowdAhead(serviceClient(env))] : []),
-      ]) {
-        try {
-          console.log((await job()).message);
-        } catch (err) {
-          console.error("photo sweep run:", err instanceof Error ? err.message : err);
-        }
-      }
+      // Each runs whatever the others do — one thing quietly preventing another from
+      // running is the failure this area keeps hitting — and then the run FAILS if any
+      // of them could not complete (src/loud.ts; Alex, 6 Oct 2026).
+      await runJobsLoudly([
+        { name: "photo sweep", run: () => sweepPhotos(env) },
+        ...(jobs.includes("credentials") ? [{ name: "credentials watch", run: () => checkExpiringCredentials(env) }] : []),
+        ...(jobs.includes("test-crowd") ? [{ name: "test crowd", run: () => keepTestCrowdAhead(serviceClient(env)) }] : []),
+      ]);
       return;
     }
     if (jobs.includes("notify")) {
