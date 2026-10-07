@@ -41,6 +41,7 @@ const NEEDED = [
   { name: "RESEND_API_KEY", required: false, what: "Operational alerts. Without it a failed nightly run is recorded and shown here, but reaches nobody." },
   { name: "ALERT_EMAIL", required: false, what: "Where operational alerts go. Without it there is nowhere to send them." },
   { name: "ALERT_FROM", required: false, what: "Who alerts come from. Defaults to alerts@pind.social." },
+  { name: "EXPO_ACCESS_TOKEN", required: false, what: "Push to phones (M3.3). Without it, notifications to people with the app go by email instead." },
   { name: "SESSION_SECRET", required: true, what: "The quick pin on the web (A26). Without it nobody can pin from a crowd page: the Worker cannot seal the visitor's session to hand to the app." },
 ] as const satisfies readonly { name: string; required: boolean; what: string }[];
 

@@ -24,18 +24,24 @@ import {
   countLine,
   CREWS_MEET,
   CROWD_COPY,
+  GROUP_COPY,
   HOUSE_RULES,
+  ROOM_COPY,
   effectiveEnd,
   fonts,
   NEIGHBOURHOODS,
   radius,
   spacing,
   THRESHOLD,
+  WOMEN_ONLY_COPY,
 } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
+import { PushAsk } from "@/components/PushAsk";
+import { myRooms, type RoomSummary } from "@/lib/room";
+import { joinGeneralRoom, waitingForWomenOnlyRoom } from "@/lib/after";
 import { whoAmI } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
 
@@ -87,6 +93,14 @@ interface View9 {
   mine: { pinId: string; open: boolean } | null;
   mayMeet: boolean;
   faces: Face[];
+  // The room (M3.3), when open to meeting here.
+  rooms: RoomSummary[];
+  // "Women-only rooms only", and that room is not open yet (never how many — Q9).
+  waitingWomenOnly: boolean;
+  lastLines: { who: string; body: string }[];
+  invites: { inviteId: string; from: string; members: string[] }[];
+  group: { id: string; state: string } | null;
+  email: string | null;
 }
 
 function when(iso: string): string {
@@ -163,7 +177,35 @@ async function load(slug: string): Promise<View9 | null> {
     }));
   }
 
-  return { facts: await factsFor(slug), gathering, going: c?.pinned ?? 0, open: c?.open_to_meeting ?? 0, mix, mine, mayMeet, faces };
+  // The room, invites and my group (M3.3) — all through RLS.
+  let rooms: RoomSummary[] = [];
+  let waitingWomenOnly = false;
+  let lastLines: View9["lastLines"] = [];
+  let invites: View9["invites"] = [];
+  let group: View9["group"] = null;
+  let email: string | null = null;
+  if (mine?.open && meId) {
+    rooms = await myRooms(g.id);
+    waitingWomenOnly = await waitingForWomenOnlyRoom(g.id);
+    // Someone with "women-only rooms only" talks in that room: it leads, as the general
+    // room does for everyone else.
+    const general = rooms.find((r) => !r.womenOnly) ?? rooms.find((r) => r.womenOnly);
+    if (general?.open) {
+      const { data: last } = await db.from("room_messages").select("author_id, body, created_at").eq("room_id", general.roomId).order("created_at", { ascending: false }).limit(2);
+      lastLines = (last ?? []).reverse().map((m) => ({
+        who: m.author_id === meId ? "You" : faces.find((f) => f.id === m.author_id)?.firstName ?? "Someone",
+        body: m.body,
+      }));
+    }
+    const { data: inv } = await db.rpc("my_invites", { p_gathering: g.id });
+    invites = ((inv ?? []) as { invite_id: string; from_name: string; members: string[] }[]).map((i) => ({ inviteId: i.invite_id, from: i.from_name, members: i.members }));
+    const { data: mem } = await db.from("crew_members").select("crew_id, crews(state)").eq("person_id", meId).eq("gathering_id", g.id).is("left_at", null).maybeSingle();
+    if (mem) group = { id: mem.crew_id, state: (mem as unknown as { crews: { state: string } | null }).crews?.state ?? "forming" };
+    const { data: session } = await db.auth.getSession();
+    email = session.session?.user.email ?? null;
+  }
+
+  return { facts: await factsFor(slug), gathering, going: c?.pinned ?? 0, open: c?.open_to_meeting ?? 0, mix, mine, mayMeet, faces, rooms, waitingWomenOnly, lastLines, invites, group, email };
 }
 
 export default function CrowdPage() {
@@ -271,9 +313,101 @@ export default function CrowdPage() {
           ) : null}
         </View>
       ) : (
-        // A9 — open: the people the database lets this person see.
+        // A9 — open: the room first (M3.3), then the people the database lets you see.
         <View>
-          <Text style={styles.sectionName}>{CROWD_COPY.listHeading}</Text>
+          {view.invites.map((i) => (
+            <View key={i.inviteId} style={styles.oneStep}>
+              <Body>{GROUP_COPY.invited(i.from, i.members)}</Body>
+              <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    label={GROUP_COPY.accept}
+                    busy={busy}
+                    onPress={async () => {
+                      const { error } = await supabase().rpc("respond_to_invite", { p_invite: i.inviteId, p_accept: true });
+                      if (error) setTrouble(failed("join the group", error));
+                      refresh();
+                    }}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button
+                    kind="quiet"
+                    label={GROUP_COPY.decline}
+                    onPress={async () => {
+                      await supabase().rpc("respond_to_invite", { p_invite: i.inviteId, p_accept: false });
+                      refresh();
+                    }}
+                  />
+                </View>
+              </View>
+            </View>
+          ))}
+          {view.group ? (
+            <Pressable onPress={() => router.push({ pathname: "/group/[id]", params: { id: view.group!.id } })} style={[styles.oneStep, { marginTop: spacing.md }]}>
+              <Text style={styles.oneStepHeading}>{GROUP_COPY.heading}</Text>
+              <Body muted>{view.group.state === "dissolved" ? GROUP_COPY.closed : "Open your group"}</Body>
+            </Pressable>
+          ) : null}
+          {(() => {
+            if (view.waitingWomenOnly) {
+              // "Women-only rooms only", and it isn't open yet: waiting, said plainly —
+              // what for, and the one-tap way out (Alex). Never how many (Q9).
+              return (
+                <View style={[styles.oneStep, { marginTop: spacing.md }]}>
+                  <Text style={styles.oneStepHeading}>{WOMEN_ONLY_COPY.waitingHeading}</Text>
+                  <Body>{WOMEN_ONLY_COPY.waitingLine}</Body>
+                  <PushAsk />
+                  <Button
+                    kind="quiet"
+                    label={WOMEN_ONLY_COPY.joinGeneral}
+                    busy={busy}
+                    onPress={async () => {
+                      setBusy(true);
+                      try {
+                        await joinGeneralRoom(view.gathering.id);
+                        refresh();
+                      } catch (err) {
+                        setTrouble(failed("join the general room", err));
+                      } finally {
+                        setBusy(false);
+                      }
+                    }}
+                  />
+                  <Body muted>{WOMEN_ONLY_COPY.joinGeneralWhat}</Body>
+                </View>
+              );
+            }
+            const general = view.rooms.find((r) => !r.womenOnly) ?? view.rooms.find((r) => r.womenOnly);
+            const wo = view.rooms.find((r) => r.womenOnly && r !== general);
+            if (!general) return null;
+            if (!general.open) {
+              // 1 — just you: a good place to be, and the promise is notification #2.
+              return (
+                <View style={[styles.oneStep, { marginTop: spacing.md }]}>
+                  <Text style={styles.oneStepHeading}>{ROOM_COPY.firstHeading}</Text>
+                  <Body>{ROOM_COPY.firstLine}</Body>
+                  <Body muted>{ROOM_COPY.firstWhy}</Body>
+                  {Platform.OS === "web" && view.email ? <Body muted>{ROOM_COPY.firstByEmail(view.email)}</Body> : null}
+                  <PushAsk />
+                  <Button kind="quiet" label={ROOM_COPY.firstShare} onPress={() => void Linking.openURL(`${SITE}/g/${slug}`)} />
+                </View>
+              );
+            }
+            return (
+              <View style={[styles.oneStep, { marginTop: spacing.md }]}>
+                <Text style={styles.oneStepHeading}>{general.womenOnly ? WOMEN_ONLY_COPY.room : ROOM_COPY.inRoom(general.members)}</Text>
+                {view.lastLines.map((l, n) => (
+                  <Body key={n} muted>{`${l.who}: ${l.body}`}</Body>
+                ))}
+                <Button label={view.lastLines.length ? ROOM_COPY.openRoom : ROOM_COPY.sayHi} onPress={() => router.push({ pathname: "/room/[id]", params: { id: general.roomId } })} />
+                {/* No count on it: next to the public mix, one would tell how many nonbinary
+                    people opted in (decisions Q9, "never a number"). */}
+                {wo ? <Button kind="quiet" label={WOMEN_ONLY_COPY.room} onPress={() => router.push({ pathname: "/room/[id]", params: { id: wo.roomId } })} /> : null}
+              </View>
+            );
+          })()}
+          <Text style={[styles.sectionName, { marginTop: spacing.lg }]}>{CROWD_COPY.listHeading}</Text>
           {view.faces.length === 0 ? (
             <Body muted>{CROWD_COPY.listEmpty}</Body>
           ) : (
@@ -332,7 +466,7 @@ export default function CrowdPage() {
               source={{ uri: view.facts.map.src }}
               style={StyleSheet.absoluteFill}
               resizeMode="cover"
-              accessibilityLabel="Map of the venue and the numbered spots crews meet at. No people are shown."
+              accessibilityLabel="Map of the venue and the numbered spots groups meet at. No people are shown."
             />
             <View style={styles.venuePin} />
             {view.facts.map.markers.map((m) => (
@@ -342,7 +476,7 @@ export default function CrowdPage() {
             ))}
           </View>
           <Text style={styles.caption}>
-            The venue, and the spots crews meet at — never where anyone is.
+            The venue, and the spots groups meet at — never where anyone is.
             {view.facts.map.openInMaps ? (
               <Text style={styles.link} onPress={() => void Linking.openURL(view.facts!.map!.openInMaps!)}>
                 {"  Open in Maps"}
@@ -354,7 +488,7 @@ export default function CrowdPage() {
 
       {view.facts?.spots.length ? (
         <View style={{ marginTop: spacing.lg }}>
-          <Text style={styles.sectionName}>Where crews meet</Text>
+          <Text style={styles.sectionName}>Where groups meet</Text>
           {view.facts.spots.map((sp) => (
             <View key={sp.name} style={styles.spot}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>

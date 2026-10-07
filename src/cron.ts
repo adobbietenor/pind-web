@@ -17,15 +17,23 @@ export const PHOTO_SWEEP_CRON = "0 * * * *";
 // one alert a day, as before.
 export const CREDENTIALS_HOUR_UTC = 9;
 
-export const CRONS = [IMPORT_CRON, PHOTO_SWEEP_CRON, LIVENESS_CRON] as const;
+// Every minute: deliver the notifications the database wrote (M3.3). Free when the queue
+// is empty; a minute is the longest "someone wants to meet" waits.
+export const NOTIFY_CRON = "* * * * *";
 
-export type Job = "import" | "photo-sweep" | "credentials" | "liveness";
+export const CRONS = [IMPORT_CRON, PHOTO_SWEEP_CRON, LIVENESS_CRON, NOTIFY_CRON] as const;
+
+export type Job = "import" | "photo-sweep" | "credentials" | "test-crowd" | "liveness" | "notify";
 
 export function jobsFor(cron: string, scheduledTime: number): Job[] {
   if (cron === IMPORT_CRON) return ["import"];
   if (cron === LIVENESS_CRON) return ["liveness"];
+  if (cron === NOTIFY_CRON) return ["notify"];
   if (cron === PHOTO_SWEEP_CRON) {
-    return new Date(scheduledTime).getUTCHours() === CREDENTIALS_HOUR_UTC ? ["photo-sweep", "credentials"] : ["photo-sweep"];
+    // The test crowd is kept two days ahead by the same daily run (M3.3): it used to move
+    // only when someone pressed "Refresh", so it finished on 2 Oct and every walk of it
+    // said pinning had closed.
+    return new Date(scheduledTime).getUTCHours() === CREDENTIALS_HOUR_UTC ? ["photo-sweep", "credentials", "test-crowd"] : ["photo-sweep"];
   }
   return [];
 }

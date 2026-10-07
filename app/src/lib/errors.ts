@@ -69,3 +69,12 @@ export function failed(what: string, err: unknown): Described {
 export function oneLine(d: Described): string {
   return d.says;
 }
+
+// Which rate limit refused a message (M3.3: the room's 23514s) — "too fast" or "too many
+// today" — so the screen says which, in its own words (ROOM_COPY). Classified here, where
+// an error's text may be read, never on a screen (S20).
+export function rateRefusal(err: unknown): "too-fast" | "too-many" | null {
+  const e = err as { code?: string; message?: string } | null;
+  if (e?.code !== "23514") return null;
+  return /200/.test(e.message ?? "") ? "too-many" : "too-fast";
+}

@@ -15,6 +15,8 @@ const config: ExpoConfig = {
   scheme: isProduction ? "pind" : "pind-staging",
   version: "1.0.0",
   orientation: "portrait",
+  // brand/icon-1024.png — the safety pin, white on #582883, RGB with no alpha (Apple
+  // refuses an icon with transparency). Replaced M2.0's flat purple placeholder in M3.3.
   icon: "./assets/icon.png",
   // Dark always, whatever the phone is set to (decisions Part 5, "Dark only").
   userInterfaceStyle: "dark",
@@ -35,16 +37,21 @@ const config: ExpoConfig = {
     // in-app browser session; this plugin is what closes it and hands the redirect
     // back to the app through the `scheme` above.
     "expo-web-browser",
+    // Push (M3.3): the entitlement and the permission prompt. The prompt is never shown
+    // at launch — only after the room's own "Turn on" card (app/src/lib/push.ts).
+    "expo-notifications",
     // Org and project slugs are not secret. The auth token for source-map upload is
     // SENTRY_AUTH_TOKEN, an EAS secret, never in the repo.
     ["@sentry/react-native/expo", { organization: "pind-9y", project: "pind-app" }],
     [
       "expo-splash-screen",
       {
-        // Solid near-black (tokens.ts colors.dark.background), no animation. The
-        // logo slot is empty until Alex supplies the file: add `image` and
-        // `imageWidth` here then.
+        // Solid near-black (tokens.ts colors.dark.background), no animation, with the
+        // white logo from brand/splash-logo.png (M3.3; the slot sat empty from M2.0).
         backgroundColor: "#0B0A0D",
+        image: "./assets/splash-logo.png",
+        imageWidth: 200,
+        resizeMode: "contain",
       },
     ],
   ],

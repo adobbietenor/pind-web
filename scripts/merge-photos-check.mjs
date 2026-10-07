@@ -14,6 +14,10 @@
 // Needs .dev.vars. Every user it makes is a harness user (the photo check skips them) and
 // is deleted at the end, with their files.
 import { randomUUID } from "node:crypto";
+import { needEnv } from "./fixture.mjs";
+
+// Fixtures first: a check whose ground moved says so in a sentence (scripts/fixture.mjs).
+needEnv("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_PUBLISHABLE_KEY");
 
 const SITE = process.env.PIND_SITE || "https://pind.social";
 const base = process.env.SUPABASE_URL.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
@@ -99,6 +103,9 @@ try {
   for (const id of made) {
     const left = await files(id).catch(() => []);
     if (left.length) await fetch(`${base}/storage/v1/object/photos`, { method: "DELETE", headers: { ...S, "content-type": "application/json" }, body: JSON.stringify({ prefixes: left.map((n) => `${id}/${n}`) }) });
+    // A test merge's record never stays in the table §7 counts from (M3.3).
+    const [person] = await (await rest(`/rest/v1/people?auth_user_id=eq.${id}&select=id`)).json().catch(() => []);
+    if (person?.id) await rest(`/rest/v1/account_merges?person_id=eq.${person.id}`, { method: "DELETE" });
     await rest(`/rest/v1/people?auth_user_id=eq.${id}`, { method: "DELETE" });
     await rest(`/auth/v1/admin/users/${id}`, { method: "DELETE" });
   }

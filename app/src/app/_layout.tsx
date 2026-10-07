@@ -2,16 +2,17 @@ import { Poppins_600SemiBold } from "@expo-google-fonts/poppins/600SemiBold";
 import { Poppins_700Bold } from "@expo-google-fonts/poppins/700Bold";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { useFonts } from "expo-font";
-import { DarkTheme, Stack, ThemeProvider } from "expo-router";
+import { DarkTheme, Stack, ThemeProvider, router } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { Platform, View } from "react-native";
-import { colors as palette } from "@pind/shared";
+import { Alert, Platform, View } from "react-native";
+import { colors as palette, PUSH_TAKEN } from "@pind/shared";
 import { initAnalytics, track } from "@/lib/analytics";
 import { queryClient } from "@/lib/query";
 import { initSentry, wrapRoot } from "@/lib/sentry";
-import { claimOnce } from "@/lib/session";
+import { forgetPushRegistration, keepPushRegistered, onNotificationTap, takePushBack } from "@/lib/push";
+import { claimOnce, whoAmI } from "@/lib/session";
 import { isQuickPinPath } from "@/lib/typeface";
 
 // Runs once per launch. Nothing here touches Supabase auth: opening the app
@@ -43,6 +44,25 @@ function RootLayout() {
 
   useEffect(() => {
     track("app_open");
+  }, []);
+
+  // Push on the iPhone (M3.3): a tapped notification opens the page it is about, and a
+  // phone that already allowed push stays registered to whoever is signed in now. Never
+  // a prompt here — the ask is the room's card (lib/push.ts).
+  useEffect(() => {
+    let stop: (() => void) | undefined;
+    void onNotificationTap((path) => router.push(path as never)).then((s) => (stop = s));
+    void whoAmI()
+      .then((who) => (who.state === "in" ? keepPushRegistered() : undefined))
+      .then((kept) => {
+        // Another account took this phone's notifications (L8): say so, on open, and ask.
+        if (kept !== "taken") return;
+        Alert.alert(PUSH_TAKEN.title, PUSH_TAKEN.line, [
+          { text: PUSH_TAKEN.no, style: "cancel", onPress: () => void forgetPushRegistration() },
+          { text: PUSH_TAKEN.yes, onPress: () => void takePushBack().catch(() => undefined) },
+        ]);
+      });
+    return () => stop?.();
   }, []);
 
   useEffect(() => {

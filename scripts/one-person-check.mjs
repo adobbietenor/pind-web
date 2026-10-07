@@ -17,9 +17,14 @@ import { spawn } from "node:child_process";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { needChrome, needEnv } from "./fixture.mjs";
+
+// Fixtures first: a check whose ground moved says so in a sentence (scripts/fixture.mjs).
+needEnv("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_PUBLISHABLE_KEY");
 
 const SITE = process.env.PIND_SITE || "https://pind.social";
 const CHROME = process.env.CHROME || "C:/Program Files/Google/Chrome/Application/chrome.exe";
+needChrome(CHROME);
 const slug = process.argv[2];
 const broken = process.argv.includes("--break");
 if (!slug) throw new Error("usage: one-person-check.mjs <slug> [--break]");

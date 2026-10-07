@@ -3,7 +3,7 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { categoryLabel, countLine, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, SEE_WHO, THRESHOLD, THRESHOLD_EXPLANATION } from "@pind/shared";
+import { categoryLabel, countLine, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, readShareCard, SEE_WHO, SHARE_COPY, THRESHOLD, THRESHOLD_EXPLANATION } from "@pind/shared";
 import type { Env } from "../env";
 import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
 import { markSvg } from "./brand";
@@ -717,6 +717,10 @@ ${link}</li>`;
 
 // ---------------------------------------------------------------------------
 // W3 — the share card: gathering, spot, time. No names, no join link.
+//
+// A group's "Share spot & time" link names its spot and time (?at=&t=, M3.3); the card
+// then leads with them. Only a spot of this gathering and a time on its day are shown
+// (readShareCard), so the link can point, never invent.
 // ---------------------------------------------------------------------------
 
 export async function w3(request: Request, env: Env, slug: string): Promise<Response> {
@@ -728,7 +732,15 @@ export async function w3(request: Request, env: Env, slug: string): Promise<Resp
   if (door.status === "gone") return notice("Nothing here", "There's no crowd page at this link — it may have moved.", 404);
 
   const tz = door.venue.timezone;
+  const shared = readShareCard(door.spots, new URL(request.url).searchParams, door.gathering);
+  const hero = shared.spot
+    ? `<section class="shared"><div class="meta">${SHARE_COPY.meeting}</div><h2>${escape(shared.spot.name)}</h2>
+<div class="when">${escape(clock(shared.meetAt ?? shared.spot.meet_at, tz))}</div>
+${shared.spot.description ? `<p class="spot-what">${escape(shared.spot.description)}</p>` : ""}
+${shared.spot.latitude !== null ? `<a class="dirs" href="${escape(directions(shared.spot))}" target="_blank" rel="noopener">Walking directions</a>` : ""}</section>`
+    : "";
   const spots = door.spots
+    .filter((s) => s !== shared.spot)
     .map(
       (s) =>
         `<li><b>${escape(s.name)}</b><div class="meta">${escape(clock(s.meet_at, tz))}</div></li>`,
@@ -739,9 +751,12 @@ export async function w3(request: Request, env: Env, slug: string): Promise<Resp
     `${header()}
 <h1>${escape(door.gathering.name)}</h1>
 <p class="lede">${escape(longWhen(door.gathering.starts_at, tz))}${DOT}${escape(door.venue.name)}</p>
-${spots ? `<h2>Where crews meet</h2><ul class="spots">${spots}</ul>` : `<p class="quiet">Spots for this one aren&#39;t set yet.</p>`}`,
+${hero}
+${spots ? `<h2>${shared.spot ? SHARE_COPY.others : "Where crews meet"}</h2><ul class="spots">${spots}</ul>` : hero ? "" : `<p class="quiet">Spots for this one aren&#39;t set yet.</p>`}`,
     {
-      title: `${door.gathering.name} · meeting spots · Pin'd`,
+      title: shared.spot
+        ? `${door.gathering.name} · ${shared.spot.name}, ${clock(shared.meetAt ?? shared.spot.meet_at, tz)} · Pin'd`
+        : `${door.gathering.name} · meeting spots · Pin'd`,
       canonical: `${origin}/g/${door.gathering.slug}/spot`,
       footer: `19+${DOT}leave any time`,
     },

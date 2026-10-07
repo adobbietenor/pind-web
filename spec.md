@@ -108,6 +108,8 @@ A pin can be edited or removed by its owner at any time.
 Deleted 30 days after the gathering's effective end.
 
 ### crew
+**Superseded 28 Sept: the room → small group → solo design — build plan §8 M3.3.** Groups now form from the room by invite, on at 3, up to 8; H5 reads "3 or more". This section is rewritten as M3.3's first step.
+
 `kind`: **crew** (the default) or **solo**. Everything below about sizes — "3–8",
 "locks at 3", requests, sibling crews — applies to `kind = 'crew'`. A **solo plan**
 (`kind = 'solo'`) has exactly 2 seats, is created by an accepted proposal (below),
@@ -343,7 +345,54 @@ link out, pins, opt-ins, gender mix, crews badge. **No map, no feed, no algorith
   at 5+ opted in (Q3).
 - **A7 populated** — crews badge is the only purple element per row.
 
+### The room, small groups, the night — the design in force (M3.3)
+
+**Why this is here** (Alex, 6 Oct 2026): the design came from "M3.3 — The Room" (Alex,
+with Tatiana and Jayme, 28 Sept), a doc that was never in the repo — which is why "30 a
+room" had no reason attached. Until it is found, this is the record, assembled from
+`docs/build-plan.md` §8 M3.3, decisions.md ("The room, then a small group, then solo";
+"The night and after"; the 6 Oct entries) and `docs/visibility.md` §12i–§12j. Each line
+marked **(no recorded reason)** is load-bearing and unsourced: what to look for in the doc.
+
+- **Three shapes, each opted into from the one above:** the room (everyone open to meeting
+  at a gathering), a small group (people you've talked with, invited), solo (M3.4).
+  *Reason recorded:* the crew design asked people to commit to strangers before anyone
+  had spoken (decisions, 28 Sept).
+- **The room opens at 2.** Before that, A9 says you are first, and #2 tells you when the
+  second person arrives. *Reason recorded:* "two people and an empty thread is the same
+  cold start in a different costume" — so it never opens empty.
+- **30 a room** — city default, per-gathering override; arbitrary and tunable
+  (decisions, "30 a room"). **(no recorded reason)**
+- **Placement into the fullest room with space**, back to your old room if it has space.
+  **(no recorded reason** for "fullest" over, say, the newest or a random room**)**
+- **The women-only room alongside, opening at 3 eligible**, never with a count (H7, Q9).
+  **(no recorded reason** for 3 rather than 2 — Q9's count argument suggests it**)**
+- **Arrival cards** (face, first name, neighbourhood, three on-list tags, shared tags
+  marked) drawn from membership, not stored as messages. *Reason recorded:* only what the
+  list already shows (H3); nothing to moderate.
+- **Three openers that fill the box and are never sent for anyone.** *Reason recorded:*
+  "the message is still yours" (Alex; S29 holds it).
+- **"Enough to go together" once, at 3; the mix chip at 5 (Q3's floor); cards fold past
+  four.** **(no recorded reason** for folding at four**)**
+- **Messages: text only, up to 500 characters, one every 3 seconds, 200 a day.**
+  **(no recorded reason** for any of the three numbers**)**
+- **Delete your own; no editing yet.** *Reason recorded:* "being unable to take something
+  back is the wrong default" (Alex).
+- **Retention:** closes 24 h after the effective end, read-only 30 days, deleted (Q11).
+- **A small group: you invite 2 or 3 people you have both posted with; on at 3; one
+  group per person per gathering; no requests, no approvals.** **(no recorded reason** for
+  2–3 at the start, or "both posted"**)**
+- **A forming group under 3 closes at the later of six hours before or two hours after it
+  started, never later than three hours before.** *Reason recorded* for the moving
+  deadline (it punished the person who did what we want); **(no recorded reason** for
+  six hours itself**)**.
+- **The plan: the spot poll's leader becomes the plan three hours before.** **(no recorded
+  reason** for three hours; it is also when "I'm here" and #4 start**)**
+- **A16's ticks are open 7 days after the effective end.** **(no recorded reason** for 7**)**
+
 ### A8–A10 — Crowd page
+**A10 and A11–A17 below are superseded 28 Sept: the room → small group → solo design — build plan §8 M3.3.** A9 leads with the room.
+
 - **A8 pre-pin** — same anatomy as W2 so a shared link feels continuous. Facts, the
   **only map in the app** (venue + named spots, never people, H1), counts, house rules,
   one button: "Pin in — I've got a ticket". Works logged-out via the share link.
@@ -377,7 +426,14 @@ link out, pins, opt-ins, gender mix, crews badge. **No map, no feed, no algorith
 - **A17 done** — terminal state; member count and check-in count; thread closure
   explained; the only action points at A16.
 
-#### Crew vibe — presets, shown on the crew card (Alex, M2.1; built in M3.3)
+#### Crew vibe — retired (Alex, 6 Oct 2026); the design and Tatiana's starting list kept on file
+
+**Retired, not built, not owed.** The chips existed solely so that someone choosing
+between two open crews had something to choose on. The room design removed the choice:
+everyone open to meeting is placed in one room, and small groups are invite-only from
+inside it, so nobody chooses between groups either. Nothing uses them; no code exists.
+The design below is kept in case the design changes (decisions.md, "Vibe chips
+retired"). It was: *(Alex, M2.1; was to be built in M3.3)*
 
 Someone choosing between two open crews has **nothing to choose on** today. A crew can
 say what kind of night it is.
@@ -416,21 +472,64 @@ The same screen serves a solo plan's two members.
 have gone alone anyway?" — Yes / No / I wasn't going to go at all. It is the
 **attendance metric** (§7): did Pin'd create attendance, or only company.
 
-### A18 — Notifications (exactly five)
-1. **Monday 6:00 PM** — this week's crowds digest → A7
-2. **Threshold** — "5 people going to X want to meet up — crews are open" → A10
-3. **Plan status** — formed / spot set / dissolved / **gathering date changed or
-   withdrawn** (Alex, revised build plan). Deep-links to the crew, or to the crowd page
-   (A10) when dissolved, changed or withdrawn.
-4. **Day-of, ~3h before** — "Tonight: your crew meets at [spot] at [time] — tap when
-   you're there" → A13
-5. **Next morning** — "Did you meet up?" → A16
+### A18 — Notifications (seven, under one rule)
 
-Nothing else. Never "someone viewed your profile". The rule is five moments, all
-about a plan — a ban on engagement bait, not a count to defend.
-**Every notification is mirrored by email to people without a device token** (web-only
-people), through Resend on pind.social; the digest email has an unsubscribe link.
-SMS is never used (decisions Part 5, "Email delivery", "Notification delivery").
+**The rule is a ban on engagement bait** (Alex, 6 Oct 2026; decisions, "A18: the rule is
+the ban, not the count"). **A notification earns its place only by being something the
+person would want even if it cost the product nothing to withhold.** Pin'd never tells
+someone that something happened so that they come back: never "someone viewed your
+profile", never a streak, never a nudge to return for its own sake.
+
+**The count is a record, not the rule.** It says how many moments have passed the test.
+Adding one means a decisions entry saying why it is not bait, and a line below with its
+reason; `tests/unit/notify.test.ts` (N09) fails if the database has a kind this list
+does not name. It was five until 28 Sept; how it became seven is recorded in decisions.
+
+1. **Digest** (`digest`) — Monday 6:00 PM, this week's crowds → A7. Delivery is M3.5.
+   *Not bait:* it is the list itself, once a week, with an unsubscribe link — the crowds,
+   not a reason to open the app.
+2. **Someone to talk to** (`room_open`) — once per person per gathering, when there is
+   first someone else open to meeting there: "Maya's going to X too — say hi" → the room
+   (A9). *Not bait:* it is A9's promise to the first person, "We'll tell you the moment
+   someone else does"; without it they have to keep checking an empty room.
+3. **Plan status** (`plan_status`) — an invite to a group ("Maya wants to go together to
+   X"); a group on, its spot set, or dissolved; **and, from M3.5, the gathering's date
+   changed or withdrawn** → the group, or the crowd page (A10) when dissolved, changed or
+   withdrawn. *Not bait:* each is a change to a plan the person is part of; missing one
+   means being expected somewhere they never answered, or turning up at the wrong time or
+   place.
+4. **Day-of** (`day_of`) — when a group goes live, about 3 hours before: where and when →
+   A13. *Not bait:* the meeting point on the day, only to people with a plan.
+5. **Next morning** (`next_morning`) — 9am local the day after → A16. **To everyone who
+   was open to meeting** (Alex, 29 Sept): a group's members are asked who they met;
+   everyone else only the after-event question, gently. *Not bait:* A16's ticks are open
+   for 7 days and a connection exists only if both tick; and the question is the one the
+   product is judged on — "without it we'd only ever hear from people the loop already
+   worked for — the most flattering possible sample" (Alex).
+6. **Room activity, batched** (`room_activity`) — "New messages in the X room" → the
+   room. *Not bait — justified in full, with its bound* (decisions, "#6: why room
+   activity is not bait, and its bound"): a room is a conversation among people who are
+   not watching it, spread over the hours before a gathering, and a room nobody returns
+   to is a dead room — the product's whole claim is that people meet there. Someone who
+   said hi at 2pm and was answered at 4pm needs to know they were answered. **The bound:**
+   never per message; **at most one per room per person in any hour**; and **none again
+   until the person has opened the room since the last one** — so someone who never opens
+   it gets **one, all evening**, however busy the room is; never while they are in it
+   (opened in the last 2 minutes), never for their own message, never from someone
+   blocked. Between 6pm and midnight a room can send one person **at most 7**, and only
+   if they open it every hour. Off in one tap. Proved by a 50-message case in the review
+   suite.
+7. **Invite** (`invite`) — "Maya's going to X — want to come?" → the crowd page. Only from a
+   connection, only to a gathering the inviter is pinned to, one per pair per gathering,
+   five a day (29 Sept). *Not bait:* "connections exist precisely for people who met once
+   and have no other way to reach each other" (Alex); it is a person asking, about a real
+   plan, never the product.
+
+**Nothing else.** Each kind has its own switch in Settings (A23), and every email its stop
+link. **Every notification is mirrored by email to people without a device token**
+(web-only people), through Resend on pind.social; the digest email has an unsubscribe
+link. **Nobody is ever sent anything while they are a test person** (P162). SMS is never
+used (decisions Part 5, "Email delivery", "Notification delivery").
 
 ### A19 — My Events
 Upcoming (pinned, with crew and spot if any; one day-of reminder toggle) and past
@@ -438,7 +537,8 @@ Upcoming (pinned, with crew and spot if any; one day-of reminder toggle) and pas
 
 ### A20 — Connections
 People from your crews, with where you met them. The **only verb is "invite"**, which
-opens this week's crowds to pick one. Deliberately not an inbox. Empty state explains
+opens the gatherings you are pinned to (until M3.2b brings this week's crowds into the
+app) and sends #7. Deliberately not an inbox. Empty state explains
 that connections come from crews.
 
 ### A21–A22 — Profile
@@ -454,7 +554,9 @@ that connections come from crews.
   is the design. "⋯" opens report and block.
 
 ### A23 — Safety & settings
-Safety: blocked people, my reports, "women-only crews only" toggle.
+Safety: blocked people, my reports, **"women-only rooms only"** (a real only — Alex, 29
+Sept: placed only in the women-only room, told plainly while waiting, one tap to join the
+general room for a gathering).
 Visibility: "Visible only after I pin in + opt in — **always on**" (not a setting),
 show my neighbourhood. There is no "count me in the gender mix" setting (Alex, Phase 1
 M1.1): anyone who doesn't want to be counted as a woman or man chooses "Prefer not to
@@ -463,7 +565,7 @@ count (Q3).
 "Meet 1-on-1" appears here only as a summary of the per-gathering setting (on at which
 gatherings, and who can see you); it is switched on and off on the pinned crowd page
 (A28), never here.
-Notifications: the five, toggleable.
+Notifications: the seven, toggleable.
 Data: export my data, delete account (in-app, required by both stores).
 Note on screen: no location permission exists to manage — the app never asks.
 
@@ -658,10 +760,11 @@ working. Hours are Alex's, agent-assisted.
 | **Phase 3** | **The product, in Expo** | | 68–96 |
 | M3.1 | Identity and profile (A1–A3, A21–A23 skeleton, the AI photo check, Instagram rule V17) | **Done** — merged as `737bdb4` | 12–16 |
 | M3.2 | Crowds, pins, the link-path funnel (A8, A9, A22, A26, A27; one set of profile steps shared with A1–A3) | **Done** — merged as `b11908a` (28 Sept; the last three phone checks walked by Alex) | 28–35 |
-| M3.2b | The app's front door — A5–A7, interests, search, A19, universal links, and the one build + native walk for M3.2 and M3.2b (Alex) | Not started | 16–19 |
-| M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | Not started | 22–31 |
+| M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | **Done** — merged to `main` 6 Oct 2026 (proved by the harness and browser checks; walked on the phone at M3.3b, Alex) | 22–31 |
+| M3.3b | The TestFlight build — universal links, M3.1's native walk, M3.3's push, the icon and splash; **moved ahead of M3.2b** (Alex, 6 Oct 2026) | Not started | 5–7 |
+| M3.2b | The app's front door — A5–A7, interests, search, A19 (the build and universal links moved to M3.3b, Alex, 6 Oct 2026) | Not started | 11–12 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
-| M3.5 | Safety and the five notifications (A18, A23, A24) | Not started | 10–14 |
+| M3.5 | Safety and the notifications (A18, A23, A24) | Not started | 10–14 |
 | M3.6 | Dogfood on staging | Not started | 6–8 |
 | **Phase 4** | **Before the first real crowd** | | 28–42 |
 | M4.1 | Policy, terms, operations (moderation rota, incident scripts) | Not started | 4–6 |
@@ -1052,6 +1155,28 @@ the current pace, raise the hours or shrink the phase.
     work); re-pointing the Services ID and minting a fresh Apple secret.
   - **Considered, not built:** six photos (A/B/C priced at 9–12, 6–8, 8–11 h) and a bio
     (a V17 bypass). Revisit after the first real crowds.
+
+- **Phase 3 M3.3 complete** (branch `phase3/m3.3-room-and-groups`, merged to `main`
+  on 6 Oct 2026): the room, small groups, the night and after — first version.
+  - **Built.** The room at 1, 2, 3 and 5 (arrival cards, openers that fill the box and
+    never send, the fold and the mix at 5, "go together" once); small groups by invite,
+    the plan, the deadline, "I'm here"; A16's ticks, connections, the after-event
+    question, A20's invite; "women-only rooms only"; the share card; the returning
+    person ("Already on Pin'd?", the one-tap second pin, every merge recorded); seven
+    notifications under A18's rule — a ban on bait, each with its reason (N09).
+  - **Reviewed.** The independent review of V20–V23 (`tests/policies/review-v20-v23.test.ts`,
+    now part of `test:policies`): 15 leaks found, all fixed as migrations with the
+    failing case turned green; Alex decided L7 (the blocker leaves), L8 (a takeover is
+    told), the withdrawn group (it stays) and "already going" (open pins only). V20–V22
+    written out in plain English (visibility.md §12j).
+  - **Not walked on a phone** (Alex, 6 Oct: nothing is walked until the whole flow is on
+    his phone, at M3.3b). Its walk steps became checks: `check:room` (the room at 1, 2,
+    3 and 5, delete, report, the room-activity switch), `check:link-path` (four ways, the
+    returning person as iPhone Safari), `check:after`. Every check verifies its fixtures
+    first and says `FIXTURE, not product:` when one has moved.
+  - **Open, Alex's:** a hidden person's messages already in a room; the placement lock's
+    worst case. The two-person steps (the second arrival and #2 on a phone, "go
+    together", the women-only card) are M3.6's.
 
 #### M2.2 — the nightly import had never actually run on schedule
 Found on 2026-09-20, when the admin showed "TICKETMASTER_CONSUMER_KEY is missing" and
@@ -1663,6 +1788,31 @@ leaves the aggregate.
 **The one number** is **Met** — people who mutually confirmed they met, per week —
 split by mode. Everything else explains it.
 
+### The metrics — re-registered 29 Sept 2026 for the room design (Alex)
+
+The room design (decisions, "The room, then a small group, then solo", 28 Sept) retired
+the crew threshold of 5 that the table below it was built on. Re-registered by Alex on 29
+Sept 2026 (decisions, "§7 re-registered"); **the crew-based table is kept below, marked
+superseded, so the old bar stays visible.**
+
+| Metric | Room and groups | Solo | Counted from |
+|---|---|---|---|
+| Opt-in rate | open-to-meeting ÷ pinned | solo-opted ÷ pinned (and both ÷ pinned) | pins |
+| Opened | gatherings whose room opened — **a room is opened once it has had 2 members** | gatherings with ≥ 2 solo opt-ins | room_members |
+| **Spoke** | **people in an opened room who posted at least one message ÷ people in an opened room — per person, not per room.** Denominator: every person who was a member of an opened room at a gathering, counted **once per gathering** (someone in both the general and the women-only room counts once). Numerator: those of them who posted at least one message in any room at that gathering. "Posted" is `room_members.first_posted_at` being set, so **a message later deleted still counts** — the person spoke. Someone waiting for a women-only room that never opened was in no opened room and is in neither. | — | room_members |
+| **Two voices** | opened rooms in which **at least two different people** ever posted ÷ opened rooms (the pass criterion below; Alex, 6 Oct 2026). **Every opened room is in the denominator, including rooms where nobody posted.** Reported beside it as diagnostics, changing neither its numerator nor its denominator: zero-voice rooms ÷ opened rooms, and one-voice rooms ÷ opened rooms — they fail differently | — | room_members |
+| Plan formed | groups on (3 or more) ÷ gatherings whose room opened; groups with a plan ÷ groups on; closed-under-3 rate | accepted plans ÷ proposals; proposals per solo-opted person | crews, proposals |
+| Showed up | "I'm here" ÷ members of groups with a plan | same, per plan | check-ins |
+| **Met** | people with ≥ 1 mutual "we met" ÷ **people open to meeting** | people with a mutual "we met" ÷ solo-opted people | confirmations |
+| Women's share | of pinned, of open to meeting, of met | same | aggregate only |
+| Safety | reports per 100 open to meeting; auto-hides; incidents and hours to first human action | same | reports, moderation_log |
+| Repeat | pinners who pin a second gathering within 6 weeks | same, for solo-opted people | pins |
+| Cannibalisation | group rate and groups-with-a-plan rate at gatherings with solo activity vs without; share of solo-opted people who were also in a group | | crews × pins |
+| Session lost (web) | people who arrive at a pin with no session and turn out to have an account — merges into an existing account per week, split by "Already on Pin'd?" or the email/Apple/Google branch, and as a share of returning web pinners | | `account_merges`, written by the merge when it happens (M3.3) |
+| Attendance created | "Would you have gone alone anyway?" — one question in the after-event screen (A16) for everyone open to meeting (yes / no / I wasn't going to go at all) | | after-event answers |
+
+### The metrics — the crew design, superseded 29 Sept 2026
+
 | Metric | Crews | Solo | Counted from |
 |---|---|---|---|
 | Opt-in rate | crew-opted ÷ pinned | solo-opted ÷ pinned (and both ÷ pinned) | pins |
@@ -1674,9 +1824,45 @@ split by mode. Everything else explains it.
 | Safety | reports per 100 opted-in; auto-hides; incidents and hours to first human action | same | reports, moderation_log |
 | Repeat | pinners who pin a second gathering within 6 weeks | same, for solo-opted people | pins |
 | Cannibalisation | crew reach rate and crews-set rate at gatherings with solo activity vs without; share of solo-opted people who also joined a crew | | crews × pins |
+| Session lost (web) | people who arrive at a pin with no session and turn out to have an account — merges into an existing account per week, split by "Already on Pin'd?" or the email/Apple/Google branch, and as a share of returning web pinners | | the merge record, written by the merge when it happens (M3.3) |
 | Attendance created | "Would you have gone alone anyway?" — one question in the after-event screen (A16) for everyone opted in (yes / no / I wasn't going to go at all) | | after-event answers |
 
-### Pass criteria for the first crowds, fixed now
+**The number that decides a longer-lived web session** (Alex, 28 Sept 2026; "fix 3", not built). Safari deletes a site's stored data after 7 days without a visit, so a returning web person can arrive as a stranger. Build a session the browser keeps longer (a sealed, server-set cookie) **when more than 1 in 5 returning web pinners arrive with their session lost, over any four weeks with at least 25 returning web pinners.** Below that, "Already on Pin'd? Sign in" at the top of A27 is the fix.
+
+### Pass criteria for the first crowds — re-registered 29 Sept 2026 (Alex)
+Over 6–8 weeks of seeded and unseeded gatherings:
+- ≥ 20 pins at each seeded stadium-scale crowd and ≥ 8 at each mid-size one;
+- opt-in (either mode) ≥ 50% of pinners;
+- **a group with a plan at ≥ 60% of gatherings whose room reached 5 people** — the old
+  bar, at the same crowd size;
+- **at least two different people post in ≥ 50% of opened rooms** (Alex, 6 Oct 2026) —
+  rooms in which two or more different people ever posted ÷ rooms that had 2 members
+  (the table above). **Rooms where nobody posted are in the denominator.** A silent room
+  is a worse failure than a one-voice room, so leaving silent rooms out would make the
+  number improve as the product degrades: a room sliding from one speaker to none would
+  make the criterion look better. Written in the positive form, which cannot invert.
+  Zero-voice and one-voice rooms are reported beside it as diagnostics and change
+  neither its numerator nor its denominator. **Not a target: the definitional floor.**
+  The room exists so that nobody has to go first; if fewer than half of opened rooms
+  hear a second voice, the room did not do its job. Anything above the floor is
+  observation, not a bar — a real target for the second cohort is set once the first has
+  been seen;
+  - *Superseded 6 Oct 2026, kept visible:* "one-voice rooms under 50% of opened rooms",
+    which counted only rooms where exactly one person posted and left silent rooms out;
+- Met ≥ 3 at ≥ 2 gatherings;
+- women ≥ 35% of pinners;
+- repeat ≥ 25%;
+- every report acted on by a human within 24 hours.
+
+**Declined, and why** (Alex, 29 Sept; restated 6 Oct): a 70% bar on "someone besides the first person
+posted", proposed by Claude while building the room. Nobody has run this design, so there is no prior for it — and a threshold nobody
+chose deliberately becomes a rule nobody can defend later. Behaviour never observed is
+not given a pre-registered threshold.
+
+Miss two and the finding is the assessment's: reveal does not convene itself — stop
+building and decide what Pin'd is instead. Pass and the store submission proceeds.
+
+### Pass criteria for the first crowds, fixed now — superseded 29 Sept 2026
 Over 6–8 weeks of seeded and unseeded gatherings:
 - ≥ 20 pins at each seeded stadium-scale crowd and ≥ 8 at each mid-size one;
 - opt-in (either mode) ≥ 50% of pinners;
@@ -1689,7 +1875,20 @@ Over 6–8 weeks of seeded and unseeded gatherings:
 Miss two and the finding is the assessment's: reveal does not convene itself — stop
 building and decide what Pin'd is instead. Pass and the store submission proceeds.
 
-### The solo decision rule, pre-registered
+### The solo decision rule — re-registered 29 Sept 2026 (Alex)
+The same rule in the room design's words; its logic does not change.
+Evaluate after at least 20 published gatherings reached 5 opted-in people, comparing
+*per opted-in person* — raw counts favour solo by construction because its threshold is
+lower (2, against a group's 3).
+- **Keep it and start mentioning it** if solo Met per opted-in ≥ groups' Met per
+  opted-in, *and* reports per 100 solo-opted ≤ groups', *and* women are ≥ 30% of
+  solo-opted people, *and* the group rate is not lower where solo is active.
+- **Keep it quiet** (as it is now) if it produces meetings but fails one of the safety
+  or gender tests.
+- **Turn it off** if reports per 100 exceed twice the group rate, or any incident traces
+  to a solo plan and was handled badly.
+
+### The solo decision rule, pre-registered — superseded 29 Sept 2026
 Evaluate after at least 20 published gatherings reached 5 opted-in people, comparing
 *per opted-in person* — raw counts favour solo by construction because its threshold is
 lower (2, against crews' 5).
@@ -1716,10 +1915,11 @@ to be legible in the admin and correct with sparse data.
 |---|---|---|
 | `publish_target_weekly` | **50** | How many gatherings should be published per calendar week of start dates. Raised from 5 in M2.2: build assuming it is popular (decisions Part 5) |
 | `publish_min` / `publish_max` | 3 / **75** | Floor and ceiling for the target. The ceiling rose with the target; the floor only binds once adaptive is on (M4.5) |
-| `publish_lead_days_min` / `_max` | 4 / 21 | Publish a draft only if it starts within this window; nearer first |
-| `max_per_venue_per_week` | 2 | A Jays homestand does not fill the week |
+| `publish_lead_days_min` / `_max` | **0** / 21 | Publish a draft only if it starts within this window; nearer first |
+| `max_per_venue_per_week` | **6** | A Jays homestand does not fill the week — meant to be inert at 50 (M2.2) |
 | `community_slots_weekly` | 1 | Reserved for a "Community & free" gathering above its own threshold (from M4.4). **One in five was chosen before any evidence — revisit at M4.4** |
-| `score_floor` | 70 | Final score (AI score minus distance adjustment) below which a draft is never auto-published. **At a target of 50 this, not the target, is what limits the list** — and lowering it needs a per-category cap in the same change (decisions Part 5) |
+| `score_floor` | **60** | Final score (AI score minus distance adjustment) below which a draft is never auto-published. **At a target of 50 this, not the target, is what limits the list** — and lowering it needs a per-category cap in the same change (decisions Part 5) |
+| `max_category_share` | **0.40** | No category takes more than this share of what is published; lands with the floor of 60 (M2.2) |
 | `grow_reach` · `grow_median_pins` | 0.60 · 8 | Both must hold to grow |
 | `shrink_reach` | 0.30 | Below this, shrink |
 | `step_up` · `step_down` | +2 · −1 | The most the target can move in one week |

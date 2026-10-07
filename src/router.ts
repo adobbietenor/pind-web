@@ -2,6 +2,7 @@ import { admin } from "./admin/routes";
 import type { Env } from "./env";
 import { page } from "./html";
 import { mergeAccount } from "./account/merge";
+import { stopPage, stopSubmit } from "./notify/stop";
 import { deleteAccount } from "./account/routes";
 import { photoCheckForMe, photoWebhook } from "./photo/routes";
 import { claimSession, quickPinSubmit } from "./public/quickpin";
@@ -29,6 +30,11 @@ const routes: Record<string, Handler> = {
   // M3.2, A27: an anonymous pinner joins the account they already have. Both sessions,
   // checked by the auth server, before anything moves (src/account/merge.ts).
   "POST /account/merge": mergeAccount,
+  // M3.3, notifications: switch one kind off from the email (src/notify/stop.ts). The
+  // GET only shows a button; the POST — the button, or the mail client's one-click
+  // unsubscribe — does it. /account/* is in run_worker_first.
+  "GET /account/stop": stopPage,
+  "POST /account/stop": stopSubmit,
 };
 
 export async function route(request: Request, env: Env, ctx?: ExecutionContext): Promise<Response> {

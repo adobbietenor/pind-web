@@ -25,6 +25,7 @@ describe("Which job a cron runs", () => {
       const jobs = jobsFor(PHOTO_SWEEP_CRON, at(h));
       assert.ok(jobs.includes("photo-sweep"), `no sweep at ${h}:00`);
       assert.equal(jobs.includes("credentials"), h === 9, `credential watch at ${h}:00`);
+      assert.equal(jobs.includes("test-crowd"), h === 9, `test crowd kept ahead at ${h}:00`);
     }
   });
 

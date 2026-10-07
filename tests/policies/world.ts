@@ -135,6 +135,10 @@ export async function sweep(service: SupabaseClient): Promise<void> {
   // Crews hold their gathering with `on delete restrict`, so they go before it.
   // Members, join requests, proposals and messages cascade with the crew.
   for (let i = 0; i < gatheringIds.length; i += 100) {
+    // A16's ticks hold their crew with `on delete restrict` too (M3.3).
+    const crews = await must(service.from("crews").select("id").in("gathering_id", gatheringIds.slice(i, i + 100)), "sweep: find crews");
+    const crewIds = crews.map((c: { id: string }) => c.id);
+    if (crewIds.length) await must(service.from("confirmations").delete().in("crew_id", crewIds), "sweep: confirmations");
     await must(service.from("crews").delete().in("gathering_id", gatheringIds.slice(i, i + 100)), "sweep: crews");
   }
   // Cascades to pins, spot options, votes, survey responses, group links, sources,

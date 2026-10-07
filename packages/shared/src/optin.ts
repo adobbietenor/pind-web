@@ -36,6 +36,12 @@ export const OPTIN_COPY = {
   ],
   accept: "I've read the privacy policy and terms",
   finish: "I'm in — show me who's going",
+  // At the top of A27, before the first field (Alex, M3.2: the fix that matters most —
+  // Safari deletes a site's data after 7 days, so a returning person arrives as a
+  // stranger). Straight to the sign-in step; the merge finds their account.
+  alreadyOnPind: "Already on Pin'd?",
+  alreadyOnPindLine: "Sign in and you'll go straight to the room — nothing asked again.",
+  signIn: "Sign in",
 } as const;
 
 // "That address already has an account" — the branch that becomes the merge. Read from

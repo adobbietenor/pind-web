@@ -225,6 +225,10 @@ a.dirs{display:inline-block;margin-top:8px;font-size:.88rem}
    six can get a table, arrive with the manual pass; the shape is here waiting for
    them, and an empty field prints nothing rather than something guessed. */
 .spots{list-style:none;padding:0;margin:14px 0 0}
+/* W3 from a group's share link: the one spot and time, first and biggest (M3.3). */
+.shared{background:#1c1922;border:1px solid var(--accent);border-radius:14px;padding:16px 18px;margin:18px 0 6px}
+.shared h2{margin:2px 0 0;font-size:1.35rem}
+.shared .when{font-size:1.1rem;font-weight:620;margin-top:4px}
 .spots .spot{
   background:var(--surface);border:1px solid var(--border);border-radius:14px;
   padding:14px 16px;margin:0 0 10px;font-size:.95rem;scroll-margin-top:64px;

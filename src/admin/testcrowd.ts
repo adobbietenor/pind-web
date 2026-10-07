@@ -79,6 +79,29 @@ export async function testCrowdStatus(db: SupabaseClient): Promise<{ slug: strin
   return { slug: g.slug, people: count ?? 0 };
 }
 
+function threeDaysOut(): Date {
+  const start = new Date();
+  start.setUTCDate(start.getUTCDate() + 3);
+  start.setUTCHours(23, 0, 0, 0); // 7pm Toronto
+  return start;
+}
+
+// It was built once and kept its date, so three days later it had finished and every
+// walk of it said "Pinning has closed" (M3.3). Then it moved only on "Refresh", so it
+// finished again on 2 Oct and every browser check of the link path failed at A26 until
+// someone noticed. Now the daily 09:00 run keeps it at least two days out — a job, not a
+// visitor, does the work (CLAUDE.md) — and Refresh still does the same.
+export async function keepTestCrowdAhead(db: SupabaseClient): Promise<{ message: string }> {
+  const g = (await db.from("gatherings").select("id, starts_at").eq("name", TEST_CROWD_NAME).eq("is_seed", true).maybeSingle()).data as
+    | { id: string; starts_at: string }
+    | null;
+  if (!g) return { message: "test crowd: not built — nothing to keep ahead" };
+  if (Date.parse(g.starts_at) >= Date.now() + 2 * 86_400_000) return { message: `test crowd: ahead (${g.starts_at})` };
+  const start = threeDaysOut().toISOString();
+  await must(db.from("gatherings").update({ starts_at: start }).eq("id", g.id).select("id"), "move the test crowd");
+  return { message: `test crowd: moved to ${start}` };
+}
+
 export async function buildTestCrowd(db: SupabaseClient, render: Render): Promise<{ slug: string; people: number }> {
   // The seed venue — its flag carries to the gathering (P57), so it can never be public.
   let venue = (await db.from("venues").select("id").eq("name", TEST_CROWD_VENUE).maybeSingle()).data as { id: string } | null;
@@ -91,13 +114,12 @@ export async function buildTestCrowd(db: SupabaseClient, render: Render): Promis
   }
 
   // The gathering, three days out at 7pm, published, with a slug the app can open.
-  let g = (await db.from("gatherings").select("id, slug").eq("name", TEST_CROWD_NAME).eq("is_seed", true).maybeSingle()).data as
-    | { id: string; slug: string | null }
+  let g = (await db.from("gatherings").select("id, slug, starts_at").eq("name", TEST_CROWD_NAME).eq("is_seed", true).maybeSingle()).data as
+    | { id: string; slug: string | null; starts_at?: string }
     | null;
+  const start = threeDaysOut();
+  if (g) await keepTestCrowdAhead(db);
   if (!g) {
-    const start = new Date();
-    start.setUTCDate(start.getUTCDate() + 3);
-    start.setUTCHours(23, 0, 0, 0); // 7pm Toronto
     g = (await must(
       db
         .from("gatherings")

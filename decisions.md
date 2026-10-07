@@ -28,7 +28,7 @@ Last updated: 18 September 2026 (the revised build plan, `docs/build-plan.md`, m
 deliberate, narrow exception to H2 (no cold DMs) and H5 (no 1:1 meet-ups), with the
 guardrails in Part 5, "Future and beta features". Every other rule stands.
 Implemented (Alex, revised build plan) as `crews.kind = 'solo'` with exactly two seats;
-H5's 3–8 governs `kind = 'crew'`; any report on a person hides them from solo
+H5's 3–8 governs `kind = 'crew'` (since 28 Sept: 3 or more, a group growing to 8 by invite); any report on a person hides them from solo
 immediately (`people.hidden_from_solo`).
 
 ---
@@ -44,7 +44,7 @@ consented to nothing: they never count toward "open to meeting" or the threshold
 5, and never appear in the reciprocal list. **The +1 claim page is dropped** (Alex,
 revised build plan): a +1 who wants to be visible pins in themselves through the share
 link. `party_total` keeps counting bodies. Crews show "+1 friend" for a seat taken by
-an unnamed +1, and a +1 occupies a seat: a member with a +1 takes 2 of the 8.
+an unnamed +1, and a +1 occupies a seat: a member with a +1 takes 2 of the 8. **Seats retired 28 Sept** — a small group is sized by its invited members.
 **Alternative:** force every attendee to pin individually. Cleaner data, but it taxes
 the organiser and undercounts real groups.
 
@@ -81,7 +81,7 @@ inference risk that remains is accepted; the pinned list is never ordered by joi
 
 ### Q4 — Who approves crew joins
 **Call:** **any member can approve** (A12). Crews have no owner. Declines are silent —
-the requester sees a "crew filled up" framing, never a rejection event.
+the requester sees a "crew filled up" framing, never a rejection event. **Retired 28 Sept:** there are no join requests — a group is by invite, and a declined invite sends nothing.
 **Alternative:** creator-only approval. More accountability, but creates a boss of what
 should be a table of strangers.
 
@@ -90,6 +90,7 @@ should be a table of strangers.
 minutes later (A15). Never a waitlist.
 **Alternative:** waitlist with auto-promote. Handles dropouts, leaves the 9th person
 planless until it is too late to matter.
+**Retired 28 Sept:** no sibling crews — a group grows by invite to 8, and the room holds everyone else.
 
 ### Q6 — Keep-in-touch mechanics
 **Call:** ticks are **invisible until mutual** (A16), gated behind a mutual "we met",
@@ -191,9 +192,9 @@ profile.
   auto-dissolve) are applied by pg_cron. `dissolved` is a fifth, terminal state; the
   row is never deleted.
 - **Crew seats:** a member occupies 1 or 2 seats (at most one +1). `pins.party_total`
-  stays 1–10 and is independent.
+  stays 1–10 and is independent. **Retired 28 Sept** (the room design).
 - **Dissolve notification** is folded into A18 notification 3 ("Crew status — formed /
-  spot set / dissolved"). Still five. A18's rule is five moments, all about a plan — a
+  spot set / dissolved"). Still five — **six since 28 Sept** (room activity). A18's rule is five moments, all about a plan — a
   ban on engagement bait, not a count to defend; a dissolve is a plan-state change.
 - **Contact details** (email; phone is not collected — Q8, Part 4) live in their own
   table, never on the person row.
@@ -347,7 +348,7 @@ profile.
   - **"Put me in a crew"**: an optional button that places a person in an open crew
     with room, for people who don't want to choose. **Decided yes** (Alex, revised
     build plan): built in M3.3 — it places the person in the open crew with the most
-    room, respecting women-only.
+    room, respecting women-only. **Retired 28 Sept:** the room places everyone at the gathering; a group is by invite.
   - **"Solo crew"** (working name): an opt-in mode for people pinned to an event who
     want to meet individually as well as in crews. Crews stay the main product and
     story; this is an opt-in extra, not marketed, and not framed as romantic (open,
@@ -437,7 +438,7 @@ change). Where the plan has more detail, the plan is the reference.
 - **Date changes message pinned people** (Alex, revised build plan; closes the open
   item from M1.3). A date change applied from a flag, or a withdrawal, reaches pinned
   people through notification 3, renamed **"plan status"** (formed / spot set /
-  dissolved / gathering date changed or withdrawn). Still five notifications.
+  dissolved / gathering date changed or withdrawn). Still five notifications — **six since 28 Sept**.
 - **Photo check on the Worker via a database webhook** (Alex, revised build plan). The
   app uploads the photo and inserts the row; a database webhook calls a Worker endpoint,
   which runs the Claude vision check and writes approve / reject / queue to
@@ -1842,7 +1843,7 @@ occurrences to 31 December**, three and a half months out.
     are. A row short of five now says nothing about five — two hundred rows all reading
     "crews open at 5" was the rule being repeated at a reader rather than anything about
     that gathering.
-  - **The pinned page leads with "Find your crew"** (Alex; recorded here for A9/A10 in
+  - **The pinned page leads with "Find your crew"** — **superseded 28 Sept: A9 leads with the room** (Alex; recorded here for A9/A10 in
     M3.3), where forming one is genuinely the next action rather than a state to wait
     for. This is the screen decision the earlier note predicted would cost nothing in
     the data layer: `private.can_see_at` never mentions five, so the reciprocal list
@@ -3086,7 +3087,7 @@ or solo."* Where the two meet and where they do not:
   **the counts and nobody's face** — with the way in (the "Open to meeting" toggle,
   which leads to A27). Not a contradiction of the flow; the flow's "browse" step is the
   opted-in branch, and the page must say so rather than look empty.
-- **Starting a crew waits for five people open to meeting** (M3.3 acceptance: "Below 5
+- **Starting a crew waits for five people open to meeting** — **superseded 28 Sept: the room opens at 2, a group is on at 3, and 5 gates only the mix chip** (M3.3 acceptance as it was: "Below 5
   opt-ins 'start a crew' is locked with the reason"). Below five, the page leads with
   the people (M2.2's reframing) and 1-on-1 (M3.4) is the thing you can do now.
 - **Where a person lands, by branch** (Alex, M3.2 — decided):
@@ -3097,7 +3098,7 @@ or solo."* Where the two meet and where they do not:
 - **Today** A26 on the web lands on the Worker's result page, which stops there: "You're
   #N pinned", the progress line, change or remove, share, add to calendar. Nothing after
   it exists yet — A27, A8, A9 are M3.2 work still to build; A10's crews and "Put me in
-  a crew" are M3.3; 1-on-1 (A28, A29) is M3.4.
+  a crew" were M3.3 (both retired 28 Sept for the room and small groups); 1-on-1 (A28, A29) is M3.4.
 
 - **The landing, decided** (Alex, M3.2): an instant **"You're in"** confirmation on the
   Worker, with **one primary button** into the app and the app's script already
@@ -3362,8 +3363,11 @@ commit to a plan with strangers before anyone had spoken. The design doc
     there are no requests and no approvals. The spot and the meet plan live here.
   - **Solo:** the same move with one person.
 - **How the shapes work:**
-  - **Who can see a message:** exactly the people who can see its author on the list
-    (`can_see_at`).
+  - **Who can see a message:** the people **in your room** who can see its author on the
+    list (`can_see_at`). *(Corrected 6 Oct 2026: this line first read "exactly the people
+    who can see its author on the list", which overstated it. The room scopes the
+    conversation; the list is unchanged — two people in different rooms still see each
+    other on it.)*
   - **Who you can invite:** people you've both posted with in the same room, enforced
     in the database.
   - **Rooms at scale:** you are assigned to the fullest room with space. Seeing and
@@ -3377,6 +3381,323 @@ commit to a plan with strangers before anyone had spoken. The design doc
   - the H2 line;
   - which version M3.3 builds (the first version, 22–31 h, is recommended);
   - Tatiana's copy;
-  - §7 re-registered.
+  - §7 re-registered. **Done 29 Sept** — "§7 re-registered", below.
 - **Decided (Alex, 28 Sept):** M3.3 builds the **first version** (22–31 h). Its three deferrals — seeing and switching rooms, groups growing after they form, the manual "Set spot & time" — are on **M3.6's list by name**, held there by D04. **The H2 line** is added to the rule, with Alex's reason: nobody chose who is in a room, and everyone in it can already see everyone else.
 - **The room at 1, 2, 3 and 5 people is specified, not left to copy** (Alex: "two people and an empty thread is the same cold start in a different costume"). The room never opens empty: arrival cards (face, name, neighbourhood, three on-list tags, shared tags marked), and three openers that fill the message box but are never sent for anyone. The first person is told by #2; the second arrives with the box ready. "Enough to go together" appears once at 3; the mix chip at 5. Build plan §8 M3.3 has it in full.
+
+### Does a session last? What a second pin costs today (Alex asked, 28 Sept 2026)
+
+- **On the server, a session never expires.** Read from the hosted config
+  (`npx supabase config diff`):
+  - the access token lasts an hour and refreshes itself;
+  - refresh tokens rotate and never expire;
+  - there is no session time-box and no inactivity timeout.
+
+  A session ends only with sign-out, account deletion, or the device losing what it
+  stored.
+- **What the device stores:**
+  - **In the app:** the session is in the iOS Keychain. It survives app updates, and is
+    expected to survive delete-and-reinstall. That is checked on M3.2b's build
+    (on its native list).
+  - **On the web:** the session is in localStorage, which is where it breaks.
+- **What breaks it on the web:**
+  - **Safari:** scripts' storage is deleted after 7 days of Safari use without a visit
+    to pind.social.
+  - **Private Browsing:** it is gone when the tab closes.
+  - **Another browser** is a stranger. The Reddit app's own browser and Safari may be
+    two browsers; that is to be checked on a phone.
+- **What happens when it breaks:** the next pin is a new anonymous person. Ticking
+  "meet up" leads to A27, which asks date of birth, gender, photo and "where" again
+  before the sign-in step, whose merge then keeps the account's own answers. The result
+  is right; the experience is all of A27 again.
+- **What a second pin costs today, with the session intact:**
+  - W2 → the Worker's A26 → redirected to the app's A26, with the name filled in.
+  - Then **"meet up" and "19+" must be ticked again**, then "Pin in", then
+    "See who's going".
+  - No account, code or details, but not "tap and I'm in the room". The 19+ record
+    already exists (P100) and the person already may meet, so both ticks are asked for
+    nothing.
+- Proposed to Alex; not built.
+- **Decided (Alex, 28 Sept):** fixes 1 and 2 go in M3.3.
+  - **"Already on Pin'd? Sign in" goes at the top of A27, above the first field**, never
+    a link at the bottom. It is the fix that matters most.
+  - **A one-tap second pin** for someone who already may meet.
+  - **Fix 3 (a longer-lived web session) waits for a number.** Every merge records
+    itself when it happens, and §7 counts "Session lost (web)". Fix 3 is built when
+    more than 1 in 5 returning web pinners arrive with their session lost, over any
+    four weeks with at least 25 returning web pinners.
+
+### No TestFlight build until M3.2b is done (Alex, 28 Sept 2026) — superseded 6 Oct 2026
+
+**Superseded** by "The TestFlight build moves ahead of M3.2b" (Alex, 6 Oct 2026), below.
+Kept as written.
+
+- **Why:** a build before M3.2b opens to three M2.0 tabs and has no way into a crowd from
+  inside the app. The home list and links opening the app are both M3.2b.
+- **The one M3.2b build carries:**
+  - M3.1's native list;
+  - M3.2's universal links;
+  - M3.3's push;
+  - the brand icon and splash (swapped in M3.3: RGB, no alpha).
+- **Why push can wait:** it is the one thing that wants native eyes early, and a push
+  bug found at that build reworks nothing in M3.2b.
+- **The order:** M3.3 → M3.2b → one build. D05 holds this in the build plan.
+
+### The night and after (Alex, 29 Sept 2026 — for M3.3)
+
+Approved as written: A16's ticks (per person, "we met", then "keep in touch" once
+matched; a tick can be taken back until it is matched, a match cannot; open for 7 days
+after the effective end), the connection rule (V23: connected people see each other's
+first name, photo and where they met, outside any gathering; a block hides it both
+ways), the after-event question (Test 0's "did you meet" no longer asked — the group
+state knows), and #4 (day-of, when a group goes live) and #5 (next morning, 9am local).
+
+- **a · #5 goes to everyone who was open to meeting, group or not.** "That's the metric
+  the whole product is judged on and without it we'd only ever hear from people the loop
+  already worked for — the most flattering possible sample." To someone not in a group
+  it carries only the question, gently, with no implication they failed at anything.
+- **b · "Women-only rooms only" is a real only.** Set, you are placed only in the
+  women-only room; until three eligible people are there you are in no room, and the
+  page says so plainly, with a one-tap way to join the general room instead. "Waiting is
+  fine if you know you're waiting; being silently alone is not." "Prefer" was rejected:
+  someone who chose women-only and was placed in a mixed room has been overruled on the
+  one setting where that is least acceptable.
+  - **Built without the "how many so far" Alex asked for, and raised with him:** Q9's
+    "never a number" still applies to any women-only signal — next to the public mix, a
+    count of the women-only room tells how many nonbinary people opted in. The page says
+    what you are waiting for and that you will be told; not the count.
+- **c · Invite is a seventh notification, narrow.** Not the share sheet: "connections
+  exist precisely for people who met once and have no other way to reach each other."
+  Only between connected people, only about a specific gathering (the inviter is pinned
+  to it, so "Alex is going to X" is true), one per pair per gathering, at most five a
+  day per inviter, off in one tap. "Alex is going to X — want to come?", with the crowd
+  link. A18's rule is now seven moments.
+
+### §7 re-registered (Alex, 29 Sept 2026)
+
+The room design retired the crew threshold of 5 that §7's metrics and pass criteria were
+built on. Re-registered in spec §7; **the crew-based versions stay there, marked
+superseded 29 Sept 2026**, because the point of pre-registration is that the old bar
+stays visible.
+
+- **Approved as drafted:** the move from crew to room and group words across the metrics;
+  Opened (a room opens at 2), Plan formed, Showed up, Met, Cannibalisation; **Met ÷ people
+  open to meeting** rather than crew-opted; and the pass criterion **"a group with a plan
+  at ≥ 60% of gatherings whose room reached 5 people"** — the old bar at the same crowd
+  size.
+- **Spoke — approved as a metric, its definition written down rather than inferred
+  later:** people in an opened room who posted at least one message ÷ people in an opened
+  room, **per person, not per room**, with the denominator stated in §7 so nobody has to
+  reconstruct it from a query in three months.
+- **Declined: a 70% bar on "someone besides the first person posted".** A pass criterion
+  invented by the thing being measured is the wrong shape, and there is no prior for a
+  second-speaker rate because nobody has run this design. **We do not pre-register a
+  threshold for behaviour we have never observed: a number nobody chose deliberately
+  becomes a rule nobody can defend later** — the same reason the publishing target moved
+  when it was looked at properly (M2.2).
+- **Registered instead: one-voice rooms under 50% of opened rooms.** Not a number picked
+  from the air but the definitional floor: the room exists so that nobody has to go first,
+  and if more than half of opened rooms are one-voice rooms, the room did not do its job —
+  better found out from a number than a feeling. Anything above the floor is observation;
+  a real target is set for the second cohort once the first has been seen.
+- **Written down with it** (so the count is never reconstructed later): "posted" is
+  `room_members.first_posted_at`, so a message later deleted still counts; a room is
+  opened once it has had 2 members; someone in two rooms at one gathering counts once for
+  Spoke. **One-voice means exactly one person posted, as registered; rooms where nobody
+  posted are reported beside it, separately, and not folded into it** — whether they
+  should be is Alex's to say.
+
+### The TestFlight build moves ahead of M3.2b (Alex, 6 Oct 2026)
+
+- **The order: M3.3 → the build (M3.3b) → M3.2b** (search, the home list, interests,
+  My Events). It was M3.3 → M3.2b → one build (28 Sept, above).
+- **Why:** three milestones of Expo work have shipped (M3.1, M3.2, M3.3), and none of it
+  has been on Alex's phone. The app half has not been checked on a device since M2.0.
+- **Nothing is dropped from the build; it just stops being last.** It still carries
+  everything D05 guards: M3.1's native list, universal links, M3.3's push, and the icon
+  and splash. Universal links and the native walk move with it, out of M3.2b
+  (`docs/build-plan.md` §8 M3.3b; D01 and D05 hold them there).
+- **What the 28 Sept reason still says, and why it no longer decides:** the installed app
+  opens to M2.0's home tabs with no list of crowds until M3.2b. Inside the app a crowd is
+  reached through a link (universal links, built with the build) or a tapped notification.
+- **"Get the app" is unaffected.** An external TestFlight link needs Beta App Review
+  (M4.3); internal testers do not. The nudge stays built and showing nothing until then.
+  It is not an open decision.
+
+### §7: silent rooms count — the room criterion in the positive (Alex, 6 Oct 2026)
+
+Settles what "§7 re-registered" (29 Sept) left open: whether rooms where nobody posted
+count.
+
+- **They count.** A room where nobody speaks is a worse failure than a room where one
+  person speaks. Leaving silent rooms out of the measure means **the number improves as
+  the product degrades**: a room sliding from one speaker to none would make the
+  criterion look better.
+- **Registered, in the positive form, which cannot invert:** *at least two different
+  people post in ≥ 50% of opened rooms.* Every opened room (one that has had 2 members)
+  is in the denominator. It replaces "one-voice rooms under 50% of opened rooms"; spec
+  §7 keeps the old line visible, marked superseded, as pre-registration requires.
+- **Zero-voice and one-voice rooms are reported beside it as diagnostics.** They fail
+  differently and Alex wants to see which. They change neither the numerator nor the
+  denominator.
+- **The 70% bar stays declined** (29 Sept, above): it was proposed by Claude while
+  building the room, and **we do not pre-register a threshold for behaviour we have never
+  observed.** 50% is the definitional floor, not a target.
+
+### Vibe chips retired (Alex, 6 Oct 2026)
+
+- **Retired.** The chips existed solely so that someone choosing between two open crews
+  had something to choose on. Nothing in the room design asks anyone to choose: everyone
+  open to meeting is placed in one room, and **groups are invite-only from inside the
+  room, so nobody chooses between groups either** — moving the chips down to the small
+  groups would give them no job.
+- **Why the record is fixed now:** spec A11 still said "built in M3.3" while the build
+  plan said "shelved" and no code used them — a feature the spec promises and nothing
+  builds, the worst of the three states.
+- **Tatiana's starting list stays filed** (spec A11, "Crew vibe"), in case the design
+  changes. It comes off her copy list this week. "The vibe chips own the night; the
+  tags own the person" (M3.1) is history now: the tags own the person.
+
+### A18: the rule is the ban, not the count — and how five became seven (Alex, 6 Oct 2026)
+
+- **The rule** (Alex): A18 always said the five moments were "a ban on engagement bait,
+  not a count to defend" — and he was defending the count. A18 is rewritten around the
+  principle: **a notification earns its place only by being something the person would
+  want even if it cost the product nothing to withhold.** All seven are registered, each
+  with its reason in A18. Nothing is cut.
+- **How the count changed — the audit trail, so #8 is caught:**
+  - **Five → six, 28 Sept.** Commit `761ed87` added "A sixth notification: room activity,
+    batched" to the list of things decided in "The room, then a small group, then solo",
+    **with no reasoning**. Commit `52128db`, a docs-consistency pass, raised A18's heading
+    to "exactly six".
+  - **Six → seven, 28–29 Sept.** Commit `cc52921` added "c · Invite is a seventh
+    notification" to "The night and after", with Alex's reasoning, and raised A18 to seven
+    in the same commit.
+  - **What no entry did.** Alex asked for this to record that no entry authorised the
+    change. The record is narrower than that, and is written as it is: each new kind had
+    a line in a decisions entry, but **no entry addressed A18's rule** — none weighed a
+    new kind against the ban, #6 had no reason at all, and the count rose by editing A18's
+    heading. **#2 and #3 also changed meaning with no entry**: #2 went from "crews are
+    open" to "someone else is here", and #3 widened to cover group invites. A18's list was
+    never rewritten, and M3.5 said "six" in three places. All fixed 6 Oct.
+- **How the next one is caught:** a new kind is a database enum value. N08 already fails
+  if the app's switches, the Worker and the enum disagree; **N09 fails if the enum has a
+  kind A18 does not name, or a line in A18 has no "Not bait" reason.** It cannot check
+  that the reason is good — that stays a decisions entry Alex reads.
+
+### #6: why room activity is not bait, and its bound (Alex, 6 Oct 2026)
+
+- **Why it is the one to justify:** "activity happened, come back" is the exact pattern
+  the ban exists to stop, and #6 was registered without a reason (above).
+- **Why it passes** (Alex): a room nobody returns to is a dead room, and the product's
+  whole claim is that people meet there. A room is a conversation among people who are
+  not watching it — at work, then on their way — over the hours before a gathering.
+  Someone who said hi at 2pm and was answered at 4pm needs to know they were answered;
+  without #6 they find out at the gathering, or never.
+- **Passing is conditional on the bound — an unbounded re-engagement ping is bait no
+  matter how it is described.** As built (`private.notify_room_activity`, 28 Sept):
+  - never per message;
+  - **at most one per room per person in any hour**;
+  - **none again until the person has opened the room since the last one** — someone who
+    never opens it gets **one, all evening**, however many messages follow;
+  - not while they are in it (opened in the last 2 minutes), not for their own message,
+    not from someone blocked either way, not to a hidden person, off in one tap.
+  - **The maximum over one evening, 6pm to midnight: 7 from one room**, and only if the
+    person opens the room each hour (one at 6:00, then one each hour on the hour). Someone
+    in a general and a women-only room can get that from each.
+- **Proved by the review suite:** a 50-message room, asserting one #6 to someone who never
+  opens it, none more inside the hour after they do, and one more only after the hour.
+
+### 30 a room: arbitrary and tunable (Alex, 6 Oct 2026)
+
+- **What it is:** a city default of 30 (`cities.room_size`), overridable per gathering
+  (`gatherings.room_size`, which is how the harness proves a second room at 3), between 2
+  and 200. Chosen in the 28 Sept redesign. **There is no derivation behind the number:
+  it is arbitrary and tunable**, and no rationale is retrofitted.
+- **What it scopes: the conversation, not visibility.** `can_see_at` has no room in it, so
+  two people opted in at the same gathering see each other on the list whichever rooms
+  they are in. The room decides who reads your messages, who you can invite, and who
+  #2 and #6 are about. The 28 Sept entry's "who can see a message" is corrected above.
+- **Why it had no reason attached:** it came from the design doc "M3.3 — The Room", which
+  was never in the repo. Its load-bearing parts go into spec.md.
+
+### The independent review of V20–V23, and what was fixed (Alex, 6 Oct 2026)
+
+A fresh session with no prior context attacked V20–V23 from the rules alone, then from
+the SQL (`tests/policies/review-v20-v23.test.ts`, now part of `npm run test:policies`).
+79 of 94 attacks were refused. What got through sat at the edges — code acting later on
+an earlier check. Fixed as migrations `20261006230939`–`20261006230954`, each with the
+case that failed turning green:
+
+- **L2 — a block or a hide ends a connection everywhere** (fixed first: "a block that
+  leaks where I'm going is worse than no block, because the person using it believes it
+  worked"). The invite picker no longer tells a blocked or hidden connection where you
+  are going (R88, R88h).
+- **L1 — an invite is re-checked when accepted** (R86): no block with the inviter or
+  anyone in the group, neither hidden, still in the room; across a block it vanishes.
+- **L3/L4 — a hidden person is out of every room**, never placed while hidden, placed
+  again when unhidden, and never causes or appears in #2 or #6 (R47h, R48h, R49, R96).
+- **L5 — a seed person is never placed at a real gathering** (R81–R83).
+- **L6 — the women-only room opens at 3 in the database**, not only on the screen (R23).
+- **L9 — deleting a message is a removal**: words cleared, unreadable to all, and no
+  Realtime DELETE broadcast (R85). Group threads lost their unused delete.
+- **L10 — the limits hold under concurrent requests**: a lock per author for posting
+  (R90), per inviter for five invites a day (R89).
+- **L11 — last-seen is not readable through the API** (R91).
+- **Re-invites — a group invites a person once** (R94).
+
+**Alex's four calls:**
+
+- **L7 — blocking someone in your group: the blocker leaves** (R87). Against the
+  recommendation that the blocked person be removed: "If blocking ejects, then every
+  member holds a unilateral power to remove any other member — block, they're gone,
+  unblock — and nobody consented to being in a group where that is possible. 'You leave'
+  cannot be weaponised, and it costs the person who made the choice rather than the
+  person who didn't." **The cost, recorded honestly and accepted: someone harassed inside
+  a group gives up the group.** The harassment case is answered by block + report + an
+  upheld moderation hide, which removes that person from rooms (L3/L4) — the right path,
+  not the group mechanic.
+- **L8 — a push-token takeover is allowed; the silence is not.** Re-registering is how a
+  phone legitimately changes hands, so it stays. When a phone that registered for an
+  account finds on its next start that another account has it, the app says so and asks
+  ("Turn them back on" / "Leave them off") instead of silently taking it back — which
+  would have had two accounts trading it forever with neither told (`pushWasTaken`,
+  N10–N12; R46). **Residual limit:** a takeover needs the phone's push token, which no
+  screen or API shows anyone but its owner; until the owner next opens the app, their
+  notifications go to the other account.
+- **A withdrawn gathering's group stays, with names, writable until its normal
+  deadline, and #3 tells it** (R93). "The moment a gathering is withdrawn is the exact
+  moment people who had agreed to meet most need to say 'still on?' — and that group is
+  the only place real commitment ever happened." People in a group together now see each
+  other while it is forming, set or live.
+- **"Already going" counts only pins open to meeting** (R95): anything else leaks that
+  someone is going somewhere without their ever having opted into being seen.
+
+**Open, Alex's:** what becomes of a hidden person's messages already in a room (today
+they vanish for everyone at the hide — the read rule needs the author visible); and the
+placement lock per gathering, pending the worst-case wait.
+
+**Residual, recorded:** the 30-day retention purge still deletes rows, so Realtime
+subscribers can learn the ids of month-old messages in closed rooms.
+
+### Fixtures say so when they are the problem (Alex, 6 Oct 2026)
+
+The test crowd moved only when someone pressed "Refresh"; it finished on 2 Oct and every
+link-path walk failed at "A26 opens" with nothing saying why. **Made permanent, not just
+fixed:** the daily 09:00 run keeps it two days ahead (`keepTestCrowdAhead`), and every
+browser check verifies its fixtures first (`scripts/fixture.mjs`) and, when one has
+moved, prints one line beginning **`FIXTURE, not product:`** and exits 2 (a product
+failure exits 1). Checked before each walk: the `.dev.vars` keys; Chrome; the test crowd
+(there, not withdrawn, and — for walks that pin — not started); and **`SESSION_SECRET`
+matching the deployed Worker's** (a mismatch makes every hand-off come back empty, which
+is indistinguishable from a broken hand-off). Both sentences were made to fire.
+
+**Other fixtures that can go stale the same way, named:**
+- the **room-at-one gathering** — dated three days out when made; `scripts/room-at-one.mjs`
+  remakes it (and the walks it served are now checks);
+- the **test crowd's seed people** — built once by Refresh, never re-checked; a sweep
+  that removed them would leave a crowd with nobody in it;
+- **a tester's flag** on Alex's own accounts (`/admin/testers`) — a merge once dropped it;
+- **the Sign in with Apple secret** — a JWT that lapses (the credentials watch covers it);
+- **the Supabase CLI and Chrome versions** on this laptop — not stale data, but ground
+  that moves under a check.

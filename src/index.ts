@@ -1,9 +1,11 @@
 import { runSeriesChecks, CHECKER } from "./community/run";
 import { jobsFor } from "./cron";
+import { deliverPending } from "./notify/deliver";
 import { spotSuggestionsOn, type Env } from "./env";
 import { escape, page } from "./html";
 import { IMPORTER, runImport } from "./import/run";
 import { checkExpiringCredentials } from "./ops/watch";
+import { keepTestCrowdAhead } from "./admin/testcrowd";
 import { sweepPhotos } from "./photo/sweep";
 import { route } from "./router";
 import { ConfigError, serviceClient } from "./supabase";
@@ -49,6 +51,7 @@ export default {
       for (const job of [
         () => sweepPhotos(env),
         ...(jobs.includes("credentials") ? [() => checkExpiringCredentials(env)] : []),
+        ...(jobs.includes("test-crowd") ? [() => keepTestCrowdAhead(serviceClient(env))] : []),
       ]) {
         try {
           console.log((await job()).message);
@@ -56,6 +59,11 @@ export default {
           console.error("photo sweep run:", err instanceof Error ? err.message : err);
         }
       }
+      return;
+    }
+    if (jobs.includes("notify")) {
+      const outcome = await deliverPending(env);
+      if (outcome.sent.push + outcome.sent.email + outcome.sent.none + outcome.failed > 0) console.log(outcome.message);
       return;
     }
     if (jobs.includes("liveness")) {

@@ -155,11 +155,14 @@ describe("Public data — V2, V11", () => {
     // `tags` and `person_tags` left this list in M3.1: the vocabulary is public
     // reference data like `neighbourhoods`, and a person's own tags are theirs.
     // P74–P77 are the cases that replaced them.
-    for (const t of [
-      "crews", "crew_members", "crew_proposals", "crew_proposal_votes", "crew_join_requests",
-      "crew_messages", "confirmations", "connections", "magic_links", "outbound_messages",
-    ]) {
+    for (const t of ["confirmations", "connections", "connection_invites", "magic_links", "outbound_messages"]) {
       await noAccess(ava, t);
+    }
+    // The group tables opened in M3.3 behind their own rules (P149–P158): someone in no
+    // group reads nothing from them, and nobody creates a group except through
+    // start_group.
+    for (const t of ["crews", "crew_members", "crew_proposals", "crew_proposal_votes", "crew_messages", "crew_invites"]) {
+      assert.deepEqual(await rows(ava.from(t).select("*").limit(1)), [], `${t}: someone in no group read a row`);
     }
     await denied(ava.from("crews").insert({ gathering_id: w.G }), "42501");
     await denied(ava.from("connections").insert({ person_a: id("Ava"), person_b: id("Ben") }), "42501");
@@ -522,14 +525,16 @@ describe("Spot poll", () => {
 });
 
 describe("Survey", () => {
-  it("P32 Ava CAN submit and read her own response / CANNOT read Ben's / CANNOT submit as someone else", async () => {
+  // M3.3 (Alex, 29 Sept): the question is asked after the night, of those who were open
+  // to meeting — so before G's end even Ava's own answer is refused. The CAN side, and
+  // "readable only by its author", moved to P173, on a gathering that has ended.
+  it("P32 Ava CANNOT answer before the gathering has happened / CANNOT submit as someone else", async () => {
     const ava = c(M("Ava"));
-    await ok(
-      ava.from("survey_responses").insert({ gathering_id: w.G, person_id: id("Ava"), met: "1_2", would_have_gone: "no" }),
-      "Ava's survey",
+    await denied(
+      ava.from("survey_responses").insert({ gathering_id: w.G, person_id: id("Ava"), would_have_gone: "no" }),
+      "42501",
     );
-    const visible = await rows(ava.from("survey_responses").select("person_id"));
-    assert.deepEqual(visible.map((r) => r.person_id), [id("Ava")]);
+    assert.deepEqual(await rows(ava.from("survey_responses").select("person_id")), []);
     await denied(
       ava.from("survey_responses").insert({ gathering_id: w.G, person_id: id("Dee"), met: "none", would_have_gone: "yes" }),
       "42501",
@@ -1851,7 +1856,7 @@ describe("Instagram handles — V17 (Alex, M3.1)", () => {
     assert.equal(await handleSeen(ava, "Ben"), handleFor(w.run, "Ben"), "a dissolved crew should still count");
   });
 
-  it("P69 a connection CAN read it even with no gathering in common / it does not make them visible under V1", async () => {
+  it("P69 a connection CAN read it even with no gathering in common / and, since V23, each other's row", async () => {
     const ava = c(M("Ava"));
     const cal = c(M("Cal"));
     // Cal is pinned at G but not opted in, so V1 denies both of them, in both
@@ -1864,16 +1869,22 @@ describe("Instagram handles — V17 (Alex, M3.1)", () => {
 
     assert.equal(await handleSeen(ava, "Cal"), handleFor(w.run, "Cal"));
     assert.equal(await handleSeen(cal, "Ava"), handleFor(w.run, "Ava"));
-    // And nothing else moved: they still cannot see each other's rows.
-    assert.equal(await seesPeople(ava, "Cal"), 0, "the connection branch changed V1");
-    assert.equal(await seesPeople(cal, "Ava"), 0, "the connection branch changed V1");
+    // V23 (M3.3, Alex, 29 Sept): a connection now sees the person too — first name and
+    // photo, outside any gathering. Until then this line asserted the opposite.
+    assert.equal(await seesPeople(ava, "Cal"), 1, "a connection could not see the person (V23)");
+    assert.equal(await seesPeople(cal, "Ava"), 1, "a connection could not see the person (V23)");
+    // The world goes back as it was for the cases after this one.
+    await ok(w.service.from("connections").delete().eq("person_a", pair[0]).eq("person_b", pair[1]), "unconnect them");
+    assert.equal(await seesPeople(ava, "Cal"), 0, "a removed connection still showed the person");
   });
 
-  it("P70 a pending join request is not a crewmate / a block and a moderation hide both override the crew branch", async () => {
+  it("P70 a pending invite is not a crewmate / a block and a moderation hide both override the crew branch", async () => {
+    // Join requests went with the room design (M3.3); an invite not yet accepted is its
+    // successor and, like a request before it, makes nobody a crewmate.
     const crew = await crewOf(w.G, ["Dee"]);
-    await ok(w.service.from("crew_join_requests").insert({ crew_id: crew, person_id: id("Hana") }), "Hana asks to join");
-    assert.equal(await handleSeen(c(M("Hana")), "Dee"), null, "a pending requester read a member's handle");
-    assert.equal(await handleSeen(c(M("Dee")), "Hana"), null, "a member read a pending requester's handle");
+    await ok(w.service.from("crew_invites").insert({ crew_id: crew, gathering_id: w.G, from_person: id("Dee"), to_person: id("Hana") }), "Dee invites Hana");
+    assert.equal(await handleSeen(c(M("Hana")), "Dee"), null, "someone invited read a member's handle");
+    assert.equal(await handleSeen(c(M("Dee")), "Hana"), null, "a member read an invitee's handle");
 
     // Gus blocked Hal in P14. Being in a crew together does not undo a block (V4).
     await crewOf(w.H, ["Gus", "Hal"]);
@@ -3268,6 +3279,31 @@ describe("Merging an anonymous pinner into their existing account (M3.2)", () =>
       await cleanup(authId, other.authId);
     }
   });
+
+  it("P182 every merge writes its record in its own transaction — how, where and by which route; a refused merge writes none; nobody signed in reads or calls it", async () => {
+    const a = await anonWithPin("RecA", w.G, 1);
+    const p = await permanent("RecP", true);
+    const recorded = async () => rows(w.service.from("account_merges").select("method, platform, via").eq("person_id", p.personId!));
+    try {
+      // Refused (the same user twice): no merge, and no record of one.
+      await denied(w.service.rpc("admin_merge_recorded", { p_anon: p.authId, p_perm: p.authId, p_photo_dest: null, p_method: "email", p_platform: "web", p_via: "already_on_pind" }));
+      assert.deepEqual(await recorded(), [], "a refused merge left a record");
+      await ok(w.service.rpc("admin_merge_recorded", { p_anon: a.authId, p_perm: p.authId, p_photo_dest: null, p_method: "email", p_platform: "web", p_via: "already_on_pind" }));
+      assert.deepEqual(await recorded(), [{ method: "email", platform: "web", via: "already_on_pind" }]);
+      assert.equal((await rows(w.service.from("pins").select("id").eq("person_id", p.personId!).eq("gathering_id", w.G))).length, 1, "the record was written but the merge did not happen");
+      // Anything but a known value is recorded as not known, never guessed.
+      const b = await anonWithPin("RecB", w.G, 1);
+      await ok(w.service.rpc("admin_merge_recorded", { p_anon: b.authId, p_perm: p.authId, p_photo_dest: null, p_method: "EMAIL ", p_platform: "windows", p_via: "" }));
+      assert.ok((await recorded()).some((r: { method: string | null; platform: string | null; via: string | null }) => r.method === null && r.platform === null && r.via === null), "an unknown value was recorded as if known");
+      await noAccess(c(M("Ava")), "account_merges");
+      for (const client of [c(M("Ava")), w.anon]) {
+        assert.ok((await client.rpc("admin_merge_recorded", { p_anon: randomUUID(), p_perm: randomUUID(), p_photo_dest: null, p_method: null, p_platform: null, p_via: null })).error, "a visitor ran the merge");
+      }
+    } finally {
+      await w.service.from("account_merges").delete().eq("person_id", p.personId!);
+      await cleanup(a.authId, p.authId);
+    }
+  });
 });
 
 describe("The client's copy of effective_end matches the database's (M3.2)", () => {
@@ -3392,5 +3428,876 @@ describe("Anonymous tester sessions (M3.2)", () => {
     assert.equal(await ok(w.service.rpc("admin_clear_stale_anonymous_testers", { p_older_than: "0 seconds", p_only: b.authId })), 1, "a stale session was not cleared");
     const goneB = await w.service.auth.admin.getUserById(b.authId);
     assert.ok(goneB.error || !goneB.data.user, "the stale session survived the clean-up");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.3 — the room (Alex, with Tatiana and Jayme, 28 Sept 2026)
+// ---------------------------------------------------------------------------
+// Each rule proved from both sides, with fresh people at a fresh gathering sized to 3,
+// so the placement can be seen and nothing else in the world is touched.
+
+describe("The room — who is in it, who reads it, who can post (M3.3)", () => {
+  let G = "";
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+
+  // A person who may meet: permanent, dated, with a photo — then opted in at G as themselves.
+  async function meeter(label: string, gender: "woman" | "man" | "nonbinary", open = true, womenOnly = false) {
+    const email = `${PREFIX}-${w.run}-room-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender, birth_year: 1994, include_in_women_only: womenOnly }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    await ok(client.from("pins").insert({ gathering_id: G, person_id: person.id, party_total: 1, open_to_meeting: open }).select("id").single());
+    people[label] = { authId, personId: person.id, client };
+    return people[label];
+  }
+  const roomsOf = async (label: string) => rows(people[label].client.rpc("my_rooms", { p_gathering: G }));
+  const generalRoom = async (label: string) => (await roomsOf(label)).find((r: { women_only: boolean }) => !r.women_only)?.room_id as string | undefined;
+  const post = (label: string, room: string, body: string) =>
+    people[label].client.from("room_messages").insert({ room_id: room, author_id: people[label].personId, body }).select("id").single();
+  const readBodies = async (label: string, room: string) =>
+    (await rows(people[label].client.from("room_messages").select("body").eq("room_id", room))).map((m: { body: string }) => m.body);
+  const pause = () => new Promise((r) => setTimeout(r, 3100));
+
+  before(async () => {
+    G = (
+      await ok(
+        w.service
+          .from("gatherings")
+          .insert({ name: `${PREFIX} ${w.run} Room`, starts_at: inDays(5), venue_id: w.venue, published_at: new Date().toISOString(), room_size: 3 })
+          .select("id")
+          .single(),
+      )
+    ).id;
+  });
+
+  after(async () => {
+    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+  });
+
+  it("P139 opting in places you; the fullest room with space fills first; the fourth of a room of 3 opens room 2; pinning without opting in places nobody", async () => {
+    await meeter("Rae", "woman");
+    await meeter("Sol", "man");
+    await meeter("Tia", "woman");
+    await meeter("Uma", "man");
+    await meeter("Vic", "man", false);
+    const r1 = await generalRoom("Rae");
+    assert.ok(r1, "Rae was not placed");
+    assert.equal(await generalRoom("Sol"), r1);
+    assert.equal(await generalRoom("Tia"), r1, "the fullest room with space did not fill first");
+    const r2 = await generalRoom("Uma");
+    assert.ok(r2 && r2 !== r1, "the fourth person was not placed in a second room");
+    assert.equal((await roomsOf("Vic")).length, 0, "someone pinned without opting in was placed in a room");
+    const [first] = (await roomsOf("Rae")).filter((r: { women_only: boolean }) => !r.women_only);
+    assert.deepEqual([first.number, first.members, first.open], [1, 3, true]);
+  });
+
+  it("P140 a message is read by the people in the room who can see its author — not by someone pinned without opting in, another room, a blocked person or a visitor", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    await ok(post("Rae", r1, "Hi — first time at this"));
+    assert.deepEqual(await readBodies("Sol", r1), ["Hi — first time at this"], "someone in the room could not read it");
+    assert.deepEqual(await readBodies("Uma", r1), [], "someone in another room read it");
+    assert.deepEqual(await readBodies("Vic", r1), [], "someone pinned without opting in read it");
+    assert.deepEqual(await rows(w.anon.from("room_messages").select("body").eq("room_id", r1)), [], "a visitor read it");
+    // A block, either way, hides the author's messages and arrival card.
+    await ok(w.service.from("blocks").insert({ blocker_id: people.Tia.personId, blocked_id: people.Rae.personId }));
+    assert.deepEqual(await readBodies("Tia", r1), [], "a blocked pair still read each other");
+    const cards = (await rows(people.Tia.client.from("room_members").select("person_id").eq("room_id", r1))).map((m: { person_id: string }) => m.person_id);
+    assert.ok(!cards.includes(people.Rae.personId), "a blocked person's arrival card was visible");
+    assert.ok(cards.includes(people.Sol.personId), "someone visible was missing from the room");
+  });
+
+  it("P141 posting is refused as someone else, in a room you are not in, and in a room of one", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    const r2 = (await generalRoom("Uma"))!;
+    await denied(people.Sol.client.from("room_messages").insert({ room_id: r1, author_id: people.Rae.personId, body: "not me" }));
+    await denied(post("Sol", r2, "wrong room"));
+    // Room 2 has one person: nobody to talk to, so it is not open.
+    await denied(post("Uma", r2, "anyone?"));
+    assert.equal((await roomsOf("Uma"))[0].open, false);
+  });
+
+  it("P142 one message every 3 seconds, and 200 a day — both refused, both sides", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    await ok(post("Sol", r1, "one"));
+    await denied(post("Sol", r1, "two, too soon"), "23514");
+    // 199 more earlier today, set up by the service key (outside the limits): 200 in all.
+    await ok(
+      w.service.from("room_messages").insert(
+        Array.from({ length: 199 }, (_, i) => ({ room_id: r1, author_id: people.Sol.personId, body: `earlier ${i}`, created_at: new Date(Date.now() - 3_600_000 - i * 1000).toISOString() })),
+      ),
+    );
+    await pause();
+    await denied(post("Sol", r1, "the 201st"), "23514");
+    await ok(w.service.from("room_messages").delete().eq("author_id", people.Sol.personId).like("body", "earlier %"));
+    await ok(post("Sol", r1, "under the cap again"), "after the day's messages go, posting works again");
+  });
+
+  // Since 6 Oct 2026 (L9) deleting is a removal through delete_room_message: a row delete
+  // was broadcast by Realtime to every subscriber. The words are cleared at once.
+  it("P143 you can delete your own message — it is gone for everyone, its author too, its words cleared — and nobody else's", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    await pause();
+    const mine = await ok(post("Rae", r1, "take this back"));
+    await denied(people.Sol.client.rpc("delete_room_message", { p_message: mine.id }));
+    const rowDelete = await people.Sol.client.from("room_messages").delete().eq("id", mine.id).select("id");
+    assert.deepEqual(rowDelete.data ?? [], [], "someone deleted another person's message");
+    assert.ok((await readBodies("Sol", r1)).includes("take this back"));
+    const ownRowDelete = await people.Rae.client.from("room_messages").delete().eq("id", mine.id).select("id");
+    assert.deepEqual(ownRowDelete.data ?? [], [], "a row delete still works — it is broadcast to every subscriber");
+    await ok(people.Rae.client.rpc("delete_room_message", { p_message: mine.id }));
+    assert.ok(!(await readBodies("Sol", r1)).includes("take this back"), "a deleted message was still there for others");
+    assert.ok(!(await readBodies("Rae", r1)).includes("take this back"), "a deleted message was still there for its author");
+    const [row] = await ok(w.service.from("room_messages").select("body, deleted_at").eq("id", mine.id));
+    assert.ok(row.deleted_at && row.body === "", "a deleted message kept its words");
+  });
+
+  it("P144 a safety report hides the message at once for others, keeps its snapshot, and the author still sees it", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    await pause();
+    const msg = await ok(post("Rae", r1, "reportable line"));
+    await ok(people.Sol.client.from("reports").insert({ reporter_id: people.Sol.personId, target_kind: "message", target_room_message_id: msg.id, reason: "uncomfortable" }));
+    assert.ok(!(await readBodies("Sol", r1)).includes("reportable line"), "a reported message stayed visible");
+    assert.ok((await readBodies("Rae", r1)).includes("reportable line"), "the author lost sight of their own message");
+    const report = await serviceRow("reports", "target_room_message_id", msg.id, "reported_content_snapshot");
+    assert.equal(report.reported_content_snapshot, "reportable line", "the report did not keep the text");
+    // Nobody can report a message they cannot read.
+    await denied(people.Uma.client.from("reports").insert({ reporter_id: people.Uma.personId, target_kind: "message", target_room_message_id: msg.id, reason: "spam" }));
+  });
+
+  it("P145 the women-only room: only the eligible are placed in it, and it is offered only from 3", async () => {
+    const wo = (label: string) => roomsOf(label).then((rs) => rs.find((r: { women_only: boolean }) => r.women_only));
+    // Rae and Tia are women: two eligible, so it is not offered yet.
+    assert.equal(await wo("Rae"), undefined, "the women-only room was offered below 3");
+    await meeter("Wen", "nonbinary", true, true);
+    assert.ok(await wo("Rae"), "the women-only room was not offered to a woman at 3");
+    assert.ok(await wo("Wen"), "a nonbinary person who chose inclusion was not in it");
+    assert.equal(await wo("Sol"), undefined, "a man was placed in the women-only room");
+    const woRoom = (await wo("Rae")).room_id as string;
+    assert.deepEqual(await readBodies("Sol", woRoom), [], "a man read the women-only room");
+  });
+
+  it("P146 opting out takes you out: you stop reading the room and stop showing in it; opting back in returns you to it", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    await ok(people.Sol.client.from("pins").update({ open_to_meeting: false }).eq("person_id", people.Sol.personId).eq("gathering_id", G).select("id"));
+    assert.equal(await generalRoom("Sol"), undefined, "opting out left you in the room");
+    // Their own messages stay theirs (they can still delete them); everyone else's go.
+    assert.ok(!(await readBodies("Sol", r1)).includes("Hi — first time at this"), "someone who opted out still read the room");
+    assert.ok((await readBodies("Sol", r1)).includes("one"), "someone who opted out lost sight of their own message");
+    const cards = (await rows(people.Rae.client.from("room_members").select("person_id").eq("room_id", r1))).map((m: { person_id: string }) => m.person_id);
+    assert.ok(!cards.includes(people.Sol.personId), "someone who left still showed in the room");
+    await ok(people.Sol.client.from("pins").update({ open_to_meeting: true }).eq("person_id", people.Sol.personId).eq("gathering_id", G).select("id"));
+    assert.equal(await generalRoom("Sol"), r1, "opting back in did not return you to your room");
+  });
+
+  it("P147 after the gathering the room is read-only: posting is refused, reading still works though the list has closed", async () => {
+    const r1 = (await generalRoom("Rae"))!;
+    await ok(w.service.from("gatherings").update({ starts_at: inDays(-3) }).eq("id", G));
+    try {
+      await denied(post("Rae", r1, "too late"));
+      assert.ok((await readBodies("Sol", r1)).includes("one"), "the room stopped being readable when the list closed");
+    } finally {
+      await ok(w.service.from("gatherings").update({ starts_at: inDays(5) }).eq("id", G));
+    }
+  });
+
+  it("P148 the retention job and the placement machinery are nobody else's to call", async () => {
+    for (const client of [people.Rae.client, w.anon]) {
+      assert.ok((await client.rpc("admin_delete_expired_room_messages")).error, "a visitor ran the retention job");
+    }
+    assert.ok((await w.anon.rpc("my_rooms", { p_gathering: G })).error, "a visitor asked for rooms");
+    await denied(people.Vic.client.from("room_members").insert({ room_id: (await generalRoom("Rae"))!, gathering_id: G, person_id: people.Vic.personId, women_only: false }));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.3 — small groups: "go together" from the room (first version)
+// ---------------------------------------------------------------------------
+
+describe("Small groups — invites to people you've talked with, the plan, the night (M3.3)", () => {
+  let E = ""; // Events: a spot first
+  let K = ""; // Community: at the gathering
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+
+  async function meeter(label: string, gathering: string) {
+    const email = `${PREFIX}-${w.run}-grp-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1993 }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    await ok(client.from("pins").insert({ gathering_id: gathering, person_id: person.id, party_total: 1, open_to_meeting: true }).select("id").single());
+    people[label] = { authId, personId: person.id, client };
+    return people[label];
+  }
+  const room = async (label: string, gathering: string) =>
+    (await rows(people[label].client.rpc("my_rooms", { p_gathering: gathering }))).find((r: { women_only: boolean }) => !r.women_only)?.room_id as string;
+  const say = async (label: string, gathering: string, body: string) =>
+    ok(people[label].client.from("room_messages").insert({ room_id: await room(label, gathering), author_id: people[label].personId, body }).select("id").single());
+  const start = async (label: string, gathering: string, invitees: string[]) =>
+    people[label].client.rpc("start_group", { p_room: await room(label, gathering), p_invitees: invitees.map((n) => people[n].personId) });
+  const inviteFor = async (label: string, gathering: string) =>
+    (await rows(people[label].client.rpc("my_invites", { p_gathering: gathering })))[0] as { invite_id: string; crew_id: string; from_name: string; members: string[] } | undefined;
+  const crewState = async (crew: string) => (await serviceRow("crews", "id", crew, "state, spot_id, meet_at")) as { state: string; spot_id: string | null; meet_at: string | null };
+  const pause = () => new Promise((r) => setTimeout(r, 3100));
+
+  before(async () => {
+    const make = async (label: string, extra: Record<string, unknown>) =>
+      (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} ${label}`, starts_at: inDays(4), venue_id: w.venue, published_at: new Date().toISOString(), ...extra }).select("id").single())).id as string;
+    E = await make("Groups E", { source: "ticketmaster", convening: "a_spot_first" });
+    K = await make("Groups K", { source: "manual" });
+    const spots = await rows(w.service.from("gathering_spots").select("spot_id").eq("gathering_id", w.G));
+    await ok(w.service.from("gathering_spots").insert(spots.map((s: { spot_id: string }, i: number) => ({ gathering_id: E, spot_id: s.spot_id, meet_at: inDays(4 - i / 100) }))));
+    for (const n of ["Ada", "Bo", "Cy", "Di", "Ed", "Fay"]) await meeter(n, E);
+    for (const n of ["Gil", "Hu", "Ike"]) await meeter(n, K);
+  });
+
+  after(async () => {
+    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+  });
+
+  it("P149 the default convening follows the source, and the admin can override it", async () => {
+    assert.equal(await ok(w.anon.rpc("convening_of", { p_gathering: K })), "at_the_gathering");
+    assert.equal(await ok(w.anon.rpc("convening_of", { p_gathering: E })), "a_spot_first");
+  });
+
+  it("P150 you can invite only people you've both talked with in this room — not before you've said hi, not someone silent, not two, not four", async () => {
+    await denied(start("Ada", E, ["Bo", "Cy"]), "42501"); // Ada hasn't posted
+    await say("Ada", E, "hi all");
+    await say("Bo", E, "hey");
+    await say("Cy", E, "hello");
+    await denied(start("Ada", E, ["Bo", "Di"]), "42501"); // Di hasn't posted
+    await denied(start("Ada", E, ["Bo"]), "22023"); // too few
+    await say("Di", E, "hi");
+    await say("Ed", E, "yo");
+    await say("Fay", E, "hiya");
+    await denied(start("Ada", E, ["Bo", "Cy", "Di", "Ed"]), "22023"); // too many
+  });
+
+  let crew = "";
+  let diCrew = "";
+  it("P151 a group exists only for its members and the people invited; the room cannot see it", async () => {
+    crew = await ok(start("Ada", E, ["Bo", "Cy", "Fay"]));
+    assert.equal((await rows(people.Ada.client.from("crews").select("id").eq("id", crew))).length, 1, "the starter could not see their group");
+    assert.equal((await rows(people.Di.client.from("crews").select("id").eq("id", crew))).length, 0, "someone in the room saw the group");
+    const inv = await inviteFor("Bo", E);
+    assert.equal(inv?.from_name, "Ada", "the invitee did not see who asked");
+    assert.equal(await inviteFor("Di", E), undefined, "someone not invited saw an invite");
+    assert.equal((await rows(people.Ada.client.from("crew_invites").select("id").eq("crew_id", crew))).length, 0, "the inviter could read the invites (and so learn of a decline)");
+  });
+
+  it("P152 a decline is silent; an accept makes a member; at 3 the group is on", async () => {
+    const cyInv = (await inviteFor("Cy", E))!;
+    await ok(people.Cy.client.rpc("respond_to_invite", { p_invite: cyInv.invite_id, p_accept: false }));
+    assert.equal((await rows(people.Ada.client.from("crew_members").select("person_id").eq("crew_id", crew))).length, 1, "a decline added someone");
+    const boInv = (await inviteFor("Bo", E))!;
+    await ok(people.Bo.client.rpc("respond_to_invite", { p_invite: boInv.invite_id, p_accept: true }));
+    assert.equal((await rows(people.Ada.client.from("crew_members").select("person_id").eq("crew_id", crew).is("left_at", null))).length, 2);
+    // Nobody else can accept someone else's invite.
+    await denied(people.Di.client.rpc("respond_to_invite", { p_invite: boInv.invite_id, p_accept: true }), "42501");
+    assert.equal((await crewState(crew)).state, "forming", "a spot-first group set a plan before three hours out");
+  });
+
+  it("P153 one group per person per gathering: accepting one lapses your other invites; a member can be neither invited nor start another", async () => {
+    await pause();
+    const other = await ok(start("Di", E, ["Ed", "Fay"]));
+    assert.ok(other);
+    diCrew = other as string;
+    assert.equal((await rows(people.Fay.client.rpc("my_invites", { p_gathering: E }))).length, 2, "Fay should hold two invites");
+    const fromAda = (await rows(people.Fay.client.rpc("my_invites", { p_gathering: E }))).find((i: { crew_id: string }) => i.crew_id === crew);
+    await ok(people.Fay.client.rpc("respond_to_invite", { p_invite: fromAda.invite_id, p_accept: true }));
+    assert.equal((await rows(people.Fay.client.rpc("my_invites", { p_gathering: E }))).length, 0, "the other invite did not lapse");
+    // Bo is in Ada's group: nobody can invite him, and he cannot start a second.
+    await denied(start("Ed", E, ["Bo", "Di"]), "42501");
+    await denied(start("Bo", E, ["Di", "Ed"]));
+    assert.equal((await rows(people.Ada.client.from("crew_members").select("person_id").eq("crew_id", crew).is("left_at", null))).length, 3, "the group is not on at 3");
+  });
+
+  it("P154 the group's thread: members read and post; the room and those invited do not", async () => {
+    await ok(people.Ada.client.from("crew_messages").insert({ crew_id: crew, author_id: people.Ada.personId, kind: "user", body: "Spot B at 6?" }));
+    const read = (label: string) => rows(people[label].client.from("crew_messages").select("body").eq("crew_id", crew));
+    assert.equal((await read("Bo")).length, 1, "a member could not read the thread");
+    assert.equal((await read("Di")).length, 0, "someone in the room read a group's thread");
+    await denied(people.Di.client.from("crew_messages").insert({ crew_id: crew, author_id: people.Di.personId, kind: "user", body: "let me in" }));
+    await denied(people.Bo.client.from("crew_messages").insert({ crew_id: crew, author_id: people.Bo.personId, kind: "system", body: "fake system" }));
+  });
+
+  it("P155 votes: members vote on the poll; others cannot", async () => {
+    const props = await rows(people.Ada.client.from("crew_proposals").select("id").eq("crew_id", crew));
+    assert.ok(props.length >= 1, "the group had no spot options");
+    await ok(people.Bo.client.from("crew_proposal_votes").insert({ proposal_id: props[props.length - 1].id, person_id: people.Bo.personId }));
+    await denied(people.Di.client.from("crew_proposal_votes").insert({ proposal_id: props[0].id, person_id: people.Di.personId }));
+    assert.equal((await rows(people.Di.client.from("crew_proposals").select("id").eq("crew_id", crew))).length, 0, "a non-member read the poll");
+  });
+
+  it("P156 three hours out, a group of 3 takes the poll's leader without anyone setting it, and goes live; 'I'm here' needs a line and works only then", async () => {
+    // Time moves to two hours before the start.
+    const leader = (await rows(people.Ada.client.from("crew_proposals").select("id, spot_id").eq("crew_id", crew))).slice(-1)[0];
+    await ok(w.service.from("gatherings").update({ starts_at: new Date(Date.now() + 2 * 3_600_000).toISOString() }).eq("id", E));
+    await ok(w.service.rpc("admin_groups_tick"));
+    const s = await crewState(crew);
+    assert.equal(s.state, "live", "the group did not take its plan and go live");
+    assert.equal(s.spot_id, leader.spot_id, "the plan was not the poll's leader");
+    await denied(people.Bo.client.from("crew_members").update({ arrived_at: new Date().toISOString(), arrival_note: null }).eq("crew_id", crew).eq("person_id", people.Bo.personId).select("person_id"));
+    await ok(people.Bo.client.from("crew_members").update({ arrived_at: new Date().toISOString(), arrival_note: "green Matthews jersey" }).eq("crew_id", crew).eq("person_id", people.Bo.personId).select("person_id"));
+  });
+
+  it("P157 at the gathering: a Community group of 3 has its plan at once — the start, no spot", async () => {
+    for (const n of ["Gil", "Hu", "Ike"]) await say(n, K, `hi from ${n}`);
+    const g = await ok(people.Gil.client.rpc("start_group", { p_room: await room("Gil", K), p_invitees: [people.Hu.personId, people.Ike.personId] }));
+    for (const n of ["Hu", "Ike"]) {
+      const inv = (await inviteFor(n, K))!;
+      await ok(people[n].client.rpc("respond_to_invite", { p_invite: inv.invite_id, p_accept: true }));
+    }
+    const s = await crewState(g);
+    assert.equal(s.state, "spot_set");
+    assert.equal(s.spot_id, null, "an at-the-gathering plan named a spot");
+    assert.ok(s.meet_at, "an at-the-gathering plan had no time");
+  });
+
+  it("P158 under 3 at six hours out, a forming group dissolves and releases its people; the lifecycle job is the service key's only", async () => {
+    const dCrew = diCrew;
+    assert.ok(dCrew, "Di's group was not made");
+    // E is two hours out now: Di's group has one member (Fay went with Ada; Ed never answered).
+    await ok(w.service.rpc("admin_groups_tick"));
+    assert.equal((await crewState(dCrew)).state, "dissolved");
+    assert.equal((await rows(w.service.from("crew_members").select("person_id").eq("crew_id", dCrew).is("left_at", null))).length, 0, "a dissolved group kept its people");
+    for (const client of [people.Ada.client, w.anon]) assert.ok((await client.rpc("admin_groups_tick")).error, "a visitor ran the lifecycle job");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.3 — notifications #2 and #6, recorded at the moment (A18, six)
+// ---------------------------------------------------------------------------
+
+describe("Notifications #2 and #6 — written by the act itself, and refused when they should be (M3.3)", () => {
+  let N = "";
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+
+  async function meeter(label: string) {
+    const email = `${PREFIX}-${w.run}-note-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1992 }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    people[label] = { authId, personId: person.id, client };
+    return people[label];
+  }
+  const optIn = (label: string) =>
+    ok(people[label].client.from("pins").insert({ gathering_id: N, person_id: people[label].personId, party_total: 1, open_to_meeting: true }).select("id").single());
+  const room = async (label: string) =>
+    (await rows(people[label].client.rpc("my_rooms", { p_gathering: N }))).find((r: { women_only: boolean }) => !r.women_only)?.room_id as string;
+  const notes = async (label: string, kind: string) =>
+    rows(w.service.from("notifications").select("id, body, created_at").eq("person_id", people[label].personId).eq("kind", kind));
+  const say = async (label: string, body: string) =>
+    ok(people[label].client.from("room_messages").insert({ room_id: await room(label), author_id: people[label].personId, body }).select("id").single());
+  const pause = () => new Promise((r) => setTimeout(r, 3100));
+
+  before(async () => {
+    N = (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Notes`, starts_at: inDays(6), venue_id: w.venue, published_at: new Date().toISOString() }).select("id").single())).id;
+    for (const n of ["Jo", "Kit", "Lu", "Mo"]) await meeter(n);
+  });
+  after(async () => {
+    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+  });
+
+  it("P159 #2: the first person is told, by name, when the second arrives — the second is not, and nobody is told twice", async () => {
+    await optIn("Jo");
+    assert.equal((await notes("Jo", "room_open")).length, 0, "someone alone was told there was someone to talk to");
+    await optIn("Kit");
+    const jo = await notes("Jo", "room_open");
+    assert.equal(jo.length, 1, "the promise did not fire: the first person was not told");
+    assert.match(jo[0].body, /^Kit's going to .* too — say hi$/);
+    assert.equal((await notes("Kit", "room_open")).length, 0, "the second person was told about themselves");
+    await optIn("Lu");
+    assert.equal((await notes("Jo", "room_open")).length, 1, "the first person was told twice");
+    assert.equal((await notes("Lu", "room_open")).length, 0);
+  });
+
+  it("P160 #6: the first message since you last looked — then nothing for an hour; never to the author; not to someone who switched it off", async () => {
+    await ok(people.Lu.client.from("notification_settings").insert({ person_id: people.Lu.personId, room_activity: false }));
+    await say("Jo", "anyone getting food before?");
+    assert.equal((await notes("Kit", "room_activity")).length, 1, "the first message since Kit looked did not notify");
+    assert.equal((await notes("Jo", "room_activity")).length, 0, "the author was notified of their own message");
+    assert.equal((await notes("Lu", "room_activity")).length, 0, "someone who switched it off was notified");
+    await pause();
+    await say("Jo", "and a second one");
+    assert.equal((await notes("Kit", "room_activity")).length, 1, "a second message inside the hour notified again");
+    // Kit looks; a message after that, still inside the hour, stays quiet (the hour holds).
+    await ok(people.Kit.client.rpc("room_seen", { p_room: await room("Kit") }));
+    await pause();
+    await say("Jo", "third");
+    assert.equal((await notes("Kit", "room_activity")).length, 1, "the hour did not hold after Kit looked");
+    // Two hours on (moved back by the service key). Kit was told and has NOT looked since:
+    // still the same unread activity, so no second notification, however long it has been.
+    await ok(w.service.from("notifications").update({ created_at: new Date(Date.now() - 2 * 3_600_000).toISOString() }).eq("person_id", people.Kit.personId).eq("kind", "room_activity"));
+    await ok(w.service.from("room_members").update({ last_seen_at: new Date(Date.now() - 3 * 3_600_000).toISOString() }).eq("person_id", people.Kit.personId).eq("gathering_id", N));
+    await pause();
+    await say("Jo", "fourth, unseen");
+    assert.equal((await notes("Kit", "room_activity")).length, 1, "someone was told twice about activity they have not looked at");
+    // Kit looked after being told, and the hour has passed: the next message notifies once more.
+    await ok(w.service.from("room_members").update({ last_seen_at: new Date(Date.now() - 90 * 60_000).toISOString() }).eq("person_id", people.Kit.personId).eq("gathering_id", N));
+    await pause();
+    await say("Jo", "fifth, after Kit looked and the hour passed");
+    assert.equal((await notes("Kit", "room_activity")).length, 2, "after looking and an hour, new activity did not notify");
+  });
+
+  it("P161 #6 is not sent across a block, nor to someone looking right now", async () => {
+    await optIn("Mo");
+    await ok(w.service.from("blocks").insert({ blocker_id: people.Mo.personId, blocked_id: people.Jo.personId }));
+    await ok(people.Kit.client.rpc("room_seen", { p_room: await room("Kit") }));
+    const kitBefore = (await notes("Kit", "room_activity")).length;
+    await pause();
+    await say("Jo", "after the block");
+    assert.equal((await notes("Mo", "room_activity")).length, 0, "a blocked pair was notified of each other");
+    assert.equal((await notes("Kit", "room_activity")).length, kitBefore, "someone looking right now was notified");
+  });
+
+  it("P162 your switches and phones are yours only; the queue and the delivery functions are the service key's", async () => {
+    await ok(people.Jo.client.rpc("register_device", { p_token: `ExponentPushToken[${w.run}-jo]`, p_platform: "ios" }));
+    assert.equal((await rows(people.Jo.client.from("device_tokens").select("token"))).length, 1);
+    assert.equal((await rows(people.Kit.client.from("device_tokens").select("token"))).length, 0, "someone read another person's phone");
+    await denied(people.Kit.client.from("device_tokens").insert({ token: `ExponentPushToken[${w.run}-x]`, person_id: people.Jo.personId, platform: "ios" }));
+    await denied(people.Kit.client.from("notification_settings").insert({ person_id: people.Jo.personId, room_activity: false }));
+    await noAccess(people.Jo.client, "notifications");
+    for (const fn of ["admin_pending_notifications", "admin_mark_notification", "admin_forget_device", "admin_switch_off"]) {
+      assert.ok((await people.Jo.client.rpc(fn, {})).error, `${fn} was callable by a person`);
+    }
+    // The Worker's view of the queue carries where each can go.
+    // Jo is a harness person: sent nowhere — no phone, no email — so a harness run never
+    // emails @example.com (m3_3_notifications_skip_harness). The live delivery runs every
+    // minute, so her notification is either still queued (and the queue shows nowhere to
+    // send it) or already delivered (and its channel is "none"). Either way, never sent.
+    const pending = (await ok(w.service.rpc("admin_pending_notifications", { p_limit: 500 }))) as { person_id: string; tokens: string[]; email: string | null }[];
+    const queued = pending.find((p) => p.person_id === people.Jo.personId);
+    if (queued) assert.deepEqual([queued.tokens, queued.email], [[], null], "a harness person would have been emailed or pushed");
+    const delivered = await rows(w.service.from("notifications").select("channel").eq("person_id", people.Jo.personId).not("sent_at", "is", null));
+    for (const d of delivered) assert.equal(d.channel, "none", "a harness person was emailed or pushed");
+    assert.ok(queued || delivered.length, "Jo's notification was neither queued nor delivered");
+  });
+});
+
+describe("A group's deadline moves with it, and a group under 3 can invite someone else (M3.3)", () => {
+  let Z = "";
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+  async function meeter(label: string) {
+    const email = `${PREFIX}-${w.run}-late-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1991 }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    await ok(client.from("pins").insert({ gathering_id: Z, person_id: person.id, party_total: 1, open_to_meeting: true }).select("id").single());
+    people[label] = { authId, personId: person.id, client };
+  }
+  const room = async (label: string) =>
+    (await rows(people[label].client.rpc("my_rooms", { p_gathering: Z }))).find((r: { women_only: boolean }) => !r.women_only)?.room_id as string;
+  const inviteFor = async (label: string) => (await rows(people[label].client.rpc("my_invites", { p_gathering: Z })))[0] as { invite_id: string } | undefined;
+  const state = async (crew: string) => (await serviceRow("crews", "id", crew, "state")).state as string;
+  let crew = "";
+
+  before(async () => {
+    // Four hours out: already inside the six-hour mark.
+    Z = (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Late`, starts_at: new Date(Date.now() + 4 * 3_600_000).toISOString(), venue_id: w.venue, published_at: new Date().toISOString(), source: "manual" }).select("id").single())).id;
+    for (const n of ["Pia", "Quin", "Rex", "Sam", "Ty", "Uri"]) await meeter(n);
+    for (const n of ["Pia", "Quin", "Rex", "Sam"]) await ok(people[n].client.from("room_messages").insert({ room_id: await room(n), author_id: people[n].personId, body: `hi, ${n}` }));
+  });
+  after(async () => {
+    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+  });
+
+  it("P163 a group started inside the six-hour mark is NOT closed by the next run — it has until its own deadline", async () => {
+    crew = await ok(people.Pia.client.rpc("start_group", { p_room: await room("Pia"), p_invitees: [people.Quin.personId, people.Rex.personId] }));
+    await ok(w.service.rpc("admin_groups_tick"));
+    assert.equal(await state(crew), "forming", "a group started late closed on the next run");
+    // Its deadline: the later of −6 h and started + 2 h, capped at −3 h — here, −3 h.
+    const closes = new Date(await ok(people.Pia.client.rpc("group_closes_at", { p_crew: crew }))).getTime();
+    const starts = new Date((await serviceRow("gatherings", "id", Z, "starts_at")).starts_at).getTime();
+    assert.ok(Math.abs(closes - (starts - 3 * 3_600_000)) < 60_000, "the deadline was not three hours before the start");
+    assert.equal(await ok(people.Ty.client.rpc("group_closes_at", { p_crew: crew })), null, "someone outside the group read its deadline");
+  });
+
+  it("P164 while under 3, a member can invite someone else they've talked with — not someone silent, not as an outsider, and not once the group is on", async () => {
+    const quin = (await inviteFor("Quin"))!;
+    await ok(people.Quin.client.rpc("respond_to_invite", { p_invite: quin.invite_id, p_accept: false }));
+    await denied(people.Pia.client.rpc("invite_more", { p_crew: crew, p_invitees: [people.Ty.personId] }), "42501"); // Ty never posted
+    await denied(people.Sam.client.rpc("invite_more", { p_crew: crew, p_invitees: [people.Quin.personId] }), "42501"); // Sam is not in it
+    await ok(people.Pia.client.rpc("invite_more", { p_crew: crew, p_invitees: [people.Sam.personId] }));
+    for (const n of ["Rex", "Sam"]) {
+      const inv = (await inviteFor(n))!;
+      await ok(people[n].client.rpc("respond_to_invite", { p_invite: inv.invite_id, p_accept: true }));
+    }
+    await denied(people.Pia.client.rpc("invite_more", { p_crew: crew, p_invitees: [people.Quin.personId] }), "42501"); // on at 3
+  });
+
+  it("P165 under 3 past its own deadline, a late group closes — and its open invites lapse with it", async () => {
+    for (const n of ["Ty", "Uri"]) await ok(people[n].client.from("room_messages").insert({ room_id: await room(n), author_id: people[n].personId, body: `hi, ${n}` }));
+    const late = await ok(people.Quin.client.rpc("start_group", { p_room: await room("Quin"), p_invitees: [people.Ty.personId, people.Uri.personId] }));
+    await ok(w.service.rpc("admin_groups_tick"));
+    assert.equal(await state(late), "forming", "a group started late closed at once");
+    // Three hours pass (moved by the service key): its deadline, two hours after it started, is gone.
+    await ok(w.service.from("crews").update({ created_at: new Date(Date.now() - 3 * 3_600_000).toISOString() }).eq("id", late));
+    await ok(w.service.rpc("admin_groups_tick"));
+    assert.equal(await state(late), "dissolved", "a group under 3 past its deadline did not close");
+    assert.equal(await inviteFor("Ty"), undefined, "a closed group's invite was still open");
+  });
+
+  it("P166 #3: an invite tells the invitee; a decline tells nobody; a closed group tells everyone in it, the same words, attributing nothing", async () => {
+    const note = async (label: string) =>
+      (await rows(w.service.from("notifications").select("body").eq("person_id", people[label].personId).eq("kind", "plan_status"))).map((n: { body: string }) => n.body);
+    assert.ok((await note("Rex")).some((b: string) => /^Pia wants to go together to /.test(b)), "an invitee was not told");
+    assert.ok(!(await note("Pia")).some((b: string) => /declin|said no|turned/i.test(b)), "an inviter was told of a decline");
+    assert.ok((await note("Quin")).some((b: string) => /^Not enough people joined your group for .*, so it's closed\. You're all still in the room\.$/.test(b)), "a closed group did not say so");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.3 — the night and after: #4, A16's ticks, connections (V23), the
+// after-event question, #5, "women-only rooms only", invite (#7). Alex, 29 Sept 2026.
+// ---------------------------------------------------------------------------
+
+// A wall-clock time in Toronto, as an instant — for #5's "9am local".
+function torontoAt(ymd: string, h: number, m = 0): string {
+  const [y, mo, d] = ymd.split("-").map(Number);
+  const guess = Date.UTC(y!, mo! - 1, d!, h, m);
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", hourCycle: "h23", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })
+      .formatToParts(new Date(guess))
+      .map((p) => [p.type, p.value]),
+  );
+  const shown = Date.UTC(+parts.year!, +parts.month! - 1, +parts.day!, +parts.hour!, +parts.minute!);
+  return new Date(guess - (shown - guess)).toISOString();
+}
+
+describe("The night and after — #4, A16, connections (V23), the question, #5 (M3.3)", () => {
+  let A = "";
+  let crew = "";
+  let endDay = ""; // the Toronto date of the morning after
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+  async function meeter(label: string, pinAt: string | null) {
+    const email = `${PREFIX}-${w.run}-after-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1990 }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    if (pinAt) await ok(client.from("pins").insert({ gathering_id: pinAt, person_id: person.id, party_total: 1, open_to_meeting: true }).select("id").single());
+    people[label] = { authId, personId: person.id, client };
+  }
+  const id = (label: string) => people[label]!.personId;
+  const cl = (label: string) => people[label]!.client;
+  const room = async (label: string) =>
+    (await rows(cl(label).rpc("my_rooms", { p_gathering: A }))).find((r: { women_only: boolean }) => !r.women_only)?.room_id as string;
+  const tick = (who: string, to: string, kind: "we_met" | "keep_in_touch", on = true) =>
+    cl(who).rpc("after_tick", { p_crew: crew, p_to: id(to), p_kind: kind, p_on: on });
+  const seen = async (who: string, about: string) => {
+    const s = await ok(cl(who).rpc("after_state", { p_gathering: A }));
+    return (s.people as { person_id: string; we_met: boolean; we_met_matched: boolean; keep: boolean; keep_matched: boolean }[]).find((p) => p.person_id === id(about));
+  };
+  const reads = async (who: string, about: string) => (await rows(cl(who).from("people").select("id").eq("id", id(about)))).length === 1;
+  const notes = async (label: string, kind: string) =>
+    rows(w.service.from("notifications").select("body, path").eq("person_id", id(label)).eq("kind", kind));
+
+  before(async () => {
+    A = (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} After`, starts_at: inDays(3), venue_id: w.venue, published_at: new Date().toISOString(), source: "manual" }).select("id").single())).id;
+    for (const n of ["Ann", "Ben", "Cat", "Eve"]) await meeter(n, A);
+    await meeter("Fox", null);
+    for (const n of ["Ann", "Ben", "Cat"]) await ok(cl(n).from("room_messages").insert({ room_id: await room(n), author_id: id(n), body: `hi, ${n}` }));
+    crew = await ok(cl("Ann").rpc("start_group", { p_room: await room("Ann"), p_invitees: [id("Ben"), id("Cat")] }));
+    for (const n of ["Ben", "Cat"]) {
+      const inv = (await rows(cl(n).rpc("my_invites", { p_gathering: A })))[0];
+      await ok(cl(n).rpc("respond_to_invite", { p_invite: inv.invite_id, p_accept: true }));
+    }
+  });
+  after(async () => {
+    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+  });
+
+  it("P167 before the end: no ticks (the group isn't done) and no answer (the night hasn't happened)", async () => {
+    await denied(tick("Ann", "Ben", "we_met"), "42501");
+    await denied(cl("Eve").from("survey_responses").insert({ gathering_id: A, person_id: id("Eve"), would_have_gone: "yes" }));
+  });
+
+  it("P168 #4: going live tells each member once, with the way to 'I'm here' — nobody outside the group", async () => {
+    await ok(w.service.from("gatherings").update({ starts_at: new Date(Date.now() + 2 * 3_600_000).toISOString() }).eq("id", A));
+    await ok(w.service.rpc("admin_groups_tick"));
+    assert.equal((await serviceRow("crews", "id", crew, "state")).state, "live");
+    await ok(w.service.rpc("admin_groups_tick"));
+    for (const n of ["Ann", "Ben", "Cat"]) {
+      const d = await notes(n, "day_of");
+      assert.equal(d.length, 1, `${n} was told ${d.length} times`);
+      assert.equal(d[0].path, `/group/${crew}`);
+      assert.match(d[0].body, /^(Tonight|Today): .* — tap when you're there$/);
+    }
+    assert.equal((await notes("Eve", "day_of")).length, 0, "someone outside the group was told");
+  });
+
+  it("P169 after the end the group is done; a 'we met' is invisible to its person until they tick back; it can be taken back until then, and not after", async () => {
+    // Two days ago at 7pm Toronto — so the effective end, and the morning after, are past.
+    const twoAgo = new Date(Date.now() - 2 * 86_400_000).toISOString().slice(0, 10);
+    const starts = torontoAt(twoAgo, 19);
+    await ok(w.service.from("gatherings").update({ starts_at: starts, ends_at: null }).eq("id", A));
+    endDay = new Date(Date.parse(starts) + 86_400_000).toISOString().slice(0, 10);
+    await ok(w.service.rpc("admin_groups_tick"));
+    assert.equal((await serviceRow("crews", "id", crew, "state")).state, "done");
+
+    await ok(tick("Ann", "Ben", "we_met"));
+    const ann = (await seen("Ann", "Ben"))!;
+    assert.deepEqual([ann.we_met, ann.we_met_matched], [true, false]);
+    const ben = (await seen("Ben", "Ann"))!;
+    assert.deepEqual([ben.we_met, ben.we_met_matched], [false, false], "Ben learned of a tick he had not matched");
+    await denied(tick("Ann", "Ben", "keep_in_touch"), "42501"); // not before "we met" is matched
+    await ok(tick("Ann", "Ben", "we_met", false)); // taken back while unmatched
+    assert.equal((await seen("Ann", "Ben"))!.we_met, false);
+    await ok(tick("Ann", "Ben", "we_met"));
+    await ok(tick("Ben", "Ann", "we_met"));
+    assert.equal((await seen("Ben", "Ann"))!.we_met_matched, true);
+    await denied(tick("Ann", "Ben", "we_met", false), "42501"); // a match cannot be undone
+    assert.equal(await ok(cl("Ann").rpc("showed_up", { p_person: id("Ann") })), true, "a matched 'we met' minted no badge");
+    assert.equal(await ok(cl("Cat").rpc("showed_up", { p_person: id("Cat") })), false, "a badge without a match");
+  });
+
+  it("P170 'keep in touch' both ways makes a connection — one way makes nothing; the tables stay unreadable", async () => {
+    await ok(tick("Ann", "Ben", "keep_in_touch"));
+    assert.equal((await rows(cl("Ann").rpc("my_connections"))).length, 0, "one-way 'keep in touch' made a connection");
+    await ok(tick("Ben", "Ann", "keep_in_touch"));
+    const mine = await rows(cl("Ann").rpc("my_connections"));
+    assert.deepEqual(mine.map((c: { person_id: string }) => c.person_id), [id("Ben")]);
+    assert.match(mine[0].met_at, /After$/);
+    assert.equal((await rows(cl("Cat").rpc("my_connections"))).length, 0);
+    for (const t of ["confirmations", "connections", "connection_invites"]) await noAccess(cl("Ann"), t);
+  });
+
+  it("P171 nobody outside the group can tick or be ticked", async () => {
+    await denied(cl("Eve").rpc("after_tick", { p_crew: crew, p_to: id("Ann"), p_kind: "we_met", p_on: true }), "42501");
+    await denied(tick("Ann", "Eve", "we_met"), "42501");
+    await denied(tick("Ann", "Ann", "we_met"), "42501");
+  });
+
+  it("P172 V23: crewmates see each other for A16's 7 days, connections always; not a stranger, and not across a block", async () => {
+    assert.ok(await reads("Cat", "Ann"), "a crewmate could not see Ann after the night");
+    assert.ok(await reads("Ben", "Ann"), "a connection could not see Ann");
+    assert.ok(!(await reads("Fox", "Ann")), "a stranger saw Ann");
+    await ok(w.service.from("blocks").insert({ blocker_id: id("Ann"), blocked_id: id("Ben") }));
+    assert.ok(!(await reads("Ben", "Ann")), "a block did not hide a connection");
+    assert.equal((await rows(cl("Ben").rpc("my_connections"))).length, 0, "a block left the connection listed");
+    assert.equal((await rows(cl("Ann").rpc("my_connections"))).length, 0, "a block left the connection listed for the blocker");
+    await ok(w.service.from("blocks").delete().eq("blocker_id", id("Ann")).eq("blocked_id", id("Ben")));
+  });
+
+  it("P173 the question: once, after the end, by someone who was open to meeting — readable only by them", async () => {
+    await ok(cl("Eve").from("survey_responses").insert({ gathering_id: A, person_id: id("Eve"), would_have_gone: "no" }).select("id").single());
+    await denied(cl("Eve").from("survey_responses").insert({ gathering_id: A, person_id: id("Eve"), would_have_gone: "yes" }));
+    await denied(cl("Fox").from("survey_responses").insert({ gathering_id: A, person_id: id("Fox"), would_have_gone: "yes" }));
+    await denied(cl("Ann").from("survey_responses").insert({ gathering_id: A, person_id: id("Eve"), would_have_gone: "yes" }));
+    assert.equal((await rows(cl("Ann").from("survey_responses").select("id").eq("person_id", id("Eve")))).length, 0, "someone read another's answer");
+    const s = await ok(cl("Eve").rpc("after_state", { p_gathering: A }));
+    assert.deepEqual([s.asked, s.answered, s.crew_id], [true, true, null]);
+  });
+
+  it("P174 #5: at 9am the morning after — 'Did you meet up?' to the group, only the question to everyone else; not before 9, never twice, never a backlog", async () => {
+    await ok(w.service.rpc("admin_next_morning_tick", { p_now: torontoAt(endDay, 8, 30) }));
+    assert.equal((await notes("Ann", "next_morning")).length, 0, "#5 went before 9am");
+    const late = new Date(Date.parse(torontoAt(endDay, 9)) + 36 * 3_600_000).toISOString();
+    await ok(w.service.rpc("admin_next_morning_tick", { p_now: late }));
+    assert.equal((await notes("Ann", "next_morning")).length, 0, "#5 sent a backlog a day and a half late");
+    await ok(w.service.rpc("admin_next_morning_tick", { p_now: torontoAt(endDay, 9, 30) }));
+    await ok(w.service.rpc("admin_next_morning_tick", { p_now: torontoAt(endDay, 10, 30) }));
+    const ann = await notes("Ann", "next_morning");
+    const eve = await notes("Eve", "next_morning");
+    assert.equal(ann.length, 1, "the group member was not told exactly once");
+    assert.match(ann[0].body, /^Did you meet up at /);
+    assert.equal(eve.length, 1);
+    assert.match(eve[0].body, /^How was .*\? One quick question/);
+    assert.doesNotMatch(eve[0].body, /meet up|group|didn't|alone/i, "the non-group line implied something");
+    assert.equal((await notes("Fox", "next_morning")).length, 0);
+    for (const client of [cl("Ann"), w.anon]) assert.ok((await client.rpc("admin_next_morning_tick", {})).error, "a visitor ran #5");
+  });
+
+  it("P175 after A16's 7 days: ticks close, and a crewmate who isn't a connection stops seeing you — a connection doesn't", async () => {
+    await ok(w.service.from("gatherings").update({ starts_at: new Date(Date.now() - 9 * 86_400_000).toISOString() }).eq("id", A));
+    await denied(tick("Cat", "Ann", "we_met"), "42501");
+    assert.ok(!(await reads("Cat", "Ann")), "a crewmate still saw Ann after the 7 days");
+    assert.ok(await reads("Ben", "Ann"), "a connection lost sight of Ann");
+  });
+});
+
+describe("Women-only rooms only — a real only (Alex, 29 Sept 2026)", () => {
+  let W = "";
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+  async function person(label: string, gender: "woman" | "man" | "nonbinary", include = false) {
+    const email = `${PREFIX}-${w.run}-wor-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const p = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: p.id, gender, birth_year: 1995, include_in_women_only: include }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: p.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    assert.equal((await client.auth.signInWithPassword({ email, password })).error, null);
+    people[label] = { authId, personId: p.id, client };
+  }
+  const cl = (l: string) => people[l]!.client;
+  const pin = (l: string) => ok(cl(l).from("pins").insert({ gathering_id: W, person_id: people[l]!.personId, party_total: 1, open_to_meeting: true }).select("id").single());
+  const memberships = async (l: string) =>
+    (await rows(w.service.from("room_members").select("women_only").eq("person_id", people[l]!.personId).eq("gathering_id", W).is("left_at", null))).map((r: { women_only: boolean }) => r.women_only).sort();
+  const waiting = (l: string) => ok(cl(l).rpc("waiting_for_women_only_room", { p_gathering: W }));
+
+  before(async () => {
+    W = (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} WOR`, starts_at: inDays(4), venue_id: w.venue, published_at: new Date().toISOString(), source: "manual" }).select("id").single())).id;
+    await person("Wen", "woman");
+    await person("Mo", "man");
+    await person("Wanda", "woman");
+    await person("Nia", "nonbinary", true);
+  });
+  after(async () => {
+    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+  });
+
+  it("P176 only the eligible can set it, and only through its function", async () => {
+    await denied(cl("Mo").rpc("set_women_only_rooms", { p_on: true }), "42501");
+    await denied(cl("Wen").from("people_private").update({ women_only_rooms: true }).eq("person_id", people.Wen!.personId).select("person_id"));
+    await ok(cl("Wen").rpc("set_women_only_rooms", { p_on: true }));
+  });
+
+  it("P177 set, she is placed in no general room; she is told she's waiting — never how many — and #2 doesn't fire for a room she can't see", async () => {
+    await pin("Wen");
+    await pin("Mo");
+    assert.deepEqual(await memberships("Wen"), [true], "someone who chose women-only was placed in the general room");
+    assert.equal(await waiting("Wen"), true);
+    assert.deepEqual(await rows(cl("Wen").rpc("my_rooms", { p_gathering: W })), [], "a women-only room was offered under 3");
+    await pin("Wanda");
+    const wen = await rows(w.service.from("notifications").select("body").eq("person_id", people.Wen!.personId).eq("kind", "room_open"));
+    assert.equal(wen.length, 0, "#2 fired for a women-only room of 2");
+  });
+
+  it("P178 one tap joins the general room for this gathering; switching back on leaves it", async () => {
+    await ok(cl("Wen").rpc("join_general_room", { p_gathering: W }));
+    assert.deepEqual(await memberships("Wen"), [false, true]);
+    assert.equal(await waiting("Wen"), false);
+    await denied(cl("Mo").rpc("join_general_room", { p_gathering: randomUUID() }), "42501");
+    await ok(cl("Wen").rpc("set_women_only_rooms", { p_on: true }));
+    assert.deepEqual(await memberships("Wen"), [true], "switching on left her in the general room");
+  });
+
+  it("P179 at 3 eligible the women-only room opens, #2 says so, and switching off returns her to the general room", async () => {
+    await pin("Nia");
+    assert.equal(await waiting("Wen"), false);
+    assert.ok((await rows(cl("Wen").rpc("my_rooms", { p_gathering: W }))).some((r: { women_only: boolean }) => r.women_only), "the room did not open at 3");
+    const wen = await rows(w.service.from("notifications").select("body").eq("person_id", people.Wen!.personId).eq("kind", "room_open"));
+    assert.equal(wen.length, 1);
+    assert.match(wen[0].body, /^The women-only room for .* is open — say hi$/);
+    assert.equal((await rows(cl("Mo").rpc("my_rooms", { p_gathering: W }))).some((r: { women_only: boolean }) => r.women_only), false, "a man was offered the women-only room");
+    await ok(cl("Wen").rpc("set_women_only_rooms", { p_on: false }));
+    assert.deepEqual(await memberships("Wen"), [false, true]);
+  });
+});
+
+describe("'Get the app' is seen once — per person, on their own row (M3.3)", () => {
+  it("P183 a person marks their own nudge seen; nobody else's", async () => {
+    const ava = c(M("Ava"));
+    const now = new Date().toISOString();
+    assert.equal((await rows(ava.from("people_private").update({ app_nudge_seen_at: now }).eq("person_id", id("Ava")).select("person_id"))).length, 1);
+    assert.equal((await rows(ava.from("people_private").update({ app_nudge_seen_at: now }).eq("person_id", id("Ben")).select("person_id"))).length, 0, "someone marked another person's nudge");
+    assert.equal((await serviceRow("people_private", "person_id", id("Ben"), "app_nudge_seen_at")).app_nudge_seen_at, null);
+    await ok(w.service.from("people_private").update({ app_nudge_seen_at: null }).eq("person_id", id("Ava")));
+  });
+});
+
+describe("Invite — #7, between connections only (Alex, 29 Sept 2026)", () => {
+  const gs: string[] = [];
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+  async function person(label: string) {
+    const email = `${PREFIX}-${w.run}-inv-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const p = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    const client = newClient(w.env, w.env.publishableKey);
+    assert.equal((await client.auth.signInWithPassword({ email, password })).error, null);
+    people[label] = { authId, personId: p.id, client };
+  }
+  const id = (l: string) => people[l]!.personId;
+  const cl = (l: string) => people[l]!.client;
+  const pinTo = (l: string, g: string) => ok(w.service.from("pins").insert({ gathering_id: g, person_id: id(l), party_total: 1 }).select("id").single());
+  const invite = (from: string, to: string, g: string) => cl(from).rpc("invite_connection", { p_to: id(to), p_gathering: g });
+  const invites = async (l: string) => rows(w.service.from("notifications").select("body, gathering_id").eq("person_id", id(l)).eq("kind", "invite"));
+
+  before(async () => {
+    for (const n of ["Ivy", "Jon", "Kit"]) await person(n);
+    const [a, b] = [id("Ivy"), id("Jon")].sort();
+    await ok(w.service.from("connections").insert({ person_a: a, person_b: b }));
+    for (let i = 0; i < 7; i++)
+      gs.push((await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Inv${i}`, starts_at: inDays(2 + i), venue_id: w.venue, published_at: new Date().toISOString(), source: "manual" }).select("id").single())).id);
+  });
+  after(async () => {
+    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+  });
+
+  it("P180 only to a connection, only to a gathering you're pinned to, only once a pair — and it tells them, by your name", async () => {
+    await denied(invite("Ivy", "Jon", gs[0]!), "42501"); // not pinned yet
+    await pinTo("Ivy", gs[0]!);
+    await denied(invite("Ivy", "Kit", gs[0]!), "42501"); // not a connection
+    assert.deepEqual(await rows(cl("Ivy").rpc("invite_options", { p_to: id("Kit") })), [], "options offered for a stranger");
+    await ok(invite("Ivy", "Jon", gs[0]!));
+    const j = await invites("Jon");
+    assert.equal(j.length, 1);
+    assert.match(j[0].body, /^Ivy's going to .* — want to come\?$/);
+    await denied(invite("Ivy", "Jon", gs[0]!)); // once
+    await pinTo("Jon", gs[1]!);
+    await pinTo("Ivy", gs[1]!);
+    await denied(invite("Jon", "Ivy", gs[0]!), "42501"); // Jon isn't pinned to it
+    // Jon is pinned to gs[1] but NOT open to meeting. Since 6 Oct 2026 (Alex; review R95)
+    // "already going" counts only a pin open to meeting — anything else would tell Ivy
+    // where Jon is going without Jon ever opting in to being seen — so the picker says
+    // nothing for gs[1] and the invite goes.
+    const opts = await rows(cl("Ivy").rpc("invite_options", { p_to: id("Jon") }));
+    assert.deepEqual(opts.map((o: { already: string | null }) => o.already), ["invited", null]);
+    await ok(invite("Ivy", "Jon", gs[1]!));
+    // P181 counts today's invites from here; this one is P180's, not P181's.
+    await ok(w.service.from("connection_invites").delete().eq("from_person", id("Ivy")).eq("gathering_id", gs[1]!));
+    await ok(w.service.from("notifications").delete().eq("person_id", id("Jon")).eq("kind", "invite").eq("gathering_id", gs[1]!));
+  });
+
+  it("P181 five a day, the sixth refused; switched off, the invite is recorded and nobody is told; a block ends it", async () => {
+    for (const g of gs.slice(2)) await pinTo("Ivy", g);
+    await ok(cl("Jon").from("notification_settings").upsert({ person_id: id("Jon"), invite: false }).select("person_id"));
+    for (const g of gs.slice(2, 6)) await ok(invite("Ivy", "Jon", g)); // 2nd–5th today
+    assert.equal((await invites("Jon")).length, 1, "an invite reached someone who switched them off");
+    await denied(invite("Ivy", "Jon", gs[6]!), "42501"); // the sixth
+    await ok(w.service.from("connection_invites").delete().eq("from_person", id("Ivy")).eq("gathering_id", gs[5]!));
+    await ok(w.service.from("blocks").insert({ blocker_id: id("Jon"), blocked_id: id("Ivy") }));
+    await denied(invite("Ivy", "Jon", gs[6]!), "42501"); // room under the cap, but blocked
+    assert.deepEqual(await rows(cl("Ivy").rpc("my_connections")), []);
   });
 });

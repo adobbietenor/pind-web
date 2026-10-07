@@ -60,8 +60,20 @@ There is no separate `pind-app` repo. `app/` and `packages/shared/` arrived in M
     fresh address, an existing account (a real code typed in, then the merge), and a
     skip at "where" that Profile then fixes. Run it after anything that touches A26,
     A27, the shared profile steps or the merge.
+  - `npm run check:after` (M3.3) walks after the night in real Chrome: a group finished
+    by the lifecycle job, then A17 → A16's ticks, match and keep in touch, the question,
+    and A20's invite reaching the connection. Run it after anything that touches A16,
+    A17, A20 or V23.
   - `npm run check:orphan-photos` lists every photo file whose user no longer exists.
     Add `-- --delete` to remove them. Run it after anything that deletes users.
+  - **Every browser check verifies its fixtures before it walks** (M3.3, `scripts/fixture.mjs`):
+    the `.dev.vars` keys, Chrome, the test crowd (there, and not started for a walk that
+    pins), and `SESSION_SECRET` matching the deployed Worker's. A moved fixture prints one
+    line, **`FIXTURE, not product:`**, and exits 2; a product failure exits 1. The test
+    crowd had finished on 2 Oct and every link-path walk failed at "A26 opens" with
+    nothing saying why — a fixture failure that looked like a product bug. **A new check
+    states its fixtures through `fixture.mjs`; a new fixture that can go stale gets a job
+    that keeps it fresh, not a button** (the daily 09:00 run keeps the test crowd ahead).
 - EAS, from `app/`: `npx eas-cli@24.7.0 build --profile <development|internal|production>
   --platform ios`. Profiles in `app/eas.json`; `APP_VARIANT` picks the staging or
   production bundle ID.
@@ -153,6 +165,14 @@ own cron, not inside the nightly import.
 ## Data
 
 - **Never run seeds against production.** Seed rows are tagged and live on staging only.
+- **Any job that sends something to a person checks it is not a test person — and a
+  test makes that check fire** (M3.3). When the notification delivery went live, it
+  started emailing the policy harness's own people (`@example.com`, which bounces)
+  in the middle of a run: test data reaching a real inbox, the same shape as seed rows
+  reaching a public page, and it was caught by a race rather than by a rule. The queue
+  now sends harness people nowhere (`private.is_harness_user`), and P162 fails if one is
+  ever actually emailed or pushed. The same goes for any future sender (the digest, a
+  day-of reminder): the check lives in the query that picks who to send to.
 - The service key never reads people on behalf of a visitor.
 - Review-only rows are the only non-real data allowed anywhere, and only on production
   for App Review (H6).
@@ -305,6 +325,13 @@ Two things that make this failure mode hard to see from inside, both worth knowi
   in the stored secret on purpose, and the panel now says it is there. Silently
   cleaning a value on the way in destroys the evidence that something upstream is
   adding it.
+
+**A decision that changes a plan item marks the plan line in the same commit.** M3.2:
+the build plan still listed the Google consent screen as a to-do five days after
+decisions.md recorded it done, and it was read back to Alex as outstanding; an audit
+then found sixteen more lines of the same shape. When the plan and decisions.md
+disagree, decisions.md wins and the plan is fixed — and a setting that lives in the
+database is read from the database.
 
 **When a setting is in dispute, read it from the thing that enforces it, not the thing
 that displays it.** M3.1: the dashboard showed "Allow manual linking" on, Alex had a
@@ -465,6 +492,6 @@ one of these is the next step rather than trying to work around it.
 - The service key is used server-side only, for admin, cron jobs, AI jobs and sending messages, and never to read people on behalf of a visitor. People lists are always read as the signed-in person, so RLS policies decide visibility.
 - There is no WhatsApp Test 0 (decisions.md Part 5, "Build direction"). What replaced its rules:
   - A pin needs a first name and the 19+ tick, nothing else, and creates a Supabase anonymous user (A26). Opting in to meeting (A27) needs date of birth, gender, a face photo and a permanent identity (email code, Apple or Google), linked to the same user id (decisions Part 5, "Identity"; Q2).
-  - Notifications are the five in spec A18: push to the app, mirrored by email (Resend) for people without a device token. SMS is never used (Q8).
+  - Notifications are the seven in spec A18 (the sixth, room activity, batched, since 28 Sept; the seventh, an invite from a connection, since 29 Sept): push to the app, mirrored by email (Resend) for people without a device token. SMS is never used (Q8).
   - RLS policies and their harness cases are built and pass before any screen that shows people (M3.2 onward).
 - Flag anything touching visibility for the independent review before real users see it.
