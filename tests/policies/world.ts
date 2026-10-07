@@ -167,6 +167,26 @@ export async function sweep(service: SupabaseClient): Promise<void> {
   }
 }
 
+// A person with no account (Alex, 6 Oct 2026). The account link is "on delete set null",
+// so deleting a test person's account alone leaves their person row behind, unmarked:
+// the harness's own marker lives on the account. 979 of them had piled up on staging, and
+// the photo sweep failed on their missing photos every hour. So the harness never
+// deletes an account without its person, and checks it left none behind (P184).
+export async function removeUser(service: SupabaseClient, authId: string): Promise<void> {
+  const people = await service.from("people").delete().eq("auth_user_id", authId);
+  if (people.error) throw new Error(`removeUser: delete the person of ${authId}: ${people.error.message}`);
+  const { error } = await service.auth.admin.deleteUser(authId);
+  if (error && !/not.found/i.test(error.message)) throw new Error(`removeUser: delete ${authId}: ${error.message}`);
+}
+
+// The same rule the photo sweep skips by and the clean-up deletes by: a person row with
+// no account (private.is_accountless_person).
+export async function accountlessPeople(service: SupabaseClient): Promise<number> {
+  const { count, error } = await service.from("people").select("id", { count: "exact", head: true }).is("auth_user_id", null);
+  if (error || count === null) throw new Error(`count people with no account: ${error?.message ?? "no count"}`);
+  return count;
+}
+
 // ---------------------------------------------------------------------------
 // Build
 // ---------------------------------------------------------------------------

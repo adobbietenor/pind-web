@@ -161,6 +161,11 @@ own cron, not inside the nightly import.
 - `test:policies` must gain a case for **every migration touching `can_see_at`,
   blocks, women-only, solo, review-only, hidden people or Instagram handles**.
 - No UI tests. They are not worth the hours on this project.
+- **The harness deletes a person with their account, never the account alone** (M3.3b):
+  use `removeUser` from `tests/policies/world.ts`. The account link is "on delete set
+  null", so an account deleted alone leaves an unmarked person row behind — 979 of them
+  piled up and broke the photo sweep. P184 fails any run that ends with more people
+  without an account than it started with.
 
 ## Data
 

@@ -3724,3 +3724,26 @@ is indistinguishable from a broken hand-off). Both sentences were made to fire.
   rooms of three, nobody refused). Migration `20261007001216`.
 - **The fold, one phrasing everywhere:** the arrival cards fold into a strip **at 5 in the
   room, you included** (the code shows cards while the room holds 4 or fewer).
+
+### People with no account: one rule, swept, and the harness cleans up after itself (Alex, 6 Oct 2026)
+
+- **What was wrong.** The photo sweep reported "20 the check could not complete" every
+  hour as an ordinary run. Underneath: **979 person rows with no account** on staging —
+  the policy harness deleted test people's accounts in 19 places without their person
+  rows, and the account link is "on delete set null". The harness marker lives on the
+  account, so the sweep could not tell these were test people, and tried their missing
+  photos forever (609 waiting).
+- **Fixed, all three (Alex: "approved, all three"):**
+  - **Loud:** a cron job that cannot complete fails the run (`src/loud.ts`, J01–J04).
+  - **One rule:** `private.is_accountless_person` — a person row with no account. The
+    sweep's queue skips by it, and the clean-up deleted by it, "so the two can't
+    disagree". Nothing real is ever such a row (every pin starts with an anonymous
+    account; account deletion removes the person first; the merge re-homes it first).
+    979 → 0 deleted; the 42 people with accounts untouched; 609 → 0 waiting.
+  - **The harness deletes its own people** (`removeUser` in `tests/policies/world.ts`: the
+    person first, then the account), at all 19 sites. **P184** counts people with no
+    account before the world is built and after the final sweep, and fails the run if
+    the number grew. Its firing proof (`PIND_P184_FIRE=1` plants one) refused the run,
+    0 → 1. Its first version counted *after* the world was built — the world itself holds
+    19 accountless people — and so passed with the probe in place: a guard that never
+    fired, caught by making it fire.

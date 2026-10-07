@@ -16,7 +16,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEnv } from "./env.ts";
 import { optInMissing } from "../../packages/shared/src/optin.ts";
 import { photoDest } from "../../src/account/merge-checks.ts";
-import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, markHarness, newClient, sweep, type Member, type World } from "./world.ts";
+import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, markHarness, newClient, sweep, type Member, type World, removeUser, accountlessPeople } from "./world.ts";
 
 interface Result {
   data: any;
@@ -110,12 +110,27 @@ async function serviceRow(table: string, column: string, value: string, select =
   return ok(w.service.from(table).select(select).eq(column, value).maybeSingle());
 }
 
+let accountlessAtStart = 0;
 before(async () => {
-  w = await buildWorld(loadEnv());
+  // Counted BEFORE the world is built: the world itself holds people with no account
+  // (19 of them, swept at the end), so a count taken after it hid a leftover (6 Oct).
+  const env = loadEnv();
+  accountlessAtStart = await accountlessPeople(newClient(env, env.secretKey));
+  w = await buildWorld(env);
+  // P184's firing proof: PIND_P184_FIRE=1 leaves one person with no account behind on
+  // purpose, and the check at the end must refuse the run.
+  if (process.env.PIND_P184_FIRE === "1") await ok(w.service.from("people").insert({ first_name: "P184 probe" }));
 }, { timeout: 300_000 });
 
+// P184 (Alex, 6 Oct 2026): the harness deletes its own people. Checked here, the very
+// last thing a run does — after every suite's clean-up and the sweep: a person row left
+// with no account is the leftover that made the photo sweep fail every hour.
 after(async () => {
-  if (w) await sweep(w.service);
+  if (!w) return;
+  await sweep(w.service);
+  const now = await accountlessPeople(w.service);
+  console.log(`P184: people with no account — ${accountlessAtStart} at the start, ${now} at the end`);
+  assert.ok(now <= accountlessAtStart, `P184: this run left ${now - accountlessAtStart} person rows with no account behind (${accountlessAtStart} → ${now})`);
 }, { timeout: 300_000 });
 
 describe("Public data — V2, V11", () => {
@@ -2145,7 +2160,7 @@ describe("Export and delete — A23 (Alex, M3.1)", () => {
     const log = await rows(w.service.from("moderation_log").select("action").eq("person_id", person.id));
     assert.ok(log.some((l: any) => l.action === "account_deleted"), "the deletion left no record");
 
-    await w.service.auth.admin.deleteUser(authId);
+    await removeUser(w.service, authId);
   });
 });
 
@@ -2236,7 +2251,7 @@ describe("A person sets themselves up — the app's own sequence (M3.1)", () => 
 
     await ok(client.from("person_handles").delete().eq("person_id", person.id), "remove the handle");
     await w.service.from("people").delete().eq("id", person.id);
-    await w.service.auth.admin.deleteUser(authId);
+    await removeUser(w.service, authId);
   });
 });
 
@@ -2388,7 +2403,7 @@ describe("The harness is invisible to the live photo check — P82, P83 (M3.1)",
       await w.service.auth.admin.updateUserById(authId, { app_metadata: { pind_harness: true } });
       if (personId) await w.service.from("people").delete().eq("id", personId);
       await w.service.storage.from(BUCKET).remove([path]);
-      await w.service.auth.admin.deleteUser(authId);
+      await removeUser(w.service, authId);
     }
   });
 
@@ -2404,7 +2419,7 @@ describe("The harness is invisible to the live photo check — P82, P83 (M3.1)",
       assert.notEqual(user.app_metadata?.pind_harness, true, "a session set its own harness marker");
       assert.equal(user.user_metadata?.pind_harness, true, "the attempt did not even land where a session can write");
     } finally {
-      await w.service.auth.admin.deleteUser(authId);
+      await removeUser(w.service, authId);
     }
   });
 });
@@ -2494,7 +2509,7 @@ describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.
     } finally {
       await w.service.from("pins").delete().eq("id", q.pinId);
       await w.service.from("people").delete().eq("id", q.personId);
-      await w.service.auth.admin.deleteUser(q.authId);
+      await removeUser(w.service, q.authId);
     }
   });
 
@@ -2513,7 +2528,7 @@ describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.
     } finally {
       await w.service.from("pins").delete().eq("id", q.pinId);
       await w.service.from("people").delete().eq("id", q.personId);
-      await w.service.auth.admin.deleteUser(q.authId);
+      await removeUser(w.service, q.authId);
     }
   });
 
@@ -2531,7 +2546,7 @@ describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.
     } finally {
       await w.service.from("pins").delete().eq("id", q.pinId);
       await w.service.from("people").delete().eq("id", q.personId);
-      await w.service.auth.admin.deleteUser(q.authId);
+      await removeUser(w.service, q.authId);
     }
   });
 });
@@ -2638,7 +2653,7 @@ describe("Changing or removing a photo — P89 (M3.1)", () => {
     } finally {
       if (personId) await w.service.from("people").delete().eq("id", personId);
       await w.service.storage.from(BUCKET).remove([first, second]);
-      await w.service.auth.admin.deleteUser(authId);
+      await removeUser(w.service, authId);
     }
   });
 });
@@ -2663,7 +2678,7 @@ describe("A pin needs the 19+ tick, recorded where nobody else can read it (M3.2
 
   async function cleanUp(q: { authId: string; personId: string }) {
     await w.service.from("people").delete().eq("id", q.personId);
-    await w.service.auth.admin.deleteUser(q.authId);
+    await removeUser(w.service, q.authId);
   }
 
   it("P100 without the 19+ record a pin is REFUSED — a token calling the API directly cannot skip the tick", async () => {
@@ -2773,7 +2788,7 @@ describe("Open to meeting only for someone who has finished A27 — permanent, d
   }
   const gone = async (q: { authId: string; personId: string }) => {
     await w.service.from("people").delete().eq("id", q.personId);
-    await w.service.auth.admin.deleteUser(q.authId);
+    await removeUser(w.service, q.authId);
   };
   const pinOpen = (q: { client: SupabaseClient; personId: string }, open: boolean) =>
     q.client.from("pins").insert({ gathering_id: w.G, person_id: q.personId, party_total: 1, open_to_meeting: open }).select("id").single();
@@ -2940,7 +2955,7 @@ describe("Merging an anonymous pinner into their existing account (M3.2)", () =>
     return !!u.error || !u.data.user;
   };
   const cleanup = async (...ids: (string | null)[]) => {
-    for (const id of ids) if (id) await w.service.auth.admin.deleteUser(id).catch(() => undefined);
+    for (const id of ids) if (id) await removeUser(w.service, id).catch(() => undefined);
   };
 
   it("P113 the anonymous pin MOVES into the account; the anonymous person and user are gone", async () => {
@@ -3397,7 +3412,7 @@ describe("Anonymous tester sessions (M3.2)", () => {
       assert.ok((await w.service.rpc("admin_add_anonymous_tester", { p_user: avaUser, p_actor: ACTOR })).error, "a permanent account was made an anonymous tester");
       assert.equal(await readable(c(M("Ava")), (await rows(w.service.from("gatherings").select("id").eq("is_seed", true).limit(1)))[0].id), false, "Ava was elevated");
     } finally {
-      await w.service.auth.admin.deleteUser(a.authId);
+      await removeUser(w.service, a.authId);
     }
   });
 
@@ -3479,7 +3494,7 @@ describe("The room — who is in it, who reads it, who can post (M3.3)", () => {
   });
 
   after(async () => {
-    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+    for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
   });
 
   it("P139 opting in places you; the fullest room with space fills first; the fourth of a room of 3 opens room 2; pinning without opting in places nobody", async () => {
@@ -3665,7 +3680,7 @@ describe("Small groups — invites to people you've talked with, the plan, the n
   });
 
   after(async () => {
-    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+    for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
   });
 
   it("P149 the default convening follows the source, and the admin can override it", async () => {
@@ -3816,7 +3831,7 @@ describe("Notifications #2 and #6 — written by the act itself, and refused whe
     for (const n of ["Jo", "Kit", "Lu", "Mo"]) await meeter(n);
   });
   after(async () => {
-    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+    for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
   });
 
   it("P159 #2: the first person is told, by name, when the second arrives — the second is not, and nobody is told twice", async () => {
@@ -3926,7 +3941,7 @@ describe("A group's deadline moves with it, and a group under 3 can invite someo
     for (const n of ["Pia", "Quin", "Rex", "Sam"]) await ok(people[n].client.from("room_messages").insert({ room_id: await room(n), author_id: people[n].personId, body: `hi, ${n}` }));
   });
   after(async () => {
-    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+    for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
   });
 
   it("P163 a group started inside the six-hour mark is NOT closed by the next run — it has until its own deadline", async () => {
@@ -4038,7 +4053,7 @@ describe("The night and after — #4, A16, connections (V23), the question, #5 (
     }
   });
   after(async () => {
-    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+    for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
   });
 
   it("P167 before the end: no ticks (the group isn't done) and no answer (the night hasn't happened)", async () => {
@@ -4180,7 +4195,7 @@ describe("Women-only rooms only — a real only (Alex, 29 Sept 2026)", () => {
     await person("Nia", "nonbinary", true);
   });
   after(async () => {
-    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+    for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
   });
 
   it("P176 only the eligible can set it, and only through its function", async () => {
@@ -4261,7 +4276,7 @@ describe("Invite — #7, between connections only (Alex, 29 Sept 2026)", () => {
       gs.push((await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Inv${i}`, starts_at: inDays(2 + i), venue_id: w.venue, published_at: new Date().toISOString(), source: "manual" }).select("id").single())).id);
   });
   after(async () => {
-    for (const p of Object.values(people)) await w.service.auth.admin.deleteUser(p.authId).catch(() => undefined);
+    for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
   });
 
   it("P180 only to a connection, only to a gathering you're pinned to, only once a pair — and it tells them, by your name", async () => {
