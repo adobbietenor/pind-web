@@ -148,8 +148,10 @@ export async function sendRoomMessage(roomId: string, personId: string, body: st
   if (error) throw error;
 }
 
+// A removal, not a row delete (L9, 6 Oct 2026): a DELETE is broadcast to every Realtime
+// subscriber, a removal only to people who could read the message — and they no longer can.
 export async function deleteRoomMessage(id: string): Promise<void> {
-  const { error } = await supabase().from("room_messages").delete().eq("id", id);
+  const { error } = await supabase().rpc("delete_room_message", { p_message: id });
   if (error) throw error;
 }
 

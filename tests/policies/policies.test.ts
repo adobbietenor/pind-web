@@ -3540,15 +3540,23 @@ describe("The room — who is in it, who reads it, who can post (M3.3)", () => {
     await ok(post("Sol", r1, "under the cap again"), "after the day's messages go, posting works again");
   });
 
-  it("P143 you can delete your own message — it is gone for everyone — and nobody else's", async () => {
+  // Since 6 Oct 2026 (L9) deleting is a removal through delete_room_message: a row delete
+  // was broadcast by Realtime to every subscriber. The words are cleared at once.
+  it("P143 you can delete your own message — it is gone for everyone, its author too, its words cleared — and nobody else's", async () => {
     const r1 = (await generalRoom("Rae"))!;
     await pause();
     const mine = await ok(post("Rae", r1, "take this back"));
-    const theirs = await people.Sol.client.from("room_messages").delete().eq("id", mine.id).select("id");
-    assert.deepEqual(theirs.data ?? [], [], "someone deleted another person's message");
+    await denied(people.Sol.client.rpc("delete_room_message", { p_message: mine.id }));
+    const rowDelete = await people.Sol.client.from("room_messages").delete().eq("id", mine.id).select("id");
+    assert.deepEqual(rowDelete.data ?? [], [], "someone deleted another person's message");
     assert.ok((await readBodies("Sol", r1)).includes("take this back"));
-    await ok(people.Rae.client.from("room_messages").delete().eq("id", mine.id).select("id"));
+    const ownRowDelete = await people.Rae.client.from("room_messages").delete().eq("id", mine.id).select("id");
+    assert.deepEqual(ownRowDelete.data ?? [], [], "a row delete still works — it is broadcast to every subscriber");
+    await ok(people.Rae.client.rpc("delete_room_message", { p_message: mine.id }));
     assert.ok(!(await readBodies("Sol", r1)).includes("take this back"), "a deleted message was still there for others");
+    assert.ok(!(await readBodies("Rae", r1)).includes("take this back"), "a deleted message was still there for its author");
+    const [row] = await ok(w.service.from("room_messages").select("body, deleted_at").eq("id", mine.id));
+    assert.ok(row.deleted_at && row.body === "", "a deleted message kept its words");
   });
 
   it("P144 a safety report hides the message at once for others, keeps its snapshot, and the author still sees it", async () => {
@@ -4269,9 +4277,16 @@ describe("Invite — #7, between connections only (Alex, 29 Sept 2026)", () => {
     await pinTo("Jon", gs[1]!);
     await pinTo("Ivy", gs[1]!);
     await denied(invite("Jon", "Ivy", gs[0]!), "42501"); // Jon isn't pinned to it
-    await denied(invite("Ivy", "Jon", gs[1]!), "42501"); // already going
+    // Jon is pinned to gs[1] but NOT open to meeting. Since 6 Oct 2026 (Alex; review R95)
+    // "already going" counts only a pin open to meeting — anything else would tell Ivy
+    // where Jon is going without Jon ever opting in to being seen — so the picker says
+    // nothing for gs[1] and the invite goes.
     const opts = await rows(cl("Ivy").rpc("invite_options", { p_to: id("Jon") }));
-    assert.deepEqual(opts.map((o: { already: string | null }) => o.already), ["invited", "going"]);
+    assert.deepEqual(opts.map((o: { already: string | null }) => o.already), ["invited", null]);
+    await ok(invite("Ivy", "Jon", gs[1]!));
+    // P181 counts today's invites from here; this one is P180's, not P181's.
+    await ok(w.service.from("connection_invites").delete().eq("from_person", id("Ivy")).eq("gathering_id", gs[1]!));
+    await ok(w.service.from("notifications").delete().eq("person_id", id("Jon")).eq("kind", "invite").eq("gathering_id", gs[1]!));
   });
 
   it("P181 five a day, the sixth refused; switched off, the invite is recorded and nobody is told; a block ends it", async () => {

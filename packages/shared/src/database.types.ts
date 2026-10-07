@@ -2380,6 +2380,7 @@ export type Database = {
           author_id: string
           body: string
           created_at: string
+          deleted_at: string | null
           hidden_at: string | null
           id: string
           room_id: string
@@ -2388,6 +2389,7 @@ export type Database = {
           author_id: string
           body: string
           created_at?: string
+          deleted_at?: string | null
           hidden_at?: string | null
           id?: string
           room_id: string
@@ -2396,6 +2398,7 @@ export type Database = {
           author_id?: string
           body?: string
           created_at?: string
+          deleted_at?: string | null
           hidden_at?: string | null
           id?: string
           room_id?: string
@@ -3139,6 +3142,7 @@ export type Database = {
         Args: { p_gathering: string }
         Returns: Database["public"]["Enums"]["convening"]
       }
+      delete_room_message: { Args: { p_message: string }; Returns: undefined }
       effective_end: {
         Args: { g: Database["public"]["Tables"]["gatherings"]["Row"] }
         Returns: string

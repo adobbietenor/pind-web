@@ -476,8 +476,11 @@ test("R23 V23b/Q9: below 3 eligible the women-only room is offered to nobody —
     if ((mine.data ?? []).some((r: any) => r.women_only)) leaks.push(`${n} my_rooms: ${JSON.stringify(mine.data)}`);
     const r = await c.from("rooms").select("id, women_only").eq("gathering_id", g.W2);
     if ((r.data ?? []).some((x: any) => x.women_only)) leaks.push(`${n} reads the women-only room row`);
+    // Your own membership row is yours (it tells you only that you were placed); the leak
+    // is anyone ELSE's — the count, and the other person's eligibility (6 Oct 2026).
     const rm = await c.from("room_members").select("person_id, room_id").eq("gathering_id", g.W2);
-    if (wo && (rm.data ?? []).some((x: any) => x.room_id === wo.id)) leaks.push(`${n} reads ${(rm.data ?? []).filter((x: any) => x.room_id === wo.id).length} women-only memberships`);
+    const others = (rm.data ?? []).filter((x: any) => wo && x.room_id === wo.id && x.person_id !== ppl[n]!.id);
+    if (others.length) leaks.push(`${n} reads ${others.length} other women-only memberships`);
     if (wo) {
       const w = await c.from("room_messages").insert({ room_id: wo.id, author_id: ppl[n]!.id, body: `${n} in an unopened women-only room` });
       if (!w.error) leaks.push(`${n} posted in the unopened women-only room`);
@@ -565,8 +568,12 @@ test("R29 V20: the 200th message in a day is allowed and the 201st refused", asy
 test("R30 V20: nobody can delete someone else's message", async () => {
   await ppl.Ben!.c.from("room_messages").delete().eq("id", msg.ava!);
   await ppl.Bk!.c.from("room_messages").delete().eq("id", msg.ava!);
-  const still = await must(service.from("room_messages").select("id").eq("id", msg.ava!), "Ava's message");
+  // Since 6 Oct (L9) deleting is a removal through delete_room_message.
+  const viaRpc = await ppl.Ben!.c.rpc("delete_room_message", { p_message: msg.ava! });
+  assert.ok(viaRpc.error, "Ben removed Ava's message through delete_room_message");
+  const still = await must(service.from("room_messages").select("id, deleted_at").eq("id", msg.ava!), "Ava's message");
   assert.equal(still.length, 1, "someone else deleted Ava's message");
+  assert.equal(still[0].deleted_at, null, "someone else removed Ava's message");
 });
 
 test("R31 V20: nobody can rewrite someone else's message", async () => {
@@ -602,8 +609,8 @@ test("R34 V20/H9: a report made before a delete keeps its snapshot (positive), a
   const r = await report("Mo", id, "spam");
   notes.push(`Mo reports a room message: ${r.error ? r.error.message : "accepted"}`);
   assert.equal(r.error, null, `setup: report refused: ${r.error?.message}`);
-  const d = await ppl.Ava!.c.from("room_messages").delete().eq("id", id);
-  assert.equal(d.error, null);
+  const d = await ppl.Ava!.c.rpc("delete_room_message", { p_message: id });
+  assert.equal(d.error, null, `Ava could not delete her own message: ${d.error?.message}`);
   assert.ok(!(await readable("Ben", "G")).includes(id), "the deleted message is still readable");
   const rep = await must(service.from("reports").select("reported_content_snapshot").eq("reporter_id", ppl.Mo!.id).like("reported_content_snapshot", "%delete me later%"), "report");
   assert.equal(rep.length, 1, "the snapshot did not survive the delete");
@@ -704,7 +711,11 @@ test("R45 V22/V12: admin_switch_off, admin_pending_notifications and admin_group
   for (const [n, r] of [["switch_off", a], ["pending", b], ["groups_tick", c], ["delete_expired", d]] as const) refusedRpc(r, n);
 });
 
-test("R46 V22: device tokens are own-only — another person's token is unreadable and cannot be taken over", async () => {
+// Alex, 6 Oct 2026 (L8): a takeover is allowed — re-registering is how a phone legitimately
+// changes hands — but it must not be silent. The database's part: the token is unreadable
+// to anyone else, and the person who lost it can tell (their own read of it comes back
+// empty), which is what the app checks on its next start.
+test("R46 V22: device tokens are own-only — unreadable to others; a takeover leaves the loser able to tell", async () => {
   const tok = `ExponentPushToken[${PREFIX}${run}ben]`;
   const reg = await ppl.Ben!.c.rpc("register_device", { p_platform: "ios", p_token: tok });
   assert.equal(reg.error, null, `setup: register_device refused: ${reg.error?.message}`);
@@ -713,7 +724,12 @@ test("R46 V22: device tokens are own-only — another person's token is unreadab
   const take = await ppl.Mo!.c.rpc("register_device", { p_platform: "ios", p_token: tok });
   const row = await must(service.from("device_tokens").select("person_id").eq("token", tok), "token row");
   notes.push(`Mo register_device(Ben's token): ${take.error ? take.error.message : "accepted"}; owner now ${row.map((x: any) => (x.person_id === ppl.Ben!.id ? "Ben" : x.person_id === ppl.Mo!.id ? "Mo" : x.person_id)).join(",")}`);
-  assert.ok(row.length === 1 && row[0].person_id === ppl.Ben!.id, "Mo took over Ben's device token (Ben's pushes now go to… Mo's notifications reach Ben's phone, Ben's stop)");
+  assert.ok(row.length === 1 && row[0].person_id === ppl.Mo!.id, "setup: the takeover did not happen");
+  const bensView = await ppl.Ben!.c.from("device_tokens").select("token").eq("token", tok);
+  assert.equal(bensView.error, null);
+  assert.deepEqual(bensView.data ?? [], [], "Ben still reads the token as his — he cannot tell it was taken");
+  const mosView = await ppl.Mo!.c.from("device_tokens").select("token").eq("token", tok);
+  assert.equal((mosView.data ?? []).length, 1, "control: the new owner cannot read their own token");
 });
 
 test("R47 V22 #2: room_open — positive control, then never when the only other arrival is someone you blocked", async () => {
@@ -1237,6 +1253,7 @@ test("R83 V18/H7: a seed person does not count toward the women-only room's 3", 
 
 
 const rt: Record<string, any[]> = { Ben: [], Hugo: [], Out: [], nosession: [] };
+const rtDeleted: string[] = [];
 
 test("R84 V20: Realtime sends a room message only to people who can read it", async (t) => {
   const chans = [];
@@ -1264,7 +1281,9 @@ test("R84 V20: Realtime sends a room message only to people who can read it", as
   await sleep(2000);
   const id = await post("Mo", "G", "realtime probe");
   await sleep(4000);
-  await ppl.Mo!.c.from("room_messages").delete().eq("id", id);
+  const removed = await ppl.Mo!.c.rpc("delete_room_message", { p_message: id });
+  if (removed.error) throw new Error(`setup: Mo could not delete her own message: ${removed.error.message}`);
+  rtDeleted.push(id);
   await sleep(4000);
   for (const [c, ch] of chans) await c.removeChannel(ch);
   const brief = (n: string) => rt[n]!.map((e) => `${e.eventType}:${JSON.stringify(e.new?.body ?? e.old ?? "")}`);
@@ -1277,8 +1296,13 @@ test("R84 V20: Realtime sends a room message only to people who can read it", as
 });
 
 test("R85 V20: Realtime does not tell outsiders when a message in someone else's room is deleted", async () => {
-  const leaked = ["Hugo", "Out", "nosession"].filter((n) => rt[n]!.some((e) => e.eventType === "DELETE"));
-  assert.deepEqual(leaked, [], `DELETE events (message id and timing) reached: ${leaked.join(", ")}`);
+  // The delete must really have happened, or this passes by hearing nothing (a guard that
+  // never ran).
+  assert.equal(rtDeleted.length, 1, "setup: R84 never deleted its probe message");
+  const [row] = await must(service.from("room_messages").select("deleted_at").eq("id", rtDeleted[0]!), "probe");
+  assert.ok(row?.deleted_at, "setup: the probe message was not removed");
+  const leaked = ["Hugo", "Out", "nosession"].filter((n) => rt[n]!.some((e) => e.eventType === "DELETE" || (e.eventType === "UPDATE" && (e.new?.id === rtDeleted[0] || e.old?.id === rtDeleted[0]))));
+  assert.deepEqual(leaked, [], `an event about the deleted message (its id and timing) reached: ${leaked.join(", ")}`);
 });
 
 // ===========================================================================
@@ -1304,11 +1328,14 @@ test("R86 V4/V21: an invite cannot be accepted across a block made after it was 
   const mine = await ppl.P2!.c.from("crew_invites").select("id, from_person, crew_id, status").eq("to_person", ppl.P2!.id);
   const listed = await ppl.P2!.c.rpc("my_invites", { p_gathering: g.G5 });
   notes.push(`after the block, P2 reads crew_invites: ${JSON.stringify(mine.data)}; my_invites: ${JSON.stringify(listed.data)}`);
-  const inv = (mine.data ?? [])[0];
-  if (inv) {
-    const acc = await ppl.P2!.c.rpc("respond_to_invite", { p_invite: inv.id, p_accept: true });
-    notes.push(`P2 accepts the blocker's invite: ${acc.error ? acc.error.message : "accepted"}`);
-  }
+  // The read must have worked and found nothing — an error here is not a refusal (6 Oct:
+  // a broken read rule once made this case pass by erroring).
+  assert.equal(mine.error, null, `reading crew_invites failed: ${mine.error?.message}`);
+  assert.deepEqual(mine.data ?? [], [], "the person P1 blocked still reads P1's invite");
+  // And the accept refuses on its own, even given the invite's id (the re-check, L1).
+  const [inv] = await must(service.from("crew_invites").select("id").eq("crew_id", crew.G5!).eq("to_person", ppl.P2!.id), "P2's invite");
+  const acc = await ppl.P2!.c.rpc("respond_to_invite", { p_invite: inv.id, p_accept: true });
+  notes.push(`P2 accepts the blocker's invite by id: ${acc.error ? acc.error.message : "accepted"}`);
   await must(ppl.P1!.c.from("crew_messages").insert({ crew_id: crew.G5, kind: "user", author_id: ppl.P1!.id, body: "P1: meet me at the north gate" }), "P1 posts");
   const joined = await must(service.from("crew_members").select("id").eq("crew_id", crew.G5!).eq("person_id", ppl.P2!.id).is("left_at", null), "P2 member?");
   const reads = await ppl.P2!.c.from("crew_messages").select("body").eq("crew_id", crew.G5!);
@@ -1318,7 +1345,10 @@ test("R86 V4/V21: an invite cannot be accepted across a block made after it was 
   assert.ok(!(reads.data ?? []).some((m: any) => m.body.startsWith("P1:")), "the blocked person reads the blocker's group messages");
 });
 
-test("R87 V4/V21 (spec silent): a block between two people already in one group hides each one's group messages from the other", async () => {
+// Alex, 6 Oct 2026 (L7): blocking someone you share a group with — the blocker leaves.
+// Ejecting would let any member remove any other ("block, gone, unblock"); leaving costs
+// the person who chose. The cost, accepted: someone harassed in a group gives it up.
+test("R87 V4/V21: blocking a groupmate takes the blocker out of the group; the blocked person stays and reads nothing new from them", async () => {
   await groupWorld("G6", ["Q1", "Q2", "Q3"]);
   await must(ppl.Q1!.c.rpc("start_group", { p_room: room.G6, p_invitees: [ppl.Q2!.id, ppl.Q3!.id] }), "Q1 starts");
   crew.G6 = (await must(service.from("crews").select("id").eq("room_id", room.G6!), "crew G6"))[0].id;
@@ -1327,10 +1357,15 @@ test("R87 V4/V21 (spec silent): a block between two people already in one group 
     await must(who.c.rpc("respond_to_invite", { p_invite: i.id, p_accept: true }), `${who.name} accepts`);
   }
   await must(service.from("blocks").insert({ blocker_id: ppl.Q1!.id, blocked_id: ppl.Q2!.id }), "Q1 blocks Q2");
-  await must(ppl.Q1!.c.from("crew_messages").insert({ crew_id: crew.G6, kind: "user", author_id: ppl.Q1!.id, body: "Q1: running late" }), "Q1 posts");
+  const active = async (n: string) => (await must(service.from("crew_members").select("id").eq("crew_id", crew.G6!).eq("person_id", ppl[n]!.id).is("left_at", null), `${n} member?`)).length;
+  assert.equal(await active("Q1"), 0, "the blocker is still in the group");
+  assert.equal(await active("Q2"), 1, "the blocked person was ejected — any member could remove any other");
+  assert.equal(await active("Q3"), 1, "a bystander lost their place");
+  const post = await ppl.Q1!.c.from("crew_messages").insert({ crew_id: crew.G6, kind: "user", author_id: ppl.Q1!.id, body: "Q1: running late" });
+  assert.ok(post.error, "the blocker, gone from the group, still posts in it");
   const reads = await ppl.Q2!.c.from("crew_messages").select("body").eq("crew_id", crew.G6!);
-  notes.push(`Q2 (blocked by groupmate Q1) reads: ${JSON.stringify(reads.data)}`);
-  assert.ok(!(reads.data ?? []).some((m: any) => m.body.startsWith("Q1:")), "a blocked groupmate reads the blocker's messages");
+  notes.push(`Q2 (blocked by former groupmate Q1) reads: ${JSON.stringify(reads.data)}`);
+  assert.ok(!(reads.data ?? []).some((m: any) => m.body === "Q1: running late"), "the blocked person reads the blocker's new message");
 });
 
 test("R88 V4/V23: invite_options never tells you where someone who blocked you is going", async () => {
@@ -1422,4 +1457,93 @@ test("R92 V22/A18 #6's bound: a 50-message room sends one #6 to someone who neve
   await burst(10, "inside the next hour");
   assert.equal(await count("Looker"), 2, "a third #6 inside the hour");
   assert.equal(await count("Never"), 1, "Never: still exactly one after 70 messages");
+});
+
+// ===========================================================================
+// Added by the build session with the fixes (Alex, 6 Oct 2026)
+// ===========================================================================
+
+test("R93 V20/V21: a withdrawn gathering's group stays — names kept, still writable, and #3 tells it; an outsider gets nothing back", async () => {
+  await groupWorld("G7", ["W1", "W2", "W3", "W4"]);
+  await must(ppl.W1!.c.rpc("start_group", { p_room: room.G7, p_invitees: [ppl.W2!.id, ppl.W3!.id] }), "W1 starts");
+  crew.G7 = (await must(service.from("crews").select("id").eq("room_id", room.G7!), "crew G7"))[0].id;
+  for (const i of await invitesOf(crew.G7!)) {
+    const who = Object.values(ppl).find((p) => p.id === i.to_person)!;
+    await must(who.c.rpc("respond_to_invite", { p_invite: i.id, p_accept: true }), `${who.name} accepts`);
+  }
+  await must(service.from("gatherings").update({ withdrawn_at: new Date().toISOString() }).eq("id", g.G7!), "withdraw G7");
+  await sleep(1000);
+  const sees = async (who: string, whom: string) => ((await ppl[who]!.c.from("people").select("first_name").eq("id", ppl[whom]!.id)).data ?? []).length;
+  assert.equal(await sees("W2", "W1"), 1, "a groupmate lost the other's name when the gathering was withdrawn");
+  assert.equal(await sees("W4", "W1"), 0, "someone outside the group still sees a person at a withdrawn gathering");
+  const said = await ppl.W2!.c.from("crew_messages").insert({ crew_id: crew.G7, kind: "user", author_id: ppl.W2!.id, body: "still on?" });
+  assert.equal(said.error, null, `the group is no longer writable: ${said.error?.message}`);
+  // The room goes dark: nothing anyone else wrote there is readable (your own lines stay yours).
+  const othersInRoom = await must(service.from("room_messages").select("id").eq("room_id", room.G7!).neq("author_id", ppl.W2!.id), "others' room messages");
+  assert.ok(othersInRoom.length > 0, "setup: nobody else wrote in G7's room");
+  const stillRead = (await readable("W2", "G7")).filter((id) => othersInRoom.some((m: any) => m.id === id));
+  assert.deepEqual(stillRead, [], "the withdrawn gathering's room is still readable");
+  for (const n of ["W1", "W2", "W3"]) {
+    const told = (await notifs(n, "plan_status")).filter((x) => x.crew_id === crew.G7 && /called off/.test(x.body));
+    assert.equal(told.length, 1, `${n} was not told the gathering was called off`);
+  }
+  assert.equal((await notifs("W4", "plan_status")).filter((x) => /called off/.test(x.body)).length, 0, "#3 reached someone outside the group");
+});
+
+test("R94 V21: a group invites a person once — after a decline, 'invite someone else' cannot ping them again", async () => {
+  await groupWorld("G8", ["I1", "I2", "I3", "I4"]);
+  await must(ppl.I1!.c.rpc("start_group", { p_room: room.G8, p_invitees: [ppl.I2!.id, ppl.I3!.id] }), "I1 starts");
+  crew.G8 = (await must(service.from("crews").select("id").eq("room_id", room.G8!), "crew G8"))[0].id;
+  const toI2 = (await invitesOf(crew.G8!)).find((i: any) => i.to_person === ppl.I2!.id)!;
+  await must(ppl.I2!.c.rpc("respond_to_invite", { p_invite: toI2.id, p_accept: false }), "I2 declines");
+  const before = (await notifs("I2", "plan_status")).length;
+  await ppl.I1!.c.rpc("invite_more", { p_crew: crew.G8, p_invitees: [ppl.I2!.id] });
+  const invitesToI2 = (await invitesOf(crew.G8!)).filter((i: any) => i.to_person === ppl.I2!.id);
+  assert.equal(invitesToI2.length, 1, "the person who declined was invited again");
+  assert.equal((await notifs("I2", "plan_status")).length, before, "the person who declined was pinged again");
+  await must(ppl.I1!.c.rpc("invite_more", { p_crew: crew.G8, p_invitees: [ppl.I4!.id] }), "control: I1 invites I4");
+  assert.equal((await invitesOf(crew.G8!)).filter((i: any) => i.to_person === ppl.I4!.id).length, 1, "control: a first invite to someone new did not arrive");
+});
+
+test("R95 V23/H3: the invite picker says 'going' only for a pin that is open to meeting", async () => {
+  for (const n of ["Gn", "Go"]) {
+    await mk(n, { gender: "man" });
+    await must(service.from("connections").insert({ ...pair(ppl.A1!.id, ppl[n]!.id), source_crew_id: crew.A }), `A1–${n}`);
+  }
+  await pin("Gn", "G2", false);
+  await pin("Go", "G2", true);
+  const opts = async (n: string) => ((await ppl.A1!.c.rpc("invite_options", { p_to: ppl[n]!.id })).data ?? []).find((x: any) => x.gathering_id === g.G2);
+  assert.equal((await opts("Go"))?.already, "going", "control: an open pin is not shown as going");
+  assert.notEqual((await opts("Gn"))?.already, "going", "a pin that never opted in to meeting is shown as going");
+});
+
+test("R96 V20/H9: a hidden person leaves every room at once, is never placed while hidden, and is placed again when unhidden", async () => {
+  await gathering("G9", 7);
+  for (const n of ["U1", "U2", "U3"]) await mk(n, { gender: "man" });
+  await pin("U1", "G9");
+  await pin("U2", "G9");
+  const [r] = await rooms("G9");
+  assert.ok((await membersOf(r!.id)).includes(ppl.U2!.id), "setup: U2 was not placed");
+  await hide("U2");
+  assert.ok(!(await membersOf(r!.id)).includes(ppl.U2!.id), "a hidden person is still in the room");
+  await hide("U3");
+  await pin("U3", "G9");
+  assert.ok(!(await membersOf(r!.id)).includes(ppl.U3!.id), "a hidden person was placed when they opted in");
+  await must(service.from("people").update({ hidden_at: null }).eq("id", ppl.U2!.id), "unhide U2");
+  assert.ok((await membersOf(r!.id)).includes(ppl.U2!.id), "an unhidden person was not placed back in the room");
+});
+
+test("R97 V4/V21 (L1): the accept re-checks on its own — a block with someone already IN the group refuses it, though the invite was never withdrawn", async () => {
+  await groupWorld("G10", ["Rk1", "Rk2", "Rk3", "Rk4"]);
+  await must(ppl.Rk1!.c.rpc("start_group", { p_room: room.G10, p_invitees: [ppl.Rk2!.id, ppl.Rk3!.id] }), "Rk1 starts");
+  crew.G10 = (await must(service.from("crews").select("id").eq("room_id", room.G10!), "crew G10"))[0].id;
+  const toK3 = (await invitesOf(crew.G10!)).find((i: any) => i.to_person === ppl.Rk3!.id)!;
+  await must(ppl.Rk3!.c.rpc("respond_to_invite", { p_invite: toK3.id, p_accept: true }), "Rk3 accepts");
+  // Rk3, now in the group, blocks Rk2. Rk1's invite to Rk2 is between Rk1 and Rk2: untouched.
+  await must(service.from("blocks").insert({ blocker_id: ppl.Rk3!.id, blocked_id: ppl.Rk2!.id }), "Rk3 blocks Rk2");
+  const toK2 = (await invitesOf(crew.G10!)).find((i: any) => i.to_person === ppl.Rk2!.id)!;
+  assert.equal(toK2.status, "sent", "setup: Rk2's invite was withdrawn — this would not test the re-check");
+  const acc = await ppl.Rk2!.c.rpc("respond_to_invite", { p_invite: toK2.id, p_accept: true });
+  assert.ok(acc.error, "Rk2 joined a group with someone who blocked them");
+  assert.match(acc.error!.message, /no longer open/, "the refusal names the block rather than looking like a closed group (R59)");
 });
