@@ -14,6 +14,7 @@ import {
   crowdLine,
   plural,
   applyChips,
+  CHIP_ALL,
   chipsFor,
   dayGroups,
   href,
@@ -219,7 +220,7 @@ function tabs(current: TabValue, win: ListWindow): string {
 // visible as the thing it is: one of the choices, and the one that is on.
 function chipRow(path: string, offered: Chip[], chosen: string[], win: ListWindow): string {
   if (offered.length === 0) return "";
-  const all = `<a class="chip${chosen.length === 0 ? " on" : ""}" data-replace href="${escape(href(path, [], win.asked))}">Everything</a>`;
+  const all = `<a class="chip${chosen.length === 0 ? " on" : ""}" data-replace href="${escape(href(path, [], win.asked))}">${CHIP_ALL}</a>`;
   const rest = offered
     .map((c) => {
       const on = chosen.includes(c.value);

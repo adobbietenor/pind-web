@@ -131,6 +131,10 @@ export const rowsInTab = <T extends ListRow>(rows: T[], tab: TabValue): T[] =>
 // choose between, and counting rows would let one recurring fixture conjure a chip.
 // ---------------------------------------------------------------------------
 
+// The first pill, on by default: the visible way back from a filter. W1's and the app's
+// (M3.3c — the app's first version left it out, and a filter could not be cleared).
+export const CHIP_ALL = "Everything";
+
 export interface Chip {
   value: string;
   label: string;

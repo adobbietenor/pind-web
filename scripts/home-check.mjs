@@ -72,6 +72,55 @@ try {
   step("the app's Toronto list has every gathering W1 has", missing.length === 0 || (console.log(`     missing: ${missing.slice(0, 5).join(" | ")}`), false));
   step("…and nothing W1 does not", extra.length === 0 || (console.log(`     extra: ${extra.slice(0, 5).join(" | ")}`), false));
 
+  // Which city, on the screen itself (the header is hidden app-wide).
+  // The label, not any card that happens to mention Toronto: it renders in capitals.
+  step("the list says which city it is", (await body()).includes("TORONTO"));
+
+  // Two kinds of control, two shapes (Alex, 6 Oct): told apart by shape and container,
+  // measured from the page, not from the labels.
+  const shapes = await evaluate(`(() => {
+    const px = (v) => parseFloat(v) || 0;
+    const track = document.querySelector('[data-testid=mode-track]');
+    // Only the tabs inside the mode's track: the app's bottom tab bar is tabs too.
+    const tabs = track ? [...track.querySelectorAll('[role=tab]')] : [];
+    const pills = [...document.querySelectorAll('[data-testid=filters] [role=checkbox]')];
+    if (!track || tabs.length !== 2 || pills.length < 1) return { found: false, tabs: tabs.length, pills: pills.length };
+    // Full width means the screen's content width: the parent's box less its own padding.
+    const ts = getComputedStyle(track), par = track.parentElement, ps = getComputedStyle(par), tr = track.getBoundingClientRect();
+    const content = par.getBoundingClientRect().width - px(ps.paddingLeft) - px(ps.paddingRight);
+    const pillStyles = pills.map((p) => getComputedStyle(p));
+    // The nearest ancestor of the pills that has a border of its own — there should be none short of the page.
+    let up = pills[0].parentElement, boxed = false;
+    for (let i = 0; i < 3 && up; i++, up = up.parentElement) if (px(getComputedStyle(up).borderTopWidth) > 0) boxed = true;
+    return {
+      found: true,
+      bothInsideTrack: tabs.length === 2,
+      trackBordered: px(ts.borderTopWidth) > 0,
+      trackFullWidth: tr.width >= content - 1,
+      segmentsSquare: tabs.every((t) => px(getComputedStyle(t).borderTopLeftRadius) <= 12),
+      pillsRound: pillStyles.every((s) => px(s.borderTopLeftRadius) >= 100),
+      pillsEachOutlined: pillStyles.every((s) => px(s.borderTopWidth) > 0),
+      pillsUnboxed: !boxed,
+      firstPill: pills[0].innerText.trim(),
+      firstPillOn: pills[0].getAttribute('aria-checked') === 'true',
+    };
+  })()`);
+  console.log(`     ${JSON.stringify(shapes)}`);
+  step("the mode is ONE enclosed track holding both options, full width", shapes.found && shapes.bothInsideTrack && shapes.trackBordered && shapes.trackFullWidth);
+  step("…its segments are squared off, not pills", shapes.segmentsSquare);
+  step("the filters are loose round pills, each outlined, in no shared box", shapes.pillsRound && shapes.pillsEachOutlined && shapes.pillsUnboxed);
+  step("'Everything' is the first pill and on by default", shapes.firstPill === "Everything" && shapes.firstPillOn);
+  const second = await evaluate(`(() => { const p=[...document.querySelectorAll('[data-testid=filters] [role=checkbox]')][1]; if(!p) return null; p.click(); return p.innerText.trim(); })()`);
+  if (second) {
+    await sleep(500);
+    const after = await evaluate(`[...document.querySelectorAll('[data-testid=filters] [role=checkbox]')].map(p => p.getAttribute('aria-checked'))`);
+    step(`choosing '${second}' turns 'Everything' off`, after[0] === "false" && after[1] === "true");
+    await click("Everything");
+    await sleep(500);
+    const cleared = await evaluate(`[...document.querySelectorAll('[data-testid=filters] [role=checkbox]')].map(p => p.getAttribute('aria-checked'))`);
+    step("'Everything' clears the filter", cleared[0] === "true" && cleared.slice(1).every((v) => v === "false"));
+  }
+
   // A card opens the app's crowd page.
   await evaluate(`[...document.querySelectorAll('[role=link]')][0].click()`);
   for (let t = 0; t < 30 && !String(await path()).startsWith("/crowd/"); t++) await sleep(500);

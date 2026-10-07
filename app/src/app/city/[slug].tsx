@@ -8,6 +8,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   categoryLabel,
+  CHIP_ALL,
   CITIES,
   cityOpens,
   clockLocal,
@@ -85,32 +86,45 @@ export default function CityList() {
   return (
     <AppScreen>
       <Stack.Screen options={{ title: city.name }} />
+      {/* The header is hidden app-wide, so the city is said here (Alex, 6 Oct). */}
+      <Text style={styles.city}>{city.name}</Text>
       <Heading>{tab === "community" ? "Community this week" : "This week's crowds"}</Heading>
 
-      <View style={styles.tabs}>
-        {TABS.map((t) => (
-          <Pressable
-            key={t.value}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: t.value === tab }}
-            onPress={() => {
-              setTab(t.value);
-              setChips([]);
-            }}
-            style={[styles.tab, t.value === tab && styles.tabOn]}
-          >
-            <Text style={[styles.tabText, t.value === tab && styles.tabTextOn]}>{t.label}</Text>
-          </Pressable>
-        ))}
+      {/* Two kinds of control, two shapes (Alex, 6 Oct): the MODE is a segmented control —
+          one enclosed track, full width, the chosen segment filled; the FILTERS within it
+          are loose pills. Told apart by shape and container, not colour. */}
+      <View style={styles.track} accessibilityRole="tablist" testID="mode-track">
+        {TABS.map((t) => {
+          const on = t.value === tab;
+          return (
+            <Pressable
+              key={t.value}
+              accessibilityRole="tab"
+              aria-selected={on}
+              onPress={() => {
+                setTab(t.value);
+                setChips([]);
+              }}
+              style={[styles.segment, on && styles.segmentOn]}
+            >
+              <Text style={[styles.segmentText, on && styles.segmentTextOn]}>{t.label}</Text>
+            </Pressable>
+          );
+        })}
       </View>
 
       {view.offered.length ? (
-        <View style={styles.chips}>
+        <View style={styles.pills} testID="filters">
+          {/* "Everything" first and on by default: the visible way back from a filter —
+              W1's own first pill, the same word from the same constant. */}
+          <Pressable accessibilityRole="checkbox" aria-checked={chips.length === 0} onPress={() => setChips([])} style={[styles.pill, chips.length === 0 && styles.pillOn]}>
+            <Text style={[styles.pillText, chips.length === 0 && styles.pillTextOn]}>{CHIP_ALL}</Text>
+          </Pressable>
           {view.offered.map((c) => {
             const on = chips.includes(c.value);
             return (
-              <Pressable key={c.value} accessibilityRole="checkbox" accessibilityState={{ checked: on }} onPress={() => toggle(c.value)} style={[styles.chip, on && styles.chipOn]}>
-                <Text style={[styles.chipText, on && styles.chipTextOn]}>{c.label}</Text>
+              <Pressable key={c.value} accessibilityRole="checkbox" aria-checked={on} onPress={() => toggle(c.value)} style={[styles.pill, on && styles.pillOn]}>
+                <Text style={[styles.pillText, on && styles.pillTextOn]}>{c.label}</Text>
               </Pressable>
             );
           })}
@@ -161,16 +175,19 @@ function Card({ g, onPress }: { g: ListGathering; onPress: () => void }) {
 }
 
 const styles = StyleSheet.create({
-  tabs: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.md },
-  tab: { paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: palette.border },
-  tabOn: { borderColor: palette.accent, backgroundColor: palette.surface },
-  tabText: { color: palette.textMuted, fontSize: 15 },
-  tabTextOn: { color: palette.text },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.sm },
-  chip: { paddingVertical: 4, paddingHorizontal: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: palette.border },
-  chipOn: { borderColor: palette.accent, backgroundColor: palette.accent },
-  chipText: { color: palette.textMuted, fontSize: 13 },
-  chipTextOn: { color: palette.onAccent },
+  city: { fontSize: 13, color: palette.accentText, letterSpacing: 0.5, textTransform: "uppercase", marginBottom: 2 },
+  // The mode: one enclosed track, full width, squared-off segments inside it.
+  track: { flexDirection: "row", alignSelf: "stretch", marginTop: spacing.md, padding: 3, borderRadius: radius.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
+  segment: { flex: 1, alignItems: "center", paddingVertical: spacing.sm, borderRadius: radius.sm },
+  segmentOn: { backgroundColor: palette.accent },
+  segmentText: { color: palette.textMuted, fontSize: 15, fontFamily: fonts.headline },
+  segmentTextOn: { color: palette.onAccent },
+  // The filters: loose, fully rounded pills, each its own outline, no shared container.
+  pills: { flexDirection: "row", flexWrap: "wrap", gap: spacing.xs, marginTop: spacing.md },
+  pill: { paddingVertical: 5, paddingHorizontal: spacing.md, borderRadius: 999, borderWidth: 1, borderColor: palette.border },
+  pillOn: { borderColor: palette.accent, backgroundColor: palette.accent },
+  pillText: { color: palette.textMuted, fontSize: 13 },
+  pillTextOn: { color: palette.onAccent },
   day: { fontFamily: fonts.headline, fontSize: 17, color: palette.text, marginBottom: spacing.xs },
   daySub: { fontFamily: undefined, fontSize: 13, color: palette.textMuted },
   card: { padding: spacing.md, borderRadius: radius.md, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, marginTop: spacing.sm, gap: 2 },
