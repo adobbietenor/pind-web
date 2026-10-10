@@ -18,6 +18,8 @@ import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
 import { isStaleSession, SIGNIN_FAILED, signInMethods, signInSays, type SignInMethod, type SignInStep } from "@pind/shared";
+import { forgetThisPhone } from "./push";
+import { queryClient } from "./query";
 import { report } from "./sentry";
 import { supabase } from "./supabase";
 
@@ -125,6 +127,17 @@ export async function linkEmail(email: string): Promise<void> {
 export async function isPermanent(): Promise<boolean> {
   const { data } = await supabase().auth.getSession();
   return !!data.session && !data.session.user.is_anonymous;
+}
+
+// Sign out, from Settings (A23; Alex, 10 Oct 2026) — on this device only. In order:
+// this phone stops getting the account's notifications; the session ends here; nothing
+// the last person loaded is left for the next screen. If the phone cannot be taken off
+// the account (offline), this throws before signing out and nothing has changed.
+export async function signOutHere(): Promise<void> {
+  await forgetThisPhone();
+  const { error } = await supabase().auth.signOut({ scope: "local" });
+  if (error) throw error;
+  queryClient.clear();
 }
 
 // The sentence lives in `@pind/shared` (signInSays), where S05–S07 prove a stale

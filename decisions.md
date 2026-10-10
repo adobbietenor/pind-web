@@ -3848,3 +3848,21 @@ itself off, not how one starts.
   (above): both hard rules, the reason the approval gate inverts "automate by default",
   and the open questions. Part 5's mailto line is marked superseded, with the mailto as
   the interim until M4.6 replaces it.
+
+### Sign out (Alex, 10 Oct 2026)
+
+- **Why now:** there was no reachable sign-out. The three `signOut` calls were inside the
+  account merge, the stale-session path and account deletion, so the only way out of an
+  account was to delete it. The build's walk needs it too: native Apple sign-in, Google
+  at A27 and the merge all need getting out of an account.
+- **Where and how:** Settings, a card of its own above "Delete your account", with a
+  confirm step; `scope: "local"`, so only this device is signed out.
+- **Only with a permanent sign-in.** An anonymous person (pinned, never opted in) has
+  nothing to sign back into: signing out would strand their pins for good behind a
+  button that sounds harmless. Their way out stays Delete, which says what goes.
+- **Refused when Pin'd cannot be reached.** Sign-out first takes this phone off the
+  account's push. If that cannot be done, nothing changes and the card says so with Try
+  again, because a sign-out must never leave a phone receiving someone's notifications,
+  which name people and places.
+- **Proved by:** P187 (your own phone's token can be deleted, nobody else's — the
+  refusal shown by the row surviving, since an RLS-filtered delete is silent); S32–S34.

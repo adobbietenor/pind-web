@@ -16,6 +16,19 @@ Part 5, "Repo layout"; `docs/build-plan.md` §3):
 
 There is no separate `pind-app` repo. `app/` and `packages/shared/` arrived in M2.0.
 
+## The repo's state is not main
+
+main is the slowest-moving view of this repo: work merges at the end of a
+milestone, and sessions routinely end on an unmerged branch. Before stating
+what is built, run `git ls-remote --heads origin` and read spec §6 from the
+newest branch — never from main. A clone made with `--depth 1` or
+`--single-branch` fetches one refspec, so `git branch -a` lists one branch and
+says nothing about what exists.
+
+10 Oct 2026: a brief written from main alone said M3.3b was not started and told
+a session not to build a home list. M3.3b was in progress with builds 8 and 9 on
+TestFlight, and the home list was already built on phase3/m3.3c-home.
+
 ## Stack (fixed — do not substitute)
 
 - Cloudflare Workers + Wrangler for the Worker, and to serve the Expo web export

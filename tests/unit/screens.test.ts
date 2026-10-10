@@ -246,6 +246,7 @@ describe("The web app claims a handed-over session before any screen renders (M3
       "packages/shared/src/after.ts": "the night and after (M3.3) — Tatiana's doc replaces it",
       "packages/shared/src/cities.ts": "the app's home — the city picker and its lines (M3.3c, 6 Oct) — Tatiana's to reword",
       "packages/shared/src/notify.ts": "a phone's notifications taken by another account (L8, 6 Oct) — Tatiana's to reword",
+      "packages/shared/src/session.ts": "sign out in Settings (A23, 10 Oct) — Tatiana's to reword",
     };
     assert.ok(/\bPROPOSED\b/.test("// PROPOSED, for Alex") && !/\bPROPOSED\b/.test("UNPROPOSED"), "the marker test cannot see a marker");
     const marked = (function walk(dir: string): string[] {
@@ -349,5 +350,45 @@ describe("The web app claims a handed-over session before any screen renders (M3
     // An opener's tap fills the box and does nothing else.
     assert.match(room, /openers\.map\(\(o\) => \([\s\S]{0,200}onPress=\{\(\) => setDraft\(o\)\}/, "an opener does something other than fill the box");
     assert.doesNotMatch(room.slice(room.indexOf("openers.map"), room.indexOf("openers.map") + 400), /send|insert/i, "an opener sends");
+  });
+});
+
+describe("Sign out (A23; Alex, 10 Oct 2026)", () => {
+  const settings = readFileSync(join(ROUTES, "settings.tsx"), "utf8");
+  const auth = readFileSync(join(process.cwd(), "app", "src", "lib", "auth.ts"), "utf8");
+  const push = readFileSync(join(process.cwd(), "app", "src", "lib", "push.ts"), "utf8");
+  const body = (src: string, name: string) => {
+    const at = src.indexOf(`export async function ${name}(`);
+    assert.ok(at >= 0, `${name} is gone`);
+    return src.slice(at, src.indexOf("\n}", at));
+  };
+
+  it("S32 Settings offers Sign out only with a permanent sign-in, read fresh, in its own card above Delete", () => {
+    const gate = settings.indexOf("{permanent ? (");
+    const heading = settings.indexOf("{SIGN_OUT.heading}");
+    const del = settings.indexOf(">Delete your account</Text>");
+    assert.ok(gate >= 0 && heading > gate, "Sign out is shown without the permanent gate");
+    assert.ok(del > heading, "Sign out is not above Delete, or Delete is gone");
+    assert.ok(settings.slice(heading, del).includes(") : null}"), "Sign out and Delete share a block");
+    assert.match(settings, /setPermanent\(me\.permanent\)/, "'permanent' is not read from the fresh profile");
+    assert.match(settings, /signOutHere\(\)/, "Settings signs out some other way");
+    assert.match(settings, /SIGN_OUT\.yes/, "Sign out has no confirm step");
+  });
+
+  it("S33 sign-out takes the phone off the account first, then ends the session on this device only, then clears the cache", () => {
+    const fn = body(auth, "signOutHere");
+    const phone = fn.indexOf("await forgetThisPhone();");
+    const out = fn.indexOf('signOut({ scope: "local" })');
+    const clear = fn.indexOf("queryClient.clear();");
+    assert.ok(phone >= 0 && out > phone, "the session can end while this phone still gets the account's notifications");
+    assert.ok(clear > out, "the last person's data can outlive the sign-out");
+    assert.match(fn, /if \(error\) throw error;/, "a failed sign-out is reported as done");
+  });
+
+  it("S34 the phone comes off the account or the sign-out stops — never silently half-done", () => {
+    const fn = body(push, "forgetThisPhone");
+    assert.match(fn, /from\("device_tokens"\)\.delete\(\)/);
+    const thrown = fn.indexOf("if (error) throw error;");
+    assert.ok(thrown >= 0 && fn.indexOf("forgetPushRegistration()") > thrown, "the phone forgets it registered even when the server still has it");
   });
 });

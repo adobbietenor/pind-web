@@ -66,6 +66,18 @@ export const SESSION_UNREACHABLE =
 // The message stays on the read for Sentry, never in the sentence (said.ts).
 export const SESSION_UNSURE = "We could not check your sign-in just now. Try again in a moment.";
 
+// Sign out, in Settings (A23; Alex, 10 Oct 2026). Shown only to someone with a permanent
+// sign-in — an anonymous person has nothing to sign back into, so their way out stays
+// Delete, which says what goes. PROPOSED copy (Tatiana's to reword).
+export const SIGN_OUT = {
+  heading: "Sign out",
+  line: "Signs you out here only. Your account, your pins and your connections stay as they are — sign in again to pick up where you left off.",
+  start: "Sign out",
+  phone: "This phone stops getting your notifications until you sign in again.",
+  yes: "Yes, sign out",
+  no: "Stay signed in",
+} as const;
+
 export function sessionSays(read: Exclude<SessionRead, { state: "in" }>): string {
   if (read.state === "out") return SESSION_OUT;
   if (read.state === "unreachable") return SESSION_UNREACHABLE;

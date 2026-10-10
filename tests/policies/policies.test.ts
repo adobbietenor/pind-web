@@ -3908,6 +3908,20 @@ describe("Notifications #2 and #6 — written by the act itself, and refused whe
     for (const d of delivered) assert.equal(d.channel, "none", "a harness person was emailed or pushed");
     assert.ok(queued || delivered.length, "Jo's notification was neither queued nor delivered");
   });
+
+  it("P187 sign-out (A23): you can take your own phone off your account, and nobody else can", async () => {
+    // A delete that RLS filters is not an error — it removes nothing and says so by
+    // silence. So the refusal is proved by the row still being there, read by the
+    // service key, and the allowance by it being gone.
+    const tok = `ExponentPushToken[${w.run}-p187]`;
+    await ok(people.Jo.client.rpc("register_device", { p_token: tok, p_platform: "ios" }));
+    const held = async () => (await rows(w.service.from("device_tokens").select("token").eq("token", tok))).length;
+    assert.equal(await held(), 1, "setup: Jo's phone was not registered");
+    await people.Kit.client.from("device_tokens").delete().eq("token", tok);
+    assert.equal(await held(), 1, "someone took another person's phone off their account");
+    await ok(people.Jo.client.from("device_tokens").delete().eq("token", tok));
+    assert.equal(await held(), 0, "a person could not take their own phone off their account");
+  });
 });
 
 describe("A group's deadline moves with it, and a group under 3 can invite someone else (M3.3)", () => {
