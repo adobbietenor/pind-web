@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { channelFor, emailFor, KINDS, stopToken, stopTokenValid, stopUrl } from "../../src/notify/rules.ts";
 import { jobsFor, NOTIFY_CRON } from "../../src/cron.ts";
-import { NOTIFICATIONS, pushWasTaken } from "../../packages/shared/src/notify.ts";
+import { NOTIFICATIONS, pushWasTaken, tapOpener } from "../../packages/shared/src/notify.ts";
 import { Constants, type Database } from "../../packages/shared/src/database.types.ts";
 
 const SECRET = "test-secret-not-real";
@@ -111,5 +111,31 @@ describe("A phone's notifications taken by another account (L8)", () => {
     assert.ok(push.indexOf('return "taken";') < push.indexOf("await register();\n    return \"ok\";".replace(/\n/g, push.includes("\r\n") ? "\r\n" : "\n")), "push.ts registers before it checks");
     assert.match(layout, /kept !== "taken"/, "the app's start no longer says anything when its phone was taken");
     assert.match(layout, /PUSH_TAKEN\.line/);
+  });
+});
+
+describe("A tapped notification opens its page, including from a cold start (M3.3b)", () => {
+  it("N13 a tap opens its path once, however many roads it comes down; never anything but our own path", () => {
+    const opened: string[] = [];
+    const tap = tapOpener((p) => opened.push(p));
+    tap({ id: "n1", data: { path: "/room/abc" } });
+    tap({ id: "n1", data: { path: "/room/abc" } }); // the launching tap, seen again by the listener
+    tap({ id: "n2", data: { path: "/after/xyz" } });
+    assert.deepEqual(opened, ["/room/abc", "/after/xyz"]);
+    for (const data of [{ path: "//evil.example/x" }, { path: "https://evil.example" }, { path: 7 }, {}, null, undefined]) {
+      tap({ id: `x${opened.length}${JSON.stringify(data)}`, data });
+    }
+    assert.deepEqual(opened, ["/room/abc", "/after/xyz"], "something that is not one of our paths was opened");
+  });
+  it("N14 the app reads the tap that launched it, through the rule, and only once the Stack is mounted", () => {
+    const push = readFileSync("app/src/lib/push.ts", "utf8");
+    const layout = readFileSync("app/src/app/_layout.tsx", "utf8");
+    assert.match(push, /getLastNotificationResponse\(\)/, "a tap that launches the app is never read — the listener came too late for it");
+    assert.match(push, /tapOpener\(open\)/, "push.ts opens taps by a rule of its own");
+    assert.doesNotMatch(push, /content\.data as \{ path/, "push.ts reads the path itself instead of through tapOpener");
+    const effect = layout.slice(layout.indexOf("onNotificationTap(") - 200, layout.indexOf("onNotificationTap(") + 200);
+    assert.match(effect, /if \(!ready\) return;/, "the tap listener is attached before the Stack exists");
+    assert.match(effect, /\}, \[ready\]\);/);
+    assert.match(layout, /if \(!ready\) return <View/, "'ready' no longer means the Stack is mounted");
   });
 });

@@ -9,12 +9,13 @@
 // on someone who has not yet seen why.
 //
 // On the web there is no push: email carries every notification, and nothing here runs.
-// Proved on M3.2b's build (the native list), where push is walked on a real phone.
+// Proved on M3.3b's build (the native list), where push is walked on a real phone.
 
 import Constants from "expo-constants";
+import type { NotificationResponse } from "expo-notifications";
 import * as SecureStore from "expo-secure-store";
 import { Platform } from "react-native";
-import { pushWasTaken } from "@pind/shared";
+import { pushWasTaken, tapOpener } from "@pind/shared";
 import { supabase } from "./supabase";
 
 // What this phone last registered, and for whom (L8): so a registration that moved to
@@ -101,16 +102,23 @@ export async function takePushBack(): Promise<void> {
 }
 
 // Tapping a notification opens the page it is about (its `path`, the same one the email
-// links to). Returns the way to stop listening.
+// links to). Returns the way to stop listening. Call it only once the navigator is
+// mounted: on a cold start it opens the launching tap straight away.
 export async function onNotificationTap(open: (path: string) => void): Promise<() => void> {
   if (!native) return () => undefined;
   const N = await notifications();
   N.setNotificationHandler({
     handleNotification: async () => ({ shouldShowBanner: true, shouldShowList: true, shouldPlaySound: false, shouldSetBadge: false }),
   });
-  const sub = N.addNotificationResponseReceivedListener((r) => {
-    const path = (r.notification.request.content.data as { path?: unknown } | undefined)?.path;
-    if (typeof path === "string" && path.startsWith("/")) open(path);
-  });
+  const tap = tapOpener(open);
+  const seen = (r: NotificationResponse) =>
+    tap({ id: r.notification.request.identifier, data: r.notification.request.content.data });
+  const sub = N.addNotificationResponseReceivedListener(seen);
+  // A cold start (M3.3b): the tap that launched the app came before anything was listening.
+  const launched = N.getLastNotificationResponse();
+  if (launched) {
+    seen(launched);
+    N.clearLastNotificationResponse();
+  }
   return () => sub.remove();
 }

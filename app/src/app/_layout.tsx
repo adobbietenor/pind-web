@@ -46,12 +46,22 @@ function RootLayout() {
     track("app_open");
   }, []);
 
-  // Push on the iPhone (M3.3): a tapped notification opens the page it is about, and a
-  // phone that already allowed push stays registered to whoever is signed in now. Never
-  // a prompt here — the ask is the room's card (lib/push.ts).
+  // The Stack below is mounted only once fonts and the claim are done.
+  const ready = fontsLoaded && claimed;
+
+  // Push on the iPhone (M3.3): a tapped notification opens the page it is about. Not
+  // before the Stack exists (M3.3b): on a cold start the launching tap is opened at once,
+  // and a push with no navigator under it goes nowhere.
   useEffect(() => {
+    if (!ready) return;
     let stop: (() => void) | undefined;
     void onNotificationTap((path) => router.push(path as never)).then((s) => (stop = s));
+    return () => stop?.();
+  }, [ready]);
+
+  // A phone that already allowed push stays registered to whoever is signed in now. Never
+  // a prompt here — the ask is the room's card (lib/push.ts).
+  useEffect(() => {
     void whoAmI()
       .then((who) => (who.state === "in" ? keepPushRegistered() : undefined))
       .then((kept) => {
@@ -62,7 +72,6 @@ function RootLayout() {
           { text: PUSH_TAKEN.yes, onPress: () => void takePushBack().catch(() => undefined) },
         ]);
       });
-    return () => stop?.();
   }, []);
 
   useEffect(() => {
@@ -83,7 +92,7 @@ function RootLayout() {
   };
 
   // On the web there is no native splash: hold on the background colour instead.
-  if (!fontsLoaded || !claimed) return <View style={{ flex: 1, backgroundColor: palette.background }} />;
+  if (!ready) return <View style={{ flex: 1, backgroundColor: palette.background }} />;
 
   return (
     <QueryClientProvider client={queryClient}>

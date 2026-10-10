@@ -43,6 +43,22 @@ export function pushWasTaken(o: {
   return !!o.local && o.local.token === o.token && o.local.userId === o.userId && !o.serverHasIt;
 }
 
+// A tapped notification opens the page it is about, once (A18; M3.3b). Two roads lead
+// here: the tap that launched the app, read at start because it arrived before anything
+// was listening (a cold start), and a tap while the app runs (the listener) — and the
+// launching tap can come down both. Only a path on our own site is opened ("//host" is
+// another site).
+export function tapOpener(open: (path: string) => void): (tap: { id: string; data: unknown }) => void {
+  const opened = new Set<string>();
+  return ({ id, data }) => {
+    const path = (data as { path?: unknown } | null | undefined)?.path;
+    if (typeof path !== "string" || !path.startsWith("/") || path.startsWith("//")) return;
+    if (opened.has(id)) return;
+    opened.add(id);
+    open(path);
+  };
+}
+
 // PROPOSED copy (Tatiana's to reword).
 export const PUSH_TAKEN = {
   title: "Notifications are off on this phone",

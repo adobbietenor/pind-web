@@ -171,7 +171,9 @@ describe("The web app claims a handed-over session before any screen renders (M3
     // root gate makes the order of any screen's own reads irrelevant.
     const layout = readFileSync(join(ROUTES, "_layout.tsx"), "utf8");
     assert.match(layout, /claimOnce\(\)\.finally\(\(\) => setClaimed\(true\)\)/, "the layout does not await the claim");
-    assert.match(layout, /if \(!fontsLoaded \|\| !claimed\) return/, "the layout renders screens before the claim lands");
+    // Since M3.3b the gate is one name, `ready`, which the notification tap waits on too.
+    assert.match(layout, /const ready = fontsLoaded && claimed;/, "'ready' no longer waits for the claim");
+    assert.match(layout, /if \(!ready\) return <View/, "the layout renders screens before the claim lands");
   });
 
   it("S24 every in-app link lands on a route that exists", () => {
