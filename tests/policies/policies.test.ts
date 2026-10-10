@@ -233,11 +233,12 @@ describe("Own rows — V1 writes", () => {
       client
         .from("people")
         .insert({ auth_user_id: authId, first_name: "Newt", photo_path: path })
-        .select("id, photo_status")
+        .select("id")
         .single(),
       "insert own person",
     );
-    assert.equal(person.photo_status, "pending");
+    // Read by the service key: since M4.2/Q37 the status is not a column a person reads.
+    assert.equal((await rows(w.service.from("people").select("photo_status").eq("id", person.id)))[0]?.photo_status, "pending");
     newt = { client, authId, personId: person.id };
     await ok(client.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1996 }), "private row");
     await ok(client.from("pins").insert({ gathering_id: w.G, person_id: person.id, open_to_meeting: false }), "own pin");
@@ -4697,5 +4698,55 @@ describe("A new photo is always a new file (M4.2: Q17)", () => {
     await ok(me.storage.from(BUCKET).upload(second, other, { contentType: "image/png", upsert: false }));
     await ok(me.from("people").update({ photo_path: second }).eq("id", person.id));
     assert.equal((await status()).photo_status, "pending", "a new photo was not sent back to be checked");
+  });
+});
+
+// P200 (Alex, 10 Oct 2026 — M4.2, Q40; Q2, §3): a photo path a person sets is a real
+// file, and the file behind their current photo cannot be deleted out from under it — so
+// the opt-in gate's "has a photo" always means a photo.
+describe("A photo is a file (M4.2: Q40)", () => {
+  let authId = "";
+  after(async () => {
+    if (!authId) return;
+    const files = ((await w.service.storage.from(BUCKET).list(authId)).data ?? []).map((f) => `${authId}/${f.name}`);
+    if (files.length) await w.service.storage.from(BUCKET).remove(files);
+    await removeUser(w.service, authId).catch(() => undefined);
+  });
+
+  it("P200 a path to nothing is refused, the current photo's file cannot be deleted, and a real photo — then a replaced one — works", async () => {
+    const email = `${PREFIX}-${w.run}-q40@example.com`;
+    const password = randomUUID();
+    const u = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(u.error, null, u.error?.message);
+    authId = u.data.user!.id;
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: "Zia" }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "woman", birth_year: 1992 }));
+    const me = newClient(w.env, w.env.publishableKey);
+    assert.equal((await me.auth.signInWithPassword({ email, password })).error, null);
+    const path = async () => (await rows(w.service.from("people").select("photo_path").eq("id", person.id)))[0]?.photo_path as string | null;
+
+    // The attack: point photo_path at a file that does not exist, then opt in.
+    await denied(me.from("people").update({ photo_path: `${authId}/not-there.png` }).eq("id", person.id), "23514");
+    assert.equal(await path(), null, "a path to nothing was stored");
+    assert.equal(await ok(me.rpc("i_may_meet")), false, "someone with no photo may meet");
+
+    // Control: a real photo is accepted, and then the gate opens.
+    const one = `${authId}/1.png`;
+    await ok(me.storage.from(BUCKET).upload(one, PNG, { contentType: "image/png", upsert: false }));
+    await ok(me.from("people").update({ photo_path: one }).eq("id", person.id));
+    assert.equal(await ok(me.rpc("i_may_meet")), true, "control: a real photo did not open the gate");
+
+    // The current photo's file cannot be deleted out from under it.
+    await me.storage.from(BUCKET).remove([one]);
+    const still = (await w.service.storage.from(BUCKET).list(authId)).data?.map((f) => f.name) ?? [];
+    assert.ok(still.includes("1.png"), "the file behind someone's current photo was deleted");
+
+    // The app's order still works: upload the new one, point at it, then remove the old.
+    const two = `${authId}/2.png`;
+    await ok(me.storage.from(BUCKET).upload(two, PNG, { contentType: "image/png", upsert: false }));
+    await ok(me.from("people").update({ photo_path: two }).eq("id", person.id));
+    await ok(me.storage.from(BUCKET).remove([one]));
+    const after = (await w.service.storage.from(BUCKET).list(authId)).data?.map((f) => f.name) ?? [];
+    assert.ok(!after.includes("1.png") && after.includes("2.png"), "the app's replace-then-remove no longer works");
   });
 });

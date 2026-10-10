@@ -1062,7 +1062,11 @@ test("Q39 V10 §11 'hidden people cannot see anyone themselves' — a hidden per
 test("Q40 Q2/§3 may_meet — the opt-in gate trusts photo_path, not a photo: point it at nothing and opt in", async () => {
   const fake = `${m.Zed!.authId}/nothing-here.png`;
   assert.equal(await fileExists(fake), false);
-  await must(C("Zed").from("people").update({ photo_path: fake }).eq("id", m.Zed!.id), "Zed fake photo_path");
+  // Since M4.2/Q40 (10 Oct 2026) the attack is refused at its first step: a person cannot
+  // point photo_path at a file that does not exist. A refusal there is the attack closed —
+  // and the opt-in below must still fail either way.
+  const set = await C("Zed").from("people").update({ photo_path: fake }).eq("id", m.Zed!.id);
+  note(`Q40: setting photo_path to a missing file: ${set.error ? `refused: ${set.error.message}` : "accepted"}`);
   const r = await C("Zed").from("pins").insert({ gathering_id: g.H, person_id: m.Zed!.id, open_to_meeting: true, party_total: 1 }).select("id");
   const got = !r.error && (r.data ?? []).length > 0;
   if (got) await service.from("pins").delete().eq("id", r.data![0].id);
