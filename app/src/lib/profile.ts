@@ -17,7 +17,8 @@ export interface Me {
   lastInitial: string | null;
   neighbourhood: string | null;
   photoPath: string | null;
-  photoStatus: "pending" | "approved" | "needs_review" | "rejected";
+  // All §8 tells the owner (M4.2/Q37, 10 Oct 2026): rejected, or not — never "needs review".
+  photoStatus: "rejected" | "not_rejected";
   instagram: string | null;
   tags: string[];
   gatherings: number;
@@ -38,18 +39,22 @@ export async function loadMe(): Promise<Me | null> {
 
   const { data: person, error: personError } = await db
     .from("people")
-    .select("id, first_name, last_initial, neighbourhood, photo_path, photo_status")
+    .select("id, first_name, last_initial, neighbourhood, photo_path")
     .eq("auth_user_id", read.userId)
     .maybeSingle();
   if (personError) throw personError;
   if (!person) return null;
 
-  const [handle, tags, pins, crews] = await Promise.all([
+  const [handle, tags, pins, crews, rejected] = await Promise.all([
     db.from("person_handles").select("instagram").eq("person_id", person.id).maybeSingle(),
     db.from("person_tags").select("tag").eq("person_id", person.id),
     db.from("pins").select("id").eq("person_id", person.id),
     db.from("crew_members").select("id").eq("person_id", person.id).is("left_at", null),
+    db.rpc("my_photo_rejected"),
   ]);
+  // Never read a failed answer as "not rejected" — that would hide the one sentence the
+  // owner is owed.
+  if (rejected.error) throw rejected.error;
 
   return {
     id: person.id,
@@ -57,7 +62,7 @@ export async function loadMe(): Promise<Me | null> {
     lastInitial: person.last_initial,
     neighbourhood: person.neighbourhood,
     photoPath: person.photo_path,
-    photoStatus: person.photo_status,
+    photoStatus: rejected.data === true ? "rejected" : "not_rejected",
     instagram: handle.data?.instagram ?? null,
     tags: (tags.data ?? []).map((t) => t.tag),
     gatherings: pins.data?.length ?? 0,
@@ -114,17 +119,17 @@ export async function exportMyData(): Promise<Record<string, unknown>> {
   if (read.state !== "in") throw new SessionProblem(read);
   const { data: person, error: personError } = await db
     .from("people")
-    .select("*")
+    .select("id, first_name, last_initial, neighbourhood, photo_path, gatherings_count")
     .eq("auth_user_id", read.userId)
     .maybeSingle();
   if (personError) throw personError;
   if (!person) throw new Said("There is nothing here to export yet.");
 
-  const [priv, handle, tags, pins, contacts, votes, surveys, blocks, crews, messages, reports, interests] = await Promise.all([
+  const [priv, handle, tags, pins, contacts, votes, surveys, blocks, crews, messages, reports, interests, times, rejected] = await Promise.all([
     db.from("people_private").select("*").eq("person_id", person.id),
     db.from("person_handles").select("instagram, created_at").eq("person_id", person.id),
     db.from("person_tags").select("tag").eq("person_id", person.id),
-    db.from("pins").select("*").eq("person_id", person.id),
+    db.from("pins").select("gathering_id, party_total, open_to_meeting").eq("person_id", person.id),
     db.from("contact_points").select("kind, value, created_at").eq("person_id", person.id),
     db.from("spot_votes").select("*").eq("person_id", person.id),
     db.from("survey_responses").select("*").eq("person_id", person.id),
@@ -133,6 +138,10 @@ export async function exportMyData(): Promise<Record<string, unknown>> {
     db.from("crew_messages").select("crew_id, body, created_at").eq("author_id", person.id),
     db.from("reports").select("id, target_kind, reason, created_at"),
     db.from("person_interests").select("categories").eq("person_id", person.id),
+    // Timestamps and the photo verdict are no longer readable from the rows (Q07, Q37);
+    // the owner's own come through owner-only functions, so the export still holds them.
+    db.rpc("my_record_times"),
+    db.rpc("my_photo_rejected"),
   ]);
 
   return {
@@ -141,7 +150,8 @@ export async function exportMyData(): Promise<Record<string, unknown>> {
       "Everything Pin'd holds about you, read with your own account so it shows exactly what you can see. " +
       "Your gender, birth year and 19+ attestation are in people_private and are visible to nobody but you. " +
       "Reports are the ones you filed: your reason and the date, not the moderation decision.",
-    person,
+    person: { ...person, photo_rejected: rejected.data === true },
+    times: times.data,
     private: priv.data,
     instagram: handle.data,
     tags: (tags.data ?? []).map((t) => t.tag),

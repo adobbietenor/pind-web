@@ -454,9 +454,10 @@ describe("Photos — V6", () => {
 
   it("P24 Ava CANNOT get Rex's rejected photo / CAN still see Rex himself, without a photo and without a handle", async () => {
     await cannotSign(c(M("Ava")), M("Rex").photoPath);
-    const rex = await rows(c(M("Ava")).from("people").select("first_name, photo_status").eq("id", id("Rex")));
+    const rex = await rows(c(M("Ava")).from("people").select("first_name").eq("id", id("Rex")));
     assert.equal(rex.length, 1, "a rejected photo must never hide the person (V6)");
-    assert.equal(rex[0].photo_status, "rejected");
+    // Since M4.2/Q37 (10 Oct 2026): WHY the photo is gone is not Ava's to read.
+    await denied(c(M("Ava")).from("people").select("photo_status").eq("id", id("Rex")), "42501");
     assert.equal(await rows(c(M("Ava")).from("person_handles").select("instagram").eq("person_id", id("Rex"))).then((r) => r.length), 0);
   });
 
@@ -4615,5 +4616,42 @@ describe("19+ is enforced by the database, not only the app (H8; Q41)", () => {
     assert.ok(Date.parse(row.age_attested_at) >= before - 60_000, `the client's backdated attestation was kept: ${row.age_attested_at}`);
     const a = (await attested(p.personId))[0] as { attested_at: string } | undefined;
     assert.ok(a && Date.parse(a.attested_at) >= before - 60_000, "the attestation record carries the client's time");
+  });
+});
+
+// P196–P198 (Alex, 10 Oct 2026 — M4.2, Q37 + Q07): people and pins are read column by
+// column. A viewer gets the person and never why their photo is gone, nor when they
+// joined or pinned; nobody can search people by photo status; the owner is told exactly
+// what §8 says — rejected or not — and the export still carries their own times.
+describe("Photo status and join time are nobody else's (M4.2: Q37, Q07)", () => {
+  it("P196 a viewer sees the person but cannot read, filter or order by photo status, join time or pin time", async () => {
+    assert.equal(await seesPeople(c(M("Ava")), "Eve"), 1, "control: Ava cannot see Eve, so the refusals below prove nothing");
+    for (const col of ["photo_status", "created_at", "updated_at"])
+      await denied(c(M("Ava")).from("people").select(col).eq("id", id("Eve")), "42501");
+    await denied(c(M("Ava")).from("people").select("*").eq("id", id("Eve")), "42501");
+    await denied(c(M("Ava")).from("people").select("id").eq("photo_status", "needs_review"), "42501");
+    await denied(c(M("Ava")).from("people").select("id").order("created_at"), "42501");
+    for (const col of ["created_at", "updated_at"]) await denied(c(M("Ava")).from("pins").select(col).eq("gathering_id", w.G), "42501");
+    await denied(c(M("Ava")).from("pins").select("person_id").eq("gathering_id", w.G).order("created_at"), "42501");
+    assert.ok((await rows(c(M("Ava")).from("pins").select("person_id, party_total").eq("gathering_id", w.G))).length > 0, "control: the list itself stopped working");
+  });
+
+  it("P197 the owner is told rejected or not — never 'needs review' — and cannot read the status column either", async () => {
+    assert.equal(await ok(c(M("Rex")).rpc("my_photo_rejected")), true, "a rejected owner was not told");
+    const was = (await rows(w.service.from("people").select("photo_status").eq("id", id("Ava"))))[0].photo_status as string;
+    try {
+      await ok(w.service.from("people").update({ photo_status: "needs_review" }).eq("id", id("Ava")));
+      assert.equal(await ok(c(M("Ava")).rpc("my_photo_rejected")), false, "'needs review' reached its owner as a rejection");
+      await denied(c(M("Ava")).from("people").select("photo_status").eq("id", id("Ava")), "42501");
+    } finally {
+      await w.service.from("people").update({ photo_status: was }).eq("id", id("Ava"));
+    }
+  });
+
+  it("P198 the owner's own join and pin times reach the export, and only the owner's", async () => {
+    const t = (await ok(c(M("Ava")).rpc("my_record_times"))) as { joined_at: string; pins: { gathering_id: string; pinned_at: string }[] };
+    assert.ok(t.joined_at, "the export lost when the owner joined");
+    const mine = (await rows(w.service.from("pins").select("gathering_id").eq("person_id", id("Ava")))).map((p: { gathering_id: string }) => p.gathering_id).sort();
+    assert.deepEqual(t.pins.map((p) => p.gathering_id).sort(), mine, "my_record_times returned pins that are not the owner's, or missed some");
   });
 });

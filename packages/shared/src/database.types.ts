@@ -3224,6 +3224,8 @@ export type Database = {
           members: string[]
         }[]
       }
+      my_photo_rejected: { Args: never; Returns: boolean }
+      my_record_times: { Args: never; Returns: Json }
       my_rooms: {
         Args: { p_gathering: string }
         Returns: {

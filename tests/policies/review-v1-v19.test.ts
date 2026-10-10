@@ -21,6 +21,8 @@ const service = newClient(env, env.secretKey);
 const anon = newClient(env, env.publishableKey);
 const RUN = `q${randomBytes(3).toString("hex")}`;
 const DAY = 24 * 3600 * 1000;
+// What another person may read on a people row since M4.2/Q07+Q37 (no photo_status, no timestamps).
+const VIEWER_COLUMNS = "id, auth_user_id, first_name, last_initial, neighbourhood, photo_path, gatherings_count, hidden_at, is_seed";
 const HOUR = 3600 * 1000;
 const at = (ms: number) => new Date(Date.now() + ms).toISOString();
 
@@ -435,7 +437,8 @@ test("Q05 V1 scoping — seeing Bo at G reveals nothing about his pin at H", asy
 });
 
 test("Q06 V1 scoping — the people row does not carry how many gatherings someone is pinned to", async () => {
-  const { data, error } = await C("Ana").from("people").select("*").eq("id", m.Bo!.id);
+  // Since M4.2/Q07+Q37 (10 Oct 2026) people is read column by column: "*" is refused.
+  const { data, error } = await C("Ana").from("people").select(VIEWER_COLUMNS).eq("id", m.Bo!.id);
   assert.equal(error, null);
   const row = data![0];
   const svc = await svcPerson("Bo");
@@ -1024,7 +1027,7 @@ test("Q37 V6 §8 — 'needs_review' (a possible minor) is told to nobody: not to
 });
 
 test("Q38 V1 — what else a viewer reads on another person's row (auth id, hidden_at, is_seed, last_initial)", async () => {
-  const { data } = await C("Ana").from("people").select("*").eq("id", m.Ida!.id);
+  const { data } = await C("Ana").from("people").select(VIEWER_COLUMNS).eq("id", m.Ida!.id);
   note(`Q38: Ana reads Ida's row: ${JSON.stringify(Object.fromEntries(Object.entries(data?.[0] ?? {}).map(([k, v]) => [k, k === "auth_user_id" ? (v ? "<uuid>" : v) : v])))}`);
 });
 
