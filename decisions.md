@@ -24,9 +24,12 @@ Last updated: 18 September 2026 (the revised build plan, `docs/build-plan.md`, m
 | H10 | **The company is never present at a gathering.** No hosting, no staffing, no attending as operators. | Team constraint. The product's job finishes before the event starts. |
 | H11 | **Visibility is decided in the database, never by filtering in application code.** | One place to review, one place to get right. |
 
-**Decided exception (Alex, after Phase 1 M1.3):** the "Solo crew" beta feature is a
-deliberate, narrow exception to H2 (no cold DMs) and H5 (no 1:1 meet-ups), with the
-guardrails in Part 5, "Future and beta features". Every other rule stands.
+**Decided: one-on-one (Alex, after Phase 1 M1.3):** meeting one other person — "solo",
+the "Solo crew" — is a decided, first-class path in the product, beside groups. It is
+governed by the guardrails in Part 5, "Future and beta features", which is how H2 (no cold
+DMs) and H5 (which names solo as its one-on-one case) hold for it. Every other rule stands.
+*(Wording revised 10 Oct 2026, Alex: it read "a deliberate, narrow exception to H2 and
+H5". One-on-one is not a deviation from the product; it is part of it.)*
 Implemented (Alex, revised build plan) as `crews.kind = 'solo'` with exactly two seats;
 H5's 3–8 governs `kind = 'crew'` (since 28 Sept: 3 or more, a group growing to 8 by invite); any report on a person hides them from solo
 immediately (`people.hidden_from_solo`).
@@ -354,8 +357,9 @@ profile.
   - **"Solo crew"** (working name): an opt-in mode for people pinned to an event who
     want to meet individually as well as in crews. Crews stay the main product and
     story; this is an opt-in extra, not marketed, and not framed as romantic (open,
-    not dating, for now). **A deliberate, narrow exception to H2 and H5**, with these
-    guardrails:
+    not dating, for now). **A decided, first-class path, governed by every one of
+    these guardrails** *(wording revised 10 Oct 2026, Alex: it read "a deliberate,
+    narrow exception to H2 and H5")*:
     - opt-in and off by default, separate from the crew opt-in, with a clear prompt
       explaining groups vs 1-on-1; visible only to others who also opted in at the
       same gathering (reciprocal, like H3);
