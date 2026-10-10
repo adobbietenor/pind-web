@@ -4798,3 +4798,31 @@ describe("convening_of answers only about readable gatherings (M4.2: Q42)", () =
     }
   });
 });
+
+// P203 (Alex, 10 Oct 2026 — M4.2, Q43; V13): after a withdrawal a pin is read and
+// removed, never edited — except that turning "open to meeting" off is never refused.
+describe("A pin on a withdrawn gathering is frozen, not trapped (M4.2: Q43)", () => {
+  it("P203 party size and opting in are refused after a withdrawal; opting out and removing the pin still work", async () => {
+    const g = await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Q43`, starts_at: inDays(6), venue_id: w.venue, published_at: new Date().toISOString(), source: "manual" }).select("id").single());
+    try {
+      const ava = c(M("Ava"));
+      const pin = await ok(ava.from("pins").insert({ gathering_id: g.id, person_id: id("Ava"), party_total: 1, open_to_meeting: true }).select("id").single());
+      const now = async () => (await rows(w.service.from("pins").select("party_total, open_to_meeting").eq("id", pin.id)))[0] as { party_total: number; open_to_meeting: boolean } | undefined;
+      // Control: before the withdrawal, the pin is editable.
+      await ok(ava.from("pins").update({ party_total: 2 }).eq("id", pin.id));
+      assert.equal((await now())?.party_total, 2, "control: a live pin could not be edited — the refusals below prove nothing");
+
+      await ok(w.service.from("gatherings").update({ withdrawn_at: new Date().toISOString() }).eq("id", g.id));
+      await denied(ava.from("pins").update({ party_total: 5 }).eq("id", pin.id), "23514");
+      assert.equal((await now())?.party_total, 2, "a withdrawn gathering's pinned count moved");
+      await ok(ava.from("pins").update({ open_to_meeting: false }).eq("id", pin.id));
+      assert.equal((await now())?.open_to_meeting, false, "taking yourself off a list was refused — it never may be");
+      await denied(ava.from("pins").update({ open_to_meeting: true }).eq("id", pin.id), "23514");
+      await ok(ava.from("pins").delete().eq("id", pin.id));
+      assert.equal(await now(), undefined, "a pin on a withdrawn gathering could not be removed");
+    } finally {
+      await w.service.from("pins").delete().eq("gathering_id", g.id);
+      await w.service.from("gatherings").delete().eq("id", g.id);
+    }
+  });
+});
