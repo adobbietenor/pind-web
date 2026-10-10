@@ -3888,3 +3888,32 @@ itself off, not how one starts.
   ahead than the feed, in date order.
 - **A19 is the room-era reading, with no per-gathering toggle.** Spec A19 still described
   crews and a day-of toggle per gathering; #4's switch stays the one in Settings.
+
+### The V1–V19 leaks, closed (Alex, 10 Oct 2026)
+
+The review of 6–7 Oct (`npm run test:review-v1`, Q01–Q43) found 8 leaks. Alex set the order;
+each is a migration with a harness case, and the review's own case turns green.
+
+1. **Q41 — 19+ in the database (H8), first: "the legal gate, and it does not work."** A
+   trigger refuses a birth year certainly under 19 and sets the attestation time itself
+   (P194–P195). **The limit, recorded:** the row holds a year, so the database refuses
+   anyone born after (this year − 19); the boundary year is decided by the app's
+   full-date check (`ageOn`).
+2. **Q37 + Q07 — one cause, the whole-row read of `people` and `pins`.** "Held for review"
+   means "possible minor" under our own rule, so a stranger seeing it, or searching for it,
+   was a signal pointing at minors. Both tables are now read column by column without
+   `photo_status` and the timestamps. The owner is told only "rejected or not"
+   (`my_photo_rejected`), and the export keeps their own times (`my_record_times`)
+   (P196–P198).
+3. **Q17 — a new photo is always a new file.** No overwrite in place, and no upload to
+   anyone's current photo path (P199). It could bypass the AI check entirely.
+4. **Q40 — a photo is a file.** A person's own write of `photo_path` must name an existing
+   object, and the file under a current photo cannot be deleted (P200).
+5. **Q39 — a hidden person sees no one, and cannot hide anyone with a report** (both
+   halves, Alex) (P201). **Q42** — `convening_of` runs as the caller, so an unreadable
+   gathering answers null (P202). **Q43** — a pin on a withdrawn gathering is read and
+   removed, never edited, and opting out is never refused (P203).
+
+**The cost of Q37/Q07, recorded:** clients that still name `photo_status` (the web app
+deployed before 10 Oct, builds 8–9) fail on the Profile tab, Change photo, Edit tags and
+the export until the next deploy and build.

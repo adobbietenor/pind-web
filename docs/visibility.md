@@ -881,3 +881,27 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
   the claim page is dropped; a +1 who wants to be seen pins in themselves.
 - ~~**Anonymous sign-in rate limit (T3)**~~ — *superseded; see decisions.md Part 5,
   "Identity"*: the Expo app (A26) signs people in from their own device, not the Worker.
+
+## Since 10 Oct 2026 — the V1–V19 review's leaks, closed (M4.2)
+
+What the database enforces now, beside the rules above (decisions, "The V1–V19 leaks,
+closed"; harness P194–P203; the review's Q07, Q17, Q37, Q39–Q43 pass).
+
+- **V3 / V6 §8 — what is on a person's row.** Another person reads `people` and `pins`
+  only column by column: name, initial, neighbourhood, photo path, gatherings count; a
+  pin's gathering, person, party size and open-to-meeting. **Never** `photo_status`, and
+  never when someone joined or pinned. A column nobody can read, nobody can filter or
+  order by either, so there is no search for "held for review". The owner is told only
+  whether their photo was rejected (`my_photo_rejected`) and gets their own times in the
+  export (`my_record_times`).
+- **V6 — a photo is a file, and a new photo is a new file.** No overwrite in place; no
+  upload to anyone's current photo path; a person's own `photo_path` must name a file
+  that exists; the file under a current photo cannot be deleted.
+- **V10 §11 — a hidden person sees no one, from a group or a connection too**, and so
+  cannot report anyone (the report policy needs `can_see`).
+- **V11 / V18 — `convening_of` runs as its caller**: an unreadable gathering (a draft,
+  dismissed, seed for a non-tester) answers null, as a random id does.
+- **V13 — a pin on a withdrawn gathering is read and removed, not edited**; turning
+  open-to-meeting off is never refused.
+- **H8 (not a V rule) — a birth year certainly under 19 is refused**, and the
+  attestation time is the server's.
