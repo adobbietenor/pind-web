@@ -13,19 +13,23 @@
 // **There is no location permission to manage**, because the app never asks for one
 // (H4). Saying so on this screen is deliberate: the absence is invisible otherwise.
 //
+// **Sign out** (Alex, 10 Oct 2026): this device only, a card of its own above Delete,
+// two taps. Shown only with a permanent sign-in, and refused offline (lib/auth.ts).
+//
 // Delete is a two-step confirm and says exactly what goes and what stays before the
 // second tap. Everything in that list is Alex's decision, restated here rather than
 // rediscovered (decisions Part 3, and M3.1).
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Platform, Share, StyleSheet, Text, View } from "react-native";
-import { colors as palette, fonts, radius, spacing, WOMEN_ONLY_COPY } from "@pind/shared";
+import { colors as palette, fonts, radius, SIGN_OUT, spacing, WOMEN_ONLY_COPY } from "@pind/shared";
 import { NotificationSwitches } from "@/components/NotificationSwitches";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice, Tick } from "@/components/ui";
 import { switchWomenOnlyRooms, womenOnlyRooms } from "@/lib/after";
 import { failed, type Described } from "@/lib/errors";
+import { signOutHere } from "@/lib/auth";
 import { deleteAccount, exportMyData, readProfile } from "@/lib/profile";
 
 export default function Settings() {
@@ -36,14 +40,26 @@ export default function Settings() {
   const [confirming, setConfirming] = useState(false);
   const [womenOnly, setRoomsOnly] = useState<{ eligible: boolean; on: boolean } | null>(null);
   const [roomsTrouble, setRoomsTrouble] = useState<Described | null>(null);
+  // Sign out shows only with a permanent sign-in, read fresh on every focus (Alex, 10 Oct
+  // 2026: an anonymous person has nothing to sign back into — their way out is Delete).
+  const [permanent, setPermanent] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+  const [signOutTrouble, setSignOutTrouble] = useState<Described | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       let live = true;
       void readProfile()
-        .then((me) => (me.personId ? womenOnlyRooms(me.personId) : null))
+        .then((me) => {
+          if (live) setPermanent(me.permanent);
+          return me.personId ? womenOnlyRooms(me.personId) : null;
+        })
         .then((w) => live && setRoomsOnly(w))
-        .catch(() => live && setRoomsOnly(null));
+        .catch(() => {
+          if (!live) return;
+          setRoomsOnly(null);
+          setPermanent(false);
+        });
       return () => {
         live = false;
       };
@@ -86,6 +102,20 @@ export default function Settings() {
     } catch (err) {
       setError(failed("put your data together", err));
     } finally {
+      setBusy(null);
+    }
+  };
+
+  // Offline, nothing changes and the card says so with Try again (Alex, 10 Oct 2026): a
+  // sign-out never leaves this phone receiving the account's notifications.
+  const runSignOut = async () => {
+    setBusy("sign-out");
+    setSignOutTrouble(null);
+    try {
+      await signOutHere();
+      router.replace("/crowds");
+    } catch (err) {
+      setSignOutTrouble(failed("sign you out", err));
       setBusy(null);
     }
   };
@@ -155,6 +185,41 @@ export default function Settings() {
             <Button kind="quiet" label="Export my data" busy={busy === "export"} onPress={runExport} />
           </View>
         </View>
+
+        {/* Sign out sits above Delete in a card of its own: the two must never be
+            mistaken for each other. */}
+        {permanent ? (
+          <>
+            <Text style={styles.sectionName}>{SIGN_OUT.heading}</Text>
+            <View style={styles.card}>
+              <Body muted>{SIGN_OUT.line}</Body>
+              {signOutTrouble ? (
+                <View style={{ marginTop: spacing.md }}>
+                  <Trouble what={signOutTrouble} onRetry={() => void runSignOut()} busy={busy === "sign-out"} />
+                </View>
+              ) : null}
+              {!signingOut ? (
+                <View style={{ marginTop: spacing.md }}>
+                  <Button kind="quiet" label={SIGN_OUT.start} onPress={() => setSigningOut(true)} />
+                </View>
+              ) : (
+                <>
+                  {Platform.OS !== "web" ? (
+                    <View style={{ marginTop: spacing.md }}>
+                      <Body>{SIGN_OUT.phone}</Body>
+                    </View>
+                  ) : null}
+                  <View style={{ marginTop: spacing.md }}>
+                    <Button label={SIGN_OUT.yes} busy={busy === "sign-out"} onPress={() => void runSignOut()} />
+                  </View>
+                  <View style={{ marginTop: spacing.sm }}>
+                    <Button kind="quiet" label={SIGN_OUT.no} onPress={() => setSigningOut(false)} />
+                  </View>
+                </>
+              )}
+            </View>
+          </>
+        ) : null}
 
         <Text style={styles.sectionName}>Delete your account</Text>
         <View style={styles.card}>

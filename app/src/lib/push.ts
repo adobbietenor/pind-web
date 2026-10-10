@@ -96,6 +96,30 @@ export async function forgetPushRegistration(): Promise<void> {
   await SecureStore.deleteItemAsync(REGISTERED).catch(() => undefined);
 }
 
+// Sign out (A23; Alex, 10 Oct 2026): this phone stops getting the signed-in account's
+// notifications. The tokens are the one this phone saved when it last registered and,
+// if push is on, the phone's own now; a phone that never registered has nothing to take
+// off. Throws when that cannot be done, so the sign-out stops there — a sign-out never
+// leaves a phone receiving someone's notifications (P187 proves the delete is yours only).
+export async function forgetThisPhone(): Promise<void> {
+  if (!native) return;
+  const saved = await SecureStore.getItemAsync(REGISTERED).catch(() => null);
+  const tokens = new Set<string>();
+  if (saved) tokens.add((JSON.parse(saved) as { token: string }).token);
+  if ((await pushState()) === "on") {
+    try {
+      tokens.add(await phoneToken());
+    } catch (err) {
+      if (!tokens.size) throw err;
+    }
+  }
+  if (tokens.size) {
+    const { error } = await supabase().from("device_tokens").delete().in("token", [...tokens]);
+    if (error) throw error;
+  }
+  await forgetPushRegistration();
+}
+
 // "Turn them back on", after "taken".
 export async function takePushBack(): Promise<void> {
   if (native) await register();
