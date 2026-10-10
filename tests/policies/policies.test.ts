@@ -4655,3 +4655,47 @@ describe("Photo status and join time are nobody else's (M4.2: Q37, Q07)", () => 
     assert.deepEqual(t.pins.map((p) => p.gathering_id).sort(), mine, "my_record_times returned pins that are not the owner's, or missed some");
   });
 });
+
+// P199 (Alex, 10 Oct 2026 — M4.2, Q17; V6): a new photo is always a new file. Nobody can
+// put new bytes behind an approved photo's name — not by overwriting it, not by deleting
+// and re-uploading it — and a genuinely new photo still works and goes back to be checked.
+describe("A new photo is always a new file (M4.2: Q17)", () => {
+  let authId = "";
+  after(async () => {
+    if (!authId) return;
+    const files = ((await w.service.storage.from(BUCKET).list(authId)).data ?? []).map((f) => `${authId}/${f.name}`);
+    if (files.length) await w.service.storage.from(BUCKET).remove(files);
+    await removeUser(w.service, authId).catch(() => undefined);
+  });
+
+  it("P199 an approved photo's bytes cannot be replaced in place or by delete-and-reupload; a new path is allowed and re-checked", async () => {
+    const email = `${PREFIX}-${w.run}-q17@example.com`;
+    const password = randomUUID();
+    const u = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(u.error, null, u.error?.message);
+    authId = u.data.user!.id;
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: "Quill" }).select("id").single());
+    const me = newClient(w.env, w.env.publishableKey);
+    assert.equal((await me.auth.signInWithPassword({ email, password })).error, null);
+
+    const first = `${authId}/1.png`;
+    await ok(me.storage.from(BUCKET).upload(first, PNG, { contentType: "image/png", upsert: false }));
+    await ok(me.from("people").update({ photo_path: first }).eq("id", person.id));
+    await ok(w.service.from("people").update({ photo_status: "approved" }).eq("id", person.id));
+    const status = async () => (await rows(w.service.from("people").select("photo_status, photo_path").eq("id", person.id)))[0] as { photo_status: string; photo_path: string };
+    const other = Buffer.concat([PNG, Buffer.from("different bytes")]);
+
+    // 1. Overwrite in place.
+    await denied(me.storage.from(BUCKET).upload(first, other, { contentType: "image/png", upsert: true }));
+    // 2. Delete, then upload new bytes under the same name.
+    await me.storage.from(BUCKET).remove([first]);
+    await denied(me.storage.from(BUCKET).upload(first, other, { contentType: "image/png", upsert: false }));
+    assert.deepEqual(await status(), { photo_status: "approved", photo_path: first }, "new bytes went behind an approved name");
+
+    // Control — the other side: a genuinely new photo is a new path, and it is checked again.
+    const second = `${authId}/2.png`;
+    await ok(me.storage.from(BUCKET).upload(second, other, { contentType: "image/png", upsert: false }));
+    await ok(me.from("people").update({ photo_path: second }).eq("id", person.id));
+    assert.equal((await status()).photo_status, "pending", "a new photo was not sent back to be checked");
+  });
+});
