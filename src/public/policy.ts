@@ -15,7 +15,7 @@
 // British Columbia; the product is used in Toronto, Ontario. M4.1's lawyer hour
 // replaces this text; POLICY_VERSION is what A27 stores as accepted.
 
-import { CREWS_MEET, HOUSE_RULES, POLICY_DRAFT_NOTICE, POLICY_VERSION, PRIVACY_CONTACT, THRESHOLD } from "@pind/shared";
+import { CREWS_MEET, HOUSE_RULES, POLICY_DRAFT_NOTICE, POLICY_VERSION, PRIVACY_CONTACT, SAFETY_TODAY, THRESHOLD } from "@pind/shared";
 import { DOT, escape, header, page } from "./layout";
 
 const OPERATOR = "Tenor Investments Inc.";
@@ -126,7 +126,7 @@ ${draftBanner()}
 <h2>House rules</h2>
 <ol class="rules">${HOUSE_RULES.map((r) => `<li>${escape(r)}</li>`).join("")}</ol>
 <p class="crews-meet">${escape(CREWS_MEET)}</p>
-<p>Block and report are always one tap away. We may hide or remove anyone who breaks these rules, and remove content without notice. Anything about safety goes to <a href="mailto:${SAFETY}">${SAFETY}</a>, and a person reads it.</p>
+<p>${escape(SAFETY_TODAY.app)} We may hide or remove anyone who breaks these rules, and remove content without notice. Anything about safety goes to <a href="mailto:${SAFETY}">${SAFETY}</a>, and a person reads it.</p>
 
 <h2>Your content</h2>
 <p>Your name, photo, tags and messages stay yours. You let us show them to the people these terms and the privacy policy say can see them, for as long as they are on Pin&#39;d.</p>
