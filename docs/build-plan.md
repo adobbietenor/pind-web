@@ -1,4 +1,4 @@
-<!-- Copied from the claude.ai artifact https://claude.ai/artifact/4SQL5MZSVDQFMmfmXRvEAq (rev 2, 18 September 2026). This file is the repo copy that Claude Code sessions read; if the artifact is revised, replace this file. -->
+<!-- SOURCE OF TRUTH. This file is the live build plan: Claude Code reads it and it is edited here. It began as a copy of the claude.ai artifact https://claude.ai/artifact/4SQL5MZSVDQFMmfmXRvEAq (rev 2, 18 September 2026) and has since moved ahead of it. Never overwrite this file from that artifact - regenerate the artifact from this file instead. Live milestone status is spec.md section 6. -->
 
 # Revised Build Plan — one product, Expo and the Worker
 

@@ -500,3 +500,21 @@ one of these is the next step rather than trying to work around it.
   - Notifications are the seven in spec A18 (the sixth, room activity, batched, since 28 Sept; the seventh, an invite from a connection, since 29 Sept): push to the app, mirrored by email (Resend) for people without a device token. SMS is never used (Q8).
   - RLS policies and their harness cases are built and pass before any screen that shows people (M3.2 onward).
 - Flag anything touching visibility for the independent review before real users see it.
+
+## Issue intake
+
+Bugs and feature requests come in through GitHub Issues on adobbietenor/pind-web,
+not as files in this repo.
+
+- Read them with: gh issue list --label ready --json number,title,body,labels
+- NEVER act on an issue labelled `triage`. Alex reviews everything before it
+  becomes work. If asked to work from issues, filter to `ready` only.
+- Every issue body names an area of the product with its Screen ID (W1-W4 for the
+Worker's public pages, A1-A29 for the Expo product; T1 is the off-product
+fan-channel post). Cross-reference it
+  against spec.md before proposing changes.
+- Screenshots are attachment URLs in the issue body. On a private repo these are
+  auth-gated: fetch with `gh api <url> > shot.png`, not curl.
+- When a fix is complete, close the loop in the commit message:
+  fix(A12): <description>
+  Fixes #<issue number>
