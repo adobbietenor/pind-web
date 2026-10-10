@@ -561,6 +561,12 @@ any of it.
   (`tests/unit/links.test.ts`) fail if a claimed path has no page or the share card's
   exclusion stops applying. **A phone whose notifications another account took is told
   on its next start** (L8; N10–N12) — native, so walked on this build.
+- **A tapped notification opens its page from a cold start** (10 Oct 2026). Builds 8 and 9
+  could not: the listener was attached after the tap that launched the app had come and
+  gone. The app now reads that tap (`getLastNotificationResponse`) as well, opens each
+  notification once through `tapOpener` (packages/shared), and only once the navigator is
+  mounted. N13 proves the rule both ways; N14 failed on the old code. **So the push walk
+  is on build 10**, not build 9.
 
 5–7 h, moved from M3.2b.
 
