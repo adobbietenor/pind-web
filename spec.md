@@ -568,6 +568,10 @@ gatherings, and who can see you); it is switched on and off on the pinned crowd 
 (A28), never here.
 Notifications: the seven, toggleable.
 Data: export my data, delete account (in-app, required by both stores).
+Sign out (Alex, 10 Oct 2026): this device only, in a card of its own above Delete, two
+taps. Shown only with a permanent sign-in. It takes this phone off the account's push
+first, and is refused, with Try again, when Pin'd cannot be reached (decisions, "Sign
+out").
 Note on screen: no location permission exists to manage — the app never asks.
 
 ### A24 — Report & block
