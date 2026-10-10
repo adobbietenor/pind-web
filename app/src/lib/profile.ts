@@ -120,7 +120,7 @@ export async function exportMyData(): Promise<Record<string, unknown>> {
   if (personError) throw personError;
   if (!person) throw new Said("There is nothing here to export yet.");
 
-  const [priv, handle, tags, pins, contacts, votes, surveys, blocks, crews, messages, reports] = await Promise.all([
+  const [priv, handle, tags, pins, contacts, votes, surveys, blocks, crews, messages, reports, interests] = await Promise.all([
     db.from("people_private").select("*").eq("person_id", person.id),
     db.from("person_handles").select("instagram, created_at").eq("person_id", person.id),
     db.from("person_tags").select("tag").eq("person_id", person.id),
@@ -132,6 +132,7 @@ export async function exportMyData(): Promise<Record<string, unknown>> {
     db.from("crew_members").select("*").eq("person_id", person.id),
     db.from("crew_messages").select("crew_id, body, created_at").eq("author_id", person.id),
     db.from("reports").select("id, target_kind, reason, created_at"),
+    db.from("person_interests").select("categories").eq("person_id", person.id),
   ]);
 
   return {
@@ -144,6 +145,7 @@ export async function exportMyData(): Promise<Record<string, unknown>> {
     private: priv.data,
     instagram: handle.data,
     tags: (tags.data ?? []).map((t) => t.tag),
+    interests: interests.data?.[0]?.categories ?? [],
     pins: pins.data,
     contact_points: contacts.data,
     spot_votes: votes.data,

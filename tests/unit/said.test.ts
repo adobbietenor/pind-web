@@ -89,8 +89,8 @@ describe("No person-facing sentence can print a raw error", () => {
     const shared: Record<string, unknown> = {};
     for (const file of readdirSync(dir).filter((f) => f.endsWith(".ts") && !/^(index|database\.types)\.ts$/.test(f)))
       Object.assign(shared, await import(pathToFileURL(join(dir, file)).href));
-    // Not person copy: tokens, slugs, the brand's markup, keys.
-    const notCopy = /^(colors|fonts|radius|spacing|THRESHOLD|LOGO|BRAND|WORDMARK|NEIGHBOURHOODS|ALL_TAGS|TAG_GROUPS|EMAIL_CODE_LENGTH)/;
+    // Not person copy: tokens, slugs, the brand's markup, keys, a query (A19's select, shared so the harness runs it).
+    const notCopy = /^(colors|fonts|radius|spacing|THRESHOLD|LOGO|BRAND|WORDMARK|NEIGHBOURHOODS|ALL_TAGS|TAG_GROUPS|EMAIL_CODE_LENGTH|MY_EVENTS_PINS_SELECT)/;
     const strings = Object.entries(shared).filter(([name, v]) => typeof v === "string" && !notCopy.test(name));
     assert.ok(strings.length >= 15, `only ${strings.length} exported sentences found`);
     const leaking = strings.filter(([, v]) => looksTechnical(v as string)).map(([name]) => name);

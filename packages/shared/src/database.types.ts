@@ -1842,6 +1842,29 @@ export type Database = {
           },
         ]
       }
+      person_interests: {
+        Row: {
+          categories: Database["public"]["Enums"]["gathering_category"][]
+          person_id: string
+        }
+        Insert: {
+          categories?: Database["public"]["Enums"]["gathering_category"][]
+          person_id: string
+        }
+        Update: {
+          categories?: Database["public"]["Enums"]["gathering_category"][]
+          person_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "person_interests_person_id_fkey"
+            columns: ["person_id"]
+            isOneToOne: true
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       person_tags: {
         Row: {
           on_list: boolean
@@ -3212,29 +3235,58 @@ export type Database = {
         }[]
       }
       public_gathering: { Args: { p_slug: string }; Returns: Json }
-      public_gatherings: {
-        Args: { p_city: string; p_from: string; p_to: string }
-        Returns: {
-          blurb: string
-          category: Database["public"]["Enums"]["gathering_category"]
-          city_name: string
-          city_timezone: string
-          crews_open: boolean
-          door_price_cents: number
-          ends_at: string
-          entry: Database["public"]["Enums"]["entry_kind"]
-          entry_note: string
-          name: string
-          open_to_meeting: number
-          pinned: number
-          signup_required: boolean
-          slug: string
-          source: Database["public"]["Enums"]["gathering_source"]
-          starts_at: string
-          venue_id: string
-          venue_name: string
-        }[]
-      }
+      public_gatherings:
+        | {
+            Args: { p_city: string; p_from: string; p_to: string }
+            Returns: {
+              blurb: string
+              category: Database["public"]["Enums"]["gathering_category"]
+              city_name: string
+              city_timezone: string
+              crews_open: boolean
+              door_price_cents: number
+              ends_at: string
+              entry: Database["public"]["Enums"]["entry_kind"]
+              entry_note: string
+              name: string
+              open_to_meeting: number
+              pinned: number
+              signup_required: boolean
+              slug: string
+              source: Database["public"]["Enums"]["gathering_source"]
+              starts_at: string
+              venue_id: string
+              venue_name: string
+            }[]
+          }
+        | {
+            Args: {
+              p_city: string
+              p_from: string
+              p_query: string
+              p_to: string
+            }
+            Returns: {
+              blurb: string
+              category: Database["public"]["Enums"]["gathering_category"]
+              city_name: string
+              city_timezone: string
+              crews_open: boolean
+              door_price_cents: number
+              ends_at: string
+              entry: Database["public"]["Enums"]["entry_kind"]
+              entry_note: string
+              name: string
+              open_to_meeting: number
+              pinned: number
+              signup_required: boolean
+              slug: string
+              source: Database["public"]["Enums"]["gathering_source"]
+              starts_at: string
+              venue_id: string
+              venue_name: string
+            }[]
+          }
       register_device: {
         Args: { p_platform: string; p_token: string }
         Returns: undefined

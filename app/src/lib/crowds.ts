@@ -22,6 +22,7 @@ import {
   localDate,
   readerFloor,
   rowsInTab,
+  SEARCH_DAYS,
   WINDOW_DAYS,
   type Chip,
   type DayGroup,
@@ -69,9 +70,28 @@ export async function loadCityWeek(slug: string, now = new Date()): Promise<City
     p_from: readerFloor(now, city.timezone).toISOString(),
     p_to: new Date(fromLocalInput(`${end}T00:00`, city.timezone)!).toISOString(),
     p_city: city.slug,
+    p_query: null,
   });
   if (error) throw error;
   return { city: city.slug, today, thisWeek: (data ?? []) as ListGathering[] };
+}
+
+// Search (M3.2b): the same door with a query — the database narrows by name and venue,
+// so a search can never return what the list would not (P191–P192). Everything
+// published ahead, not one week (Alex, 10 Oct 2026), grouped by day like the list.
+export async function searchCity(slug: string, query: string, now = new Date()): Promise<{ count: number; days: DayGroup<ListGathering>[] }> {
+  const city = CITIES.find((c) => c.slug === slug);
+  if (!city || !cityOpens(slug)) throw new Error(`${slug} is not live`);
+  const today = localDate(now.toISOString(), city.timezone);
+  const { data, error } = await supabase().rpc("public_gatherings", {
+    p_from: readerFloor(now, city.timezone).toISOString(),
+    p_to: new Date(fromLocalInput(`${addDays(today, SEARCH_DAYS)}T00:00`, city.timezone)!).toISOString(),
+    p_city: city.slug,
+    p_query: query,
+  });
+  if (error) throw error;
+  const found = (data ?? []) as ListGathering[];
+  return { count: found.length, days: dayGroups(found, city.timezone, today) };
 }
 
 export interface CityView {

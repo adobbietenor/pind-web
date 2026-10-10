@@ -228,9 +228,8 @@ describe("The web app claims a handed-over session before any screen renders (M3
     // the list shrinks.
 
     // Screens that are still the M2.0 scaffold: a title and nothing else.
-    const SCAFFOLDS: Record<string, string> = {
-      "(tabs)/my-events.tsx": "A19, My Events — M3.2b",
-    };
+    // None left: A19 My Events, the last, was built in M3.2b (10 Oct 2026).
+    const SCAFFOLDS: Record<string, string> = {};
     const isScaffold = (source: string) => /return <Screen title="[^"]*" \/>;/.test(source);
     assert.ok(isScaffold('  return <Screen title="Crowds" />;') && !isScaffold("return <AppScreen>"), "the scaffold test cannot tell one");
     const norm = (p: string) => p.split("\\").join("/");
@@ -247,6 +246,8 @@ describe("The web app claims a handed-over session before any screen renders (M3
       "packages/shared/src/cities.ts": "the app's home — the city picker and its lines (M3.3c, 6 Oct) — Tatiana's to reword",
       "packages/shared/src/notify.ts": "a phone's notifications taken by another account (L8, 6 Oct) — Tatiana's to reword",
       "packages/shared/src/session.ts": "sign out in Settings (A23, 10 Oct) — Tatiana's to reword",
+      "packages/shared/src/search.ts": "search and interests (M3.2b, 10 Oct) — Tatiana's to reword",
+      "packages/shared/src/myevents.ts": "A19 My Events (M3.2b, 10 Oct) — Tatiana's to reword",
     };
     assert.ok(/\bPROPOSED\b/.test("// PROPOSED, for Alex") && !/\bPROPOSED\b/.test("UNPROPOSED"), "the marker test cannot see a marker");
     const marked = (function walk(dir: string): string[] {

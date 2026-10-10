@@ -3866,3 +3866,21 @@ itself off, not how one starts.
   which name people and places.
 - **Proved by:** P187 (your own phone's token can be deleted, nobody else's — the
   refusal shown by the row surviving, since an RLS-filtered delete is silent); S32–S34.
+
+### M3.2b: interests, search, My Events (Alex, 10 Oct 2026)
+
+- **Interests are separate from the tags.** Tags describe you to other people; interests
+  are the list chips you chose, remembered on your account, and shape only what you see.
+  Tapping "comedy" as a tag never changes the list. Settles the build plan's open
+  "overlap with the Interests tag group". Stored in `person_interests`, readable and
+  writable by its owner alone, not on `people` (which others can read). No account, nothing
+  remembered: the chips work as they always have.
+- **A remembered interest applies only when its chip is offered that week.** A chip exists
+  only at three gatherings in two places, so applying one without a chip could empty the
+  page — M2.2's rule. One that rests is named ("Comedy: not enough on this week");
+  "Show everything" sits in the same line. Narrowing, never reordering (Q10).
+- **Search looks through everything published ahead**, not the week on the page: someone
+  looking for a show ten days out should find it. Recurring community rows run further
+  ahead than the feed, in date order.
+- **A19 is the room-era reading, with no per-gathering toggle.** Spec A19 still described
+  crews and a day-of toggle per gathering; #4's switch stays the one in Settings.
