@@ -4786,3 +4786,15 @@ describe("A hidden person sees no one, and cannot hide anyone with a report (M4.
     assert.equal(kayHidden, null, "a hidden person's report hid someone else");
   });
 });
+
+// P202 (Alex, 10 Oct 2026 — M4.2, Q42; V11, V18): convening_of says nothing about a
+// gathering its caller cannot read — not that a draft exists, not where it came from.
+describe("convening_of answers only about readable gatherings (M4.2: Q42)", () => {
+  it("P202 a draft, an unpublished and a dismissed gathering answer null to a visitor and a person; a published one still answers", async () => {
+    for (const [who, client] of [["a visitor", w.anon], ["Ava", c(M("Ava"))]] as const) {
+      assert.ok(await ok(client.rpc("convening_of", { p_gathering: w.G })), `control: ${who} gets nothing for the published gathering — the nulls below prove nothing`);
+      for (const [what, gid] of [["a Ticketmaster draft", w.D.ticketmaster], ["an unpublished gathering", w.U], ["a dismissed draft", w.X]] as const)
+        assert.equal(await ok(client.rpc("convening_of", { p_gathering: gid })), null, `${who} learned that ${what} exists`);
+    }
+  });
+});
