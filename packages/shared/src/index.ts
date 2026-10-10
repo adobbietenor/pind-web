@@ -20,6 +20,7 @@ export * from "./notify";
 export * from "./quickpin";
 export * from "./said";
 export * from "./session";
+export * from "./search";
 export * from "./share";
 export * from "./signin";
 export * from "./tags";

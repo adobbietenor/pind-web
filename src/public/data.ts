@@ -124,11 +124,14 @@ export type Door =
 // W1: the crowds between two instants, by date, never by size (Q10) — in one city, the
 // live one from packages/shared/src/cities.ts (M3.3c: the query used to return every
 // city; the app's Toronto list reads the same query).
-export async function crowds(env: Env, from: Date, to: Date, city: string = liveCity().slug): Promise<Crowd[]> {
+// Search is this same door with a query (M3.2b, decisions "A search bar"): the database
+// narrows by name and venue; null is the whole list.
+export async function crowds(env: Env, from: Date, to: Date, city: string = liveCity().slug, query: string | null = null): Promise<Crowd[]> {
   const { data, error } = await anonClient(env).rpc("public_gatherings", {
     p_from: from.toISOString(),
     p_to: to.toISOString(),
     p_city: city,
+    p_query: query,
   });
   if (error) throw new Error(`public_gatherings: ${error.message}`);
   return (data ?? []) as Crowd[];

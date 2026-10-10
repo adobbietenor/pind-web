@@ -4417,3 +4417,125 @@ describe("Delivery never reaches a seed person (M3.3c)", () => {
     }
   });
 });
+
+// P188–P190 (Alex, 10 Oct 2026 — M3.2b): interests, remembered. Your own row only: read,
+// set, change and clear it yourself; nobody else can do any of it. A refusal is proved by
+// the row being as it was (read by the service key) — an RLS-filtered update or delete is
+// silent, not an error.
+describe("Interests are yours alone (M3.2b)", () => {
+  const stored = async (name: string) =>
+    ((await rows(w.service.from("person_interests").select("categories").eq("person_id", id(name))))[0]?.categories ?? null) as string[] | null;
+  after(async () => {
+    await w.service.from("person_interests").delete().in("person_id", [id("Ava"), id("Cal")]);
+  });
+
+  it("P188 you set and read your own interests; nobody else can read them, and a visitor has no access at all", async () => {
+    await ok(c(M("Ava")).from("person_interests").insert({ person_id: id("Ava"), categories: ["comedy", "live_music"] }));
+    assert.deepEqual((await rows(c(M("Ava")).from("person_interests").select("categories")))[0]?.categories, ["comedy", "live_music"]);
+    assert.equal((await rows(c(M("Cal")).from("person_interests").select("categories").eq("person_id", id("Ava")))).length, 0, "someone read another person's interests");
+    await noAccess(w.anon, "person_interests");
+  });
+
+  it("P189 nobody else can set, change or clear your interests — and a made-up category is refused", async () => {
+    await denied(c(M("Cal")).from("person_interests").insert({ person_id: id("Ava"), categories: ["sport"] }));
+    await c(M("Cal")).from("person_interests").update({ categories: ["sport"] }).eq("person_id", id("Ava"));
+    assert.deepEqual(await stored("Ava"), ["comedy", "live_music"], "someone changed another person's interests");
+    await c(M("Cal")).from("person_interests").delete().eq("person_id", id("Ava"));
+    assert.deepEqual(await stored("Ava"), ["comedy", "live_music"], "someone cleared another person's interests");
+    await denied(c(M("Cal")).from("person_interests").insert({ person_id: id("Cal"), categories: ["nightclubs"] }));
+    assert.equal(await stored("Cal"), null, "a made-up category was stored");
+  });
+
+  it("P190 you change and clear your own", async () => {
+    await ok(c(M("Ava")).from("person_interests").update({ categories: ["sport"] }).eq("person_id", id("Ava")));
+    assert.deepEqual(await stored("Ava"), ["sport"], "a person could not change their own interests");
+    await ok(c(M("Ava")).from("person_interests").delete().eq("person_id", id("Ava")));
+    assert.equal(await stored("Ava"), null, "a person could not clear their own interests");
+  });
+});
+
+// P191–P192 (Alex, 10 Oct 2026 — M3.2b): search is the public list with a query — one
+// door. It narrows by name and venue; it can never return what the list would not.
+describe("Search is the public list, narrowed (M3.2b)", () => {
+  const made: { gatherings: string[]; venues: string[] } = { gatherings: [], venues: [] };
+  const elsewhere = () => `${PREFIX}-${w.run}-srch`.toLowerCase();
+  const tag = () => `zq${w.run}`.toLowerCase(); // a word no real gathering carries
+  const S: Record<string, string> = {};
+  let tester: { authId: string } | null = null;
+  let testerClient: SupabaseClient;
+
+  before(async () => {
+    const env = loadEnv();
+    await ok(w.service.from("cities").insert({ slug: elsewhere(), name: "Elsewhere", timezone: "America/Vancouver", centre_lat: 49.28, centre_lng: -123.12, country: "Canada", country_code: "CA" }));
+    const venue = async (name: string, city: string | null, seed = false) => {
+      const v = await ok(w.service.from("venues").insert({ name: `${PREFIX} ${w.run} ${name}`, ...(city ? { city } : {}), is_seed: seed }).select("id").single());
+      made.venues.push(v.id);
+      return v.id as string;
+    };
+    const gathering = async (key: string, name: string, venueId: string) => {
+      const g = await ok(w.service.from("gatherings").insert({ name, starts_at: inDays(3), venue_id: venueId, published_at: new Date().toISOString(), source: "manual" }).select("id").single());
+      made.gatherings.push(g.id);
+      S[key] = (await ok(w.service.rpc("admin_mint_slug", { p_gathering: g.id }))) as string;
+      return g.id as string;
+    };
+    const hall = await venue(`${tag()} Hall`, null);
+    const plain = await venue("Plain Room", null);
+    await gathering("byName", `${PREFIX} ${w.run} ${tag()} Quiz Night`, plain);
+    await gathering("byVenue", `${PREFIX} ${w.run} Open Mic`, hall);
+    await gathering("percent", `${PREFIX} ${w.run} ${tag()} 100% Vinyl`, plain);
+    await gathering("under", `${PREFIX} ${w.run} ${tag()}_x Bingo`, plain);
+    // Decoys only a wildcard would find: '100%' as a pattern matches "1000 …", '_x' "Ax".
+    await gathering("percentDecoy", `${PREFIX} ${w.run} ${tag()} 1000 Club`, plain);
+    await gathering("underDecoy", `${PREFIX} ${w.run} ${tag()}Ax Darts`, plain);
+    await gathering("seed", `${PREFIX} ${w.run} ${tag()} Seed Show`, await venue("Seed Room", null, true));
+    const wd = await gathering("withdrawn", `${PREFIX} ${w.run} ${tag()} Withdrawn Show`, plain);
+    await ok(w.service.from("gatherings").update({ withdrawn_at: new Date().toISOString() }).eq("id", wd));
+    await gathering("elsewhere", `${PREFIX} ${w.run} ${tag()} Elsewhere Show`, await venue("Far Hall", elsewhere()));
+    // A draft: never published, so it has no slug and no place on the list.
+    const draft = await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} ${tag()} Draft Show`, starts_at: inDays(3), venue_id: plain, source: "manual" }).select("id").single());
+    made.gatherings.push(draft.id);
+
+    const s = await newClient(env, env.publishableKey).auth.signInAnonymously({ options: { data: { harness: "pindhx" } } });
+    assert.equal(s.error, null, s.error?.message);
+    testerClient = newClient(env, env.publishableKey);
+    await testerClient.auth.setSession({ access_token: s.data.session!.access_token, refresh_token: s.data.session!.refresh_token });
+    tester = { authId: s.data.user!.id };
+    await markHarness(w.service, tester.authId);
+    await ok(w.service.rpc("admin_add_anonymous_tester", { p_user: tester.authId, p_actor: ACTOR }));
+  }, { timeout: 120_000 });
+
+  after(async () => {
+    for (const g of made.gatherings) await w.service.from("gatherings").delete().eq("id", g);
+    for (const v of made.venues) await w.service.from("venues").delete().eq("id", v);
+    await w.service.from("cities").delete().eq("slug", elsewhere());
+    if (tester) await removeUser(w.service, tester.authId);
+  });
+
+  const search = async (client: SupabaseClient, q: string | null, city = "toronto") =>
+    (await rows(client.rpc("public_gatherings", { p_from: inDays(-1), p_to: inDays(22), p_city: city, p_query: q }))).map((r: { slug: string }) => r.slug);
+
+  it("P191 a search narrows by gathering name or venue name, case-insensitive; % and _ are only themselves", async () => {
+    const found = await search(w.anon, tag().toUpperCase());
+    for (const k of ["byName", "byVenue", "percent", "under"]) assert.ok(found.includes(S[k]!), `search missed the ${k} gathering`);
+    assert.deepEqual(await search(w.anon, `${tag()} 100%`), [S.percent], "'%' acted as a wildcard, or '100%' was not found");
+    assert.deepEqual(await search(w.anon, `${tag()}_x`), [S.under], "'_' acted as a wildcard, or it was not found");
+    assert.ok((await search(w.anon, `${tag()} quiz`)).includes(S.byName!));
+    assert.equal((await search(w.anon, `${tag()} nothing-like-this`)).length, 0);
+    const blank = await search(w.anon, "   ");
+    assert.ok(blank.includes(S.byName!) && blank.includes(S.byVenue!), "a blank query narrowed the list instead of being no query");
+  });
+
+  it("P192 a search never returns what the list would not — seed, withdrawn, draft, another city — to a visitor or a tester", async () => {
+    for (const [who, client] of [["a visitor", w.anon], ["a tester", testerClient]] as const) {
+      const found = await search(client, tag());
+      assert.ok(found.includes(S.byName!), `control: ${who}'s search is missing a gathering it should find — the absences below prove nothing`);
+      assert.ok(!found.includes(S.seed!), `${who}'s search returned a seed gathering (V18)`);
+      assert.ok(!found.includes(S.withdrawn!), `${who}'s search returned a withdrawn gathering`);
+      assert.ok(!found.includes(S.elsewhere!), `${who}'s Toronto search returned another city's gathering`);
+      assert.equal((await search(client, `${tag()} Draft`)).length, 0, `${who}'s search returned a draft`);
+      assert.ok((await search(client, tag(), elsewhere())).includes(S.elsewhere!), `control: ${who}'s search of the other city is missing its own gathering`);
+    }
+    const noCity = await w.anon.rpc("public_gatherings", { p_from: inDays(-1), p_to: inDays(22), p_query: tag() });
+    assert.ok(noCity.error, "search answered without a city — every city's gatherings");
+  });
+});

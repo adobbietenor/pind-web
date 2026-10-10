@@ -108,6 +108,7 @@
     "run_worker_first": [
       "/",
       "/community",
+      "/search",
       "/health",
       "/admin",
       "/admin/*",

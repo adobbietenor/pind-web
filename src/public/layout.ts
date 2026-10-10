@@ -82,6 +82,17 @@ p{margin:0 0 14px}
 .chips .chip:hover{border-color:#6b6378;color:#fff}
 .chips .chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:560}
 
+/* Search (M3.2b): a plain GET form — a navigation, no script. 16px text so iOS
+   Safari does not zoom the page when the field is tapped. */
+.search{display:flex;gap:6px;margin:14px 0 0}
+.search input{
+  flex:1;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid var(--border);
+  background:var(--surface);color:var(--text);font:inherit;font-size:16px;
+}
+.search input::placeholder{color:var(--muted)}
+.search button{padding:10px 14px;border-radius:10px;border:0;background:var(--accent);color:#fff;font:inherit;font-weight:560}
+.found{margin:16px 0 0;color:var(--muted);font-size:.9rem}
+
 /* Which week, when it is not this one. */
 .weekline{margin:14px 0 0;color:var(--muted);font-size:.9rem}
 

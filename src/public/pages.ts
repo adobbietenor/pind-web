@@ -3,7 +3,7 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { categoryLabel, clockLocal, countLine, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, readShareCard, SEE_WHO, SHARE_COPY, THRESHOLD, THRESHOLD_EXPLANATION } from "@pind/shared";
+import { categoryLabel, clockLocal, countLine, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, readShareCard, SEARCH_COPY, SEARCH_DAYS, SEARCH_MAX, searchQuery, SEE_WHO, SHARE_COPY, SUGGEST_TO, suggestSubject, THRESHOLD, THRESHOLD_EXPLANATION } from "@pind/shared";
 import type { Env } from "../env";
 import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
 import { markSvg } from "./brand";
@@ -36,8 +36,8 @@ import { ensureVenueMap } from "./mapserve";
 import { chooseZoom, isReady, mapKey, mapUrl, place, uploadUrl, type Placed } from "./venuemap";
 
 // Where "suggest a gathering" and "report" go. Nothing is stored (spec §2 W1):
-// it is a mailto and no more. One place to change when Alex picks the addresses.
-const SUGGEST_TO = "crowds@pind.social";
+// it is a mailto and no more. SUGGEST_TO lives in packages/shared since M3.2b, where
+// the app's search uses it too.
 const REPORT_TO = "safety@pind.social";
 
 // ---------------------------------------------------------------------------
@@ -184,6 +184,7 @@ export async function w1(request: Request, env: Env, tab: TabValue): Promise<Res
     `${header(place)}
 <h1>${escape(tab === "community" ? "Community this week" : "This week’s crowds")}</h1>
 <p class="lede">${escape(ONE_LINER)}</p>
+${searchForm(null)}
 ${tabs(tab, win)}
 ${chipRow(path, offered, chips, win)}
 ${weekLine(win)}
@@ -197,6 +198,53 @@ ${pager(path, chips, win, later.length)}`,
       canonical: `${origin}${path}`,
       footer: W1_FOOTER,
       script: REPLACE_SCRIPT,
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Search (M3.2b; decisions, "A search bar")
+//
+// **No client JavaScript**: a GET form is a navigation, so the magnifying glass submits
+// and the Worker renders /search?q=… with W1's own cards. Works with scripting off, adds
+// nothing to W1's bytes but the form. **One door**: crowds() with a query — the database
+// narrows, and nothing here can return what the list would not (P191–P192).
+// ---------------------------------------------------------------------------
+
+function searchForm(q: string | null): string {
+  return `<form class="search" action="/search" method="get" role="search"><input type="search" name="q" aria-label="${escape(SEARCH_COPY.label)}" placeholder="${escape(SEARCH_COPY.placeholder)}" maxlength="${SEARCH_MAX}" enterkeyhint="search" autocomplete="off"${q ? ` value="${escape(q)}"` : ""}><button type="submit">${escape(SEARCH_COPY.label)}</button></form>`;
+}
+
+// Everything published ahead, in date order (Alex, 10 Oct 2026), grouped by day like
+// W1. Blank goes back to the list rather than showing an empty search.
+export async function searchPage(request: Request, env: Env): Promise<Response> {
+  const url = new URL(request.url);
+  const q = searchQuery(url.searchParams.get("q"));
+  if (!q) return Response.redirect(`${url.origin}/`, 302);
+  const place = await city(env);
+  const now = new Date();
+  const today = localDate(now.toISOString(), DEFAULT_TZ);
+  const to = new Date(fromLocalInput(`${addDays(today, SEARCH_DAYS)}T00:00`, DEFAULT_TZ)!);
+  const found = await crowds(env, readerFloor(now, DEFAULT_TZ), to, undefined, q);
+  const cityName = place?.name ?? "Toronto";
+
+  const body = found.length
+    ? `<p class="found">${escape(SEARCH_COPY.found(found.length, q))}</p>` +
+      dayGroups(found, DEFAULT_TZ, today)
+        .map((d) => dayHeading(d) + d.rows.map(card).join(""))
+        .join("")
+    : `<div class="empty">${escape(SEARCH_COPY.none(q, cityName))} <a href="/">${escape(SEARCH_COPY.thisWeek)}.</a> <a href="mailto:${SUGGEST_TO}?subject=${encodeURIComponent(suggestSubject(q))}">${escape(SEARCH_COPY.suggest)}.</a></div>`;
+
+  return page(
+    `${header(place)}
+<h1>${escape(SEARCH_COPY.label)}</h1>
+${searchForm(q)}
+${body}`,
+    {
+      title: `${q} · Pin'd`,
+      description: ONE_LINER,
+      canonical: `${url.origin}/`,
+      footer: W1_FOOTER,
     },
   );
 }
