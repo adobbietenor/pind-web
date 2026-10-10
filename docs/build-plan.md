@@ -483,6 +483,20 @@ any of it.
 - Search finds a gathering by name on W1 and in the app, through the one door, with scripting off on the web.
 - My Events shows the pinned gathering; removing the pin removes it.
 
+**Built 10 Oct 2026** (decisions.md, "M3.2b: interests, search, My Events"):
+- **Interests are separate from the tags** (Alex) — `person_interests`, your own row
+  only (P188–P190). **Only a chip offered that week is applied**; one with no chip is
+  named as resting, so a remembered interest can never empty the page (Y02–Y05).
+  The overlap question above is settled: tags never change the list.
+- **Search looks through everything published ahead** (Alex), not one week —
+  `public_gatherings` with a query, so it can never return what the list would not
+  (P191–P192). W1's `/search` renders with no script; checked through the Worker's own
+  code against staging.
+- **A19 is the room-era reading, with no per-gathering toggle** (Alex) — spec A19 (P193,
+  M01–M06).
+- **Waiting on the deploy (Alex's):** W1's search box and `/search` on pind.social; then
+  the three-argument `public_gatherings` is dropped by a migration, as in M3.3c.
+
 **6–7 h.** (The 5–7 h for universal links, the build and the native walk moved to M3.3b, and A5–A7 to M3.3c — Alex, 6 Oct 2026.)
 
 #### M3.3 · The room and small groups, the night, the morning after (A9–A17, A20)

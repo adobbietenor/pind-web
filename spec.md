@@ -533,8 +533,15 @@ link. **Nobody is ever sent anything while they are a test person** (P162). SMS 
 used (decisions Part 5, "Email delivery", "Notification delivery").
 
 ### A19 — My Events
-Upcoming (pinned, with crew and spot if any; one day-of reminder toggle) and past
-(crew met / went solo). Empty: "Nothing pinned yet — this week's crowds →".
+*(Superseded 10 Oct 2026 by the room-era reading below — decisions, "M3.2b: interests,
+search, My Events":)* Upcoming (pinned, with crew and spot if any; one day-of reminder
+toggle) and past (crew met / went solo). Empty: "Nothing pinned yet — this week's crowds →".
+
+**In force (Alex, 10 Oct 2026):** coming up, soonest first — your group's spot and time
+when it has them, "forming", open to meeting, or pinned; a withdrawn gathering says so.
+Been, most recent first — how many you ticked "we met", or the prompt to tick while
+A16's ticks are open. **No per-gathering day-of toggle**: #4's switch stays in Settings.
+Empty: "Nothing pinned yet — this week's crowds →".
 
 ### A20 — Connections
 People from your crews, with where you met them. The **only verb is "invite"**, which
@@ -768,7 +775,7 @@ working. Hours are Alex's, agent-assisted.
 | M3.3 | The room and small groups, the night, the morning after (A9–A17, A20) — redesigned 28 Sept: room → small group → solo; first version | **Done** — merged as `cc8ff24` (6 Oct 2026; proved by the harness and browser checks; to be walked on the phone with M3.3b) | 22–31 |
 | M3.3b | The TestFlight build — universal links, M3.1's native walk, M3.3's push, the icon and splash; **moved ahead of M3.2b** (Alex, 6 Oct 2026) | **In progress** — builds 8 and 9 on internal TestFlight (6 Oct); universal links, push, the icon and splash are built. **Not yet walked on the phone:** the native list (photo picker, HEIC, native Apple sign-in, offline, a reinstall keeping the session) and push arriving. **Build 10 is needed** (10 Oct): in builds 8–9 a tapped notification could not open its page from a cold start — fixed, N13/N14. Worked on `phase3/m3.3c-home` with main merged in (Alex, 10 Oct); not merged | 5–7 |
 | M3.3c | The app's home — pick a city (Toronto live), Toronto's list, the same query as W1; **pulled forward from M3.2b** (Alex, 6 Oct 2026) | **Built, being checked on the phone** — in build 9, and walked on build 10 with M3.3b; `check:home` passes on the web. Branch `phase3/m3.3c-home` (on top of M3.3b), not merged | 6.5–9.5 |
-| M3.2b | The app's front door — interests, search, My Events (the build moved to M3.3b and the home and list to M3.3c, Alex, 6 Oct 2026) | Not started | 6–7 |
+| M3.2b | The app's front door — interests, search, My Events (the build moved to M3.3b and the home and list to M3.3c, Alex, 6 Oct 2026) | **Built** (10 Oct 2026) — proved by the harness (P188–P193) and the Worker's own /search rendered against staging; merged into `phase3/m3.3c-home`. **Not yet deployed** (the deploy is Alex's): W1's search box and /search appear on pind.social with the next deploy, and the three-argument `public_gatherings` is dropped by a migration after it | 6–7 |
 | M3.4 | Solo crew (A28, A29) | Not started | 8–12 |
 | M3.5 | Safety and the notifications (A18, A23, A24) | **Partly built, in M3.3** — the seven notifications are written by the acts themselves and **delivered** (push to a phone, email otherwise, every minute; stop links), Settings has the seven switches, and a room message can be reported. **Not built:** the Monday digest (nothing writes it), #3 for a date change (withdrawal is done), block and report from a profile or group (A24; the control is hidden until it exists), blocked people and my reports in Settings, the admin block control, sign-in email monitoring. **Not walked:** push on the phone | 10–14 |
 | M3.6 | Dogfood on staging | Not started | 6–8 |
