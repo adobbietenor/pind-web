@@ -4750,3 +4750,39 @@ describe("A photo is a file (M4.2: Q40)", () => {
     assert.ok(!after.includes("1.png") && after.includes("2.png"), "the app's replace-then-remove no longer works");
   });
 });
+
+// P201 (Alex, 10 Oct 2026 — M4.2, Q39; V10 §11, V23): a person hidden by moderation sees
+// no one — not a connection, not a groupmate — and so cannot report one and hide them.
+// The group path is the review's Q39; this proves the same rule on the connection path.
+describe("A hidden person sees no one, and cannot hide anyone with a report (M4.2: Q39)", () => {
+  const made: string[] = [];
+  after(async () => {
+    for (const a of made) await removeUser(w.service, a).catch(() => undefined);
+  });
+  async function someone(label: string) {
+    const email = `${PREFIX}-${w.run}-q39-${label}@example.com`;
+    const password = randomUUID();
+    const u = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(u.error, null, u.error?.message);
+    made.push(u.data.user!.id);
+    const person = await ok(w.service.from("people").insert({ auth_user_id: u.data.user!.id, first_name: label }).select("id").single());
+    const client = newClient(w.env, w.env.publishableKey);
+    assert.equal((await client.auth.signInWithPassword({ email, password })).error, null);
+    return { id: person.id as string, client };
+  }
+
+  it("P201 connected, the hidden one sees the other until the hide, then no one — and their 'uncomfortable' report is refused, hiding nobody", async () => {
+    const kay = await someone("kay");
+    const lou = await someone("lou");
+    const [a, b] = [kay.id, lou.id].sort();
+    await ok(w.service.from("connections").insert({ person_a: a, person_b: b }));
+    const louSeesKay = async () => (await rows(lou.client.from("people").select("id").eq("id", kay.id))).length;
+    assert.equal(await louSeesKay(), 1, "control: connected, Lou cannot see Kay — the refusals below prove nothing");
+
+    await ok(w.service.from("people").update({ hidden_at: new Date().toISOString() }).eq("id", lou.id));
+    assert.equal(await louSeesKay(), 0, "a hidden person still sees a connection (V10)");
+    await denied(lou.client.from("reports").insert({ reporter_id: lou.id, target_kind: "person", target_person_id: kay.id, reason: "uncomfortable" }));
+    const kayHidden = (await rows(w.service.from("people").select("hidden_at").eq("id", kay.id)))[0]?.hidden_at;
+    assert.equal(kayHidden, null, "a hidden person's report hid someone else");
+  });
+});
