@@ -15,6 +15,7 @@ import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEnv } from "./env.ts";
 import { optInMissing } from "../../packages/shared/src/optin.ts";
+import { MY_EVENTS_PINS_SELECT } from "../../packages/shared/src/myevents.ts";
 import { photoDest } from "../../src/account/merge-checks.ts";
 import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, markHarness, newClient, sweep, type Member, type World, removeUser, accountlessPeople } from "./world.ts";
 
@@ -4537,5 +4538,35 @@ describe("Search is the public list, narrowed (M3.2b)", () => {
     }
     const noCity = await w.anon.rpc("public_gatherings", { p_from: inDays(-1), p_to: inDays(22), p_query: tag() });
     assert.ok(noCity.error, "search answered without a city — every city's gatherings");
+  });
+});
+
+// P193 (Alex, 10 Oct 2026 — M3.2b, A19): My Events reads exactly what the app reads
+// (MY_EVENTS_PINS_SELECT), as the person, under RLS. The acceptance line: the pinned
+// gathering shows; removing the pin removes it. A withdrawn one stays while pinned (V13).
+describe("My Events lists your pins (M3.2b, A19)", () => {
+  it("P193 your pinned gathering shows with its venue and time zone, stays when withdrawn, and goes when you remove the pin", async () => {
+    const g = await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} My Events`, starts_at: inDays(5), venue_id: w.venue, published_at: new Date().toISOString(), source: "manual" }).select("id").single());
+    try {
+      const slug = (await ok(w.service.rpc("admin_mint_slug", { p_gathering: g.id }))) as string;
+      const mine = async () =>
+        ((await rows(c(M("Ava")).from("pins").select(MY_EVENTS_PINS_SELECT).eq("person_id", id("Ava")))) as {
+          gathering_id: string;
+          gatherings: { slug: string | null; withdrawn_at: string | null; venues: { name: string; cities: { timezone: string } | null } | null } | null;
+        }[]).find((p) => p.gathering_id === g.id);
+      assert.equal(await mine(), undefined, "setup: Ava is already pinned here");
+      await ok(c(M("Ava")).from("pins").insert({ gathering_id: g.id, person_id: id("Ava"), party_total: 1 }));
+      const row = await mine();
+      assert.equal(row?.gatherings?.slug, slug, "the pinned gathering is not on My Events");
+      assert.ok(row?.gatherings?.venues?.name, "My Events cannot read the venue's name");
+      assert.ok(row?.gatherings?.venues?.cities?.timezone, "My Events cannot read the venue's time zone");
+      await ok(w.service.from("gatherings").update({ withdrawn_at: new Date().toISOString() }).eq("id", g.id));
+      assert.ok((await mine())?.gatherings?.withdrawn_at, "a withdrawn gathering vanished from My Events while still pinned (V13)");
+      await ok(c(M("Ava")).from("pins").delete().eq("gathering_id", g.id).eq("person_id", id("Ava")));
+      assert.equal(await mine(), undefined, "a removed pin is still on My Events");
+    } finally {
+      await w.service.from("pins").delete().eq("gathering_id", g.id);
+      await w.service.from("gatherings").delete().eq("id", g.id);
+    }
   });
 });
