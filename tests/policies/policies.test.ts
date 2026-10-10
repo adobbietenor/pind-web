@@ -4570,3 +4570,50 @@ describe("My Events lists your pins (M3.2b, A19)", () => {
     }
   });
 });
+
+// P194–P195 (Alex, 10 Oct 2026 — M4.2, Q41; H8): the 19+ gate holds in the database.
+// Both sides of the boundary: (this year − 19) is accepted — the app's full-date check
+// decides that year — and (this year − 18) is refused, with no attestation recorded.
+describe("19+ is enforced by the database, not only the app (H8; Q41)", () => {
+  const made: string[] = [];
+  const thisYear = Number(new Intl.DateTimeFormat("en-CA", { timeZone: "America/Toronto", year: "numeric" }).format(new Date()));
+  async function newcomer(label: string) {
+    const email = `${PREFIX}-${w.run}-h8-${label}@example.com`;
+    const password = randomUUID();
+    const u = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(u.error, null, u.error?.message);
+    made.push(u.data.user!.id);
+    const person = await ok(w.service.from("people").insert({ auth_user_id: u.data.user!.id, first_name: label }).select("id").single());
+    const client = newClient(w.env, w.env.publishableKey);
+    const s = await client.auth.signInWithPassword({ email, password });
+    assert.equal(s.error, null, s.error?.message);
+    return { personId: person.id as string, client };
+  }
+  const attested = async (personId: string) => rows(w.service.from("age_attestations").select("attested_at, source").eq("person_id", personId));
+  after(async () => {
+    for (const a of made) await removeUser(w.service, a).catch(() => undefined);
+  });
+
+  it("P194 a birth year certainly under 19 is refused, and records no 19+ attestation — the year before it is accepted", async () => {
+    const kid = await newcomer("kid");
+    for (const year of [thisYear - 12, thisYear - 18]) {
+      await denied(kid.client.from("people_private").insert({ person_id: kid.personId, gender: "woman", birth_year: year }), "23514");
+      assert.equal((await rows(w.service.from("people_private").select("person_id").eq("person_id", kid.personId))).length, 0, `birth year ${year} was stored`);
+      assert.deepEqual(await attested(kid.personId), [], `birth year ${year} became a 19+ attestation`);
+    }
+    // The other side of the boundary: born (this year − 19) may be 19 today — accepted.
+    const edge = await newcomer("edge");
+    await ok(edge.client.from("people_private").insert({ person_id: edge.personId, gender: "woman", birth_year: thisYear - 19 }));
+    assert.equal((await attested(edge.personId)).length, 1, "a 19+ year recorded no attestation");
+  });
+
+  it("P195 the attestation time is the server's: a backdated one sent by the client is replaced by now", async () => {
+    const p = await newcomer("backdate");
+    const before = Date.now();
+    await ok(p.client.from("people_private").insert({ person_id: p.personId, gender: "man", birth_year: 1990, age_attested_at: "2001-01-01T00:00:00Z" }));
+    const row = (await rows(w.service.from("people_private").select("age_attested_at").eq("person_id", p.personId)))[0] as { age_attested_at: string };
+    assert.ok(Date.parse(row.age_attested_at) >= before - 60_000, `the client's backdated attestation was kept: ${row.age_attested_at}`);
+    const a = (await attested(p.personId))[0] as { attested_at: string } | undefined;
+    assert.ok(a && Date.parse(a.attested_at) >= before - 60_000, "the attestation record carries the client's time");
+  });
+});
