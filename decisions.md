@@ -3561,9 +3561,42 @@ count.
 - **Why the record is fixed now:** spec A11 still said "built in M3.3" while the build
   plan said "shelved" and no code used them — a feature the spec promises and nothing
   builds, the worst of the three states.
-- **Tatiana's starting list stays filed** (spec A11, "Crew vibe"), in case the design
+- **Tatiana's starting list stays filed** (below, "Crew vibe"; it lived in spec A11 until 14 Oct 2026), in case the design
   changes. It comes off her copy list this week. "The vibe chips own the night; the
   tags own the person" (M3.1) is history now: the tags own the person.
+
+**Moved here from spec.md, verbatim** (14 Oct 2026), when spec A11 became the small group:
+
+#### Crew vibe — retired (Alex, 6 Oct 2026); the design and Tatiana's starting list kept on file
+
+**Retired, not built, not owed.** The chips existed solely so that someone choosing
+between two open crews had something to choose on. The room design removed the choice:
+everyone open to meeting is placed in one room, and small groups are invite-only from
+inside it, so nobody chooses between groups either. Nothing uses them; no code exists.
+The design below is kept in case the design changes (decisions.md, "Vibe chips
+retired"). It was: *(Alex, M2.1; was to be built in M3.3)*
+
+Someone choosing between two open crews has **nothing to choose on** today. A crew can
+say what kind of night it is.
+
+- **Presets, never free text.** Free text on a forming crew is an unmoderated surface
+  visible to strangers before anyone has met, and it is where the product acquires copy
+  nobody wants attributed to it.
+- Set by whoever starts the crew, **changeable by any member**, shown on the crew card
+  (A12) and in the crews list (A10).
+- **The test for any chip: would most crews tick it?** If yes, cut it — a vibe everyone
+  shares tells nobody anything. That is why there is no "love meeting new people":
+  everyone on the list already opted into meeting people.
+- **Nothing about substances, and nothing that reads as a dating signal.** Cap it around
+  nine, or it stops being a glance and becomes a form.
+
+Starting set, **Tatiana's to rewrite**, grouped so they help someone choose:
+
+| Timing | The night | The company |
+|---|---|---|
+| getting there early | quiet pint first | first time here |
+| just walking in together | out all night | happy to explain the rules |
+| staying after | food before | small and chatty |
 
 ### A18: the rule is the ban, not the count — and how five became seven (Alex, 6 Oct 2026)
 
@@ -3949,3 +3982,33 @@ rather than a decision. So it is recorded here, by name.
 - **The privacy page says nothing about the team reading what someone writes.** A
   sentence is drafted for Alex; the live copy is his to change.
 - **Status:** the who-can-see-what is with Alex for his OK before the migration is written.
+
+### Screen IDs reused, not renumbered (Alex, 14 Oct 2026)
+
+- **What happened.** On 28 Sept the room design ("The room, then a small group, then
+  solo") reused the crew screens' IDs for the new screens rather than retiring them:
+  A10 became the room, A11 the small group, A12 its plan, A13 "I'm here" and A17 done.
+  A15, the non-member view, was retired, because groups are invite-only. **Nothing said
+  so.** The code and build plan §8 M3.3 used the new meanings; spec.md kept describing
+  the crew design under the same headings in the present tense; and the issue form went
+  on offering "A11-A13, A15, A17 - App, crew". **#6 and #8 were filed against it**: #6's
+  button was on A9, and #8 is about W2's "Open in Maps" link, on the web crowd page.
+- **Decided: reused, not renumbered.** Renumbering would make every past commit message,
+  file header and doc reference ambiguous, for a cosmetic gain. What is fixed is the
+  stale copy, not the numbering. One meaning each, from now on:
+  - **A8–A9** — the crowd page (A8 before pinning, A9 after);
+  - **A10** — the room;
+  - **A11** — the small group;
+  - **A12** — the group's plan: the spot poll, the plan, "Share spot & time with a friend";
+  - **A13** — "I'm here";
+  - **A14** — the group's own thread (the crew thread until 28 Sept);
+  - **A17** — done;
+  - **A15** — retired, not reused.
+- **spec.md** now reads "A8–A9 — Crowd page", "A10–A13, A17 — Room and small group" (a
+  short superseded note pointing at the design in force) and "A14 — Group thread". The
+  crew vibe design and Tatiana's starting list moved here, verbatim, under "Vibe chips
+  retired": spec A11 was their only copy.
+- **The forms cannot drift again unnoticed.** `tests/unit/forms.test.ts` (F01–F03)
+  requires both issue forms to offer exactly the spec's screen headings, **by ID and by
+  title**, so a stale label cannot hide behind an ID that still exists. It went red
+  against the old forms before they were fixed.

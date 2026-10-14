@@ -397,8 +397,8 @@ marked **(no recorded reason)** is load-bearing and unsourced: what to look for 
   reason** for three hours; it is also when "I'm here" and #4 start**)**
 - **A16's ticks are open 7 days after the effective end.** **(no recorded reason** for 7**)**
 
-### A8–A10 — Crowd page
-**A10 and A11–A17 below are superseded 28 Sept: the room → small group → solo design — build plan §8 M3.3.** A9 leads with the room.
+### A8–A9 — Crowd page
+**A10 is the room since 28 Sept** — "A10–A13, A17", below. A9 leads with the room.
 
 - **A8 pre-pin** — same anatomy as W2 so a shared link feels continuous. Facts, the
   **only map in the app** (venue + named spots, never people, H1), counts, house rules,
@@ -406,68 +406,30 @@ marked **(no recorded reason)** is load-bearing and unsourced: what to look for 
 - **A9 pinned, below threshold** — "Open to meeting" toggle; reciprocal list already
   works at n=2; **crews locked** with the reason and the number named ("3 of 5 · 2 to
   go · we'll push you the moment it happens"); nudge to share the page.
-- **A10 pinned, crews open** — **crews sit above the people list**: the point is joining
-  a plan, not browsing people. Each crew card: women-only flag, N/8, spot, time,
-  members, "Request to join". **"Put me in a crew"** (Alex, revised build plan; M3.3):
-  one button that places the person in the open crew with the most room, respecting
-  women-only. Below: "Going & open to meeting" list. Tapping a person opens A22,
-  **never a chat**. Below that, the **1-on-1 section** (A29), rendered only for
-  solo-opted people; the crew list is untouched by it. "Get the app" is offered once,
-  here, when crews open.
 
-### A11–A13, A15, A17 — Crew
-- **A11 forming** — 3/8, spot selection from **the venue's curated list only** ("there
-  is no enter-an-address"), three time options, votes. Any member may propose;
-  "Set spot & time" moves the crew to spot set.
-- **A12 spot set** — the crew card is the hero object. **"Share spot & time with a
-  friend"** is a first-class button, not a menu item, and sends a read-only card with
-  no join link. Incoming join requests show the requester's profile; **any member can
-  approve** (Q4); declines are silent; the requester cannot see the thread until approved.
-- **A13 live, "I'm here"** — unlocks 3 hours before. "Who's arrived" list with each
-  member's one-line description. Tapping "I'm here" **requires** a line of text
-  ("green Matthews jersey") — manual, never geofenced (Q7, H4). Arrivals also post to
-  the thread.
-- **A15 non-member view** — "Request to join"; the thread stays private until approved.
-  At 8/8: "This crew's full — start one at the same spot, 15 min later?" → prefilled
-  sibling crew (Q5). Women-only crews show a quiet label to others with nothing to tap.
-- **A17 done** — terminal state; member count and check-in count; thread closure
-  explained; the only action points at A16.
+### A10–A13, A17 — Room and small group
+**Superseded 28 Sept, and the IDs reused rather than retired** (decisions, "The room,
+then a small group, then solo" and "Screen IDs reused, not renumbered"). What each means
+now is in "The room, small groups, the night — the design in force (M3.3)", above, and
+build plan §8 M3.3:
 
-#### Crew vibe — retired (Alex, 6 Oct 2026); the design and Tatiana's starting list kept on file
+- **A10** — the room: everyone open to meeting at a gathering, from the second person on.
+- **A11** — your small group: invited from the room, forming until 3, then on.
+- **A12** — the group's plan: the spot poll, the plan three hours before, and "Share spot
+  & time with a friend" (a read-only card, no join link).
+- **A13** — "I'm here", from three hours before, a line of text required (Q7).
+- **A17** — done: finished, counted, and its one action is A16.
+- **A15 is retired, not reused:** groups are invite-only, so there is no non-member view
+  and nothing to request.
 
-**Retired, not built, not owed.** The chips existed solely so that someone choosing
-between two open crews had something to choose on. The room design removed the choice:
-everyone open to meeting is placed in one room, and small groups are invite-only from
-inside it, so nobody chooses between groups either. Nothing uses them; no code exists.
-The design below is kept in case the design changes (decisions.md, "Vibe chips
-retired"). It was: *(Alex, M2.1; was to be built in M3.3)*
+The crew design these IDs described before 28 Sept (crew cards, join requests, sibling
+crews, "Put me in a crew") is history, kept in decisions.md. The crew vibe design and
+Tatiana's starting list stay on file there ("Vibe chips retired").
 
-Someone choosing between two open crews has **nothing to choose on** today. A crew can
-say what kind of night it is.
-
-- **Presets, never free text.** Free text on a forming crew is an unmoderated surface
-  visible to strangers before anyone has met, and it is where the product acquires copy
-  nobody wants attributed to it.
-- Set by whoever starts the crew, **changeable by any member**, shown on the crew card
-  (A12) and in the crews list (A10).
-- **The test for any chip: would most crews tick it?** If yes, cut it — a vibe everyone
-  shares tells nobody anything. That is why there is no "love meeting new people":
-  everyone on the list already opted into meeting people.
-- **Nothing about substances, and nothing that reads as a dating signal.** Cap it around
-  nine, or it stops being a glance and becomes a form.
-
-Starting set, **Tatiana's to rewrite**, grouped so they help someone choose:
-
-| Timing | The night | The company |
-|---|---|---|
-| getting there early | quiet pint first | first time here |
-| just walking in together | out all night | happy to explain the rules |
-| staying after | food before | small and chatty |
-
-### A14 — Crew thread
-Realtime group chat scoped to one crew. Opens with the auto-posted crew card and
-rules. Long-press any message to report. No phone numbers are exchanged. Closes 24h
-after the gathering; read-only 30 days; then deleted (Q11).
+### A14 — Group thread
+The small group's own conversation (the crew thread until 28 Sept), invisible to the room.
+Long-press any message to report. No phone numbers are exchanged. Closes 24h after the
+gathering; read-only 30 days; then deleted (Q11).
 
 ### A16 — After the event
 Per crew member: **"we met"**, then **"keep in touch"** unlocked only once both said
