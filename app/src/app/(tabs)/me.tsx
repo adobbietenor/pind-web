@@ -200,10 +200,17 @@ export default function Profile() {
         </View>
 
         <View style={styles.counts}>
-          <View style={styles.count}>
+          {/* The gatherings behind the count are A19's list (#7: it looked tappable and
+              was not). The crews count has no list of its own, so it stays a count. */}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`${me.gatherings} gatherings — open My Events`}
+            onPress={() => router.push("/my-events")}
+            style={({ pressed }) => [styles.count, pressed && styles.countPressed]}
+          >
             <Text style={styles.countNumber}>{me.gatherings}</Text>
-            <Text style={styles.countLabel}>gatherings</Text>
-          </View>
+            <Text style={styles.countLabel}>gatherings ›</Text>
+          </Pressable>
           <View style={styles.count}>
             <Text style={styles.countNumber}>{me.crewsMet}</Text>
             <Text style={styles.countLabel}>crews</Text>
@@ -329,6 +336,7 @@ const styles = StyleSheet.create({
   chipLabel: { fontSize: 14, color: palette.text },
   counts: { flexDirection: "row", gap: spacing.md, marginBottom: spacing.lg },
   count: { flex: 1, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, padding: spacing.md },
+  countPressed: { borderColor: palette.accent },
   countNumber: { fontFamily: fonts.headline, fontSize: 22, color: palette.text },
   countLabel: { fontSize: 13, color: palette.textMuted, marginTop: 2 },
   sectionName: { fontFamily: fonts.headline, fontSize: 14, color: palette.textMuted, marginBottom: spacing.sm },
