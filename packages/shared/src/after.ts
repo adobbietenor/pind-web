@@ -25,6 +25,10 @@ export const AFTER_COPY = {
     { value: "wasnt_going", label: "I wasn't going to go at all" },
   ] as const,
   questionWhy: "One question, so we know whether Pin'd helps anyone get out who wouldn't have.",
+  // #10 (Alex, 14 Oct 2026): optional, sent with the answer, read by its author and by
+  // people at Pin'd only. Above the answers, because an answer is sent on one tap.
+  commentLabel: "Anything else you'd like to tell us?",
+  commentHint: "Optional. It's sent with your answer below, and only people at Pin'd can read it.",
   thanks: "Thank you — that helps.",
   nothing: "Nothing to do here — this is for people who said they'd like to meet.",
   notYet: "This opens once the night is over.",
@@ -77,3 +81,13 @@ export const GET_THE_APP = {
   yes: "Get the app",
   no: "Not now",
 } as const;
+
+// A16's comment (#10). The database refuses more than COMMENT_MAX characters or a blank
+// one (survey_responses_comment_shape); this is what the screen sends: trimmed, and
+// nothing at all when nothing was written. C10 holds the two caps to one number.
+export const COMMENT_MAX = 1000;
+
+export function commentToSend(raw: string): string | null {
+  const t = raw.trim();
+  return t ? t : null;
+}

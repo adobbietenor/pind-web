@@ -7,6 +7,7 @@ import * as g from "./gatherings";
 import { requireAdmin } from "./guard";
 import * as i from "./imports";
 import * as m from "./moderation";
+import * as comments from "./comments";
 import * as pub from "./publishing";
 import { AdminError, adminPage, notFound, UUID } from "./ui";
 import * as v from "./venues";
@@ -80,6 +81,9 @@ const ROUTES: [string, AdminHandler][] = [
   ["POST /admin/people/:id/keep-hidden", m.keepHidden],
   ["POST /admin/people/:id/hide", m.hidePerson],
   ["POST /admin/people/:id/dismiss-reports", m.dismissReports],
+  // #10 — A16's comments, with the unread count on every page
+  ["GET /admin/comments", comments.commentQueue],
+  ["POST /admin/comments/:id/read", comments.markCommentRead],
 ];
 
 // A stale nightly import means the public site has stopped refreshing, which is the
@@ -137,7 +141,7 @@ export async function admin(request: Request, env: Env): Promise<Response> {
   if (!found) return notFound(request, who.email);
   const ctx: AdminContext = { env, email: who.email, params: found.params, db: serviceClient(env) };
   try {
-    return await withStalenessBanner(await found.handler(request, ctx), ctx);
+    return await withStalenessBanner(await comments.withUnreadComments(await found.handler(request, ctx), ctx), ctx);
   } catch (err) {
     if (err instanceof AdminError) {
       return adminPage(request, who.email, "Database error", `<p class="err">${err.message.replace(/[<>&"']/g, "")}</p>`, 500);

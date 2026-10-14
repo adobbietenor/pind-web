@@ -132,9 +132,15 @@ try {
   await send("Page.reload");
   step("both ways: connected", await until(AFTER_COPY.connected));
 
-  // The question.
+  // The question, with A16's comment (#10): typed into the box, then one tap on the answer.
+  step("A16 offers the optional comment box above the answers", (await body()).includes(AFTER_COPY.commentLabel));
+  const said = "  pindhx after-check: the spot was easy to find  ";
+  step("the box takes a comment", await evaluate(`(() => { const t=document.querySelector('textarea'); if(!t) return false; t.focus(); return true; })()`));
+  await send("Input.insertText", { text: said });
   await click("No");
   step("the answer is written once", await poll(`/rest/v1/survey_responses?gathering_id=eq.${X.id}&person_id=eq.${people.Ari.personId}&select=id`, 1));
+  const [stored] = await must(await rest(`/rest/v1/survey_responses?gathering_id=eq.${X.id}&person_id=eq.${people.Ari.personId}&select=would_have_gone,comment`), "stored answer");
+  step("…with the comment in the same row, trimmed", stored?.would_have_gone === "no" && stored?.comment === said.trim());
   step("…and thanked", await until(AFTER_COPY.thanks));
 
   // A20 — Connections and invite.

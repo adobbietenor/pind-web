@@ -440,6 +440,11 @@ The same screen serves a solo plan's two members.
 **One question for everyone who was opted in** (moved from Test 0's T8): "Would you
 have gone alone anyway?" — Yes / No / I wasn't going to go at all. It is the
 **attendance metric** (§7): did Pin'd create attendance, or only company.
+Above the answers, an **optional comment** (#10, Alex, 14 Oct 2026), sent with the
+answer in one tap, up to 1,000 characters: read by its author and by people at Pin'd,
+nobody else, and deleted with the account. The admin counts the unread on every page;
+comments are on M4.1's rota at the reports' standard (decisions, "A16's comment box").
+**Ships only with the privacy page's sentence about it, in the same deploy.**
 
 ### A18 — Notifications (seven, under one rule)
 

@@ -75,7 +75,7 @@ export function Field({
       <TextInput
         placeholderTextColor={palette.tabInactive}
         {...input}
-        style={[styles.input, !!error && { borderColor: "#E06B6B" }]}
+        style={[styles.input, input.multiline && styles.multiline, !!error && { borderColor: "#E06B6B" }]}
       />
       {hint && !error ? <Text style={styles.hint}>{hint}</Text> : null}
       {error ? (
@@ -198,6 +198,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 13,
   },
+  // A box for a few sentences (A16's comment): room to see what you wrote, typed from the top.
+  multiline: { minHeight: 96, textAlignVertical: "top" },
   // Even padding on all four sides, and a centred label (#6): a label long enough to wrap
   // ran edge to edge and sat flush against the left border, left-aligned.
   button: {

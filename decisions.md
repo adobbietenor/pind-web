@@ -3981,7 +3981,20 @@ rather than a decision. So it is recorded here, by name.
   comment, only its author and the team. If that ever changes, the filter comes with it.
 - **The privacy page says nothing about the team reading what someone writes.** A
   sentence is drafted for Alex; the live copy is his to change.
-- **Status:** the who-can-see-what is with Alex for his OK before the migration is written.
+- **Status:** approved by Alex (14 Oct) as specified, and **built on staging**: migration
+  `a16_comment_box`, harness P205–P208 (P03/P04 extended), the A16 box, the admin's
+  Comments page and the unread count on every admin page (C13–C15).
+- **The privacy copy, drafted, not applied** (Alex's wording changes: "can read", not
+  "reads every", because M4.1 must prove every sentence on that page true, and *who*):
+  *"People at Pin'd can read comments: two people, Alex Dobbie and Tatiana [surname]. Nobody else
+  ever can."* and *"Your answer to the after-the-gathering question is kept without your
+  name; any comment you wrote is deleted with your account."*
+- **Two conditions on shipping it** (Alex, 14 Oct):
+  - **The page and the field go live in the same deploy.** The page first would describe
+    a field that does not exist; the field first would be a promise not yet made.
+  - **Not before Cloudflare Access for /admin matches the page.** The page will say who
+    can read comments. Tatiana may not be on the Access list yet, and the list is a
+    dashboard change and Alex's.
 
 ### Screen IDs reused, not renumbered (Alex, 14 Oct 2026)
 

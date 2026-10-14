@@ -166,7 +166,7 @@ describe("Public data — V2, V11", () => {
   it("P03 anon CANNOT read any person table, group links, blocks, reports, surveys, magic links or outbound messages / CANNOT write", async () => {
     for (const t of [
       "people", "people_private", "pins", "pin_friends", "contact_points", "spot_votes",
-      "gathering_group_links", "blocks", "reports", "survey_responses", "magic_links", "outbound_messages",
+      "gathering_group_links", "blocks", "reports", "survey_responses", "survey_comment_reads", "magic_links", "outbound_messages",
     ]) {
       await noAccess(w.anon, t);
     }
@@ -181,7 +181,7 @@ describe("Public data — V2, V11", () => {
     // `tags` and `person_tags` left this list in M3.1: the vocabulary is public
     // reference data like `neighbourhoods`, and a person's own tags are theirs.
     // P74–P77 are the cases that replaced them.
-    for (const t of ["confirmations", "connections", "connection_invites", "magic_links", "outbound_messages"]) {
+    for (const t of ["confirmations", "connections", "connection_invites", "magic_links", "outbound_messages", "survey_comment_reads"]) {
       await noAccess(ava, t);
     }
     // The group tables opened in M3.3 behind their own rules (P149–P158): someone in no
@@ -4189,6 +4189,85 @@ describe("The night and after — #4, A16, connections (V23), the question, #5 (
     await denied(tick("Cat", "Ann", "we_met"), "42501");
     assert.ok(!(await reads("Cat", "Ann")), "a crewmate still saw Ann after the 7 days");
     assert.ok(await reads("Ben", "Ann"), "a connection lost sight of Ann");
+  });
+
+  // A16's comment box (#10; Alex, 14 Oct 2026). Written with the answer, by its author;
+  // read by its author and the team; nobody else. Whether the team has read it is the
+  // service key's alone. Deleted with the account; the answer stays.
+  const CAT_SAYS = "pindhx: the spot was hard to find in the rain";
+
+  it("P205 a comment is written with the answer, by its author only — up to 1,000 characters, never blank, never edited", async () => {
+    // The cap, both sides: 1,001 is refused and 1,000 goes in. Blank is not a comment.
+    await denied(cl("Ann").from("survey_responses").insert({ gathering_id: A, person_id: id("Ann"), would_have_gone: "yes", comment: "x".repeat(1001) }), "23514");
+    await denied(cl("Ann").from("survey_responses").insert({ gathering_id: A, person_id: id("Ann"), would_have_gone: "yes", comment: "   " }), "23514");
+    await ok(cl("Ann").from("survey_responses").insert({ gathering_id: A, person_id: id("Ann"), would_have_gone: "yes", comment: "x".repeat(1000) }).select("id").single());
+    await ok(cl("Cat").from("survey_responses").insert({ gathering_id: A, person_id: id("Cat"), would_have_gone: "no", comment: CAT_SAYS }).select("id").single());
+    // Not for someone else, not by someone who wasn't open to meeting there.
+    await denied(cl("Ben").from("survey_responses").insert({ gathering_id: A, person_id: id("Cat"), would_have_gone: "yes", comment: "not mine to write" }));
+    await denied(cl("Fox").from("survey_responses").insert({ gathering_id: A, person_id: id("Fox"), would_have_gone: "yes", comment: "never there" }));
+    // Never edited: the author's update changes nothing.
+    await cl("Cat").from("survey_responses").update({ comment: "changed my mind" }).eq("person_id", id("Cat"));
+    const kept = await ok(w.service.from("survey_responses").select("comment").eq("gathering_id", A).eq("person_id", id("Cat")).single());
+    assert.equal(kept.comment, CAT_SAYS, "the author edited a sent comment");
+  });
+
+  it("P206 its author CAN read it; a groupmate, a connection, someone else open to meeting, a stranger and a visitor CANNOT", async () => {
+    const theirs = async (c: SupabaseClient, author: string) =>
+      rows(c.from("survey_responses").select("comment").eq("gathering_id", A).eq("person_id", id(author)));
+    // Cat's: Ann and Ben are her groupmates. Ann's: Ben is her connection (P170), Cat her groupmate.
+    const cases: [string, string, string[]][] = [
+      ["Cat", CAT_SAYS, ["Ann", "Ben", "Eve", "Fox"]],
+      ["Ann", "x".repeat(1000), ["Ben", "Cat", "Eve", "Fox"]],
+    ];
+    for (const [author, said, others] of cases) {
+      assert.deepEqual(await theirs(cl(author), author), [{ comment: said }], `${author} cannot read their own comment`);
+      for (const who of others) assert.equal((await theirs(cl(who), author)).length, 0, `${who} read ${author}'s comment`);
+      await denied(w.anon.from("survey_responses").select("comment").eq("person_id", id(author)));
+    }
+    // Not by searching for its words either.
+    for (const who of ["Ann", "Ben", "Eve", "Fox"]) {
+      assert.equal((await rows(cl(who).from("survey_responses").select("id").ilike("comment", "%rain%"))).length, 0, `${who} found Cat's comment by its text`);
+    }
+    // Nothing they can reach about the night carries it.
+    for (const who of ["Ann", "Ben"]) assert.ok(!JSON.stringify(await ok(cl(who).rpc("after_state", { p_gathering: A }))).includes("rain"), `${who}'s after_state carries the comment`);
+  });
+
+  it("P207 whether the team has read it is the service key's alone: the author, anyone else and a visitor CANNOT read or mark it, or count the unread", async () => {
+    const catAnswer = (await ok(w.service.from("survey_responses").select("id").eq("gathering_id", A).eq("person_id", id("Cat")).single())).id;
+    for (const c of [cl("Cat"), cl("Ann"), w.anon]) {
+      await denied(c.from("survey_comment_reads").select("*").limit(1), "42501");
+      await denied(c.from("survey_comment_reads").insert({ response_id: catAnswer, read_by: "me" }), "42501");
+      await denied(c.rpc("admin_unread_comments"), "42501");
+      await denied(c.rpc("admin_comments", { p_limit: 10 }), "42501");
+      await denied(c.rpc("admin_comment_read", { p_actor: "me", p_response: catAnswer }), "42501");
+    }
+    // The team's side works: unread, listed, marked read, and the count goes down by one.
+    const before = await ok(w.service.rpc("admin_unread_comments"));
+    const listed = await ok(w.service.rpc("admin_comments", { p_limit: 1000 }));
+    const row = listed.find((r: { id: string }) => r.id === catAnswer);
+    assert.ok(row && row.read_at === null && row.comment === CAT_SAYS && row.first_name === "Cat", "the admin list does not show Cat's unread comment");
+    await ok(w.service.rpc("admin_comment_read", { p_actor: ACTOR, p_response: catAnswer }));
+    assert.equal(await ok(w.service.rpc("admin_unread_comments")), before - 1, "marking it read did not lower the unread count");
+    const after = (await ok(w.service.rpc("admin_comments", { p_limit: 1000 }))).find((r: { id: string }) => r.id === catAnswer);
+    assert.equal(after.read_by, ACTOR);
+    // An answer with no comment cannot be "read".
+    const eves = (await ok(w.service.from("survey_responses").select("id").eq("gathering_id", A).eq("person_id", id("Eve")).single())).id;
+    await denied(w.service.rpc("admin_comment_read", { p_actor: ACTOR, p_response: eves }));
+  });
+
+  it("P208 deleted with the account: the answer stays, without a name, and the comment goes", async () => {
+    // Gil answers, with a comment, then deletes his account the way A23 does it.
+    await meeter("Gil", null);
+    await ok(w.service.from("pins").insert({ gathering_id: A, person_id: id("Gil"), party_total: 1, open_to_meeting: true }).select("id").single());
+    const answer = (await ok(cl("Gil").from("survey_responses").insert({ gathering_id: A, person_id: id("Gil"), would_have_gone: "wasnt_going", comment: "pindhx: my name is Gil and I loved it" }).select("id").single())).id;
+    const held = await ok(w.service.from("survey_responses").select("comment").eq("id", answer).single());
+    assert.ok(held.comment, "control: the comment was not stored before the deletion");
+    await ok(w.service.from("pins").delete().eq("person_id", id("Gil")));
+    await ok(w.service.from("people").delete().eq("id", id("Gil")));
+    const gone = await ok(w.service.from("survey_responses").select("person_id, would_have_gone, comment").eq("id", answer).single());
+    assert.deepEqual(gone, { person_id: null, would_have_gone: "wasnt_going", comment: null }, "the comment outlived its author's account, or the answer went with it");
+    await removeUser(w.service, people.Gil!.authId);
+    await ok(w.service.from("survey_responses").delete().eq("id", answer));
   });
 });
 

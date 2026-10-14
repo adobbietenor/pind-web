@@ -2568,9 +2568,35 @@ export type Database = {
           },
         ]
       }
+      survey_comment_reads: {
+        Row: {
+          read_at: string
+          read_by: string
+          response_id: string
+        }
+        Insert: {
+          read_at?: string
+          read_by: string
+          response_id: string
+        }
+        Update: {
+          read_at?: string
+          read_by?: string
+          response_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "survey_comment_reads_response_id_fkey"
+            columns: ["response_id"]
+            isOneToOne: true
+            referencedRelation: "survey_responses"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       survey_responses: {
         Row: {
-          anything_off: string | null
+          comment: string | null
           created_at: string
           gathering_id: string
           id: string
@@ -2579,7 +2605,7 @@ export type Database = {
           would_have_gone: Database["public"]["Enums"]["survey_would_have_gone"]
         }
         Insert: {
-          anything_off?: string | null
+          comment?: string | null
           created_at?: string
           gathering_id: string
           id?: string
@@ -2588,7 +2614,7 @@ export type Database = {
           would_have_gone: Database["public"]["Enums"]["survey_would_have_gone"]
         }
         Update: {
-          anything_off?: string | null
+          comment?: string | null
           created_at?: string
           gathering_id?: string
           id?: string
@@ -2822,6 +2848,25 @@ export type Database = {
       admin_clear_stale_anonymous_testers: {
         Args: { p_older_than?: string; p_only?: string }
         Returns: number
+      }
+      admin_comment_read: {
+        Args: { p_actor: string; p_response: string }
+        Returns: undefined
+      }
+      admin_comments: {
+        Args: { p_limit?: number }
+        Returns: {
+          comment: string
+          created_at: string
+          first_name: string
+          gathering_id: string
+          gathering_name: string
+          id: string
+          read_at: string
+          read_by: string
+          starts_at: string
+          would_have_gone: Database["public"]["Enums"]["survey_would_have_gone"]
+        }[]
       }
       admin_confirm_venue: {
         Args: { p_actor: string; p_venue: string }
@@ -3126,6 +3171,7 @@ export type Database = {
         Args: { p_actor: string; p_gathering: string }
         Returns: undefined
       }
+      admin_unread_comments: { Args: never; Returns: number }
       admin_unwithdraw_gathering: {
         Args: { p_actor: string; p_gathering: string }
         Returns: undefined
