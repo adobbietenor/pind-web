@@ -674,6 +674,7 @@ any of it.
 
 - Privacy policy (Ticketmaster data and its 30-day purge, the automated photo checks, gender and its stated purpose, solo mode, retention table, PIPEDA access and deletion) and terms with the zero-tolerance clause and the "we organise nothing; crews meet at public spots at gatherings run by others" language; published on pind.social; acceptance at opt-in and at store sign-in; the one-hour lawyer read (§10).
 - Moderation rota that covers Toronto's night without heroics: Tatiana's time zone in Spain is six hours ahead, which naturally covers the 2 a.m. to 8 a.m. gap; Alex and Jayme cover the day. Every report posts to a private team channel; "by 10 a.m. someone has looked" is the standard, 24 hours the promise.
+- **A16's comments are on the rota at the same standard as reports** (Alex, 14 Oct 2026, #10): "by 10 a.m. someone has looked", from the admin's unread count. A comment may describe a person, and until A24's report-from-a-profile exists (M3.5) it is the only free-text way one can reach us from inside the app. The admin page is enough for the first crowds on exactly this condition.
 - Incident scripts (safety report, data breach, a public safety post) in the admin; the reporter-acknowledgement copy.
 
 - **The rejected photo's immediate deletion and the 12-month purge of check records** — moved here from M3.2 (Alex, M3.2). The privacy page already promises both; that is safe only because every public page is noindex until this milestone.

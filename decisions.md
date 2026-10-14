@@ -3917,3 +3917,35 @@ each is a migration with a harness case, and the review's own case turns green.
 **The cost of Q37/Q07, recorded:** clients that still name `photo_status` (the web app
 deployed before 10 Oct, builds 8–9) fail on the Profile tab, Change photo, Edit tags and
 the export until the next deploy and build.
+
+### A16's comment box: `anything_off` becomes `comment` (Alex, 14 Oct 2026; #10)
+
+**What prompted it.** Tatiana (#10) asked for an optional free-text box beside A16's
+question. Looking for where it would live turned up a column already there:
+`survey_responses.anything_off`, free text. **Nobody could say what it was for.** It was
+left over from the Test 0 schema (initial migration, 18 Sept, presumably T8's "anything
+off?"). It appears in **no document**: not spec.md, not this file, not the build plan.
+**Nothing has ever written it** (staging, 14 Oct: 0 of 5 answers). And it has been in the
+**M1.1 insert grant** since 18 Sept, so any opted-in person could already write free text
+into it that nobody would read. A column nobody can explain is how this became a surprise
+rather than a decision. So it is recorded here, by name.
+
+- **Renamed, not reused under its old name.** Putting "anything else you'd like to tell
+  us" into a column called `anything_off` gives a field a second meaning. Nothing reads
+  it, so the rename costs nothing, and a cap of **1,000 characters** goes on in the
+  database.
+- **(a) Deleted with the account** (Alex): the answer stays, with the person removed as
+  now; the comment text goes. Free text can identify someone, and the privacy page already
+  promises deletion. It is enforced in the database, at the moment the answer loses its
+  person, so every way an account goes is covered.
+- **(b) The admin page is enough for safety content for the first crowds** (Alex), on two
+  conditions: the admin shows an **unread count** for comments, so an unread pile is a
+  number and not invisible; and comments are on **M4.1's moderation rota at the same
+  standard as reports**, "by 10 a.m. someone has looked" (build plan §8 M4.1). The reason:
+  a comment may describe a person, and until A24's report-from-a-profile exists (M3.5) it
+  is the only free-text way one can reach us from inside the app.
+- **The V17 free-text rule does not apply, and why**: no other person can ever read a
+  comment, only its author and the team. If that ever changes, the filter comes with it.
+- **The privacy page says nothing about the team reading what someone writes.** A
+  sentence is drafted for Alex; the live copy is his to change.
+- **Status:** the who-can-see-what is with Alex for his OK before the migration is written.
