@@ -75,6 +75,10 @@ try {
   // Which city, on the screen itself (the header is hidden app-wide).
   // The label, not any card that happens to mention Toronto: it renders in capitals.
   step("the list says which city it is", (await body()).includes("TORONTO"));
+  // #2: the list was a page above the tabs, and the bar went with it. Seen, not merely
+  // in the DOM: each of the four labels has a box on screen.
+  const bar = await evaluate(`["Crowds","My Events","Connections","Profile"].map((l) => [...document.querySelectorAll('a,[role=tab],[role=link],[role=button]')].some((e) => e.innerText && e.innerText.trim() === l && e.getBoundingClientRect().height > 0))`);
+  step("the bottom tabs are still there on Toronto's list (#2)", bar.every(Boolean) || (console.log(`     tabs seen: ${JSON.stringify(bar)}`), false));
   const lede = await evaluate(`(() => { const e=[...document.querySelectorAll('div')].find(x=>x.childElementCount===0&&x.innerText.trim()===${JSON.stringify("See who's going, meet them there.")}); return e ? getComputedStyle(e).fontStyle : null; })()`);
   step("under the heading: 'See who's going, meet them there.', in italic", lede === "italic");
 
@@ -127,6 +131,13 @@ try {
   await evaluate(`[...document.querySelectorAll('[role=link]')][0].click()`);
   for (let t = 0; t < 30 && !String(await path()).startsWith("/crowd/"); t++) await sleep(500);
   step("a card opens the app's crowd page (A8)", String(await path()).startsWith("/crowd/"));
+
+  // …and the bar works from the list: My Events is one tap away, not Back then a tab.
+  await send("Page.navigate", { url: `${SITE}/city/toronto` });
+  await until("This week's crowds");
+  await click("My Events");
+  for (let t = 0; t < 30 && (await path()) !== "/my-events"; t++) await sleep(500);
+  step("a tab tapped from Toronto's list opens that tab (#2)", (await path()) === "/my-events");
 
   // Profile setup goes to sign-in, the same place Profile's own button goes.
   await send("Page.navigate", { url: `${SITE}/crowds` });

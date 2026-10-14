@@ -40,7 +40,7 @@ describe("The cities, one list (M3.3c)", () => {
     const home = appFiles.find((f) => f.path.endsWith("app/(tabs)/crowds.tsx"))!.source;
     assert.match(home, /CITIES\.map/, "the home screen does not draw the shared list");
     assert.match(home, /disabled=\{!opens\}/, "a city that is not live can be tapped");
-    const list = appFiles.find((f) => f.path.endsWith("app/city/[slug].tsx"))!.source;
+    const list = appFiles.find((f) => f.path.endsWith("app/(tabs)/city/[slug].tsx"))!.source;
     assert.match(list, /cityOpens\(city\.slug\)/, "the list screen does not refuse a city that is not live");
     const named = appFiles.filter((f) => /["'](Vancouver|Calgary|Montreal)["']/.test(f.source)).map((f) => f.path);
     assert.deepEqual(named, [], "a screen names a city itself instead of reading CITIES");

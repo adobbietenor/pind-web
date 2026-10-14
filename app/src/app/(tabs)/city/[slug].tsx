@@ -13,7 +13,7 @@
 //     interest can never empty the page; one with no chip is named as resting. Visibly
 //     on, with "Show everything" in the same line. Narrowing, never reordering (Q10).
 //     The rules are packages/shared/src/search.ts (Y02–Y05).
-import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import { Tabs, useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import {
@@ -102,8 +102,8 @@ export default function CityList() {
   // A city that is not live has no list — a hand-typed link says so, and shows nothing.
   if (!city || !cityOpens(city.slug)) {
     return (
-      <AppScreen>
-        <Stack.Screen options={{ title: city?.name ?? "" }} />
+      <AppScreen edges={["top"]}>
+        <Tabs.Screen options={{ title: city?.name ?? "" }} />
         <Heading>{city?.name ?? "Not on Pin'd"}</Heading>
         <Body muted>{HOME_COPY.comingSoon}</Body>
       </AppScreen>
@@ -112,8 +112,8 @@ export default function CityList() {
 
   if (trouble) {
     return (
-      <AppScreen>
-        <Stack.Screen options={{ title: city.name }} />
+      <AppScreen edges={["top"]}>
+        <Tabs.Screen options={{ title: city.name }} />
         <Heading>{city.name}</Heading>
         <Trouble what={trouble} onRetry={() => setAttempt((n) => n + 1)} />
       </AppScreen>
@@ -122,8 +122,8 @@ export default function CityList() {
 
   if (!week || !seeded) {
     return (
-      <AppScreen scroll={false}>
-        <Stack.Screen options={{ title: city.name }} />
+      <AppScreen edges={["top"]} scroll={false}>
+        <Tabs.Screen options={{ title: city.name }} />
         <ActivityIndicator style={{ marginTop: spacing.xl }} color={palette.textMuted} />
       </AppScreen>
     );
@@ -167,8 +167,8 @@ export default function CityList() {
   };
 
   return (
-    <AppScreen>
-      <Stack.Screen options={{ title: city.name }} />
+    <AppScreen edges={["top"]}>
+      <Tabs.Screen options={{ title: city.name }} />
       {/* The header is hidden app-wide, so the city is said here (Alex, 6 Oct). */}
       <Text style={styles.city}>{city.name}</Text>
       <Heading>{found ? SEARCH_COPY.label : tab === "community" ? "Community this week" : "This week's crowds"}</Heading>
