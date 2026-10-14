@@ -81,6 +81,7 @@ const ROUTES: [string, AdminHandler][] = [
   ["POST /admin/people/:id/keep-hidden", m.keepHidden],
   ["POST /admin/people/:id/hide", m.hidePerson],
   ["POST /admin/people/:id/dismiss-reports", m.dismissReports],
+  ["POST /admin/people/:id/return-to-solo", m.returnToSolo],
   // #10 — A16's comments, with the unread count on every page
   ["GET /admin/comments", comments.commentQueue],
   ["POST /admin/comments/:id/read", comments.markCommentRead],

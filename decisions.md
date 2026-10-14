@@ -349,7 +349,7 @@ profile.
   near-black background, purple `#582883`, white text, the logo — matching the app and
   pindscene.com. Mobile-first, and still loading in under a second inside a Reddit tab.
   Replaces "white pages" (spec §2).
-- **Future and beta features** (Alex, after Phase 1 M1.3). *(Open, Alex's — 6 Oct 2026: the room design (28 Sept) makes solo "the same move with one person"; the solo design below, build plan M3.4 and spec A28/A29 still describe the crew era and are reconciled before M3.4 starts.)*
+- **Future and beta features** (Alex, after Phase 1 M1.3). *(Open, Alex's — 6 Oct 2026: the room design (28 Sept) makes solo "the same move with one person"; the solo design below, build plan M3.4 and spec A28/A29 still describe the crew era and are reconciled before M3.4 starts.)* *(Reconciled 14 Oct 2026 (Alex): solo stays a separate 1-on-1 list, not gated on the room — "M3.4: who can see whom in 1-on-1".)*
   - **"Put me in a crew"**: an optional button that places a person in an open crew
     with room, for people who don't want to choose. **Decided yes** (Alex, revised
     build plan): built in M3.3 — it places the person in the open crew with the most
@@ -4031,3 +4031,53 @@ rather than a decision. So it is recorded here, by name.
   requires both issue forms to offer exactly the spec's screen headings, **by ID and by
   title**, so a stale label cannot hide behind an ID that still exists. It went red
   against the old forms before they were fixed.
+
+### M3.4: who can see whom in 1-on-1 (Alex, 14 Oct 2026)
+
+Approved as proposed, all five calls as recommended. This closes the open item in Part 5,
+"Future and beta features" (solo reconciled with the room).
+
+- **A separate 1-on-1 list, not gated on the room.** Anyone at the gathering who opted in
+  to 1-on-1 and passes the rule below, whether or not you have talked. The opt-in is
+  two-sided, and the first message is a preset line.
+  **The guardrails are what keep this from being a dating surface, and none of them is
+  negotiable later without asking Alex:** no swiping, no free text, a spot from the venue's
+  list and a time required, at most 3 open proposals, one proposal per pair ever.
+- **The rule.** You see someone in 1-on-1 at a gathering only when all of these hold, read
+  at the moment:
+  - you can see each other on that gathering's people list (`can_see_at`: both opted in to
+    meeting, the gathering live, neither hidden, no block either way). Solo only narrows
+    this rule, never widens it;
+  - both of you have turned on "Meet 1-on-1" there;
+  - neither of you is out of 1-on-1 because of a report;
+  - the women-only limit holds both ways: someone who chose "women only" sees, and is seen
+    by, only women and nonbinary people who opted into women-only.
+- **1-on-1 requires the meeting opt-in.** Switching meeting off switches 1-on-1 off too. So
+  §7's "solo only, not in the room" is always 0, which is expected, not broken (noted
+  in spec §7).
+- **Women-only applies both ways.**
+- **A reported person is out of 1-on-1, silently.** Any report on them, for any reason,
+  including a report on one of their messages, sets `hidden_from_solo` at once. They see
+  an empty section, cannot propose, and are never told why: telling them would point at
+  the reporter.
+  **It must be reversible** (Alex: "a single bad report must not be a one-way door"). The
+  admin's report queue gets a control that returns someone to 1-on-1 after review, logged
+  like every moderation action. **Solo does not ship until that control exists.** It is
+  deliberately separate from Unhide and Dismiss: a report can be wrong about hiding
+  someone and still be a reason to keep them out of 1-on-1, so returning them is its own
+  decision.
+- **One proposal per pair per gathering, ever, in either direction.** A declined or
+  expired proposal cannot be sent again, because a resend would reveal the decline.
+- **Who reads what.** Your solo switch and your women-only choice are readable only by
+  you (and the admin). Whether someone is out of 1-on-1: only the admin. A proposal is
+  read only by its two people. The plan after an accept is a group of two, read only by
+  its two members, under the existing group rules. The partner's Instagram handle comes
+  through V17's crewmate branch.
+- **A received proposal is a push: the eighth notification** (Alex). A18's rule is a ban
+  on engagement bait, not a count, and someone asking to meet you is a real moment. It is
+  written into spec A18 as its own numbered line, with its reason, in the same change
+  that adds the database's kind (N08/N09 hold the two together).
+- **Numbering.** The build plan's "P55+" predates the harness growing to P208; the solo
+  cases start at P209. Review-only gatherings (V15) do not exist until M5.1. They go into
+  the base rule then, so solo inherits them; until then the staging equivalent (seed
+  gatherings and people, testers only) is inherited and tested.

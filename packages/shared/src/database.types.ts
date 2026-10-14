@@ -1723,6 +1723,7 @@ export type Database = {
           first_name: string
           gatherings_count: number
           hidden_at: string | null
+          hidden_from_solo: boolean
           id: string
           is_seed: boolean
           last_initial: string | null
@@ -1737,6 +1738,7 @@ export type Database = {
           first_name: string
           gatherings_count?: number
           hidden_at?: string | null
+          hidden_from_solo?: boolean
           id?: string
           is_seed?: boolean
           last_initial?: string | null
@@ -1751,6 +1753,7 @@ export type Database = {
           first_name?: string
           gatherings_count?: number
           hidden_at?: string | null
+          hidden_from_solo?: boolean
           id?: string
           is_seed?: boolean
           last_initial?: string | null
@@ -1994,6 +1997,8 @@ export type Database = {
           open_to_meeting: boolean
           party_total: number
           person_id: string
+          solo_opt_in: boolean
+          solo_visibility: Database["public"]["Enums"]["solo_visibility"] | null
           updated_at: string
         }
         Insert: {
@@ -2003,6 +2008,10 @@ export type Database = {
           open_to_meeting?: boolean
           party_total?: number
           person_id: string
+          solo_opt_in?: boolean
+          solo_visibility?:
+            | Database["public"]["Enums"]["solo_visibility"]
+            | null
           updated_at?: string
         }
         Update: {
@@ -2012,6 +2021,10 @@ export type Database = {
           open_to_meeting?: boolean
           party_total?: number
           person_id?: string
+          solo_opt_in?: boolean
+          solo_visibility?:
+            | Database["public"]["Enums"]["solo_visibility"]
+            | null
           updated_at?: string
         }
         Relationships: [
@@ -3085,6 +3098,10 @@ export type Database = {
         Args: { p_actor: string; p_gathering: string }
         Returns: undefined
       }
+      admin_return_to_solo: {
+        Args: { p_actor: string; p_note?: string; p_person: string }
+        Returns: undefined
+      }
       admin_save_publish_settings: {
         Args: { p_actor: string; p_city: string; p_settings: Json }
         Returns: undefined
@@ -3282,6 +3299,10 @@ export type Database = {
           women_only: boolean
         }[]
       }
+      my_solo: {
+        Args: { p_gathering: string }
+        Returns: Database["public"]["Enums"]["solo_visibility"]
+      }
       public_gathering: { Args: { p_slug: string }; Returns: Json }
       public_gatherings:
         | {
@@ -3347,6 +3368,13 @@ export type Database = {
       room_seen: { Args: { p_room: string }; Returns: undefined }
       set_women_only_rooms: { Args: { p_on: boolean }; Returns: undefined }
       showed_up: { Args: { p_person: string }; Returns: boolean }
+      solo_people: {
+        Args: { p_gathering: string }
+        Returns: {
+          party_total: number
+          person_id: string
+        }[]
+      }
       spot_poll: {
         Args: { p_gathering: string }
         Returns: {
@@ -3407,6 +3435,7 @@ export type Database = {
       report_status: "open" | "auto_hidden" | "actioned" | "dismissed"
       report_target: "person" | "crew" | "message"
       series_cadence: "weekly" | "fortnightly" | "monthly"
+      solo_visibility: "everyone" | "women_only"
       suggestion_status: "pending" | "approved" | "rejected"
       survey_met: "none" | "1_2" | "3_5" | "6_plus"
       survey_would_have_gone: "yes" | "no" | "wasnt_going"
@@ -3582,6 +3611,7 @@ export const Constants = {
       report_status: ["open", "auto_hidden", "actioned", "dismissed"],
       report_target: ["person", "crew", "message"],
       series_cadence: ["weekly", "fortnightly", "monthly"],
+      solo_visibility: ["everyone", "women_only"],
       suggestion_status: ["pending", "approved", "rejected"],
       survey_met: ["none", "1_2", "3_5", "6_plus"],
       survey_would_have_gone: ["yes", "no", "wasnt_going"],

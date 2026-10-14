@@ -804,6 +804,45 @@ joins one or approves anyone.
   person in any hour, and none again until the person has opened the room since the last
   one.
 
+## 12k · 1-on-1 — V14 (Alex, M3.4, 14 Oct 2026)
+
+Approved by Alex (decisions, "M3.4: who can see whom in 1-on-1"). Migration
+`m3_4_solo_visibility`; `private.can_see_solo`.
+
+**V can see P in 1-on-1 at G** only when all of these hold, read at the moment:
+
+- **V can see P at G** (V1, `can_see_at`): both open to meeting, G live, neither hidden,
+  no block either way, seed rows to testers only. Solo only narrows this rule;
+- **both have "Meet 1-on-1" on at G** (`pins.solo_opt_in`), which needs open to meeting:
+  switching meeting off switches it off;
+- **neither is out of 1-on-1** (`people.hidden_from_solo`, set by any report on them or on
+  one of their messages, for any reason);
+- **the women-only limit, both ways** (`pins.solo_visibility`): if either chose "women
+  only", the other must be women-only eligible (V5's eligibility).
+
+| Who | Can | Cannot |
+|---|---|---|
+| A person with 1-on-1 on | read `solo_people(G)`: the people above; read their own switch (`my_solo`) | read anyone's switch or choice; read `hidden_from_solo`, anyone's or their own |
+| A person without it | — (an empty section) | appear in anyone's section |
+| Someone out of 1-on-1 | read their own switch, unchanged | see anyone in 1-on-1, or be seen; learn that they are out |
+| A visitor | — | call `solo_people` |
+| The admin | read both columns; `admin_return_to_solo` (logged) | — |
+
+**Not readable through the pins table:** `solo_opt_in` and `solo_visibility` are not in
+the select grant (Q37), and are not in the insert grant (off at pin-in). The owner
+updates them through `pins_update_own`. On needs a choice (forced, A28), and switching it
+on is refused on a withdrawn gathering (Q43); switching off never is.
+
+**The way back.** Only the admin returns someone to 1-on-1, from the report queue, as
+its own decision: Unhide and Dismiss do not. **Solo does not ship until this exists**
+(Alex).
+
+**Proved by:** P209 (both see each other; someone without 1-on-1 sees no one and is in no
+one's section, while still on the people list); P210 (the switch); P211 (women-only both
+ways, with the nonbinary cases); P212 (a block, both ways); P213 (a spam report, and a
+report on a room message, take someone out silently, and nothing else moves); P214 (the
+way back); P215 (hidden, withdrawn). Proposals and the plan follow the lifecycle step.
+
 ## 13 · Spot poll
 
 - **One vote per person per gathering, changeable** (Alex, M1.1). Enforced by the

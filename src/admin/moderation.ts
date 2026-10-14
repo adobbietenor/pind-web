@@ -145,7 +145,7 @@ export const decidePhoto: AdminHandler = async (request, ctx) => {
 // GET /admin/reports — hidden people and open reports, grouped by person.
 export const reportQueue: AdminHandler = async (request, ctx) => {
   const { db } = ctx;
-  const [reports, hidden] = await Promise.all([
+  const [reports, hidden, outOfSolo] = await Promise.all([
     must(
       db
         .from("reports")
@@ -155,13 +155,16 @@ export const reportQueue: AdminHandler = async (request, ctx) => {
         .order("created_at"),
     ),
     must(db.from("people").select("id").not("hidden_at", "is", null)),
+    // Out of 1-on-1 (M3.4): set by any report, cleared only here, by a person.
+    must(db.from("people").select("id").eq("hidden_from_solo", true)),
   ]);
   const ids = new Set<string>([
     ...hidden.map((p: { id: string }) => p.id),
+    ...outOfSolo.map((p: { id: string }) => p.id),
     ...reports.flatMap((r: any) => [r.target_person_id, r.reporter_id].filter(Boolean)),
   ]);
   const people = ids.size
-    ? await must(db.from("people").select("id, first_name, hidden_at, person_handles(instagram)").in("id", [...ids]))
+    ? await must(db.from("people").select("id, first_name, hidden_at, hidden_from_solo, person_handles(instagram)").in("id", [...ids]))
     : [];
   const byId = new Map<string, any>(people.map((p: any) => [p.id, p]));
   const pinCounts = new Map<string, number>();
@@ -188,9 +191,10 @@ export const reportQueue: AdminHandler = async (request, ctx) => {
     const actions = p.hidden_at
       ? actionForm(personId, "unhide", "Unhide") + " " + (theirs.length ? actionForm(personId, "keep-hidden", "Keep hidden", "danger") : "")
       : actionForm(personId, "hide", "Hide now", "danger") + " " + actionForm(personId, "dismiss-reports", "Dismiss reports", "plain");
+    const solo = p.hidden_from_solo ? "<br>" + actionForm(personId, "return-to-solo", "Return to 1-on-1", "plain") : "";
     return `<tr><td><strong>${e(p.first_name ?? "?")}</strong> <span class="muted">${e(one<any>(p.person_handles)?.instagram ?? "")}</span><br>
-${p.hidden_at ? `<span class="bad">hidden since ${e(p.hidden_at.slice(0, 16).replace("T", " "))} UTC</span>` : "visible"} · pins: ${pinCounts.get(personId) ?? 0}
-<ul>${list || `<li class="muted">No open reports (reviewed earlier).</li>`}</ul></td><td>${actions}</td></tr>`;
+${p.hidden_at ? `<span class="bad">hidden since ${e(p.hidden_at.slice(0, 16).replace("T", " "))} UTC</span>` : "visible"} · pins: ${pinCounts.get(personId) ?? 0}${p.hidden_from_solo ? ` · <span class="bad">out of 1-on-1</span>` : ""}
+<ul>${list || `<li class="muted">No open reports (reviewed earlier).</li>`}</ul></td><td>${actions}${solo}</td></tr>`;
   };
 
   const hiddenIds = hidden.map((p: any) => p.id);
@@ -199,15 +203,21 @@ ${p.hidden_at ? `<span class="bad">hidden since ${e(p.hidden_at.slice(0, 16).rep
   );
   const needsReview = hiddenIds.filter((id: string) => reports.some((r: any) => r.target_person_id === id));
   const reviewed = hiddenIds.filter((id: string) => !needsReview.includes(id));
+  const shown = new Set<string>([...hiddenIds, ...reportedVisible]);
+  const soloOnly = outOfSolo.map((p: any) => p.id).filter((id: string) => !shown.has(id));
 
   const body = `<p class="muted">Safety reasons hide at once; "not who they said" and spam hide at two reports from different people.
-Unhide dismisses their reports (a new report starts the count again). Keep hidden upholds them.</p>
+Unhide dismisses their reports (a new report starts the count again). Keep hidden upholds them.
+Any report — on a person or on one of their messages — also takes them out of 1-on-1 at once, silently. Unhide and Dismiss do not return them:
+"Return to 1-on-1" is its own decision, made after review.</p>
 <h2>Hidden, awaiting review (${needsReview.length})</h2>
 <table>${needsReview.map(card).join("") || `<tr><td class="muted">None.</td></tr>`}</table>
 <h2>Reported, still visible (${reportedVisible.length})</h2>
 <table>${reportedVisible.map(card).join("") || `<tr><td class="muted">None.</td></tr>`}</table>
 <h2>Hidden, reviewed (${reviewed.length})</h2>
-<table>${reviewed.map(card).join("") || `<tr><td class="muted">None.</td></tr>`}</table>`;
+<table>${reviewed.map(card).join("") || `<tr><td class="muted">None.</td></tr>`}</table>
+<h2>Out of 1-on-1, nothing else open (${soloOnly.length})</h2>
+<table>${soloOnly.map(card).join("") || `<tr><td class="muted">None.</td></tr>`}</table>`;
   return adminPage(request, ctx.email, `Reports (${needsReview.length + reportedVisible.length})`, body);
 };
 
@@ -227,3 +237,4 @@ export const unhidePerson = personAction("admin_unhide_person", "Unhidden: visib
 export const keepHidden = personAction("admin_keep_hidden", "Kept hidden: reports upheld");
 export const hidePerson = personAction("admin_hide_person", "Hidden");
 export const dismissReports = personAction("admin_dismiss_reports", "Reports dismissed");
+export const returnToSolo = personAction("admin_return_to_solo", "Returned to 1-on-1");

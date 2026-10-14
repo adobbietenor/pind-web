@@ -4915,3 +4915,176 @@ describe("A pin on a withdrawn gathering is frozen, not trapped (M4.2: Q43)", ()
     }
   });
 });
+
+// M3.4 (Alex, 14 Oct 2026 — decisions, "M3.4: who can see whom in 1-on-1"; V14). Each rule
+// is proved from both sides: the right person sees, the wrong person does not. Proposals
+// and the plan arrive with the lifecycle.
+describe("1-on-1 — who can see whom (M3.4, V14)", () => {
+  let S = "";
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient; pinId: string }> = {};
+
+  // A person who may meet, pinned and open to meeting at S — then 1-on-1 as asked.
+  async function solo(label: string, gender: "woman" | "man" | "nonbinary", choice: "everyone" | "women_only" | null, womenOnly = false) {
+    const email = `${PREFIX}-${w.run}-solo-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender, birth_year: 1994, include_in_women_only: womenOnly }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    const pin = await ok(client.from("pins").insert({ gathering_id: S, person_id: person.id, party_total: 1, open_to_meeting: true }).select("id").single());
+    people[label] = { authId, personId: person.id, client, pinId: pin.id };
+    if (choice) await ok(client.from("pins").update({ solo_opt_in: true, solo_visibility: choice }).eq("id", pin.id), `${label} turns 1-on-1 on`);
+    return people[label];
+  }
+  const P = (label: string) => people[label]!;
+  // The 1-on-1 section as a person's own session reads it, by name.
+  const section = async (label: string) => {
+    const ids = (await rows(P(label).client.rpc("solo_people", { p_gathering: S }))).map((r: { person_id: string }) => r.person_id);
+    return Object.keys(people).filter((n) => ids.includes(P(n).personId)).sort();
+  };
+  const sees = async (viewer: string, target: string) => (await section(viewer)).includes(target);
+  const mySolo = async (label: string) => (await ok(P(label).client.rpc("my_solo", { p_gathering: S }))) as string | null;
+  const onPeopleList = async (viewer: string, target: string) =>
+    (await rows(P(viewer).client.from("pins").select("person_id").eq("gathering_id", S).eq("person_id", P(target).personId))).length === 1;
+
+  before(async () => {
+    S = (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Solo`, starts_at: inDays(5), venue_id: w.venue, published_at: new Date().toISOString() }).select("id").single())).id;
+    await solo("Sue", "woman", "everyone");
+    await solo("Max", "man", "everyone");
+    await solo("Wyn", "woman", "women_only");
+    await solo("Nb1", "nonbinary", "everyone", true);
+    await solo("Nb2", "nonbinary", "everyone");
+    await solo("Cro", "man", null);
+    await solo("Ola", "woman", "everyone");
+    await solo("Rep", "man", "everyone");
+    await solo("Msg", "man", "everyone");
+    await solo("Hid", "man", "everyone");
+  }, { timeout: 120_000 });
+
+  after(async () => {
+    for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
+    await w.service.from("gatherings").delete().eq("id", S);
+  });
+
+  it("P209 two people with 1-on-1 on see each other; someone open to meeting without it sees no one and is in no one's section — yet is still on the people list", async () => {
+    assert.ok(await sees("Sue", "Max"), "Sue could not see Max in 1-on-1");
+    assert.ok(await sees("Max", "Sue"), "Max could not see Sue in 1-on-1");
+    assert.deepEqual(await section("Cro"), [], "someone without 1-on-1 saw a 1-on-1 section");
+    for (const viewer of ["Sue", "Max", "Ola"]) assert.ok(!(await sees(viewer, "Cro")), `${viewer} saw someone without 1-on-1 in the section`);
+    // Solo narrows the people list, never replaces it: Cro and Sue still see each other there.
+    assert.ok(await onPeopleList("Cro", "Sue"), "control: Cro could not see Sue on the people list, so the refusal above proves nothing");
+    assert.ok(!(await section("Sue")).includes("Sue"), "a person is listed in their own section");
+    await denied(w.anon.rpc("solo_people", { p_gathering: S }));
+  });
+
+  it("P210 the switch: off by default, never set at pin-in, on only with a choice, read only by its owner, and off with meeting", async () => {
+    assert.equal(await mySolo("Cro"), null, "1-on-1 was on by default");
+    assert.equal(await mySolo("Sue"), "everyone");
+    assert.equal(await mySolo("Wyn"), "women_only");
+    // On without a choice is refused (A28's forced choice); a stray choice while off is dropped.
+    await denied(P("Cro").client.from("pins").update({ solo_opt_in: true }).eq("id", P("Cro").pinId), "23514");
+    await ok(P("Cro").client.from("pins").update({ solo_visibility: "everyone" }).eq("id", P("Cro").pinId));
+    assert.equal(await mySolo("Cro"), null, "a choice without the switch turned 1-on-1 on");
+    // Nobody reads the columns through the table — not another person, not a visitor.
+    await denied(P("Max").client.from("pins").select("solo_opt_in").eq("id", P("Sue").pinId), "42501");
+    await denied(P("Max").client.from("pins").select("solo_visibility").eq("id", P("Wyn").pinId), "42501");
+    await denied(w.anon.from("pins").select("solo_opt_in").limit(1));
+    // Never at pin-in: the insert grant does not carry it.
+    const g2 = await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Solo2`, starts_at: inDays(6), venue_id: w.venue, published_at: new Date().toISOString() }).select("id").single());
+    try {
+      await denied(P("Max").client.from("pins").insert({ gathering_id: g2.id, person_id: P("Max").personId, party_total: 1, open_to_meeting: true, solo_opt_in: true, solo_visibility: "everyone" }), "42501");
+    } finally {
+      await w.service.from("pins").delete().eq("gathering_id", g2.id);
+      await w.service.from("gatherings").delete().eq("id", g2.id);
+    }
+    // Someone else's switch cannot be turned on for them.
+    await ok(P("Max").client.from("pins").update({ solo_opt_in: true, solo_visibility: "everyone" }).eq("id", P("Cro").pinId));
+    assert.equal(await mySolo("Cro"), null, "Max turned Cro's 1-on-1 on");
+    // Meeting off switches 1-on-1 off; on again asks again.
+    await ok(P("Ola").client.from("pins").update({ open_to_meeting: false }).eq("id", P("Ola").pinId));
+    assert.equal(await mySolo("Ola"), null, "1-on-1 stayed on with meeting off");
+    assert.ok(!(await sees("Sue", "Ola")), "someone not open to meeting was in a 1-on-1 section");
+    await ok(P("Ola").client.from("pins").update({ open_to_meeting: true }).eq("id", P("Ola").pinId));
+    assert.equal(await mySolo("Ola"), null, "1-on-1 came back on by itself, without asking again");
+    await ok(P("Ola").client.from("pins").update({ solo_opt_in: true, solo_visibility: "everyone" }).eq("id", P("Ola").pinId));
+    assert.ok(await sees("Sue", "Ola"), "control: Ola back on, but Sue cannot see her");
+  });
+
+  it("P211 'women only', both ways: seen by and seeing only women and nonbinary people who opted into women-only — never a man, never other nonbinary people", async () => {
+    assert.ok(await sees("Sue", "Wyn"), "a woman could not see a women-only woman");
+    assert.ok(await sees("Nb1", "Wyn"), "a nonbinary person in women-only could not see her");
+    assert.ok(!(await sees("Max", "Wyn")), "a man saw a women-only woman in 1-on-1");
+    assert.ok(!(await sees("Nb2", "Wyn")), "a nonbinary person not in women-only saw her");
+    const hers = await section("Wyn");
+    assert.deepEqual(hers.filter((n) => ["Max", "Nb2", "Rep", "Msg", "Hid"].includes(n)), [], "a women-only person saw people who cannot see her");
+    assert.ok(hers.includes("Sue") && hers.includes("Nb1"), "a women-only person could not see the people who can see her");
+    // Only her 1-on-1 is limited: on the people list Max and Wyn still see each other.
+    assert.ok(await onPeopleList("Max", "Wyn"), "control: Max could not see Wyn on the people list");
+    // Changing her mind to everyone opens it both ways at once, and back closes it.
+    await ok(P("Wyn").client.from("pins").update({ solo_visibility: "everyone" }).eq("id", P("Wyn").pinId));
+    assert.ok(await sees("Max", "Wyn"), "control: everyone, and still not visible");
+    await ok(P("Wyn").client.from("pins").update({ solo_visibility: "women_only" }).eq("id", P("Wyn").pinId));
+    assert.ok(!(await sees("Max", "Wyn")), "back to women only, and still visible to a man");
+  });
+
+  it("P212 a block hides both ways in 1-on-1; everyone else still sees both", async () => {
+    assert.ok(await sees("Max", "Ola"), "control: Max could not see Ola before the block");
+    await ok(w.service.from("blocks").insert({ blocker_id: P("Ola").personId, blocked_id: P("Max").personId }));
+    assert.ok(!(await sees("Ola", "Max")), "the blocker saw the blocked person");
+    assert.ok(!(await sees("Max", "Ola")), "the blocked person saw the blocker");
+    assert.ok((await sees("Sue", "Max")) && (await sees("Sue", "Ola")), "a block between two people hid them from a third");
+  });
+
+  it("P213 any report takes someone out at once — a spam report on them, or a report on one of their room messages — silently, without hiding them from the people list", async () => {
+    assert.ok(await sees("Sue", "Rep"), "control: Sue could not see Rep before the report");
+    // One spam report: not enough to hide him anywhere (H9 needs two), enough to take him out of 1-on-1.
+    await ok(P("Sue").client.from("reports").insert({ reporter_id: P("Sue").personId, target_kind: "person", target_person_id: P("Rep").personId, reason: "spam" }));
+    for (const viewer of ["Sue", "Max", "Ola", "Nb1"]) assert.ok(!(await sees(viewer, "Rep")), `${viewer} still saw a reported person in 1-on-1`);
+    assert.deepEqual(await section("Rep"), [], "a reported person still saw a 1-on-1 section");
+    assert.equal(await mySolo("Rep"), "everyone", "his own switch moved: he would learn something happened");
+    assert.ok(await onPeopleList("Max", "Rep"), "one spam report hid him from the people list");
+    await denied(P("Rep").client.from("people").select("hidden_from_solo").eq("id", P("Rep").personId), "42501");
+    await denied(P("Sue").client.from("people").select("hidden_from_solo").eq("id", P("Rep").personId), "42501");
+
+    // A report on a room message is a report on its author.
+    const room = (await rows(P("Msg").client.rpc("my_rooms", { p_gathering: S }))).find((r: { women_only: boolean }) => !r.women_only)?.room_id as string;
+    assert.ok(room, "Msg was not placed in a room");
+    const msg = await ok(P("Msg").client.from("room_messages").insert({ room_id: room, author_id: P("Msg").personId, body: "anyone want to walk in together?" }).select("id").single());
+    assert.ok(await sees("Sue", "Msg"), "control: Sue could not see Msg before the report");
+    await ok(P("Sue").client.from("reports").insert({ reporter_id: P("Sue").personId, target_kind: "message", target_room_message_id: msg.id, reason: "spam" }));
+    for (const viewer of ["Sue", "Max", "Ola"]) assert.ok(!(await sees(viewer, "Msg")), `${viewer} still saw someone whose message was reported`);
+  });
+
+  it("P214 the way back: only the admin returns someone to 1-on-1, it is logged, a second return is refused, and a new report takes them out again", async () => {
+    await denied(P("Rep").client.rpc("admin_return_to_solo", { p_person: P("Rep").personId, p_actor: "me", p_note: null }));
+    await denied(P("Sue").client.rpc("admin_return_to_solo", { p_person: P("Rep").personId, p_actor: "me", p_note: null }));
+    assert.ok(!(await sees("Sue", "Rep")), "a person returned themselves, or was returned by someone else");
+    await ok(w.service.rpc("admin_return_to_solo", { p_person: P("Rep").personId, p_actor: ACTOR, p_note: "P214" }));
+    assert.ok(await sees("Sue", "Rep"), "the admin's return did not put him back");
+    assert.ok(await sees("Rep", "Max"), "returned, but his own section stayed empty");
+    const log = await rows(w.service.from("moderation_log").select("action").eq("person_id", P("Rep").personId).eq("action", "return_to_solo"));
+    assert.equal(log.length, 1, "the return was not logged");
+    await denied(w.service.rpc("admin_return_to_solo", { p_person: P("Rep").personId, p_actor: ACTOR, p_note: null }));
+    await ok(P("Max").client.from("reports").insert({ reporter_id: P("Max").personId, target_kind: "person", target_person_id: P("Rep").personId, reason: "spam" }));
+    assert.ok(!(await sees("Sue", "Rep")), "a report after the return did not take him out again");
+  });
+
+  it("P215 inherited from the people list: a hidden person is out; a withdrawn gathering has no section, and 1-on-1 cannot be switched on there — only off", async () => {
+    assert.ok(await sees("Sue", "Hid"), "control: Sue could not see Hid");
+    await ok(w.service.from("people").update({ hidden_at: new Date().toISOString() }).eq("id", P("Hid").personId));
+    assert.ok(!(await sees("Sue", "Hid")), "a hidden person was in a 1-on-1 section");
+    assert.deepEqual(await section("Hid"), [], "a hidden person saw a 1-on-1 section");
+
+    assert.ok((await section("Sue")).length > 0, "control: Sue's section was already empty");
+    await ok(w.service.from("gatherings").update({ withdrawn_at: new Date().toISOString() }).eq("id", S));
+    assert.deepEqual(await section("Sue"), [], "a withdrawn gathering still had a 1-on-1 section");
+    await denied(P("Cro").client.from("pins").update({ solo_opt_in: true, solo_visibility: "everyone" }).eq("id", P("Cro").pinId), "23514");
+    await ok(P("Sue").client.from("pins").update({ solo_opt_in: false }).eq("id", P("Sue").pinId));
+    assert.equal(await mySolo("Sue"), null, "switching 1-on-1 off was refused on a withdrawn gathering — it never may be");
+  });
+});
