@@ -17,7 +17,7 @@ import { loadEnv } from "./env.ts";
 import { optInMissing } from "../../packages/shared/src/optin.ts";
 import { MY_EVENTS_PINS_SELECT } from "../../packages/shared/src/myevents.ts";
 import { photoDest } from "../../src/account/merge-checks.ts";
-import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, markHarness, newClient, sweep, type Member, type World, removeUser, accountlessPeople } from "./world.ts";
+import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, harnessLeftovers, markHarness, newClient, sweep, sweepTwice, type Member, type World, removeUser, accountlessPeople } from "./world.ts";
 
 interface Result {
   data: any;
@@ -117,7 +117,9 @@ before(async () => {
   // (19 of them, swept at the end), so a count taken after it hid a leftover (6 Oct).
   const env = loadEnv();
   accountlessAtStart = await accountlessPeople(newClient(env, env.secretKey));
-  w = await buildWorld(env);
+  // PIND_SETUP_FAIL=1 makes this setup throw half-way (with PIND_P204_FIRE=1, buildWorld
+  // does not clean up either), to prove the `after` below still sweeps and checks.
+  w = await buildWorld(env, process.env.PIND_SETUP_FAIL === "1" ? { failAfter: "cast" } : {});
   // P184's firing proof: PIND_P184_FIRE=1 leaves one person with no account behind on
   // purpose, and the check at the end must refuse the run.
   if (process.env.PIND_P184_FIRE === "1") await ok(w.service.from("people").insert({ first_name: "P184 probe" }));
@@ -126,12 +128,20 @@ before(async () => {
 // P184 (Alex, 6 Oct 2026): the harness deletes its own people. Checked here, the very
 // last thing a run does — after every suite's clean-up and the sweep: a person row left
 // with no account is the leftover that made the photo sweep fail every hour.
+//
+// **Including a run whose setup threw** (14 Oct 2026). This hook used to begin
+// `if (!w) return;`, so the run most likely to leave rows behind, a setup that died
+// half-way, was the one run P184 never looked at: a guard that never ran, reporting
+// nothing. It now sweeps and checks either way, with a service client of its own.
 after(async () => {
-  if (!w) return;
-  await sweep(w.service);
-  const now = await accountlessPeople(w.service);
-  console.log(`P184: people with no account — ${accountlessAtStart} at the start, ${now} at the end`);
+  const env = loadEnv();
+  const service = w?.service ?? newClient(env, env.secretKey);
+  await sweepTwice(service);
+  const now = await accountlessPeople(service);
+  console.log(`P184: people with no account — ${accountlessAtStart} at the start, ${now} at the end${w ? "" : " (setup failed)"}`);
   assert.ok(now <= accountlessAtStart, `P184: this run left ${now - accountlessAtStart} person rows with no account behind (${accountlessAtStart} → ${now})`);
+  const left = await harnessLeftovers(service);
+  assert.deepEqual(left, { people: 0, gatherings: 0, venues: 0, users: 0 }, `this run left harness rows behind: ${JSON.stringify(left)}`);
 }, { timeout: 300_000 });
 
 describe("Public data — V2, V11", () => {

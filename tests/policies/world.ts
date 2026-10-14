@@ -332,19 +332,58 @@ async function gathering(
   return row.id;
 }
 
-export async function buildWorld(env: HarnessEnv): Promise<World> {
+// What a run left behind, by the harness's own markers — the sweep's definition of "ours".
+// Every count must be 0 after a sweep. `run` narrows it to one run's rows.
+export async function harnessLeftovers(service: SupabaseClient, run = ""): Promise<Record<string, number>> {
+  const tag = run ? `${PREFIX}_${run}_%` : `${PREFIX}_%`;
+  const name = run ? `${PREFIX} ${run} %` : `${PREFIX} %`;
+  const people = await must(service.from("person_handles").select("person_id").like("instagram", tag), "leftovers: people");
+  const gatherings = await must(service.from("gatherings").select("id").like("name", name), "leftovers: gatherings");
+  const venues = await must(service.from("venues").select("id").like("name", name), "leftovers: venues");
+  let users = 0;
+  for (let page = 1; ; page++) {
+    const { data, error } = await service.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw new Error(`leftovers: list users: ${error.message}`);
+    users += data.users.filter((u) =>
+      run ? (u.email ?? "").startsWith(`${PREFIX}-${run}-`) : (u.email ?? "").startsWith(`${PREFIX}-`) || u.user_metadata?.harness === PREFIX,
+    ).length;
+    if (data.users.length < 1000) break;
+  }
+  return { people: people.length, gatherings: gatherings.length, venues: venues.length, users };
+}
+
+// Sweeps, and once more if the first attempt fails: a clean-up that dies on a 502 (14 Oct
+// 2026: the gateway, mid-setup) must not be what leaves the world behind.
+export async function sweepTwice(service: SupabaseClient): Promise<void> {
+  try {
+    await sweep(service);
+  } catch {
+    await sweep(service);
+  }
+}
+
+// `failAfter` is the harness's own fault point, for P204 only: setup throws once the cast
+// exists, which is the shape a gateway error mid-build has.
+export async function buildWorld(env: HarnessEnv, opts: { failAfter?: "cast" } = {}): Promise<World> {
   const service = newClient(env, env.secretKey);
   await sweep(service);
   try {
-    return await populate(env, service);
+    return await populate(env, service, opts);
   } catch (error) {
-    // A half-built world must not outlive a failed setup.
-    await sweep(service);
+    // A half-built world must not outlive a failed setup. P204 proves it, and
+    // PIND_P204_FIRE=1 skips this on purpose so P204 can be seen to refuse.
+    if (process.env.PIND_P204_FIRE === "1") throw error;
+    try {
+      await sweepTwice(service);
+    } catch (cleanup) {
+      // Both, never only the second: the setup's own error is the one worth reading.
+      throw new AggregateError([error, cleanup], `setup failed AND its clean-up failed: ${(error as Error).message} / ${(cleanup as Error).message}`);
+    }
     throw error;
   }
 }
 
-async function populate(env: HarnessEnv, service: SupabaseClient): Promise<World> {
+async function populate(env: HarnessEnv, service: SupabaseClient, opts: { failAfter?: "cast" } = {}): Promise<World> {
   const w = {
     env,
     service,
@@ -407,6 +446,7 @@ async function populate(env: HarnessEnv, service: SupabaseClient): Promise<World
   await person(w, "Hope", { gender: "woman" });
   await person(w, "Pam", { gender: "woman", session: true });
   await person(w, "Pat", { gender: "man" });
+  if (opts.failAfter === "cast") throw new Error("P204: injected setup failure after the cast");
 
   for (const name of ["Ava", "Ben", "Dee", "Nia", "Eve", "Rex", "Gus", "Hal", "Ivy1", "Ivy2", "Bo", "Oli"]) {
     await pinIn(w, name, w.G, "G", true);

@@ -323,6 +323,14 @@ after(async () => {
     if (data.users.length < 1000) break;
   }
   console.log(`# cleanup check: people ${leftPeople.length}, gatherings ${leftG.length}, venues ${leftV.length}, auth users ${leftUsers}`);
+  // It printed and never refused (14 Oct 2026): a clean-up check that cannot fail is a
+  // log line. Runs whether or not the setup above finished (node:test runs `after` when
+  // `before` throws), so a half-built world is held to the same zero.
+  assert.deepEqual(
+    { people: leftPeople.length, gatherings: leftG.length, venues: leftV.length, users: leftUsers },
+    { people: 0, gatherings: 0, venues: 0, users: 0 },
+    "this review run left its own rows behind",
+  );
 });
 
 // ===========================================================================
