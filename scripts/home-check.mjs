@@ -130,9 +130,23 @@ try {
   }
 
   // A card opens the app's crowd page.
-  await evaluate(`[...document.querySelectorAll('[role=link]')][0].click()`);
+  // The first card: the first link with words in it (the header is a link too, #1).
+  await evaluate(`[...document.querySelectorAll('[role=link]')].find((e) => e.innerText.trim()).click()`);
   for (let t = 0; t < 30 && !String(await path()).startsWith("/crowd/"); t++) await sleep(500);
   step("a card opens the app's crowd page (A8)", String(await path()).startsWith("/crowd/"));
+  const crowdPath = String(await path());
+
+  // #1: the header is the way home, on every Expo screen — here from A8, reached through
+  // the list, and again from A8 opened cold from a link with nothing underneath it.
+  const goHome = () => evaluate(`(() => { const e=[...document.querySelectorAll('[role=link]')].find((x) => x.getAttribute('aria-label') === ${JSON.stringify("Pin'd — home")}); if(!e) return false; e.click(); return true; })()`);
+  await sleep(1500);
+  step("A8 has the header link home (#1)", await goHome());
+  for (let t = 0; t < 30 && (await path()) !== "/crowds"; t++) await sleep(500);
+  step("…and it opens Crowds (#1)", (await path()) === "/crowds" && (await until(HOME_COPY.heading)));
+  await send("Page.navigate", { url: `${SITE}${crowdPath}` });
+  for (let t = 0; t < 30 && !(await goHome()); t++) await sleep(500);
+  for (let t = 0; t < 30 && (await path()) !== "/crowds"; t++) await sleep(500);
+  step("from A8 opened cold, the header still goes home (#1)", (await path()) === "/crowds" && (await until(HOME_COPY.heading)));
 
   // …and the bar works from the list: My Events is one tap away, not Back then a tab.
   await send("Page.navigate", { url: `${SITE}/city/toronto` });
@@ -140,6 +154,11 @@ try {
   await click("My Events");
   for (let t = 0; t < 30 && (await path()) !== "/my-events"; t++) await sleep(500);
   step("a tab tapped from Toronto's list opens that tab (#2)", (await path()) === "/my-events");
+  // #1 from a tab: the tabs are already the current route, so stepping back to them does
+  // nothing — the first version did exactly that, and every tab's logo was dead.
+  await goHome();
+  for (let t = 0; t < 30 && (await path()) !== "/crowds"; t++) await sleep(500);
+  step("from a tab (My Events), the header goes home (#1)", (await path()) === "/crowds" && (await until(HOME_COPY.heading)));
 
   // Profile setup goes to sign-in, the same place Profile's own button goes.
   await send("Page.navigate", { url: `${SITE}/crowds` });

@@ -193,13 +193,13 @@ describe("The web app claims a handed-over session before any screen renders (M3
     const toPattern = (route: string) => new RegExp(`^${route.replace(/\[[^\]]+\]/g, "[^/]+")}$`);
     const patterns = [...new Set(routes)].map(toPattern);
     const targets = (source: string) =>
-      [...source.matchAll(/(?:router\.(?:push|replace)\(|href=\{?)\s*[`"](\/[^`"?#]*)/g)].map((m) =>
+      [...source.matchAll(/(?:router\.(?:push|replace|dismissTo|navigate)\(|href=\{?)\s*[`"](\/[^`"?#]*)/g)].map((m) =>
         m[1]!.replace(/\$\{[^}]+\}/g, "x").replace(/\/$/, "") || "/",
       );
     const lands = (t: string) => patterns.some((p) => p.test(t));
 
     // The check's own cases: one that lands, one that does not.
-    assert.deepEqual(targets('router.push(`/crowd/${slug}`); <Redirect href="/nowhere/at-all" />'), ["/crowd/x", "/nowhere/at-all"]);
+    assert.deepEqual(targets('router.push(`/crowd/${slug}`); <Redirect href="/nowhere/at-all" /> router.dismissTo("/gone")'), ["/crowd/x", "/nowhere/at-all", "/gone"]);
     assert.ok(lands("/crowd/x") && !lands("/nowhere/at-all"), "the route matcher does not tell a real route from a missing one");
 
     // Wired ahead of its screen ON PURPOSE, each named, each for Alex to decide — and each
@@ -417,5 +417,25 @@ describe("'You're going' on the list (#3; A6/A7)", () => {
     const style = list.slice(list.indexOf("  going: {"), list.indexOf("\n", list.indexOf("  going: {")));
     assert.ok(style.length > 10, "the mark's style is not found");
     assert.doesNotMatch(style, /accent/, "the mark is purple — the crews badge is the only purple on a row (A7)");
+  });
+});
+
+describe("The header is the way home, on every screen that has one (#1)", () => {
+  it("S37 the header is one link to Crowds, and both shells draw it — so every screen's logo goes home", () => {
+    const brand = readFileSync("app/src/components/Brand.tsx", "utf8");
+    assert.match(brand, /accessibilityRole="link"/, "the header is not a link");
+    assert.match(
+      brand,
+      /onPress=\{\(\) => \(router\.canDismiss\(\) \? router\.dismissTo\("\/crowds"\) : router\.navigate\("\/crowds"\)\)\}/,
+      "the header does not go to the app's home both ways — dismissTo alone does nothing from a tab",
+    );
+    assert.doesNotMatch(brand, /accessibilityRole="header"/, "the header is back to being a label");
+    for (const shell of ["AppScreen", "Screen"]) {
+      const src = readFileSync(`app/src/components/${shell}.tsx`, "utf8");
+      assert.match(src, /<Brand \/>/, `${shell} no longer draws the header`);
+    }
+    // S11 holds every route to AppScreen or Screen; this holds nothing else to a header of its own.
+    const own = screens.filter((s) => /<Image[^>]*mark\.png|wordmark\.png/.test(s.source)).map((s) => s.path);
+    assert.deepEqual(own, [], "a screen draws the logo itself, outside the shared header");
   });
 });

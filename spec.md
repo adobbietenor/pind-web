@@ -298,7 +298,10 @@ One codebase for the iOS app and the web build (decisions Part 5, "Build directi
 **Dark always**, whatever the phone is set to (Alex, M2.0; decisions Part 5, "Dark
 only"). There is no light mode for now. Poppins headlines, SF Pro
 body (system font on the web), SF Symbols icons, purple `#582883`. Four tabs:
-**Crowds · My Events · Connections · Profile**.
+**Crowds · My Events · Connections · Profile**. **The header is the way home on every
+screen** (#1, Alex, 14 Oct 2026): the logo row opens Crowds, as the Worker's header has
+always opened W1. A26 on the Worker already has it, and its home is W1. A visitor who
+has not pinned has no app home, so it stays as it is.
 
 **Two doors, one product** (Alex, revised build plan):
 - **Link path** (most people at first): crowd page W2 → **A26 quick pin** (~30 s, no
