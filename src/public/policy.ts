@@ -51,6 +51,7 @@ ${draftBanner()}
 <li><strong>A photo</strong>, so the people you meet can find you.</li>
 <li><strong>A way to sign in</strong>: your email address (we send you a six-digit code — there are no passwords), or Sign in with Apple, or Google.</li>
 <li><strong>Optionally</strong>: a neighbourhood, a few tags about yourself, and an Instagram handle.</li>
+<li><strong>After a gathering</strong>: whether you would have gone alone anyway, and, if you want to add one, a comment.</li>
 </ul>
 <p>When you use crews, we keep the crew&#39;s messages, and the reports and blocks you make.</p>
 <p><strong>What we never collect:</strong> your location, your contacts, your phone number, your surname beyond an initial, your ticket or seat, advertising identifiers, or anything about your employer, school or sexual orientation. Pin&#39;d never asks where you are; the only coordinates we hold belong to venues and the public spots crews meet at.</p>
@@ -88,6 +89,7 @@ ${draftBanner()}
 <li><strong>Your date of birth</strong> — only the year is ever kept.</li>
 <li><strong>A rejected photo</strong> — deleted at once; the record of the check, 12 months.</li>
 <li><strong>Reports and moderation decisions</strong> — 12 months, including the message a report was about.</li>
+<li><strong>Your answer after a gathering</strong> — kept; when you delete your account, it loses your name. <strong>Any comment you wrote</strong> is deleted with your account.</li>
 <li><strong>Your profile</strong> — until you delete your account.</li>
 </ul>
 <p>&ldquo;After the gathering&rdquo; means after its end time, or three hours after it starts when there is no end time.</p>
@@ -96,7 +98,7 @@ ${draftBanner()}
 <p><strong>Under both PIPEDA and PIPA</strong> you can ask what personal information we hold about you, ask us to correct it, and withdraw your consent. We answer within 30 days.</p>
 <ul>
 <li><strong>See it:</strong> Profile → Safety &amp; settings → <em>Export my data</em> gives you everything we hold about you, as a file, at once.</li>
-<li><strong>Delete it:</strong> Profile → Safety &amp; settings → <em>Delete my account</em>. Your account, profile, photo, pins and everything tied to them go. Two things stay: reports made by or about you (for 12 months, with your name removed), and your lines in a crew&#39;s conversation, shown as &ldquo;someone who left&rdquo;, so other people&#39;s conversation is not rewritten.</li>
+<li><strong>Delete it:</strong> Profile → Safety &amp; settings → <em>Delete my account</em>. Your account, profile, photo, pins and everything tied to them go. Three things stay: reports made by or about you (for 12 months, with your name removed), your answer after a gathering (with your name removed), and your lines in a crew&#39;s conversation, shown as &ldquo;someone who left&rdquo;, so other people&#39;s conversation is not rewritten.</li>
 <li><strong>Anything else</strong>, or if you cannot use the app: <a href="mailto:${PRIVACY_CONTACT}">${PRIVACY_CONTACT}</a>.</li>
 </ul>
 <p>If you are not satisfied with our answer, you can complain to the <strong>Office of the Privacy Commissioner of Canada</strong> (federal, PIPEDA) or, in British Columbia, the <strong>Office of the Information and Privacy Commissioner for British Columbia</strong> (PIPA).</p>

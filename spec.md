@@ -444,7 +444,8 @@ Above the answers, an **optional comment** (#10, Alex, 14 Oct 2026), sent with t
 answer in one tap, up to 1,000 characters: read by its author and by people at Pin'd,
 nobody else, and deleted with the account. The admin counts the unread on every page;
 comments are on M4.1's rota at the reports' standard (decisions, "A16's comment box").
-**Ships only with the privacy page's two lines about it, in the same deploy.**
+**Ships only with the privacy page's two lines about it, in the same deploy** (both
+applied on the branch, 14 Oct, so the next deploy carries the field and the copy together).
 
 ### A18 — Notifications (seven, under one rule)
 
