@@ -28,6 +28,7 @@ import {
   type DayGroup,
   type TabValue,
 } from "@pind/shared";
+import { whoAmI } from "./session";
 import { supabase } from "./supabase";
 
 export interface ListGathering {
@@ -112,4 +113,21 @@ export function viewOf(week: CityWeek, tab: TabValue, chips: string[]): CityView
     days: dayGroups(shown, city.timezone, week.today),
     otherTabCount: rowsInTab(week.thisWeek, other).length,
   };
+}
+
+// #3 — which of the list's gatherings the signed-in person has pinned, by slug. Their own
+// pins only (pins_read_own): nothing about anyone else, and no new database surface. No
+// session, or a session that never pinned, is an empty set — and nothing is created
+// (whoAmI reads the stored session; the anonymous user is only ever made at pin, A26).
+export async function myPinnedSlugs(): Promise<Set<string>> {
+  const read = await whoAmI();
+  if (read.state !== "in") return new Set();
+  const db = supabase();
+  const { data: me, error } = await db.from("people").select("id").eq("auth_user_id", read.userId).maybeSingle();
+  if (error) throw error;
+  if (!me) return new Set();
+  const pins = await db.from("pins").select("gatherings(slug)").eq("person_id", me.id);
+  if (pins.error) throw pins.error;
+  const rows = (pins.data ?? []) as unknown as { gatherings: { slug: string | null } | null }[];
+  return new Set(rows.flatMap((r) => (r.gatherings?.slug ? [r.gatherings.slug] : [])));
 }

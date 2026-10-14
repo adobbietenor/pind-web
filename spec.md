@@ -340,6 +340,9 @@ body (system font on the web), SF Symbols icons, purple `#582883`. Four tabs:
 ### A5–A7 — Home: This Week's Crowds
 List by day; the calendar is the ordering (Q10). Each row: event, venue, time, ticket
 link out, pins, opt-ins, gender mix, crews badge. **No map, no feed, no algorithm.**
+A row the signed-in person has pinned says **"You're going"**, beside the count, never
+instead of it, and not in purple (#3, Alex, 14 Oct 2026). It is read from their own
+pins only (`pins_read_own`): no new policy, view or visibility function.
 - **A5 empty** — real events with true zeros; "be the first" replaces the crews badge.
 - **A6 sparse** — "3 pinned · crews open at 5" reads as progress. Mix chip appears only
   at 5+ opted in (Q3).

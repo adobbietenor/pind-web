@@ -13,8 +13,8 @@
 //     interest can never empty the page; one with no chip is named as resting. Visibly
 //     on, with "Show everything" in the same line. Narrowing, never reordering (Q10).
 //     The rules are packages/shared/src/search.ts (Y02–Y05).
-import { Tabs, useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { Tabs, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import {
   categoryLabel,
@@ -48,7 +48,7 @@ import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Heading, Notice } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
-import { loadCityWeek, searchCity, viewOf, type CityWeek, type ListGathering } from "@/lib/crowds";
+import { loadCityWeek, myPinnedSlugs, searchCity, viewOf, type CityWeek, type ListGathering } from "@/lib/crowds";
 import { readInterests, saveInterests } from "@/lib/interests";
 import { report } from "@/lib/sentry";
 
@@ -71,6 +71,21 @@ export default function CityList() {
   const [found, setFound] = useState<Found | null>(null);
   const [searching, setSearching] = useState<string | null>(null);
   const [searchTrouble, setSearchTrouble] = useState<Described | null>(null);
+  // #3: the gatherings here you have pinned. Read on every visit — the list stays
+  // mounted as a tab, and someone who just pinned on A8 comes straight back to it. A
+  // convenience like the interests: unreadable, the cards simply carry no mark.
+  const [mine, setMine] = useState<Set<string>>(new Set());
+  useFocusEffect(
+    useCallback(() => {
+      let live = true;
+      myPinnedSlugs()
+        .then((m) => live && setMine(m))
+        .catch((err) => report(err, "read my pins for the list"));
+      return () => {
+        live = false;
+      };
+    }, []),
+  );
 
   useEffect(() => {
     if (!city || !cityOpens(city.slug)) return;
@@ -197,6 +212,7 @@ export default function CityList() {
       {found ? (
         <SearchResults
           found={found}
+          mine={mine}
           cityName={city.name}
           onClear={clearSearch}
           onOpen={(s) => router.push({ pathname: "/crowd/[slug]", params: { slug: s } })}
@@ -270,7 +286,7 @@ export default function CityList() {
               ) : null}
             </View>
           ) : (
-            <Days days={view.days} onOpen={(s) => router.push({ pathname: "/crowd/[slug]", params: { slug: s } })} />
+            <Days days={view.days} mine={mine} onOpen={(s) => router.push({ pathname: "/crowd/[slug]", params: { slug: s } })} />
           )}
         </>
       )}
@@ -278,7 +294,7 @@ export default function CityList() {
   );
 }
 
-function SearchResults({ found, cityName, onClear, onOpen }: { found: Found; cityName: string; onClear: () => void; onOpen: (slug: string) => void }) {
+function SearchResults({ found, mine, cityName, onClear, onOpen }: { found: Found; mine: Set<string>; cityName: string; onClear: () => void; onOpen: (slug: string) => void }) {
   if (found.count === 0) {
     return (
       <View style={{ marginTop: spacing.lg }}>
@@ -307,12 +323,12 @@ function SearchResults({ found, cityName, onClear, onOpen }: { found: Found; cit
           {SEARCH_COPY.clear}
         </Text>
       </Text>
-      <Days days={found.days} onOpen={onOpen} />
+      <Days days={found.days} mine={mine} onOpen={onOpen} />
     </>
   );
 }
 
-function Days({ days, onOpen }: { days: DayGroup<ListGathering>[]; onOpen: (slug: string) => void }) {
+function Days({ days, mine, onOpen }: { days: DayGroup<ListGathering>[]; mine: Set<string>; onOpen: (slug: string) => void }) {
   return (
     <>
       {days.map((d) => (
@@ -322,7 +338,7 @@ function Days({ days, onOpen }: { days: DayGroup<ListGathering>[]; onOpen: (slug
             {d.sub ? <Text style={styles.daySub}>{`  ${d.sub}`}</Text> : null}
           </Text>
           {d.rows.map((g) => (
-            <Card key={g.slug} g={g} onPress={() => onOpen(g.slug)} />
+            <Card key={g.slug} g={g} going={mine.has(g.slug)} onPress={() => onOpen(g.slug)} />
           ))}
         </View>
       ))}
@@ -330,7 +346,7 @@ function Days({ days, onOpen }: { days: DayGroup<ListGathering>[]; onOpen: (slug
   );
 }
 
-function Card({ g, onPress }: { g: ListGathering; onPress: () => void }) {
+function Card({ g, going, onPress }: { g: ListGathering; going: boolean; onPress: () => void }) {
   // W1's card rules: a category when someone said what it is; a price unless it is a
   // plain ticketed listing (which would be a tag on every row and say nothing).
   const free = g.entry === "ticketed" && !g.entry_note ? null : entryLine(g);
@@ -339,6 +355,8 @@ function Card({ g, onPress }: { g: ListGathering; onPress: () => void }) {
       <Text style={styles.when}>{clockLocal(g.starts_at, g.city_timezone)}</Text>
       <Text style={styles.name}>{g.name}</Text>
       <View style={styles.tags}>
+        {/* Not purple: on a row the crews badge is the only purple element (A7). */}
+        {going ? <Text style={styles.going}>{HOME_COPY.youreGoing}</Text> : null}
         {g.category ? <Text style={styles.tag}>{categoryLabel(g.category)}</Text> : null}
         {free ? <Text style={styles.tag}>{free}</Text> : null}
       </View>
@@ -380,6 +398,7 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.headline, fontSize: 16, color: palette.text },
   tags: { flexDirection: "row", gap: spacing.xs, flexWrap: "wrap" },
   tag: { fontSize: 12, color: palette.textMuted, borderWidth: 1, borderColor: palette.border, borderRadius: radius.sm ?? 4, paddingHorizontal: 6 },
+  going: { fontSize: 12, fontWeight: "600", color: palette.background, backgroundColor: palette.textTint, borderRadius: radius.sm, paddingHorizontal: 6, overflow: "hidden" },
   where: { fontSize: 14, color: palette.textMuted },
   what: { fontSize: 14, color: palette.text },
   tally: { fontSize: 13, color: palette.textMuted, marginTop: 4 },

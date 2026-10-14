@@ -393,3 +393,29 @@ describe("Sign out (A23; Alex, 10 Oct 2026)", () => {
     assert.ok(thrown >= 0 && fn.indexOf("forgetPushRegistration()") > thrown, "the phone forgets it registered even when the server still has it");
   });
 });
+
+describe("'You're going' on the list (#3; A6/A7)", () => {
+  const lib = readFileSync("app/src/lib/crowds.ts", "utf8");
+  const list = readFileSync("app/src/app/(tabs)/city/[slug].tsx", "utf8");
+  const fn = lib.slice(lib.indexOf("export async function myPinnedSlugs"));
+
+  it("S35 the mark reads the person's own pins and nothing else — no RPC, no other table, no write", () => {
+    assert.ok(fn.length > 50, "myPinnedSlugs is not in lib/crowds.ts");
+    assert.match(fn, /from\("pins"\)\.select\("gatherings\(slug\)"\)\.eq\("person_id", me\.id\)/, "the pins read is not narrowed to the person's own");
+    assert.match(fn, /if \(read\.state !== "in"\) return new Set\(\)/, "no session must mean no marks, and no session made");
+    const tables = [...fn.matchAll(/\.from\("([^"]+)"\)/g)].map((m) => m[1]);
+    assert.deepEqual(tables, ["people", "pins"], "the mark reads a table beyond the person's own row and pins");
+    assert.doesNotMatch(fn, /\.rpc\(|\.insert\(|\.update\(|\.upsert\(|\.delete\(|signInAnonymously/, "the mark calls something more than two reads");
+  });
+
+  it("S36 a card is marked from that read alone, with the shared words, and the count stays", () => {
+    assert.match(list, /myPinnedSlugs\(\)/, "the list does not ask whose pins these are");
+    assert.match(list, /going=\{mine\.has\(g\.slug\)\}/, "a card is marked from something other than the person's own pins");
+    assert.match(list, /\{going \? <Text style=\{styles\.going\}>\{HOME_COPY\.youreGoing\}<\/Text> : null\}/, "the mark does not use the shared words");
+    assert.match(list, /<Text style=\{styles\.tally\}>\{crowdLine\(g\)\}<\/Text>/, "the count line is gone from the card");
+    // A7: the crews badge is the only purple element on a row.
+    const style = list.slice(list.indexOf("  going: {"), list.indexOf("\n", list.indexOf("  going: {")));
+    assert.ok(style.length > 10, "the mark's style is not found");
+    assert.doesNotMatch(style, /accent/, "the mark is purple — the crews badge is the only purple on a row (A7)");
+  });
+});

@@ -48,4 +48,6 @@ export const HOME_COPY = {
   profileLine: "Optional. You can do it later — Pin'd asks when you first pin in.",
   profileButton: "Set up my profile",
   listEmpty: "Nothing listed in the next seven days yet.",
+  // On a card the signed-in person has pinned (#3, Alex's words). The count stays.
+  youreGoing: "You're going",
 } as const;

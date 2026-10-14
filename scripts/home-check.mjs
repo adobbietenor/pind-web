@@ -75,6 +75,8 @@ try {
   // Which city, on the screen itself (the header is hidden app-wide).
   // The label, not any card that happens to mention Toronto: it renders in capitals.
   step("the list says which city it is", (await body()).includes("TORONTO"));
+  // #3: this browser has no session and has pinned nothing, so no card is marked.
+  step("a visitor who pinned nothing sees no 'You're going' (#3)", !(await body()).includes(HOME_COPY.youreGoing));
   // #2: the list was a page above the tabs, and the bar went with it. Seen, not merely
   // in the DOM: each of the four labels has a box on screen.
   const bar = await evaluate(`["Crowds","My Events","Connections","Profile"].map((l) => [...document.querySelectorAll('a,[role=tab],[role=link],[role=button]')].some((e) => e.innerText && e.innerText.trim() === l && e.getBoundingClientRect().height > 0))`);
