@@ -125,7 +125,7 @@ export async function exportMyData(): Promise<Record<string, unknown>> {
   if (personError) throw personError;
   if (!person) throw new Said("There is nothing here to export yet.");
 
-  const [priv, handle, tags, pins, contacts, votes, surveys, blocks, crews, messages, reports, interests, times, rejected] = await Promise.all([
+  const [priv, handle, tags, pins, contacts, votes, surveys, blocks, crews, messages, reports, interests, times, rejected, solo] = await Promise.all([
     db.from("people_private").select("*").eq("person_id", person.id),
     db.from("person_handles").select("instagram, created_at").eq("person_id", person.id),
     db.from("person_tags").select("tag").eq("person_id", person.id),
@@ -142,6 +142,9 @@ export async function exportMyData(): Promise<Record<string, unknown>> {
     // the owner's own come through owner-only functions, so the export still holds them.
     db.rpc("my_record_times"),
     db.rpc("my_photo_rejected"),
+    // 1-on-1 (M3.4): your switches and your proposals, as you may know them — a decline
+    // of one you sent is never told, here either.
+    db.rpc("my_solo_export"),
   ]);
 
   return {
@@ -164,6 +167,7 @@ export async function exportMyData(): Promise<Record<string, unknown>> {
     crew_memberships: crews.data,
     messages_i_wrote: messages.data,
     reports_i_filed: reports.data,
+    one_to_one: solo.data,
   };
 }
 

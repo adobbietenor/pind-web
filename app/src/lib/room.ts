@@ -84,7 +84,8 @@ export async function loadRoom(roomId: string): Promise<RoomView | null> {
     db.from("person_tags").select("tag").eq("person_id", me.personId),
     db.rpc("gathering_counts", { gathering_ids: [room.gathering_id] }),
     // Only my own groups come back (crews_read_members).
-    db.from("crews").select("id").eq("gathering_id", room.gathering_id).in("state", ["forming", "spot_set", "live"]),
+    // Groups only: a 1-on-1 plan does not stop "go together" (M3.4).
+    db.from("crews").select("id").eq("gathering_id", room.gathering_id).eq("kind", "crew").in("state", ["forming", "spot_set", "live"]),
   ]);
   if (gError) throw gError;
   if (!g) return null;

@@ -15,6 +15,8 @@ export interface MyEventInput {
   openToMeeting: boolean;
   // Your group at this gathering, while you are in it.
   group: { state: "forming" | "spot_set" | "live" | "done" | "dissolved"; spot: string | null; meetAt: string | null } | null;
+  // Your 1-on-1 plan here (M3.4) — a second line, beside the group's, never instead of it.
+  solo?: { state: "forming" | "spot_set" | "live" | "done" | "dissolved"; spot: string | null; meetAt: string | null } | null;
   // After the night (A16), read only for past rows: how many you ticked "we met", and
   // whether the ticks are still open.
   after: { weMet: number; open: boolean } | null;
@@ -49,6 +51,13 @@ export function myEventStatus(e: MyEventInput, now: Date): MyEventStatus {
   return e.openToMeeting ? { kind: "open" } : { kind: "pinned" };
 }
 
+// The 1-on-1 line for an upcoming row with a plan (M3.4); null otherwise.
+export function myEventSoloLine(e: MyEventInput, now: Date, clock: (iso: string) => string): string | null {
+  const s = e.solo;
+  if (isPast(e, now) || e.withdrawn || !s || !(s.state === "spot_set" || s.state === "live") || !s.spot || !s.meetAt) return null;
+  return MY_EVENTS_COPY.solo(s.spot, clock(s.meetAt));
+}
+
 // Upcoming soonest first, past most recent first — dates, never anything else (Q10).
 export function splitMyEvents<T extends Pick<MyEventInput, "startsAt" | "endsAt">>(rows: T[], now: Date): { upcoming: T[]; past: T[] } {
   const upcoming = rows.filter((r) => !isPast(r, now)).sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt));
@@ -68,6 +77,7 @@ export const MY_EVENTS_COPY = {
   past: "Been",
   empty: "Nothing pinned yet",
   emptyLink: "This week’s crowds →",
+  solo: (spot: string, time: string) => `Your 1-on-1: ${spot}, ${time}`,
   status: (s: MyEventStatus, clock: (iso: string) => string): string => {
     switch (s.kind) {
       case "withdrawn":

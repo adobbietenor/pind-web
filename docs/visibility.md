@@ -841,7 +841,41 @@ its own decision: Unhide and Dismiss do not. **Solo does not ship until this exi
 one's section, while still on the people list); P210 (the switch); P211 (women-only both
 ways, with the nonbinary cases); P212 (a block, both ways); P213 (a spam report, and a
 report on a room message, take someone out silently, and nothing else moves); P214 (the
-way back); P215 (hidden, withdrawn). Proposals and the plan follow the lifecycle step.
+way back); P215 (hidden, withdrawn).
+
+**Narrowed by the plan (M3.4, flagged to Alex):** once either person has a 1-on-1 plan at
+G, neither appears in anyone else's section there, and their own section is the plan. The
+alternative was refusing a proposal to someone already in a plan, which would tell the
+sender they have one.
+
+### Proposals and the plan (Alex, 14 Oct 2026 — decisions, "M3.4: the 1-on-1 lifecycle")
+
+Migrations `m3_4_solo_proposals_and_plan`, `m3_4_solo_two_seats`,
+`m3_4_dissolved_plan_keeps_its_spot`.
+
+| Who | Can | Cannot |
+|---|---|---|
+| The sender | send to someone they can see in 1-on-1 (a venue spot, a time on offer, a line 1–5); read their pending proposals through `my_solo_proposals`; withdraw their own | read the table; learn of a decline (a declined proposal reads as sent until the start, counts toward their 3, and closes by the same rules — in the export too); send a fourth, or a second to the same person, either way |
+| The recipient | read an open proposal to them while they can still see its sender in 1-on-1; accept or decline | see one across a block, from someone now out of 1-on-1, or after the start |
+| Anyone else | — | read any proposal, the plan, its members or its thread |
+| The two in a plan | read the plan, each other and the thread (the group rules, V21/V23), "I'm here", A16 | add a third seat (refused by the database, even with the service key); edit the spot or time |
+| The admin | `admin_solo_metrics` (counts only), `admin_gatherings_without_spots`, `admin_set_app_switch` (logged) | — |
+
+**A plan ends** when either leaves (the other is told "Your 1-on-1 for X is off", with no
+reason), or at H9's threshold — H9 hides either person, the plan, or a message in its
+thread — with both told, the hidden one included. Below H9 a report takes the reported
+person out of 1-on-1 and leaves an accepted plan standing.
+
+**Proved by:** P216 (only a venue spot, a time on offer — the app's list and the
+database's window agree at both ends — and a line; no table access); P217 (3 open; once
+per pair, either way; withdrawing); P218 (a decline sends nothing and changes nothing the
+sender sees, export included); P219 (accept: the plan, its two seats, its thread,
+everything else closed, both out of the list); P220 (a block, switching off, women only, a
+report, meeting off — each closes only the proposals it touches); P221 (leaving; H9 on
+both sides of the threshold); P222 (no spots: refused, and counted); P223 (expiry at the
+start; live; one day-of push naming both plans); P224 (done only after a late meet; A16
+lists each person once, with ticks on every shared plan); P225 (the admin's numbers and
+switch; the export after the start).
 
 ## 13 · Spot poll
 

@@ -9,6 +9,7 @@
 //   pinned and open   A9: the people the database lets you see, then the crews line
 //                     while it is worth saying. The reciprocal list works at TWO —
 //                     `can_see_at` never counts (P09–P13); five gates crews only.
+//                     Below the room and groups, 1-on-1 (A28/A29, M3.4: SoloSection).
 //
 // **Nothing here filters people.** The list is whatever RLS returns to you (H11): a
 // blocked pair, a hidden person, a seed person at a real gathering, someone not open —
@@ -41,6 +42,7 @@ import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
 import { PushAsk } from "@/components/PushAsk";
+import { SoloSection } from "@/components/SoloSection";
 import { myRooms, type RoomSummary } from "@/lib/room";
 import { joinGeneralRoom, waitingForWomenOnlyRoom } from "@/lib/after";
 import { whoAmI } from "@/lib/session";
@@ -102,6 +104,7 @@ interface View9 {
   invites: { inviteId: string; from: string; members: string[] }[];
   group: { id: string; state: string } | null;
   email: string | null;
+  meId: string | null;
 }
 
 function when(iso: string): string {
@@ -200,13 +203,14 @@ async function load(slug: string): Promise<View9 | null> {
     }
     const { data: inv } = await db.rpc("my_invites", { p_gathering: g.id });
     invites = ((inv ?? []) as { invite_id: string; from_name: string; members: string[] }[]).map((i) => ({ inviteId: i.invite_id, from: i.from_name, members: i.members }));
-    const { data: mem } = await db.from("crew_members").select("crew_id, crews(state)").eq("person_id", meId).eq("gathering_id", g.id).is("left_at", null).maybeSingle();
+    // Your group — not your 1-on-1 plan, which is a group of kind 'solo' and has its own card.
+    const { data: mem } = await db.from("crew_members").select("crew_id, crews(state)").eq("person_id", meId).eq("gathering_id", g.id).eq("kind", "crew").is("left_at", null).maybeSingle();
     if (mem) group = { id: mem.crew_id, state: (mem as unknown as { crews: { state: string } | null }).crews?.state ?? "forming" };
     const { data: session } = await db.auth.getSession();
     email = session.session?.user.email ?? null;
   }
 
-  return { facts: await factsFor(slug), gathering, going: c?.pinned ?? 0, open: c?.open_to_meeting ?? 0, mix, mine, mayMeet, faces, rooms, waitingWomenOnly, lastLines, invites, group, email };
+  return { facts: await factsFor(slug), gathering, going: c?.pinned ?? 0, open: c?.open_to_meeting ?? 0, mix, mine, mayMeet, faces, rooms, waitingWomenOnly, lastLines, invites, group, email, meId };
 }
 
 export default function CrowdPage() {
@@ -412,6 +416,15 @@ export default function CrowdPage() {
               </View>
             );
           })()}
+          {view.meId ? (
+            <SoloSection
+              gatheringId={g.id}
+              pinId={view.mine.pinId}
+              meId={view.meId}
+              ended={ended}
+              faces={view.faces.map((f) => ({ id: f.id, firstName: f.firstName, photoUrl: f.photoUrl, tags: f.tags.map(tagName).join(" · ") }))}
+            />
+          ) : null}
           <Text style={[styles.sectionName, { marginTop: spacing.lg }]}>{CROWD_COPY.listHeading}</Text>
           {view.faces.length === 0 ? (
             <Body muted>{CROWD_COPY.listEmpty}</Body>

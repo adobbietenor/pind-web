@@ -22,8 +22,9 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Platform, Share, StyleSheet, Text, View } from "react-native";
-import { colors as palette, fonts, radius, SIGN_OUT, spacing, WOMEN_ONLY_COPY } from "@pind/shared";
+import { colors as palette, fonts, radius, SIGN_OUT, SOLO_COPY, spacing, WOMEN_ONLY_COPY } from "@pind/shared";
 import { NotificationSwitches } from "@/components/NotificationSwitches";
+import { mySoloSummary } from "@/lib/solo";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice, Tick } from "@/components/ui";
@@ -45,6 +46,7 @@ export default function Settings() {
   const [permanent, setPermanent] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutTrouble, setSignOutTrouble] = useState<Described | null>(null);
+  const [solo, setSolo] = useState<{ name: string; womenOnly: boolean }[] | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -55,6 +57,8 @@ export default function Settings() {
           return me.personId ? womenOnlyRooms(me.personId) : null;
         })
         .then((w) => live && setRoomsOnly(w))
+        .then(() => mySoloSummary())
+        .then((s) => live && setSolo(s))
         .catch(() => {
           if (!live) return;
           setRoomsOnly(null);
@@ -155,6 +159,15 @@ export default function Settings() {
             <Body muted>There is no location permission to manage. Pin&#39;d never asks where you are.</Body>
           </View>
         </View>
+
+        {solo ? (
+          <>
+            <Text style={styles.sectionName}>{SOLO_COPY.settingsHeading}</Text>
+            <View style={styles.card}>
+              {solo.length === 0 ? <Body muted>{SOLO_COPY.settingsNone}</Body> : solo.map((s) => <Body key={s.name}>{SOLO_COPY.settingsAt(s.name, s.womenOnly)}</Body>)}
+            </View>
+          </>
+        ) : null}
 
         {womenOnly?.eligible ? (
           <>

@@ -8,6 +8,7 @@ import { venuesWithoutMaps } from "../public/mapserve";
 import { MAX_ATTEMPTS, chooseZoom, frameMetres, place, renderVenueMap } from "../public/venuemap";
 import { distanceKm } from "../import/ticketmaster";
 import type { AdminContext, AdminHandler } from "./context";
+import { withoutSpotsPanel, type Spotless } from "./solo";
 import { adminPage, back, e, here, link, must, notFound, postButton, str } from "./ui";
 
 const MAPS = "venue-maps";
@@ -88,6 +89,9 @@ export const venueList: AdminHandler = async (request, ctx) => {
   // 37 venues behind a published gathering were in it, because M2.3's zoom retired
   // every earlier render. Unset is a different state from broken (CLAUDE.md).
   const noMap = await venuesWithoutMaps(ctx.env);
+  // And a gathering whose venue has no active spots offers no 1-on-1 — counted here,
+  // beside the maps, because nothing on the gathering itself says so (Alex, M3.4).
+  const spotless = (await must(ctx.db.rpc("admin_gatherings_without_spots"))) as Spotless[];
 
   const rows = venues
     .map((v: any) => {
@@ -127,7 +131,7 @@ export const venueList: AdminHandler = async (request, ctx) => {
         .map((n) => `<a href="/admin/venues/${e(n.id)}">${e(n.name)}</a>`)
         .join(", ")}${noMap.length > 12 ? `, and ${noMap.length - 12} more` : ""}</p>`
     : `<p class="good">Every venue behind an upcoming gathering has its map.</p>`;
-  const body = `${noToken}${banner}${pending}${strandedSpotsPanel(strays)}<table><tr><th>Venue</th><th>City</th><th>Approved spots</th><th>AI suggestions</th><th>Map</th></tr>
+  const body = `${noToken}${banner}${pending}${withoutSpotsPanel(spotless)}${strandedSpotsPanel(strays)}<table><tr><th>Venue</th><th>City</th><th>Approved spots</th><th>AI suggestions</th><th>Map</th></tr>
 ${rows || `<tr><td colspan="5">No venues yet.</td></tr>`}</table>
 <h2>Add a venue</h2>
 <form method="post" action="/admin/venues"><input type="hidden" name="back" value="/admin/venues">

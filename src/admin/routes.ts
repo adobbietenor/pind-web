@@ -13,6 +13,7 @@ import { AdminError, adminPage, notFound, UUID } from "./ui";
 import * as v from "./venues";
 import * as community from "./community";
 import * as testers from "./testers";
+import * as solo from "./solo";
 
 // "METHOD /path", where :id is a uuid. One line per admin route.
 const ROUTES: [string, AdminHandler][] = [
@@ -82,6 +83,9 @@ const ROUTES: [string, AdminHandler][] = [
   ["POST /admin/people/:id/hide", m.hidePerson],
   ["POST /admin/people/:id/dismiss-reports", m.dismissReports],
   ["POST /admin/people/:id/return-to-solo", m.returnToSolo],
+  // M3.4 — 1-on-1: where it is offered, its numbers, the switch per platform
+  ["GET /admin/solo", solo.soloPage],
+  ["POST /admin/solo/switch", solo.setSoloSwitch],
   // #10 — A16's comments, with the unread count on every page
   ["GET /admin/comments", comments.commentQueue],
   ["POST /admin/comments/:id/read", comments.markCommentRead],

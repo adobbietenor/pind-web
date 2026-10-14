@@ -12,10 +12,15 @@
 //   * closed under 3: said plainly, with the way back into the room;
 //   * done (A17): finished, counted, and its one action is A16 "Who did you meet?".
 // Everything here is readable by the group's members only (V21).
+//
+// **A 1-on-1 plan (A29, M3.4) is this screen too** — the same card, thread, "I'm here"
+// and A17/A16 (spec A29). It is born with its spot and time, so it never shows the poll
+// or "invite someone else"; leaving calls it off for both, and the other is told only
+// that it is off.
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
-import { AFTER_COPY, colors as palette, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, spacing, type Convening } from "@pind/shared";
+import { AFTER_COPY, colors as palette, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, type Convening } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { GetTheApp } from "@/components/GetTheApp";
 import { Trouble } from "@/components/Trouble";
@@ -49,6 +54,7 @@ const dayClock = (iso: string) => new Intl.DateTimeFormat("en-CA", { weekday: "s
 interface GroupView {
   id: string;
   state: "forming" | "spot_set" | "live" | "done" | "dissolved";
+  solo: boolean;
   gathering: { id: string; name: string; slug: string; startsAt: string };
   convening: Convening;
   roomId: string | null;
@@ -65,7 +71,7 @@ async function loadGroup(id: string): Promise<GroupView | null> {
   const db = supabase();
   const me = await readProfile();
   if (!me.personId) return null;
-  const { data: c, error } = await db.from("crews").select("id, state, gathering_id, room_id, spot_id, meet_at").eq("id", id).maybeSingle();
+  const { data: c, error } = await db.from("crews").select("id, kind, state, gathering_id, room_id, spot_id, meet_at").eq("id", id).maybeSingle();
   if (error) throw error;
   if (!c) return null;
   const [g, conv, mem, props, votes, msgs, closes, spot] = await Promise.all([
@@ -90,6 +96,7 @@ async function loadGroup(id: string): Promise<GroupView | null> {
   return {
     id,
     state: c.state as GroupView["state"],
+    solo: c.kind === "solo",
     gathering: { id: g.data.id, name: g.data.name, slug: g.data.slug ?? g.data.id, startsAt: g.data.starts_at },
     convening: (conv.data as Convening) ?? "a_spot_first",
     roomId: c.room_id,
@@ -167,7 +174,7 @@ export default function Group() {
     return (
       <AppScreen>
         <Heading>{GROUP_COPY.heading}</Heading>
-        {trouble ? <Trouble what={trouble} onRetry={refresh} /> : <Body muted>This group isn't yours to see.</Body>}
+        {trouble ? <Trouble what={trouble} onRetry={refresh} /> : <Body muted>This plan isn't yours to see — or it's off.</Body>}
       </AppScreen>
     );
   }
@@ -195,7 +202,7 @@ export default function Group() {
 
   return (
     <AppScreen>
-      <Heading>{GROUP_COPY.heading}</Heading>
+      <Heading>{view.solo ? SOLO_COPY.planHeading(names[0] ?? "") : GROUP_COPY.heading}</Heading>
       <Body muted>{view.gathering.name}</Body>
       {/* Once per person, the first time they are in a group (M3.3). */}
       {me && view.state !== "dissolved" && view.state !== "done" ? <GetTheApp /> : null}
@@ -210,10 +217,10 @@ export default function Group() {
 
       {view.state === "dissolved" ? (
         <View style={styles.card}>
-          <Body>{GROUP_COPY.closed}</Body>
+          <Body>{view.solo ? SOLO_COPY.planOff : GROUP_COPY.closed}</Body>
           {view.roomId ? <Button label={GROUP_COPY.closedNext} onPress={() => router.replace({ pathname: "/room/[id]", params: { id: view.roomId! } })} /> : null}
         </View>
-      ) : view.state === "forming" && view.members.length < 3 ? (
+      ) : !view.solo && view.state === "forming" && view.members.length < 3 ? (
         <View style={styles.card}>
           <Body>{GROUP_COPY.soFar(names)}</Body>
           {view.closesAt ? <Body muted>{GROUP_COPY.deadline(dayClock(view.closesAt))}</Body> : null}
@@ -241,8 +248,8 @@ export default function Group() {
         </View>
       ) : (
         <View style={styles.card}>
-          <Body>{GROUP_COPY.on(names)}</Body>
-          {view.state === "forming" && view.convening !== "at_the_gathering" ? (
+          {view.solo ? null : <Body>{GROUP_COPY.on(names)}</Body>}
+          {!view.solo && view.state === "forming" && view.convening !== "at_the_gathering" ? (
             <>
               <Text style={styles.section}>{GROUP_COPY.pollHeading}</Text>
               <Body muted>{GROUP_COPY.pollHint}</Body>
@@ -321,7 +328,7 @@ export default function Group() {
             })}
           </View>
           <View style={{ marginTop: spacing.md }}>
-            <TextInput value={draft} onChangeText={setDraft} placeholder={GROUP_COPY.threadPlaceholder} placeholderTextColor={palette.tabInactive} maxLength={500} multiline style={styles.input} />
+            <TextInput value={draft} onChangeText={setDraft} placeholder={view.solo ? SOLO_COPY.threadPlaceholder(names[0] ?? "them") : GROUP_COPY.threadPlaceholder} placeholderTextColor={palette.tabInactive} maxLength={500} multiline style={styles.input} />
             <Button
               label="Send"
               disabled={!draft.trim()}
@@ -341,7 +348,18 @@ export default function Group() {
             />
           </View>
           <View style={{ marginTop: spacing.lg }}>
-            <Button kind="quiet" label={GROUP_COPY.leave} onPress={() => void act("leave the group", () => supabase().rpc("leave_group", { p_crew: view.id })).then(() => { if (view.roomId) router.replace({ pathname: "/room/[id]", params: { id: view.roomId } }); })} />
+            {view.solo ? (
+              <>
+                <Button
+                  kind="quiet"
+                  label={SOLO_COPY.callOff}
+                  onPress={() => void act("call off the 1-on-1", () => supabase().rpc("leave_group", { p_crew: view.id })).then(() => router.replace({ pathname: "/crowd/[slug]", params: { slug: view.gathering.slug } }))}
+                />
+                <Body muted>{SOLO_COPY.callOffNote}</Body>
+              </>
+            ) : (
+              <Button kind="quiet" label={GROUP_COPY.leave} onPress={() => void act("leave the group", () => supabase().rpc("leave_group", { p_crew: view.id })).then(() => { if (view.roomId) router.replace({ pathname: "/room/[id]", params: { id: view.roomId } }); })} />
+            )}
           </View>
         </>
       ) : null}

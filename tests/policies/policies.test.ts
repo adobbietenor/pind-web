@@ -16,6 +16,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEnv } from "./env.ts";
 import { optInMissing } from "../../packages/shared/src/optin.ts";
 import { MY_EVENTS_PINS_SELECT } from "../../packages/shared/src/myevents.ts";
+import { soloTimes } from "../../packages/shared/src/solo.ts";
 import { photoDest } from "../../src/account/merge-checks.ts";
 import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, harnessLeftovers, markHarness, newClient, sweep, sweepTwice, type Member, type World, removeUser, accountlessPeople } from "./world.ts";
 
@@ -5086,5 +5087,350 @@ describe("1-on-1 — who can see whom (M3.4, V14)", () => {
     await denied(P("Cro").client.from("pins").update({ solo_opt_in: true, solo_visibility: "everyone" }).eq("id", P("Cro").pinId), "23514");
     await ok(P("Sue").client.from("pins").update({ solo_opt_in: false }).eq("id", P("Sue").pinId));
     assert.equal(await mySolo("Sue"), null, "switching 1-on-1 off was refused on a withdrawn gathering — it never may be");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 3 M3.4 — 1-on-1 proposals and the plan (A29). The lifecycle approved by Alex on
+// 14 Oct 2026 (decisions, "M3.4: the 1-on-1 lifecycle"). Every refusal is paired with the
+// same person succeeding once the condition is lifted, so no case passes by finding nothing.
+// ---------------------------------------------------------------------------
+
+describe("1-on-1 — proposals and the plan (M3.4, A29)", () => {
+  let T = "";
+  let start = 0;
+  let spots: string[] = [];
+  let otherVenueSpot = "";
+  let offSpot = "";
+  let spotless = { venue: "", gathering: "" };
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient; pinId: string }> = {};
+  const crews: Record<string, string> = {};
+
+  // Minutes from T's start, as the database stores it.
+  const at = (mins: number) => new Date(start + mins * 60_000).toISOString();
+  const P = (label: string) => people[label]!;
+
+  async function solo(label: string, gender: "woman" | "man", choice: "everyone" | "women_only" | null) {
+    const email = `${PREFIX}-${w.run}-sp-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: person.id, gender, birth_year: 1993 }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    const pin = await ok(client.from("pins").insert({ gathering_id: T, person_id: person.id, party_total: 1, open_to_meeting: true }).select("id").single());
+    people[label] = { authId, personId: person.id, client, pinId: pin.id };
+    if (choice) await ok(client.from("pins").update({ solo_opt_in: true, solo_visibility: choice }).eq("id", pin.id), `${label} turns 1-on-1 on`);
+  }
+
+  const propose = (from: string, to: string, o: { spot?: string; mins?: number; line?: number; when?: string } = {}) =>
+    P(from).client.rpc("propose_solo", {
+      p_gathering: T, p_to: P(to).personId, p_spot: o.spot ?? spots[0], p_meet_at: o.when ?? at(o.mins ?? -60), p_line: o.line ?? 1,
+    });
+  const mine = async (label: string) => rows(P(label).client.rpc("my_solo_proposals", { p_gathering: T }));
+  const sentTo = async (from: string) =>
+    (await mine(from)).filter((r: { direction: string }) => r.direction === "sent").map((r: { person_id: string }) => nameOf(r.person_id)).sort();
+  const receivedFrom = async (to: string) =>
+    (await mine(to)).filter((r: { direction: string }) => r.direction === "received").map((r: { person_id: string }) => nameOf(r.person_id)).sort();
+  const nameOf = (personId: string) => Object.keys(people).find((n) => P(n).personId === personId) ?? personId;
+  const answer = async (to: string, from: string, accept: boolean) => {
+    const p = (await mine(to)).find((r: { direction: string; person_id: string }) => r.direction === "received" && r.person_id === P(from).personId);
+    assert.ok(p, `${to} has no proposal from ${from} to answer`);
+    return ok(P(to).client.rpc("respond_to_solo", { p_proposal: p.proposal_id, p_accept: accept }), `${to} answers ${from}`);
+  };
+  const section = async (label: string) => {
+    const ids = (await rows(P(label).client.rpc("solo_people", { p_gathering: T }))).map((r: { person_id: string }) => r.person_id);
+    return Object.keys(people).filter((n) => ids.includes(P(n).personId)).sort();
+  };
+  const status = async (from: string, to: string) =>
+    (await ok(w.service.from("solo_proposals").select("status").eq("gathering_id", T).eq("from_person", P(from).personId).eq("to_person", P(to).personId).single())).status as string;
+  const told = async (label: string, kind: string, since: string) =>
+    rows(w.service.from("notifications").select("body, crew_id, path").eq("person_id", P(label).personId).eq("gathering_id", T).eq("kind", kind).gte("created_at", since));
+  // By plan, not by clock: the database's clock and this machine's differ.
+  const toldAbout = async (label: string, kind: string, crewId: string, body?: string) =>
+    rows(w.service.from("notifications").select("body, path").eq("person_id", P(label).personId).eq("kind", kind).eq("crew_id", crewId).like("body", body ? `%${body}%` : "%"));
+  const crewRow = (id: string) => ok(w.service.from("crews").select("kind, state, spot_id, meet_at").eq("id", id).single());
+  const active = async (id: string) =>
+    (await rows(w.service.from("crew_members").select("person_id").eq("crew_id", id).is("left_at", null))).map((r: { person_id: string }) => nameOf(r.person_id)).sort();
+
+  before(async () => {
+    start = Math.ceil((Date.now() + 5 * 86_400_000) / 900_000) * 900_000;
+    T = (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Solo plans`, starts_at: new Date(start).toISOString(), venue_id: w.venue, published_at: new Date().toISOString() }).select("id").single())).id;
+    spots = (await rows(w.service.from("meeting_spots").select("id").eq("venue_id", w.venue).eq("active", true).order("name"))).map((s: { id: string }) => s.id);
+    assert.ok(spots.length >= 2, "the harness venue has fewer than two spots");
+    otherVenueSpot = (await ok(w.service.from("meeting_spots").select("id").eq("venue_id", w.venue2).limit(1).single())).id;
+    offSpot = (await ok(w.service.from("meeting_spots").insert({ venue_id: w.venue, name: `Closed door ${w.run}`, active: false }).select("id").single())).id;
+    for (const [n, g] of [["Ann", "woman"], ["Bob", "man"], ["Cat", "woman"], ["Dan", "man"], ["Eli", "man"], ["Hank", "man"], ["Ivo", "man"],
+      ["Jo", "woman"], ["Kit", "man"], ["Lu", "woman"], ["Mo", "man"], ["Pam", "woman"], ["Quin", "man"], ["Rae", "woman"], ["Sam", "man"],
+      ["Tia", "woman"], ["Uma", "woman"]] as const) await solo(n, g, "everyone");
+    await solo("Ned", "man", null);
+  }, { timeout: 240_000 });
+
+  after(async () => {
+    for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
+    for (const g of [T, spotless.gathering].filter(Boolean)) {
+      const ids = (await w.service.from("crews").select("id").eq("gathering_id", g)).data?.map((c: { id: string }) => c.id) ?? [];
+      if (ids.length) await w.service.from("confirmations").delete().in("crew_id", ids);
+      await w.service.from("crews").delete().eq("gathering_id", g);
+      await w.service.from("gatherings").delete().eq("id", g);
+    }
+    if (offSpot) await w.service.from("meeting_spots").delete().eq("id", offSpot);
+    if (spotless.venue) await w.service.from("venues").delete().eq("id", spotless.venue);
+  });
+
+  it("P216 a proposal is a spot from this venue's list, a time on offer and one of five lines — and nothing else", async () => {
+    assert.ok(await ok(propose("Ann", "Bob")), "control: a proper proposal was refused");
+    // The spot: this venue's, and active.
+    await denied(propose("Cat", "Dan", { spot: otherVenueSpot }), "22023");
+    await denied(propose("Cat", "Dan", { spot: offSpot }), "22023");
+    // The time: from 3 h before the start to 2 h after the effective end (start + 3 h),
+    // on the quarter hour. Both edges are offered; one step past either is not.
+    await denied(propose("Cat", "Dan", { mins: -195 }), "22023");
+    await denied(propose("Cat", "Dan", { mins: 180 + 135 }), "22023");
+    await denied(propose("Cat", "Dan", { when: new Date(start - 60 * 60_000 + 7 * 60_000).toISOString() }), "22023");
+    // The line: one of five, by number.
+    await denied(propose("Cat", "Dan", { line: 0 }), "22023");
+    await denied(propose("Cat", "Dan", { line: 6 }), "22023");
+    // The app's list of times (packages/shared) and the database's rule agree at both ends.
+    const offered = soloTimes(new Date(start).toISOString(), null);
+    assert.deepEqual([offered[0], offered[offered.length - 1]], [at(-180), at(180 + 120)], "the app offers different times from the database's window");
+    await ok(propose("Dan", "Eli", { when: offered[0], spot: spots[1], line: 5 }), "control: the first time on offer was refused");
+    await ok(propose("Cat", "Dan", { when: offered[offered.length - 1], line: 3 }), "control: the last time on offer — two hours after the end — was refused");
+    // No other way in: the table is neither readable nor writable, so there is nowhere to put free text.
+    await noAccess(P("Ann").client, "solo_proposals");
+    await denied(P("Ann").client.from("solo_proposals").insert({ gathering_id: T, from_person: P("Ann").personId, to_person: P("Cat").personId, spot_id: spots[0], meet_at: at(-60), line: 1 }), "42501");
+    // Only to someone you can see in 1-on-1, and never by a visitor.
+    await denied(propose("Ann", "Ned"), "42501");
+    await denied(w.anon.rpc("propose_solo", { p_gathering: T, p_to: P("Bob").personId, p_spot: spots[0], p_meet_at: at(-60), p_line: 1 }));
+    // The recipient is told (#8); the switch and harness rules decide delivery, not this row.
+    assert.equal((await told("Bob", "solo_proposal", new Date(start - 6 * 86_400_000).toISOString())).length, 1, "a received proposal wrote no notification");
+  });
+
+  it("P217 three open at most, a fourth refused; one per pair ever, either way; withdrawing frees a slot but never the pair", async () => {
+    for (const to of ["Ivo", "Jo", "Kit"]) await ok(propose("Hank", to), `Hank to ${to}`);
+    await denied(propose("Hank", "Lu"), "42501");
+    await denied(propose("Ivo", "Hank"), "42501");
+    const kit = (await mine("Hank")).find((r: { person_id: string }) => r.person_id === P("Kit").personId);
+    await ok(P("Hank").client.rpc("withdraw_solo", { p_proposal: kit.proposal_id }));
+    assert.deepEqual(await receivedFrom("Kit"), [], "a withdrawn proposal stayed with its recipient");
+    await ok(propose("Hank", "Lu"), "control: withdrawing did not free a slot");
+    await denied(propose("Hank", "Kit"), "42501");
+    await denied(propose("Kit", "Hank"), "42501");
+    // Nobody withdraws someone else's.
+    const lu = (await mine("Hank")).find((r: { person_id: string }) => r.person_id === P("Lu").personId);
+    await denied(P("Lu").client.rpc("withdraw_solo", { p_proposal: lu.proposal_id }), "42501");
+  });
+
+  it("P218 a decline sends nothing, and the sender sees exactly what an unanswered proposal looks like", async () => {
+    const before = await sentTo("Hank");
+    await answer("Ivo", "Hank", false);
+    assert.deepEqual(await receivedFrom("Ivo"), [], "a declined proposal stayed with its recipient");
+    assert.deepEqual(await sentTo("Hank"), before, "the sender's view changed when it was declined");
+    await denied(propose("Hank", "Mo"), "42501"); // still three open, as far as he can tell
+    // Nobody has proposed to Hank, so anything he was sent here came from the decline.
+    assert.equal((await rows(w.service.from("notifications").select("id").eq("person_id", P("Hank").personId))).length, 0, "a decline told the sender");
+    const exp = (await ok(P("Hank").client.rpc("my_solo_export"))) as { proposals_sent: { status: string }[] };
+    assert.deepEqual(exp.proposals_sent.map((p) => p.status).sort(), ["sent", "sent", "sent", "withdrawn"], "the sender's export gave a decline away");
+    assert.equal(await status("Hank", "Ivo"), "declined", "control: the decline was not recorded");
+  });
+
+  it("P219 an accept makes a two-person plan at the proposal's spot and time, with a thread only they read, and closes everything else pending for either", async () => {
+    await ok(propose("Mo", "Ann", { mins: 0 }), "Mo to Ann");
+    await ok(propose("Ann", "Jo"), "Ann to Jo");
+    assert.ok((await section("Cat")).includes("Ann"), "control: Cat could not see Ann in 1-on-1");
+    crews.ab = (await answer("Bob", "Ann", true)) as string;
+    const c = await crewRow(crews.ab);
+    assert.deepEqual([c.kind, c.state, c.spot_id, new Date(c.meet_at).getTime()], ["solo", "spot_set", spots[0], new Date(at(-60)).getTime()], "the plan is not the proposal's");
+    assert.deepEqual(await active(crews.ab), ["Ann", "Bob"]);
+    const yes = await toldAbout("Ann", "plan_status", crews.ab);
+    assert.equal(yes.length, 1, "the sender was not told of the yes");
+    assert.match(yes[0].body, /Bob said yes/);
+    // Everything pending for either of them closed, silently.
+    assert.deepEqual(await receivedFrom("Ann"), [], "a proposal to someone now in a plan stayed open");
+    assert.ok(!(await sentTo("Mo")).includes("Ann") && !(await receivedFrom("Jo")).includes("Ann"), "proposals to and from her stayed open");
+    assert.equal(await status("Mo", "Ann"), "closed");
+    // Both leave everyone else's list there; their own sections are their plan.
+    assert.ok(!(await section("Cat")).includes("Ann") && !(await section("Cat")).includes("Bob"), "people in a plan stayed in the 1-on-1 list");
+    assert.ok((await section("Cat")).includes("Eli"), "control: Cat's section was empty anyway");
+    assert.deepEqual(await section("Ann"), []);
+    await denied(propose("Cat", "Ann"), "42501");
+    await denied(propose("Bob", "Cat"), "42501");
+    // The thread: theirs alone.
+    await ok(P("Ann").client.from("crew_messages").insert({ crew_id: crews.ab, author_id: P("Ann").personId, kind: "user", body: "I'll be by the north gate" }));
+    assert.equal((await rows(P("Bob").client.from("crew_messages").select("body").eq("crew_id", crews.ab))).length, 1, "the partner could not read the thread");
+    assert.equal((await rows(P("Cat").client.from("crew_messages").select("body").eq("crew_id", crews.ab))).length, 0, "a third person read a 1-on-1 thread");
+    assert.equal((await rows(P("Cat").client.from("crews").select("id").eq("id", crews.ab))).length, 0, "a third person saw the plan");
+    await denied(P("Cat").client.from("crew_messages").insert({ crew_id: crews.ab, author_id: P("Cat").personId, kind: "user", body: "hi" }));
+    // Nobody adds a third seat — not even the service key — and the proposal cannot be accepted twice.
+    await denied(w.service.from("crew_members").insert({ crew_id: crews.ab, gathering_id: T, person_id: P("Cat").personId, kind: "solo" }), "23514");
+    await denied(w.service.from("crew_members").insert({ crew_id: crews.ab, gathering_id: T, person_id: P("Cat").personId }), "23503");
+    await denied(P("Bob").client.rpc("respond_to_solo", { p_proposal: (await ok(w.service.from("solo_proposals").select("id").eq("crew_id", crews.ab).single())).id, p_accept: true }), "42501");
+  });
+
+  it("P220 a block, a report, switching off or women only closes a pending proposal silently, both ways — and only the one it touches", async () => {
+    // A block, by the recipient.
+    assert.deepEqual(await receivedFrom("Eli"), ["Dan"], "control: Eli had no proposal from Dan");
+    await ok(w.service.from("blocks").insert({ blocker_id: P("Eli").personId, blocked_id: P("Dan").personId }));
+    assert.deepEqual(await receivedFrom("Eli"), []);
+    assert.ok(!(await sentTo("Dan")).includes("Eli"), "the sender still saw a proposal across a block");
+    // The sender switches 1-on-1 off.
+    assert.deepEqual(await receivedFrom("Dan"), ["Cat"], "control: Dan had no proposal from Cat");
+    await ok(P("Cat").client.from("pins").update({ solo_opt_in: false }).eq("id", P("Cat").pinId));
+    assert.deepEqual(await receivedFrom("Dan"), [], "switching 1-on-1 off left a proposal open");
+    assert.equal(await status("Cat", "Dan"), "closed");
+    // Women only: a man's proposal to her closes; nobody else's does.
+    assert.deepEqual(await receivedFrom("Lu"), ["Hank"], "control: Lu had no proposal from Hank");
+    await ok(propose("Tia", "Lu"), "Tia to Lu");
+    await ok(P("Lu").client.from("pins").update({ solo_visibility: "women_only" }).eq("id", P("Lu").pinId));
+    assert.deepEqual(await receivedFrom("Lu"), ["Tia"], "women only closed the wrong proposals");
+    // Out of 1-on-1 on a report (below H9): her pending proposals close, everyone else's stay.
+    assert.deepEqual(await receivedFrom("Jo"), ["Hank"], "control: Jo had no proposal from Hank");
+    await ok(P("Rae").client.from("reports").insert({ reporter_id: P("Rae").personId, target_kind: "person", target_person_id: P("Jo").personId, reason: "spam" }));
+    assert.deepEqual(await receivedFrom("Jo"), []);
+    assert.equal(await status("Hank", "Jo"), "closed");
+    assert.equal(await status("Tia", "Lu"), "open", "a report on someone else closed this proposal");
+    // Meeting off takes 1-on-1 off with it, and closes.
+    await ok(P("Tia").client.rpc("withdraw_solo", { p_proposal: (await mine("Tia")).find((r: { person_id: string }) => r.person_id === P("Lu").personId).proposal_id }));
+    await ok(propose("Uma", "Kit", { mins: 30 }), "Uma to Kit");
+    await ok(P("Uma").client.from("pins").update({ open_to_meeting: false }).eq("id", P("Uma").pinId));
+    assert.equal(await status("Uma", "Kit"), "closed", "meeting off left a 1-on-1 proposal open");
+    await ok(P("Uma").client.from("pins").update({ open_to_meeting: true }).eq("id", P("Uma").pinId));
+    await ok(P("Uma").client.from("pins").update({ solo_opt_in: true, solo_visibility: "everyone" }).eq("id", P("Uma").pinId));
+  });
+
+  it("P221 a plan ends when either leaves (the other told), and on H9's threshold — never below it — with both told and no reason", async () => {
+    // Leaving: Quin leaves, Pam is told; both are released, and the pair is spent.
+    await ok(propose("Pam", "Quin", { mins: 15 }));
+    crews.pq = (await answer("Quin", "Pam", true)) as string;
+    await ok(P("Quin").client.rpc("leave_group", { p_crew: crews.pq }));
+    assert.equal((await crewRow(crews.pq)).state, "dissolved", "a 1-on-1 plan survived one of its two leaving");
+    assert.deepEqual(await active(crews.pq), []);
+    assert.equal((await toldAbout("Pam", "plan_status", crews.pq, "is off")).length, 1, "the one left behind was not told");
+    assert.equal((await toldAbout("Quin", "plan_status", crews.pq, "is off")).length, 0, "the one who left was told what they did");
+    assert.ok((await section("Pam")).length > 0, "control: released, but her 1-on-1 list stayed closed");
+    await denied(propose("Pam", "Quin"), "42501");
+
+    // H9 on the partner: one "uncomfortable" hides him, the plan ends, both told.
+    await ok(propose("Rae", "Sam", { mins: 15 }));
+    crews.rs = (await answer("Sam", "Rae", true)) as string;
+    await ok(P("Rae").client.from("reports").insert({ reporter_id: P("Rae").personId, target_kind: "person", target_person_id: P("Sam").personId, reason: "uncomfortable" }));
+    assert.equal((await crewRow(crews.rs)).state, "dissolved", "a plan stood after H9 hid one of the two");
+    for (const n of ["Rae", "Sam"]) {
+      const off = await toldAbout(n, "plan_status", crews.rs, "is off");
+      assert.equal(off.length, 1, `${n} was not told the plan is off`);
+      assert.doesNotMatch(off[0].body, /report|hidden|block|uncomfortable/i, "the notice gave a reason");
+    }
+
+    // Below H9: one spam report leaves the plan standing (she is out of the list); a
+    // second reporter trips H9 and ends it.
+    await ok(propose("Tia", "Uma", { mins: 15 }));
+    crews.tu = (await answer("Uma", "Tia", true)) as string;
+    await ok(P("Tia").client.from("reports").insert({ reporter_id: P("Tia").personId, target_kind: "person", target_person_id: P("Uma").personId, reason: "spam" }));
+    assert.equal((await crewRow(crews.tu)).state, "spot_set", "one spam report — below H9 — cancelled a plan");
+    assert.equal((await ok(w.service.from("people").select("hidden_from_solo").eq("id", P("Uma").personId).single())).hidden_from_solo, true, "control: the report did not take her out of 1-on-1");
+    await ok(P("Pam").client.from("reports").insert({ reporter_id: P("Pam").personId, target_kind: "person", target_person_id: P("Uma").personId, reason: "spam" }));
+    assert.equal((await crewRow(crews.tu)).state, "dissolved", "a second spam report tripped H9 and the plan stood");
+  });
+
+  it("P222 no meeting spots, no 1-on-1: the switch is refused, and the admin counts the gathering", async () => {
+    spotless.venue = (await ok(w.service.from("venues").insert({ name: `${PREFIX} ${w.run} No spots hall` }).select("id").single())).id;
+    spotless.gathering = (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} No spots`, starts_at: inDays(6), venue_id: spotless.venue, published_at: new Date().toISOString() }).select("id").single())).id;
+    const pin = await ok(P("Ned").client.from("pins").insert({ gathering_id: spotless.gathering, person_id: P("Ned").personId, party_total: 1, open_to_meeting: true }).select("id").single());
+    await denied(P("Ned").client.from("pins").update({ solo_opt_in: true, solo_visibility: "everyone" }).eq("id", pin.id), "23514");
+    await ok(P("Ned").client.from("pins").update({ solo_opt_in: true, solo_visibility: "everyone" }).eq("id", P("Ned").pinId), "control: at a venue with spots the same switch was refused");
+    const listed = (await rows(w.service.rpc("admin_gatherings_without_spots"))).map((r: { gathering_id: string }) => r.gathering_id);
+    assert.ok(listed.includes(spotless.gathering), "the admin did not count a gathering with no spots");
+    assert.ok(!listed.includes(T), "a gathering with spots was counted as having none");
+    for (const client of [P("Ned").client, w.anon]) await denied(client.rpc("admin_gatherings_without_spots"));
+  });
+
+  it("P223 at the start every proposal vanishes and none can be sent; plans go live, and someone with a group and a 1-on-1 gets ONE day-of push naming both", async () => {
+    await ok(propose("Kit", "Mo", { mins: 180 + 120, spot: spots[1] }), "Kit to Mo, after the end");
+    crews.km = (await answer("Mo", "Kit", true)) as string;
+    await ok(propose("Eli", "Pam", { mins: 0 }), "an open proposal to expire");
+    // A group of three at T: Ann and Bob, who also have their 1-on-1, and Cat.
+    crews.g = (await ok(w.service.from("crews").insert({ gathering_id: T, state: "spot_set", spot_id: spots[1], meet_at: at(-30) }).select("id").single())).id;
+    for (const n of ["Ann", "Bob", "Cat"]) await ok(w.service.from("crew_members").insert({ crew_id: crews.g, gathering_id: T, person_id: P(n).personId }), `${n} joins the group`);
+    // Time moves to just after the start; the 1-on-1 plan's time moves with it.
+    start = Date.now() - 60_000;
+    await ok(w.service.from("gatherings").update({ starts_at: new Date(start).toISOString() }).eq("id", T));
+    await ok(w.service.from("crews").update({ meet_at: at(-30) }).eq("id", crews.ab));
+    await ok(w.service.rpc("admin_groups_tick"));
+    assert.equal(await status("Eli", "Pam"), "expired");
+    assert.deepEqual(await mine("Eli"), [], "a proposal outlived the start for its sender");
+    assert.deepEqual(await mine("Pam"), [], "a proposal outlived the start for its recipient");
+    await denied(propose("Eli", "Tia", { mins: 60 }), "42501");
+    for (const id of [crews.ab, crews.g, crews.km]) assert.equal((await crewRow(id)).state, "live");
+    const dayOf = (label: string) => rows(w.service.from("notifications").select("body").eq("person_id", P(label).personId).eq("gathering_id", T).eq("kind", "day_of"));
+    const ann = await dayOf("Ann");
+    assert.equal(ann.length, 1, `someone with a group and a 1-on-1 got ${ann.length} day-of pushes`);
+    // Both named, in time order, whichever comes first.
+    assert.match(ann[0].body, /your (group|1-on-1) meets at .+, and your (group|1-on-1) meets at /, "the one push did not name both");
+    assert.ok(ann[0].body.includes("your group meets") && ann[0].body.includes("your 1-on-1 meets"), "the one push did not name both");
+    const cat = await dayOf("Cat");
+    assert.equal(cat.length, 1);
+    assert.doesNotMatch(cat[0].body, /1-on-1/, "a group-only member was told about someone else's 1-on-1");
+    assert.match((await dayOf("Kit"))[0]?.body ?? "", /your 1-on-1 meets at /);
+    // "I'm here", per plan.
+    await ok(P("Ann").client.from("crew_members").update({ arrived_at: new Date().toISOString(), arrival_note: "red scarf" }).eq("crew_id", crews.ab).eq("person_id", P("Ann").personId).select("person_id"));
+  });
+
+  it("P224 after the night: a 1-on-1 meeting after the end is not over before it meets; A16 lists each person once, and a tick lands on every plan you shared", async () => {
+    start = Date.now() - 4 * 3_600_000; // the effective end was an hour ago
+    await ok(w.service.from("gatherings").update({ starts_at: new Date(start).toISOString() }).eq("id", T));
+    await ok(w.service.from("crews").update({ meet_at: at(-30) }).eq("id", crews.ab));
+    await ok(w.service.from("crews").update({ meet_at: new Date(Date.now() + 30 * 60_000).toISOString() }).eq("id", crews.km));
+    await ok(w.service.rpc("admin_groups_tick"));
+    assert.equal((await crewRow(crews.ab)).state, "done");
+    assert.equal((await crewRow(crews.g)).state, "done");
+    assert.equal((await crewRow(crews.km)).state, "live", "a 1-on-1 meeting after the end was done before it met");
+    const s = (await ok(P("Ann").client.rpc("after_state", { p_gathering: T }))) as { people: { person_id: string; we_met_matched: boolean }[]; crew_id: string };
+    assert.deepEqual(s.people.map((p) => nameOf(p.person_id)).sort(), ["Bob", "Cat"], "A16 did not list each person once");
+    await ok(P("Ann").client.rpc("after_tick", { p_crew: s.crew_id, p_to: P("Bob").personId, p_kind: "we_met", p_on: true }));
+    const ticks = await rows(w.service.from("confirmations").select("crew_id").eq("from_person", P("Ann").personId).eq("to_person", P("Bob").personId).eq("kind", "we_met"));
+    assert.deepEqual(ticks.map((t: { crew_id: string }) => t.crew_id).sort(), [crews.ab, crews.g].sort(), "the tick did not land on both plans they shared");
+    // Bob ticks back through the other plan; it matches for both.
+    await ok(P("Bob").client.rpc("after_tick", { p_crew: crews.ab, p_to: P("Ann").personId, p_kind: "we_met", p_on: true }));
+    const again = (await ok(P("Ann").client.rpc("after_state", { p_gathering: T }))) as { people: { person_id: string; we_met_matched: boolean }[] };
+    assert.equal(again.people.find((p) => p.person_id === P("Bob").personId)?.we_met_matched, true);
+    await denied(P("Ann").client.rpc("after_tick", { p_crew: crews.g, p_to: P("Bob").personId, p_kind: "we_met", p_on: false }), "42501");
+    // Cat shares only the group with Ann: her tick lands there alone, and the 1-on-1 stays theirs.
+    await ok(P("Cat").client.rpc("after_tick", { p_crew: crews.g, p_to: P("Ann").personId, p_kind: "we_met", p_on: true }));
+    assert.equal((await rows(w.service.from("confirmations").select("crew_id").eq("from_person", P("Cat").personId))).length, 1);
+    await denied(P("Cat").client.rpc("after_tick", { p_crew: crews.ab, p_to: P("Ann").personId, p_kind: "we_met", p_on: true }), "42501");
+    // Kit's plan has not met: nothing to tick yet.
+    assert.deepEqual(((await ok(P("Kit").client.rpc("after_state", { p_gathering: T }))) as { people: unknown[] }).people, []);
+  });
+
+  it("P225 the admin's 1-on-1 numbers and the per-platform switch are the admin's; the export never gives a decline away", async () => {
+    const m = ((await ok(w.service.rpc("admin_solo_metrics", { p_from: new Date(start - 86_400_000).toISOString(), p_to: new Date(start + 86_400_000).toISOString() }))) as any[]).find((r) => r.gathering_id === T);
+    assert.ok(m, "the metrics did not count the gathering");
+    assert.equal(m.has_spots, true);
+    assert.equal(m.plans, 5);
+    assert.equal(m.plans_dissolved, 3);
+    assert.equal(m.declined, 1);
+    assert.equal(m.withdrawn >= 2, true);
+    assert.equal(m.also_in_a_group, 2, "someone in both a group and a 1-on-1 was not counted");
+    assert.equal(m.arrived, 1);
+    assert.equal(m.met, 2, "the 1-on-1's mutual 'we met' was not counted");
+    for (const client of [P("Ann").client, w.anon]) await denied(client.rpc("admin_solo_metrics", {}));
+    // The switch: anyone reads it, only the admin sets it, and it is logged.
+    const sw = await ok(w.anon.from("app_switches").select("ios, web").eq("name", "solo").single());
+    assert.deepEqual(sw, { ios: true, web: true });
+    await denied(P("Ann").client.from("app_switches").update({ ios: false }).eq("name", "solo"), "42501");
+    assert.equal((await ok(w.anon.from("app_switches").select("ios").eq("name", "solo").single())).ios, true, "a person switched 1-on-1 off for everyone");
+    await denied(P("Ann").client.rpc("admin_set_app_switch", { p_name: "solo", p_ios: false, p_web: true, p_actor: "me" }));
+    await ok(w.service.rpc("admin_set_app_switch", { p_name: "solo", p_ios: false, p_web: true, p_actor: ACTOR }));
+    assert.equal((await ok(w.anon.from("app_switches").select("ios").eq("name", "solo").single())).ios, false, "control: the admin's switch did nothing");
+    await ok(w.service.rpc("admin_set_app_switch", { p_name: "solo", p_ios: true, p_web: true, p_actor: ACTOR }));
+    // After the start, a declined and an unanswered proposal read the same to their sender.
+    const exp = (await ok(P("Hank").client.rpc("my_solo_export"))) as { proposals_sent: { status: string }[] };
+    assert.ok(!exp.proposals_sent.some((p) => p.status === "declined"), "the export told the sender of a decline");
+    const ivo = (await ok(P("Ivo").client.rpc("my_solo_export"))) as { proposals_received: { status: string }[] };
+    assert.deepEqual(ivo.proposals_received.map((p) => p.status), ["declined"], "control: the recipient's own answer was not in their export");
   });
 });

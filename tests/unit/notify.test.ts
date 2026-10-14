@@ -61,14 +61,14 @@ describe("The one-tap stop link", () => {
 });
 
 describe("The six kinds, one list", () => {
-  it("N08 the app's switches, the Worker's kinds, the database's enum and its switch columns are the same seven", () => {
+  it("N08 the app's switches, the Worker's kinds, the database's enum and its switch columns are the same eight", () => {
     const db = [...Constants.public.Enums.notification_kind].sort();
     assert.deepEqual(NOTIFICATIONS.map((n) => n.kind).sort(), db, "Settings' switches differ from the database's kinds");
     assert.deepEqual([...KINDS].sort(), db, "the Worker's kinds differ from the database's");
-    assert.equal(db.length, 7);
+    assert.equal(db.length, 8);
     // The stop link and Settings write the column named by the kind (admin_switch_off), so
     // every kind must be a column. M3.3 named one `invites` for the kind `invite`.
-    const columns: (keyof Database["public"]["Tables"]["notification_settings"]["Row"])[] = ["digest", "room_open", "plan_status", "day_of", "next_morning", "room_activity", "invite"];
+    const columns: (keyof Database["public"]["Tables"]["notification_settings"]["Row"])[] = ["digest", "room_open", "plan_status", "day_of", "next_morning", "room_activity", "invite", "solo_proposal"];
     assert.deepEqual([...columns].sort(), db, "a kind has no switch column of its own name");
   });
 

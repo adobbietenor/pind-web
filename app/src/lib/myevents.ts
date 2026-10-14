@@ -48,15 +48,18 @@ export async function loadMyEvents(now = new Date()): Promise<MyEvent[]> {
 
   const crewIds = (members.data ?? []).map((m) => m.crew_id);
   const crews = crewIds.length
-    ? await db.from("crews").select("id, gathering_id, state, meet_at, meeting_spots(name)").in("id", crewIds)
+    ? await db.from("crews").select("id, kind, gathering_id, state, meet_at, meeting_spots(name)").in("id", crewIds)
     : { data: [], error: null };
   if (crews.error) throw crews.error;
-  const groupAt = new Map(
-    (crews.data ?? []).map((c) => [
+  // A group and a 1-on-1 plan can share a gathering (M3.4): one map each, never one over the other.
+  const planAt = (kind: "crew" | "solo") => new Map(
+    (crews.data ?? []).filter((c) => c.kind === kind).map((c) => [
       c.gathering_id,
       { state: c.state, spot: (c.meeting_spots as { name: string } | null)?.name ?? null, meetAt: c.meet_at },
     ]),
   );
+  const groupAt = planAt("crew");
+  const soloAt = planAt("solo");
 
   // A pin whose gathering this person can no longer read (a draft again, say) is not
   // shown: there is nothing to open.
@@ -75,6 +78,7 @@ export async function loadMyEvents(now = new Date()): Promise<MyEvent[]> {
         withdrawn: g.withdrawn_at !== null,
         openToMeeting: p.open_to_meeting,
         group: groupAt.get(p.gathering_id) ?? null,
+        solo: soloAt.get(p.gathering_id) ?? null,
         after: null as MyEventInput["after"],
       };
       if (!isPast(base, now)) return base;

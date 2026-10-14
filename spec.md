@@ -447,7 +447,7 @@ comments are on M4.1's rota at the reports' standard (decisions, "A16's comment 
 **Ships only with the privacy page's two lines about it, in the same deploy** (both
 applied on the branch, 14 Oct, so the next deploy carries the field and the copy together).
 
-### A18 — Notifications (seven, under one rule)
+### A18 — Notifications (eight, under one rule)
 
 **The rule is a ban on engagement bait** (Alex, 6 Oct 2026; decisions, "A18: the rule is
 the ban, not the count"). **A notification earns its place only by being something the
@@ -458,7 +458,7 @@ profile", never a streak, never a nudge to return for its own sake.
 **The count is a record, not the rule.** It says how many moments have passed the test.
 Adding one means a decisions entry saying why it is not bait, and a line below with its
 reason; `tests/unit/notify.test.ts` (N09) fails if the database has a kind this list
-does not name. It was five until 28 Sept; how it became seven is recorded in decisions.
+does not name. It was five until 28 Sept; how it became seven, then eight, is recorded in decisions.
 
 1. **Digest** (`digest`) — Monday 6:00 PM, this week's crowds → A7. Delivery is M3.5.
    *Not bait:* it is the list itself, once a week, with an unsubscribe link — the crowds,
@@ -470,11 +470,12 @@ does not name. It was five until 28 Sept; how it became seven is recorded in dec
 3. **Plan status** (`plan_status`) — an invite to a group ("Maya wants to go together to
    X"); a group on, its spot set, or dissolved; **and, from M3.5, the gathering's date
    changed or withdrawn** → the group, or the crowd page (A10) when dissolved, changed or
-   withdrawn. *Not bait:* each is a change to a plan the person is part of; missing one
+   withdrawn; **from M3.4, a 1-on-1 accepted (to its sender) or off (to both, with no
+   reason)**. *Not bait:* each is a change to a plan the person is part of; missing one
    means being expected somewhere they never answered, or turning up at the wrong time or
    place.
-4. **Day-of** (`day_of`) — when a group goes live, about 3 hours before: where and when →
-   A13. *Not bait:* the meeting point on the day, only to people with a plan.
+4. **Day-of** (`day_of`) — when a group or a 1-on-1 plan goes live, about 3 hours before:
+   where and when → A13. Someone with both gets **one** push naming both (M3.4). *Not bait:* the meeting point on the day, only to people with a plan.
 5. **Next morning** (`next_morning`) — 9am local the day after → A16. **To everyone who
    was open to meeting** (Alex, 29 Sept): a group's members are asked who they met;
    everyone else only the after-event question, gently. *Not bait:* A16's ticks are open
@@ -499,6 +500,13 @@ does not name. It was five until 28 Sept; how it became seven is recorded in dec
    five a day (29 Sept). *Not bait:* "connections exist precisely for people who met once
    and have no other way to reach each other" (Alex); it is a person asking, about a real
    plan, never the product.
+8. **A 1-on-1 proposal** (`solo_proposal`) — "Maya asked to meet you 1-on-1 at X" → the
+   1-on-1 section of the crowd page (A29), once per proposal (14 Oct 2026). Never for a
+   decline, which sends nothing to anyone. *Not bait* (Alex: "someone asking to meet you is
+   a real moment"): it is a person asking, with a spot and a time, and it lapses at the
+   gathering's start — unseen until then, it is an answer the sender never gets. Its
+   guardrails bound it: at most 3 open per sender per gathering, one per pair ever, a
+   preset line only.
 
 **Nothing else.** Each kind has its own switch in Settings (A23), and every email its stop
 link. **Every notification is mirrored by email to people without a device token**
@@ -547,7 +555,7 @@ count (Q3).
 "Meet 1-on-1" appears here only as a summary of the per-gathering setting (on at which
 gatherings, and who can see you); it is switched on and off on the pinned crowd page
 (A28), never here.
-Notifications: the seven, toggleable.
+Notifications: the eight, toggleable.
 Data: export my data, delete account (in-app, required by both stores).
 Sign out (Alex, 10 Oct 2026): this device only, in a card of its own above Delete, two
 taps. Shown only with a permanent sign-in. It takes this phone off the account's push
@@ -751,7 +759,7 @@ working. Hours are Alex's, agent-assisted.
 | M3.3c | The app's home — pick a city (Toronto live), Toronto's list, the same query as W1; **pulled forward from M3.2b** (Alex, 6 Oct 2026) | **Built, being checked on the phone** — in build 9, and walked on build 10 with M3.3b; `check:home` passes on the web. Branch `phase3/m3.3c-home` (on top of M3.3b), not merged | 6.5–9.5 |
 | M3.2b | The app's front door — interests, search, My Events (the build moved to M3.3b and the home and list to M3.3c, Alex, 6 Oct 2026) | **Built** (10 Oct 2026) — proved by the harness (P188–P193) and the Worker's own /search rendered against staging; merged into `phase3/m3.3c-home`. **Not yet deployed** (the deploy is Alex's): W1's search box and /search appear on pind.social with the next deploy, and the three-argument `public_gatherings` is dropped by a migration after it | 6–7 |
 | M3.4 | Solo crew (A28, A29) | **In progress** — branch `phase3/m3.4-solo-build`: who can see whom approved and built (V14, P209–P215, 14 Oct 2026); the lifecycle, proposals, the plan and the screens to come | 8–12 |
-| M3.5 | Safety and the notifications (A18, A23, A24) | **Partly built, in M3.3** — the seven notifications are written by the acts themselves and **delivered** (push to a phone, email otherwise, every minute; stop links), Settings has the seven switches, and a room message can be reported. **Not built:** the Monday digest (nothing writes it), #3 for a date change (withdrawal is done), block and report from a profile or group (A24; the control is hidden until it exists), blocked people and my reports in Settings, the admin block control, sign-in email monitoring. **Not walked:** push on the phone | 10–14 |
+| M3.5 | Safety and the notifications (A18, A23, A24) | **Partly built, in M3.3** — the seven notifications are written by the acts themselves and **delivered** (push to a phone, email otherwise, every minute; stop links), Settings has the switches (eight since M3.4), and a room message can be reported. **Not built:** the Monday digest (nothing writes it), #3 for a date change (withdrawal is done), block and report from a profile or group (A24; the control is hidden until it exists), blocked people and my reports in Settings, the admin block control, sign-in email monitoring. **Not walked:** push on the phone | 10–14 |
 | M3.6 | Dogfood on staging | Not started | 6–8 |
 | **Phase 4** | **Before the first real crowd** | | 28–42 |
 | M4.1 | Policy, terms, operations (moderation rota, incident scripts) | **Partly** — the privacy and terms pages are live (published early, in M3.2). **Not done:** the moderation rota, incident scripts, and the line-by-line check of every privacy-page promise | 4–6 |

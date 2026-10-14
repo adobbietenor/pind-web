@@ -54,7 +54,7 @@ Contents
 | M3.3c | The app's home: pick a city (moved ahead) | Four cities, Toronto live; Toronto's list is W1's; a card opens the crowd page            | 6.5–9.5 |
 | M3.2b | The app's front door: the rest            | Interests, search, My Events (the home list moved to M3.3c)                                           | 6–7     |
 | M3.4 | Solo crew                                   | Opt-in, a proposal, a mutual accept, a two-person plan with the same thread and check-in               | 8–12    |
-| M3.5 | Safety and the notifications                | Report and block from every surface; the seven moments arrive by push and, for web people, by email    | 10–14   |
+| M3.5 | Safety and the notifications                | Report and block from every surface; the eight moments arrive by push and, for web people, by email    | 10–14   |
 | M3.6 | Dogfood                                     | The three of you walk the loop on staging on two phones and a laptop; the fix list is closed           | 6–8     |
 | M4.1 | Policy, terms, operations                   | Privacy policy and terms live; moderation rota and incident scripts written                            | 4–6     |
 | M4.2 | Adversarial review of the visibility rules  | Leaks fixed as migrations; harness green including solo cases                                          | 4–8     |
@@ -116,7 +116,7 @@ The Expo web export ships as the Worker's static assets on the *same host*. The 
 3.  **Tap.** iOS checks the `apple-app-site-association` file on pind.social. App installed → the app opens straight onto that crowd page (A8). Not installed → Safari loads the Worker page in under a second: facts, the generated map (venue and spots, never people), counts, the three house rules, one button.
 4.  **"Pin in — I've got a ticket"** goes to `/g/leafs-bruins/pin`, which was the Expo web app — **since M3.2 the Worker's own A26**, measured at 0.8–1.6 s (decisions). The first load costs about another second on LTE; that is fine — the person has already decided. **Measured in M2.1, and it is more than a second:** the holding route pulls **828 KB** (688 KB of JavaScript, 145 KB of fonts) and scores **37** on Lighthouse mobile — FCP 5.8 s, LCP 7.3 s, TBT 1,270 ms — against the crowd page's **99** at 78 KB. M3.2 owns making the step after the crowd page survive that, since it is the conversion step. First name, who's coming, "I'd like to meet up", 19+ → pinned. Under the hood a Supabase anonymous user was created and the pin is a real row under RLS. Thirty seconds, no account, no photo.
 5.  **If they ticked "meet up"**, one screen more: date of birth (under 19 stops here), gender, a face photo, and a way to reach you — email code, or Apple/Google. The anonymous user becomes a permanent one; the pin stays attached because the user id does not change.
-6.  **From here the web app is the product:** the reciprocal list at 2, the room from 2, a small group from 3, solo at 2, the thread, "I'm here", the morning after. Push needs the app, so web people get the same seven moments by email (spec A18). "Get the app" is offered once, when someone first joins a group — the first moment push is worth having (M3.3).
+6.  **From here the web app is the product:** the reciprocal list at 2, the room from 2, a small group from 3, solo at 2, the thread, "I'm here", the morning after. Push needs the app, so web people get the same eight moments by email (spec A18; the eighth, a 1-on-1 proposal, since 14 Oct 2026). "Get the app" is offered once, when someone first joins a group — the first moment push is worth having (M3.3).
 7.  **Later, with the app installed**, every shared crowd link opens in the app. Reddit's in-app browser does not always honour universal links; that is one more reason the web build must be the complete product rather than a landing page.
 
 ## 3 · Repo: an `app/` folder inside pind-web
@@ -609,6 +609,14 @@ any of it.
 - `pins.solo_opt_in`, `pins.solo_visibility`, `people.hidden_from_solo`; the `can_see_at` branch with harness cases (P55+): reciprocal, women-only limiter, block, hidden, review-only.
 - Crew `kind = 'solo'` with two seats and no requests; proposals (spot, time, one of five preset lines) with limits and expiry; accept → plan; decline silent.
 - The opt-in sheet with the forced visibility choice; the 1-on-1 section on the pinned crowd page, below crews; metrics views for solo.
+- *(14 Oct 2026, Alex — decisions, "M3.4: who can see whom in 1-on-1" and "M3.4: the 1-on-1 lifecycle".)*
+  - The solo cases are P209–P225, not "P55+".
+  - Proposal times run from 3 h before the start to 2 h after the effective end.
+  - A plan ends at H9's threshold, or when either person leaves.
+  - Gatherings with no spots offer no 1-on-1, and the admin counts them.
+  - A received proposal is A18's eighth notification.
+  - A per-platform switch is on the admin's 1-on-1 page.
+  - Built on staging and flagged for the independent review (`docs/m3.4-review-brief.md`).
 
 **Acceptance**
 
@@ -624,7 +632,7 @@ any of it.
 
 #### M3.5 · Safety and the notifications (A18, A23, A24)
 
-**Goal.** Every surface has block and report two taps away, and the product speaks only the seven moments in spec A18 (the rule is a ban on engagement bait, not the count — Alex, 6 Oct 2026) — by push to the app, by email to web-only people — so that Beta App Review and the first crowds see a finished safety floor.
+**Goal.** Every surface has block and report two taps away, and the product speaks only the eight moments in spec A18 (the rule is a ban on engagement bait, not the count — Alex, 6 Oct 2026) — by push to the app, by email to web-only people — so that Beta App Review and the first crowds see a finished safety floor.
 
 - A24 from a profile, a crew card and a message; confirmation copy ("a human reviews within 24h"); H9 auto-hide behaviour surfaced in the admin; blocking never notifies.
 - A23 complete: blocked people, my reports, "women-only rooms only" (built in M3.3), visibility (always on), show my neighbourhood, notification toggles, export, delete, the no-location note.
@@ -638,7 +646,7 @@ any of it.
 - Report and block work in two taps from a profile, a crew card and a long-pressed message, on both platforms.
 - An "uncomfortable" report hides the target immediately; two "spam" reports hide the target; the reporter is never shown an outcome beyond the confirmation.
 - **Sign-in email delivery is monitored like the notifications** (filed for here in M3.1, decisions: "a revoked or expired auth key presents as people quietly not receiving codes"): a real sign-in code sent on a schedule and its arrival checked, with a failure record the admin shows.
-- Each of the seven arrives on the phone as push and, for a web-only test account, as email: a test-fired digest, someone to talk to (#2), plan status (including a date change), day-of about 3 hours before, next morning, room activity (#6, within its bound), an invite from a connection (#7) — each opening the right screen, including from a cold start.
+- Each of the eight arrives on the phone as push and, for a web-only test account, as email: a test-fired digest, someone to talk to (#2), plan status (including a date change), day-of about 3 hours before, next morning, room activity (#6, within its bound), an invite from a connection (#7), a 1-on-1 proposal (#8) — each opening the right screen, including from a cold start.
 - Nothing else is ever sent; no SMS exists.
 - Settings show every toggle, export and delete; the digest email has an unsubscribe link that works.
 

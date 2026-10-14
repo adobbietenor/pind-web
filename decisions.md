@@ -4081,3 +4081,84 @@ Approved as proposed, all five calls as recommended. This closes the open item i
   cases start at P209. Review-only gatherings (V15) do not exist until M5.1. They go into
   the base rule then, so solo inherits them; until then the staging equivalent (seed
   gatherings and people, testers only) is inherited and tested.
+
+### M3.4: the 1-on-1 lifecycle (Alex, 14 Oct 2026)
+
+The lifecycle as proposed, with three of the five calls approved and two changed, plus an
+addition. The visibility above (P209–P215) is accepted on its paired controls instead of a
+case watched going red, and **flagged for the independent review** "so it gets attacked
+properly rather than assumed".
+
+- **A proposal: open → accepted, declined, withdrawn, expired, or closed.**
+  - **Sending** is refused unless you can see them in 1-on-1 now, the gathering has not
+    started, the spot is one of the venue's active spots, the time is in the window below,
+    you have fewer than 3 open, and neither of you has ever proposed to the other there.
+  - **Accept** checks the rule again, creates the plan, and silently closes every other
+    open proposal to or from either person at that gathering: one 1-on-1 plan per person
+    per gathering.
+  - **Decline sends nothing.** To the sender a declined proposal is indistinguishable
+    from an unanswered one, in every respect, until the start: it shows as sent, it counts
+    toward their 3, and every rule that closes an open proposal closes a declined one the
+    same way. Otherwise the difference would be the tell.
+  - **Withdraw**: the sender's own, which frees a slot; the pair stays used.
+  - **Closed, silently, for both**, when the rule stops holding: a block, a report that
+    takes either out of 1-on-1, a hide, either switching 1-on-1 or meeting off, a pin
+    removed, the gathering withdrawn.
+  - **Expired** at the gathering's start. Every proposal vanishes for both then.
+- **The times on offer (changed, Alex):** from 3 hours before the start **to 2 hours after
+  the effective end**, in 15-minute steps, never in the past. Proposals still close at the
+  start. "Rooms are keyed on before / at / after and I don't want 1-on-1 narrowed to before
+  only. At a concert the obvious meet is afterwards."
+  - Consequence, decided in the build: a plan that meets after the end would otherwise be
+    `done` before it met. A 1-on-1 plan is therefore `done` at the later of the effective
+    end and **one hour after its meeting time**. A group's is unchanged.
+  - Consequence for the copy: preset lines 1, 2 and 5 are worded for meeting before ("walk
+    in together", "before it starts", "then head in"). Until Tatiana's final five arrive,
+    a time after the start offers only lines 3 and 4 (`soloLinesFor` in packages/shared).
+    **Her five need to cover meeting afterwards.**
+- **A 1-on-1 plan: spot set → live → done, or dissolved.** A group (`crews`) of
+  `kind = 'solo'`, exactly two seats, created at accept in `spot_set` with the proposal's
+  spot and time. It never forms, and takes no invites. Live from 3 hours before, as a
+  group; the same thread, "I'm here" and A16. One group and one 1-on-1 plan per person per
+  gathering: the database's "one at a time" rule is now per kind.
+  - **No editing in v1** (approved). The spot and time are fixed, and one-per-pair-ever
+    means a dissolved plan cannot be remade.
+  - **It dissolves** when either person leaves (blocking the other leaves, as in a
+    group); the other is told, "Your 1-on-1 for X is off", with no reason.
+  - **Reports use H9's threshold (changed, Alex):** "A plan between two people is the
+    highest-risk state in the product and can't have a weaker response than the browse
+    list, but one malicious report shouldn't cancel it either." A report that trips H9's
+    auto-hide dissolves the plan; one below it does not, whoever filed it. In the build,
+    "trips H9" means H9 hid either person, the plan itself, or a message in its thread. An
+    admin hide is a hide and counts the same way. A room message hidden by a report hides
+    only that message, as before, and leaves the plan alone. **Both people get the
+    plan-status notification, with no reason.** That includes the hidden person, which
+    departs from #3's usual "never to a hidden person": otherwise they would walk to a
+    spot where nobody is coming. Unhiding someone later does not bring a dissolved plan
+    back.
+- **Spotless gatherings (approved, with an addition).** A gathering whose venue has no
+  active meeting spots has no 1-on-1: the switch is not shown and the database refuses it.
+  **This must be counted, not silent.** The admin counts upcoming published gatherings
+  with no active spots on the Venues page, beside the missing maps. **The risk, recorded:**
+  if that number is high, 1-on-1 is absent from most of the city, and §7's groups-vs-solo
+  comparison measures availability instead of preference. Read the count before reading
+  that comparison.
+- **The five lines are keys (approved):** the database stores 1–5, and the words live in
+  packages/shared, so Tatiana's final copy needs no migration. Spec §5's drafts ship until
+  hers land.
+- **Notifications.** A received proposal is #8 (`solo_proposal`), to the 1-on-1 section.
+  An accept tells the sender through #3. A decline sends nothing.
+- **Both a group and a 1-on-1 plan at one gathering.** Allowed, and not refused for
+  clashing times: a group's time is often set later, by its leader. The proposal sheet
+  shows your group's spot and time. When both go live in the same run, **one day-of push
+  names both**. "I'm here" is separate per plan. **A16 is one page:** everyone from both
+  plans, each person once, and a tick on someone is recorded on every plan you shared with
+  them. §7 counts each plan's Met in its own column.
+- **Two calls made in the build, flagged for Alex:**
+  - **Once you have a 1-on-1 plan at a gathering, you leave everyone else's 1-on-1 list
+    there**, and your own section shows your plan instead of a list. This only narrows
+    visibility. The alternative was to refuse a new proposal to someone already in a plan,
+    which would tell the sender they have one.
+  - **A server flag per platform** (Part 5, "Solo's user-facing name") is a row the admin
+    switches, read by the app. It is not a database rule: the database cannot tell which
+    platform asks.

@@ -75,6 +75,27 @@ export type Database = {
           },
         ]
       }
+      app_switches: {
+        Row: {
+          ios: boolean
+          name: string
+          updated_at: string
+          web: boolean
+        }
+        Insert: {
+          ios?: boolean
+          name: string
+          updated_at?: string
+          web?: boolean
+        }
+        Update: {
+          ios?: boolean
+          name?: string
+          updated_at?: string
+          web?: boolean
+        }
+        Relationships: []
+      }
       blocks: {
         Row: {
           blocked_id: string
@@ -579,6 +600,7 @@ export type Database = {
           gathering_id: string
           id: string
           joined_at: string
+          kind: Database["public"]["Enums"]["crew_kind"]
           left_at: string | null
           person_id: string
           seats: number
@@ -590,6 +612,7 @@ export type Database = {
           gathering_id: string
           id?: string
           joined_at?: string
+          kind?: Database["public"]["Enums"]["crew_kind"]
           left_at?: string | null
           person_id: string
           seats?: number
@@ -601,17 +624,18 @@ export type Database = {
           gathering_id?: string
           id?: string
           joined_at?: string
+          kind?: Database["public"]["Enums"]["crew_kind"]
           left_at?: string | null
           person_id?: string
           seats?: number
         }
         Relationships: [
           {
-            foreignKeyName: "crew_members_crew_id_gathering_id_fkey"
-            columns: ["crew_id", "gathering_id"]
+            foreignKeyName: "crew_members_crew_fkey"
+            columns: ["crew_id", "gathering_id", "kind"]
             isOneToOne: false
             referencedRelation: "crews"
-            referencedColumns: ["id", "gathering_id"]
+            referencedColumns: ["id", "gathering_id", "kind"]
           },
           {
             foreignKeyName: "crew_members_person_id_fkey"
@@ -756,6 +780,7 @@ export type Database = {
           gathering_id: string
           hidden_at: string | null
           id: string
+          kind: Database["public"]["Enums"]["crew_kind"]
           meet_at: string | null
           room_id: string | null
           sibling_of: string | null
@@ -770,6 +795,7 @@ export type Database = {
           gathering_id: string
           hidden_at?: string | null
           id?: string
+          kind?: Database["public"]["Enums"]["crew_kind"]
           meet_at?: string | null
           room_id?: string | null
           sibling_of?: string | null
@@ -784,6 +810,7 @@ export type Database = {
           gathering_id?: string
           hidden_at?: string | null
           id?: string
+          kind?: Database["public"]["Enums"]["crew_kind"]
           meet_at?: string | null
           room_id?: string | null
           sibling_of?: string | null
@@ -1484,6 +1511,7 @@ export type Database = {
           plan_status: boolean
           room_activity: boolean
           room_open: boolean
+          solo_proposal: boolean
           updated_at: string
         }
         Insert: {
@@ -1495,6 +1523,7 @@ export type Database = {
           plan_status?: boolean
           room_activity?: boolean
           room_open?: boolean
+          solo_proposal?: boolean
           updated_at?: string
         }
         Update: {
@@ -1506,6 +1535,7 @@ export type Database = {
           plan_status?: boolean
           room_activity?: boolean
           room_open?: boolean
+          solo_proposal?: boolean
           updated_at?: string
         }
         Relationships: [
@@ -2488,6 +2518,84 @@ export type Database = {
           },
         ]
       }
+      solo_proposals: {
+        Row: {
+          created_at: string
+          crew_id: string | null
+          decided_at: string | null
+          from_person: string
+          gathering_id: string
+          id: string
+          line: number
+          meet_at: string
+          spot_id: string
+          status: Database["public"]["Enums"]["solo_proposal_status"]
+          to_person: string
+        }
+        Insert: {
+          created_at?: string
+          crew_id?: string | null
+          decided_at?: string | null
+          from_person: string
+          gathering_id: string
+          id?: string
+          line: number
+          meet_at: string
+          spot_id: string
+          status?: Database["public"]["Enums"]["solo_proposal_status"]
+          to_person: string
+        }
+        Update: {
+          created_at?: string
+          crew_id?: string | null
+          decided_at?: string | null
+          from_person?: string
+          gathering_id?: string
+          id?: string
+          line?: number
+          meet_at?: string
+          spot_id?: string
+          status?: Database["public"]["Enums"]["solo_proposal_status"]
+          to_person?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solo_proposals_crew_id_fkey"
+            columns: ["crew_id"]
+            isOneToOne: false
+            referencedRelation: "crews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solo_proposals_from_person_fkey"
+            columns: ["from_person"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solo_proposals_gathering_id_fkey"
+            columns: ["gathering_id"]
+            isOneToOne: false
+            referencedRelation: "gatherings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solo_proposals_spot_id_fkey"
+            columns: ["spot_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_spots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solo_proposals_to_person_fkey"
+            columns: ["to_person"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       spot_suggestions: {
         Row: {
           address: string | null
@@ -2913,6 +3021,17 @@ export type Database = {
         Returns: undefined
       }
       admin_forget_device: { Args: { p_token: string }; Returns: undefined }
+      admin_gatherings_without_spots: {
+        Args: never
+        Returns: {
+          gathering_id: string
+          name: string
+          slug: string
+          starts_at: string
+          venue_id: string
+          venue_name: string
+        }[]
+      }
       admin_groups_tick: { Args: never; Returns: Json }
       admin_hide_person: {
         Args: { p_actor: string; p_note?: string; p_person: string }
@@ -3106,6 +3225,15 @@ export type Database = {
         Args: { p_actor: string; p_city: string; p_settings: Json }
         Returns: undefined
       }
+      admin_set_app_switch: {
+        Args: {
+          p_actor: string
+          p_ios: boolean
+          p_name: string
+          p_web: boolean
+        }
+        Returns: undefined
+      }
       admin_set_blurb: {
         Args: {
           p_actor: string
@@ -3145,6 +3273,10 @@ export type Database = {
       admin_settle_series: {
         Args: { p_actor: string; p_note?: string; p_series: string }
         Returns: undefined
+      }
+      admin_solo_metrics: {
+        Args: { p_from?: string; p_to?: string }
+        Returns: Json
       }
       admin_start_check_run: {
         Args: { p_actor: string; p_city: string; p_trigger: string }
@@ -3303,6 +3435,31 @@ export type Database = {
         Args: { p_gathering: string }
         Returns: Database["public"]["Enums"]["solo_visibility"]
       }
+      my_solo_export: { Args: never; Returns: Json }
+      my_solo_proposals: {
+        Args: { p_gathering: string }
+        Returns: {
+          created_at: string
+          direction: string
+          first_name: string
+          line: number
+          meet_at: string
+          person_id: string
+          proposal_id: string
+          spot_id: string
+          spot_name: string
+        }[]
+      }
+      propose_solo: {
+        Args: {
+          p_gathering: string
+          p_line: number
+          p_meet_at: string
+          p_spot: string
+          p_to: string
+        }
+        Returns: string
+      }
       public_gathering: { Args: { p_slug: string }; Returns: Json }
       public_gatherings:
         | {
@@ -3365,6 +3522,10 @@ export type Database = {
         Args: { p_accept: boolean; p_invite: string }
         Returns: undefined
       }
+      respond_to_solo: {
+        Args: { p_accept: boolean; p_proposal: string }
+        Returns: string
+      }
       room_seen: { Args: { p_room: string }; Returns: undefined }
       set_women_only_rooms: { Args: { p_on: boolean }; Returns: undefined }
       showed_up: { Args: { p_person: string }; Returns: boolean }
@@ -3391,12 +3552,14 @@ export type Database = {
         Args: { p_gathering: string }
         Returns: boolean
       }
+      withdraw_solo: { Args: { p_proposal: string }; Returns: undefined }
       women_only_offer: { Args: { p_gathering: string }; Returns: boolean }
     }
     Enums: {
       confirmation_kind: "we_met" | "keep_in_touch"
       contact_kind: "email" | "sms"
       convening: "at_the_gathering" | "a_spot_first" | "after"
+      crew_kind: "crew" | "solo"
       crew_state: "forming" | "spot_set" | "live" | "done" | "dissolved"
       entry_kind: "free" | "door" | "ticketed"
       gathering_category:
@@ -3427,6 +3590,7 @@ export type Database = {
         | "next_morning"
         | "room_activity"
         | "invite"
+        | "solo_proposal"
       outbound_kind: "threshold" | "survey"
       photo_status: "pending" | "approved" | "needs_review" | "rejected"
       publish_mark: "publish" | "never"
@@ -3435,6 +3599,13 @@ export type Database = {
       report_status: "open" | "auto_hidden" | "actioned" | "dismissed"
       report_target: "person" | "crew" | "message"
       series_cadence: "weekly" | "fortnightly" | "monthly"
+      solo_proposal_status:
+        | "open"
+        | "accepted"
+        | "declined"
+        | "withdrawn"
+        | "expired"
+        | "closed"
       solo_visibility: "everyone" | "women_only"
       suggestion_status: "pending" | "approved" | "rejected"
       survey_met: "none" | "1_2" | "3_5" | "6_plus"
@@ -3570,6 +3741,7 @@ export const Constants = {
       confirmation_kind: ["we_met", "keep_in_touch"],
       contact_kind: ["email", "sms"],
       convening: ["at_the_gathering", "a_spot_first", "after"],
+      crew_kind: ["crew", "solo"],
       crew_state: ["forming", "spot_set", "live", "done", "dissolved"],
       entry_kind: ["free", "door", "ticketed"],
       gathering_category: [
@@ -3602,6 +3774,7 @@ export const Constants = {
         "next_morning",
         "room_activity",
         "invite",
+        "solo_proposal",
       ],
       outbound_kind: ["threshold", "survey"],
       photo_status: ["pending", "approved", "needs_review", "rejected"],
@@ -3611,6 +3784,14 @@ export const Constants = {
       report_status: ["open", "auto_hidden", "actioned", "dismissed"],
       report_target: ["person", "crew", "message"],
       series_cadence: ["weekly", "fortnightly", "monthly"],
+      solo_proposal_status: [
+        "open",
+        "accepted",
+        "declined",
+        "withdrawn",
+        "expired",
+        "closed",
+      ],
       solo_visibility: ["everyone", "women_only"],
       suggestion_status: ["pending", "approved", "rejected"],
       survey_met: ["none", "1_2", "3_5", "6_plus"],
