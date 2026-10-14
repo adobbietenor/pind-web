@@ -198,16 +198,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 13,
   },
+  // Even padding on all four sides, and a centred label (#6): a label long enough to wrap
+  // ran edge to edge and sat flush against the left border, left-aligned.
   button: {
     borderRadius: radius.md,
     paddingVertical: 15,
+    paddingHorizontal: spacing.md,
     alignItems: "center",
     justifyContent: "center",
     minHeight: 52,
   },
   primary: { backgroundColor: palette.accent },
   quiet: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },
-  buttonLabel: { fontFamily: headlineFamily, fontSize: 16, color: palette.onAccent },
+  buttonLabel: { fontFamily: headlineFamily, fontSize: 16, color: palette.onAccent, textAlign: "center" },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
   chip: {
     borderWidth: 1,
