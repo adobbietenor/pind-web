@@ -119,6 +119,7 @@
       "/favicon.svg",
       "/g/*",
       "/photo-check",
+      "/squad-name-check",
       "/account/*",
       "/session/*",
       "/hooks/*",

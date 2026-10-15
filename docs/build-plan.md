@@ -654,6 +654,35 @@ any of it.
 
 6–8 h
 
+#### M3.7 · Named squads, open to join (A9, A11, A15; extends M3.3's small group)
+
+**Goal.** A small group at a gathering gets a name and is open to join: "Squad going to
+the Dog & Bear beforehand", and you see it, tap join, and you're in. **It replaces M3.3's
+invite-only group**, so there is one kind of small group, not two (Alex, 14 Oct 2026;
+decisions, "M3.7: named squads, open to join").
+
+- Up to 8 including whoever started it, +1s counted, refused at 8, and held by the
+  database even against the service key.
+- Anyone at the gathering who is open to meeting can see and join, not only the room or
+  people you've posted with. Still one group per person per gathering.
+- A name the starter writes, checked by AI on the photos' loose standard before it's
+  listed. That's automated and counted, not a queue: the admin's Squads page.
+- Women-only is inherited, not bypassed. The rule and the proofs are in visibility.md
+  §12m.
+- Handles are not shown in squads (1-on-1 partner and connections only).
+- Where it sits: A15 is the list on A9, below the room and above 1-on-1. A11 is your
+  squad. The room's once-only card at 3 points to it.
+- Acceptance, on the phone:
+  - a squad started with a name, a spot and a time is listed within seconds;
+  - a second account sees it and joins;
+  - a ninth seat is refused where the tap was;
+  - a women-only squad is absent for a man's account;
+  - leaving keeps it for the rest, and the last out ends it;
+  - a refused name asks its starter for another.
+- Harness: P229–P238. The invite-only cases (P150–P158, P163–P166) and the review suite's
+  R51, R58, R63, R67 and R94 are retired with invites, and the rest are rewritten on
+  squads.
+
 #### M3.6 · Dogfood on staging
 
 **Goal.** The whole loop walked by people who know what it should feel like, on real phones, before a stranger is invited.

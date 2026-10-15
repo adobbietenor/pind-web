@@ -5,6 +5,7 @@ import { mergeAccount } from "./account/merge";
 import { stopPage, stopSubmit } from "./notify/stop";
 import { deleteAccount } from "./account/routes";
 import { photoCheckForMe, photoWebhook } from "./photo/routes";
+import { squadNameCheckForMe, squadNameWebhook } from "./squad/routes";
 import { claimSession, quickPinSubmit } from "./public/quickpin";
 import { publicRoutes } from "./public/routes";
 import { health } from "./routes/health";
@@ -20,6 +21,10 @@ const routes: Record<string, Handler> = {
   // `run_worker_first` in wrangler.jsonc — a route that is not there never runs.
   "POST /hooks/photo-check": photoWebhook,
   "POST /photo-check": photoCheckForMe,
+  // M3.7, the squad name check: the same two ways in (src/squad/routes.ts). /hooks/* and
+  // /squad-name-check are in run_worker_first.
+  "POST /hooks/squad-name": squadNameWebhook,
+  "POST /squad-name-check": squadNameCheckForMe,
   // M3.1, A23. Deleting the auth user needs the service key, which never goes in a
   // bundle — and a half-finished delete is worse than either state, so it is one
   // server-side call rather than the app doing the parts it can.

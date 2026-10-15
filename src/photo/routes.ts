@@ -27,7 +27,7 @@ const json = (status: number, body: Record<string, unknown>) =>
 
 // Length-independent comparison, so a wrong secret tells an attacker nothing by how
 // long it took to be refused.
-function sameSecret(given: string, expected: string): boolean {
+export function sameSecret(given: string, expected: string): boolean {
   const a = new TextEncoder().encode(given);
   const b = new TextEncoder().encode(expected);
   let diff = a.length ^ b.length;

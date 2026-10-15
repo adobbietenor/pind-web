@@ -68,7 +68,7 @@ whom.
 | Public counts (§4) | numbers only | numbers only | numbers only | all |
 | Other people's pins | — | — | opted-in pins at G of people V1 allows | all |
 | Other people's first name, neighbourhood, tags (V19) | — | — | people V1 allows | all |
-| Other people's Instagram handle (`person_handles`) | — | — | **crewmates and connections only — V1 is not enough (V17)** | all |
+| Other people's Instagram handle (`person_handles`) | — | — | **a 1-on-1 partner and connections only — not squadmates since M3.7; V1 is not enough (V17, §12m)** | all |
 | Other people's photo | — | — | people V1 allows, **approved photos only** (V6) | all |
 | Gender, women-only flag, birth year, age attestation (`people_private`) | — | own only | own only — **never anyone else's** | all |
 | 19+ record (`age_attestations`, M3.2) | — | own only | own only — **never anyone else's** | all |
@@ -379,8 +379,10 @@ draft Alex dismissed or merged (P52). Ticketmaster's ids, links and facts are de
 A person may add an Instagram handle to their profile. It is always optional, never
 required, and never a substitute for the photo.
 
-- **Who can see it:** only the person's **crewmates** (members of a crew they share),
-  their **solo-plan partner**, and their **connections**.
+- **Who can see it:** only the person's **solo-plan partner** and their **connections**.
+  Until M3.7 their **crewmates** too; squads are open to join, so a squadmate no longer
+  counts (Alex, 14 Oct 2026: "a stranger taps once and collects seven handles"; §12m,
+  P68, P234).
 - **Who cannot:** everyone else — including people who can see them on the open "going
   & open to meeting" list (V1 alone is **not** enough), `anon`, and every public page
   and link preview. This protects H2 (no cold DMs) and solo's mutual-accept rule.
@@ -886,6 +888,65 @@ lists each person once, with ticks on every shared plan); P225 (the admin's numb
 switch; the export after the start); P226 (the brake both ways); P227 (a #8 under the brake
 is dropped, never held); P228 (plans stand under the brake; ending every plan is the
 admin's, tells both, and is logged).
+
+## 12m · Squads — V21 rewritten (Alex, M3.7, 14 Oct 2026)
+
+**Squads replace the invite-only small group** (decisions, "M3.7: named squads, open to
+join"). A squad is a group (`crews`, kind 'crew', not `legacy`) with a name written by
+whoever started it, a spot and a time fixed at the start, and up to 8 seats with +1s
+counted. Anyone at the gathering who is open to meeting can see it and join, not only the
+room and not only people they've posted with. It's still one group per person per
+gathering. Invite-only groups from before are `legacy`: unnamed, never listed, never
+joinable. They run on to done.
+
+**Who sees a squad in the list** (`squads(G)`, `private.can_see_squad`). All of these must
+hold, or the squad is absent: not refused with a reason, just not there.
+
+- the viewer is pinned at G, open to meeting and not hidden (`is_open_at`);
+- the name is approved by the check (pending and refused names are never listed);
+- the squad isn't hidden (H9's threshold on a report of it), and it's open or live;
+- its meeting time hasn't passed, and the gathering isn't withdrawn;
+- **women-only is inherited:**
+  - a women-only squad is for women-only-eligible people only (`is_women_only_eligible`);
+  - someone with "women-only rooms only" (`women_only_only`) sees **only** women-only
+    squads;
+- no active member has blocked the viewer, and the viewer hasn't blocked one.
+
+A card names members only where the viewer could see them on the people list
+(`can_see_at`); anyone else in it is counted, not drawn.
+
+| Who | Can | Cannot |
+|---|---|---|
+| Someone open to meeting at G | see the squads above; join one (`join_squad`); start one (`start_squad`) with a name, a venue spot and a time on offer | see a squad across a block, an unapproved or hidden one, or a women-only one if ineligible; join one that's full (8 seats, held even against the service key), past its time, or while already in a group at G |
+| Someone with "women-only rooms only" | see, join and start women-only squads (theirs is women-only whatever they ask) | see or join a mixed squad; stay in one when they switch it on |
+| Pinned but not open to meeting, a visitor, someone elsewhere | — | see, join or start any squad |
+| A member | read the squad, its members and the whole thread from the start; post; "I'm here" once live; leave | read anyone's Instagram handle through it (`share_crew` is 1-on-1 only since M3.7); add anyone; rewrite the squad |
+| Its starter | rename the name while it hasn't passed (nobody else can be in it then) | rename it once listed; remove anyone; anything another member can't |
+| A hidden person | — | stay in any squad (H9 or an admin hide takes them out, silently) |
+| The admin | the name checks' counts and refusals (`admin_squad_name_states`), "approve anyway" (`admin_approve_squad_name`, logged) | — |
+
+**One sentence for "gone".** A block, a full squad, a hidden one, a women-only one, a
+past one and one that doesn't exist all refuse a join with "that squad is not open any
+more" (hint `squad_closed`). So a refusal never tells a block from anything else (P231,
+P232, R59, R97).
+
+**The name** is the first free text a stranger broadcasts at scale. It's checked by AI on
+the photos' loose standard (reject only genuinely harmful; decisions). Until it passes,
+the squad is visible only to its members. The harness's squads never go to the AI.
+
+**Proved by:**
+- P229: the name, the spot, the time and who may start;
+- P230: listed only once approved; to whom, and never across a block;
+- P231: eight seats with +1s, the ninth refused even to the service key, a leave
+  reopening it, one group per gathering, the same words for full and blocked;
+- P232: women-only both ways, and "women-only rooms only";
+- P233: the creator leaving, the last one out, a hidden person out;
+- P234: no handles in squads, 1-on-1 still;
+- P235: the name check's rules;
+- P236: reports and H9;
+- P237: the invite-only path closed;
+- P238: the thread, live, "I'm here", and the job;
+- the review suite's R50, R52–R57, R59, R62 and R86–R97 rewritten on squads.
 
 ## 13 · Spot poll
 

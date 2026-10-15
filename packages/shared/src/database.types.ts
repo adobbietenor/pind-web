@@ -776,12 +776,16 @@ export type Database = {
       crews: {
         Row: {
           created_at: string
+          created_by: string | null
           dissolved_at: string | null
           gathering_id: string
           hidden_at: string | null
           id: string
           kind: Database["public"]["Enums"]["crew_kind"]
+          legacy: boolean
           meet_at: string | null
+          name: string | null
+          name_status: Database["public"]["Enums"]["squad_name_status"] | null
           room_id: string | null
           sibling_of: string | null
           spot_id: string | null
@@ -791,12 +795,16 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          created_by?: string | null
           dissolved_at?: string | null
           gathering_id: string
           hidden_at?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["crew_kind"]
+          legacy?: boolean
           meet_at?: string | null
+          name?: string | null
+          name_status?: Database["public"]["Enums"]["squad_name_status"] | null
           room_id?: string | null
           sibling_of?: string | null
           spot_id?: string | null
@@ -806,12 +814,16 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          created_by?: string | null
           dissolved_at?: string | null
           gathering_id?: string
           hidden_at?: string | null
           id?: string
           kind?: Database["public"]["Enums"]["crew_kind"]
+          legacy?: boolean
           meet_at?: string | null
+          name?: string | null
+          name_status?: Database["public"]["Enums"]["squad_name_status"] | null
           room_id?: string | null
           sibling_of?: string | null
           spot_id?: string | null
@@ -820,6 +832,13 @@ export type Database = {
           women_only?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "crews_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "crews_gathering_id_fkey"
             columns: ["gathering_id"]
@@ -2689,6 +2708,56 @@ export type Database = {
           },
         ]
       }
+      squad_name_checks: {
+        Row: {
+          ai_cost_usd: number
+          at: string
+          crew_id: string | null
+          duration_ms: number | null
+          error: string | null
+          id: string
+          model: string | null
+          name: string
+          outcome: string
+          reason: string | null
+          source: string
+        }
+        Insert: {
+          ai_cost_usd?: number
+          at?: string
+          crew_id?: string | null
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          model?: string | null
+          name: string
+          outcome: string
+          reason?: string | null
+          source: string
+        }
+        Update: {
+          ai_cost_usd?: number
+          at?: string
+          crew_id?: string | null
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          model?: string | null
+          name?: string
+          outcome?: string
+          reason?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "squad_name_checks_crew_id_fkey"
+            columns: ["crew_id"]
+            isOneToOne: false
+            referencedRelation: "crews"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       survey_comment_reads: {
         Row: {
           read_at: string
@@ -2961,6 +3030,10 @@ export type Database = {
         }
         Returns: string
       }
+      admin_approve_squad_name: {
+        Args: { p_actor: string; p_crew: string }
+        Returns: undefined
+      }
       admin_categorise_gatherings: { Args: never; Returns: number }
       admin_clear_anonymous_tester: {
         Args: { p_user: string }
@@ -3189,6 +3262,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_record_squad_name_check: {
+        Args: {
+          p_cost?: number
+          p_crew: string
+          p_duration_ms?: number
+          p_error?: string
+          p_model?: string
+          p_name: string
+          p_outcome: string
+          p_reason?: string
+          p_source: string
+        }
+        Returns: Database["public"]["Enums"]["squad_name_status"]
+      }
       admin_reject_spot: {
         Args: { p_actor: string; p_suggestion: string }
         Returns: undefined
@@ -3290,6 +3377,22 @@ export type Database = {
       admin_solo_metrics: {
         Args: { p_from?: string; p_to?: string }
         Returns: Json
+      }
+      admin_squad_name_states: {
+        Args: never
+        Returns: {
+          check_failing: number
+          never_checked: number
+          oldest_waiting: string
+          rejected_7d: number
+        }[]
+      }
+      admin_squad_names_waiting: {
+        Args: { p_limit: number }
+        Returns: {
+          crew_id: string
+          name: string
+        }[]
       }
       admin_start_check_run: {
         Args: { p_actor: string; p_city: string; p_trigger: string }
@@ -3411,6 +3514,7 @@ export type Database = {
         }[]
       }
       join_general_room: { Args: { p_gathering: string }; Returns: undefined }
+      join_squad: { Args: { p_crew: string }; Returns: string }
       leave_group: { Args: { p_crew: string }; Returns: undefined }
       my_connections: {
         Args: never
@@ -3531,6 +3635,10 @@ export type Database = {
         Returns: undefined
       }
       remove_me_under_19: { Args: never; Returns: undefined }
+      rename_squad: {
+        Args: { p_crew: string; p_name: string }
+        Returns: undefined
+      }
       respond_to_invite: {
         Args: { p_accept: boolean; p_invite: string }
         Returns: undefined
@@ -3557,8 +3665,32 @@ export type Database = {
           votes: number
         }[]
       }
+      squads: {
+        Args: { p_gathering: string }
+        Returns: {
+          crew_id: string
+          is_full: boolean
+          meet_at: string
+          members: Json
+          name: string
+          seats: number
+          spot: string
+          spot_id: string
+          women_only: boolean
+        }[]
+      }
       start_group: {
         Args: { p_invitees: string[]; p_room: string }
+        Returns: string
+      }
+      start_squad: {
+        Args: {
+          p_gathering: string
+          p_meet_at: string
+          p_name: string
+          p_spot: string
+          p_women_only: boolean
+        }
         Returns: string
       }
       venue_map_key: { Args: { p_lat: number; p_lng: number }; Returns: string }
@@ -3621,6 +3753,7 @@ export type Database = {
         | "expired"
         | "closed"
       solo_visibility: "everyone" | "women_only"
+      squad_name_status: "pending" | "approved" | "rejected"
       suggestion_status: "pending" | "approved" | "rejected"
       survey_met: "none" | "1_2" | "3_5" | "6_plus"
       survey_would_have_gone: "yes" | "no" | "wasnt_going"
@@ -3807,6 +3940,7 @@ export const Constants = {
         "closed",
       ],
       solo_visibility: ["everyone", "women_only"],
+      squad_name_status: ["pending", "approved", "rejected"],
       suggestion_status: ["pending", "approved", "rejected"],
       survey_met: ["none", "1_2", "3_5", "6_plus"],
       survey_would_have_gone: ["yes", "no", "wasnt_going"],

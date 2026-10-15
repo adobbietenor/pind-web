@@ -1,17 +1,16 @@
-// A11 — your small group (M3.3; build plan §8 M3.3, and Alex's inviter's-screen design).
+// A11 — your squad (M3.7; until then your invite-only small group, M3.3), and A12, its plan.
 //
-// **Progress without attribution** (Alex): while under 3 the card says who is in, by
-// name — never who hasn't answered or who said no. "2 of 3" is not used: after a
-// decline it either stays put (untrue) or moves (it names the decliner).
-//   * forming: "You and Bo so far — a group needs 3", the deadline from the start
-//     ("If there aren't 3 of you by 5:00 pm…"), and "Invite someone else you've talked
-//     with" (invite_more, while under 3);
-//   * on, a spot first: the poll — vote, and three hours before the leader is the plan;
+//   * the card: who is in, by name; a squad is born with its spot and time, so there is
+//     no forming state, no poll and no "invite someone else" (all retired with invites);
 //   * the plan: "You meet at Spot B, 6:00 pm", or "You'll find each other at the start";
 //   * live: "I'm here", with a line so they can find you (Q7, never geofenced);
-//   * closed under 3: said plainly, with the way back into the room;
 //   * done (A17): finished, counted, and its one action is A16 "Who did you meet?".
 // Everything here is readable by the group's members only (V21).
+//
+// **A squad (M3.7) is this screen**: its name as the heading, born with its spot and
+// time, so no poll and no invites (both retired with invite-only groups); "I'm here", the
+// thread and A17/A16 as before. A name still being checked, or refused, says so here too.
+// Instagram handles are not shown in squads (decisions, "M3.7": share_crew is 1-on-1 only).
 //
 // **A 1-on-1 plan (A29, M3.4) is this screen too** — the same card, thread, "I'm here"
 // and A17/A16 (spec A29). It is born with its spot and time, so it never shows the poll
@@ -20,14 +19,14 @@
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
-import { AFTER_COPY, colors as palette, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, type Convening } from "@pind/shared";
+import { AFTER_COPY, colors as palette, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, SQUAD_COPY, type Convening } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { GetTheApp } from "@/components/GetTheApp";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
 import { readProfile } from "@/lib/profile";
-import { loadRoom, sendGroupMessage, type Member } from "@/lib/room";
+import { sendGroupMessage } from "@/lib/room";
 import { supabase } from "@/lib/supabase";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL || "https://pind.social";
@@ -55,6 +54,8 @@ interface GroupView {
   id: string;
   state: "forming" | "spot_set" | "live" | "done" | "dissolved";
   solo: boolean;
+  // A squad's name and where its check stands (M3.7); null for a 1-on-1 plan or an old group.
+  squad: { name: string; nameStatus: "pending" | "approved" | "rejected"; womenOnly: boolean } | null;
   gathering: { id: string; name: string; slug: string; startsAt: string };
   convening: Convening;
   roomId: string | null;
@@ -71,7 +72,7 @@ async function loadGroup(id: string): Promise<GroupView | null> {
   const db = supabase();
   const me = await readProfile();
   if (!me.personId) return null;
-  const { data: c, error } = await db.from("crews").select("id, kind, state, gathering_id, room_id, spot_id, meet_at").eq("id", id).maybeSingle();
+  const { data: c, error } = await db.from("crews").select("id, kind, state, gathering_id, room_id, spot_id, meet_at, name, name_status, women_only, legacy").eq("id", id).maybeSingle();
   if (error) throw error;
   if (!c) return null;
   const [g, conv, mem, props, votes, msgs, closes, spot] = await Promise.all([
@@ -97,6 +98,7 @@ async function loadGroup(id: string): Promise<GroupView | null> {
     id,
     state: c.state as GroupView["state"],
     solo: c.kind === "solo",
+    squad: c.kind === "crew" && !c.legacy && c.name ? { name: c.name, nameStatus: (c.name_status ?? "approved") as "pending" | "approved" | "rejected", womenOnly: c.women_only } : null,
     gathering: { id: g.data.id, name: g.data.name, slug: g.data.slug ?? g.data.id, startsAt: g.data.starts_at },
     convening: (conv.data as Convening) ?? "a_spot_first",
     roomId: c.room_id,
@@ -133,9 +135,6 @@ export default function Group() {
   const [draft, setDraft] = useState("");
   const [note, setNote] = useState("");
   const [shared, setShared] = useState<"shared" | "copied" | "failed" | null>(null);
-  const [inviting, setInviting] = useState(false);
-  const [roomPeople, setRoomPeople] = useState<Member[]>([]);
-  const [picked, setPicked] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
 
   const refresh = useCallback(() => {
@@ -191,19 +190,12 @@ export default function Group() {
     refresh();
   };
 
-  const openInvite = async () => {
-    setInviting(true);
-    if (view.roomId) {
-      const room = await loadRoom(view.roomId).catch(() => null);
-      const inGroup = new Set(view.members.map((m) => m.personId));
-      setRoomPeople((room?.members ?? []).filter((p) => p.posted && !inGroup.has(p.personId)));
-    }
-  };
-
   return (
     <AppScreen>
-      <Heading>{view.solo ? SOLO_COPY.planHeading(names[0] ?? "") : GROUP_COPY.heading}</Heading>
-      <Body muted>{view.gathering.name}</Body>
+      <Heading>{view.solo ? SOLO_COPY.planHeading(names[0] ?? "") : view.squad ? view.squad.name : GROUP_COPY.heading}</Heading>
+      <Body muted>{view.squad ? `${SQUAD_COPY.heading} · ${view.gathering.name}` : view.gathering.name}</Body>
+      {view.squad?.nameStatus === "pending" ? <Body muted>{SQUAD_COPY.checking}</Body> : null}
+      {view.squad?.nameStatus === "rejected" ? <Text accessibilityRole="alert" style={styles.refusal}>{SQUAD_COPY.rejected}</Text> : null}
       {/* Once per person, the first time they are in a group (M3.3). */}
       {me && view.state !== "dissolved" && view.state !== "done" ? <GetTheApp /> : null}
 
@@ -220,35 +212,13 @@ export default function Group() {
           <Body>{view.solo ? SOLO_COPY.planOff : GROUP_COPY.closed}</Body>
           {view.roomId ? <Button label={GROUP_COPY.closedNext} onPress={() => router.replace({ pathname: "/room/[id]", params: { id: view.roomId! } })} /> : null}
         </View>
-      ) : !view.solo && view.state === "forming" && view.members.length < 3 ? (
-        <View style={styles.card}>
-          <Body>{GROUP_COPY.soFar(names)}</Body>
-          {view.closesAt ? <Body muted>{GROUP_COPY.deadline(dayClock(view.closesAt))}</Body> : null}
-          {!inviting ? (
-            <Button kind="quiet" label={GROUP_COPY.inviteMore} onPress={() => void openInvite()} />
-          ) : (
-            <>
-              <Body muted>{GROUP_COPY.pickHint}</Body>
-              {roomPeople.map((p) => {
-                const on = picked.includes(p.personId);
-                return (
-                  <Pressable key={p.personId} onPress={() => setPicked(on ? picked.filter((x) => x !== p.personId) : [...picked, p.personId].slice(0, 3))} style={[styles.pick, on && styles.pickOn]}>
-                    <Text style={styles.name}>{p.firstName}</Text>
-                  </Pressable>
-                );
-              })}
-              <Button
-                label={GROUP_COPY.start}
-                disabled={picked.length === 0}
-                busy={busy}
-                onPress={() => void act("send the invites", () => supabase().rpc("invite_more", { p_crew: view.id, p_invitees: picked })).then(() => { setInviting(false); setPicked([]); })}
-              />
-            </>
-          )}
-        </View>
       ) : (
         <View style={styles.card}>
-          {view.solo ? null : <Body>{GROUP_COPY.on(names)}</Body>}
+          {view.solo ? null : view.squad ? (
+            <Body>{names.length ? `${SQUAD_COPY.members(view.members.length)} You and ${names.join(", ")}.` : SQUAD_COPY.members(1)}</Body>
+          ) : (
+            <Body>{GROUP_COPY.on(names)}</Body>
+          )}
           {!view.solo && view.state === "forming" && view.convening !== "at_the_gathering" ? (
             <>
               <Text style={styles.section}>{GROUP_COPY.pollHeading}</Text>
@@ -358,7 +328,17 @@ export default function Group() {
                 <Body muted>{SOLO_COPY.callOffNote}</Body>
               </>
             ) : (
-              <Button kind="quiet" label={GROUP_COPY.leave} onPress={() => void act("leave the group", () => supabase().rpc("leave_group", { p_crew: view.id })).then(() => { if (view.roomId) router.replace({ pathname: "/room/[id]", params: { id: view.roomId } }); })} />
+              <Button
+                kind="quiet"
+                label={view.squad ? SQUAD_COPY.leave : GROUP_COPY.leave}
+                onPress={() =>
+                  void act(view.squad ? "leave the squad" : "leave the group", () => supabase().rpc("leave_group", { p_crew: view.id })).then(() =>
+                    view.squad || !view.roomId
+                      ? router.replace({ pathname: "/crowd/[slug]", params: { slug: view.gathering.slug } })
+                      : router.replace({ pathname: "/room/[id]", params: { id: view.roomId } }),
+                  )
+                }
+              />
             )}
           </View>
         </>
@@ -390,5 +370,6 @@ const styles = StyleSheet.create({
   mine: { alignSelf: "flex-end", backgroundColor: palette.accent },
   theirs: { alignSelf: "flex-start", backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },
   body: { fontSize: 15, color: palette.text },
+  refusal: { fontSize: 14, color: "#E06B6B" },
   input: { minHeight: 44, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, padding: spacing.sm, color: palette.text, backgroundColor: palette.surface, marginBottom: spacing.sm, fontSize: 15 },
 });

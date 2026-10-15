@@ -1039,7 +1039,7 @@ test("Q39 V10 §11 'hidden people cannot see anyone themselves' — a hidden per
   await person("Gm1", { gender: "woman", photo: "approved", session: true });
   await person("Gm2", { gender: "woman" });
   await must(service.from("person_tags").insert({ person_id: m.Gm1!.id, tag: "comedy", on_list: true }), "Gm1 tag");
-  const crew = await must(service.from("crews").insert({ gathering_id: g.G, state: "forming" }).select("id").single(), "crew");
+  const crew = await must(service.from("crews").insert({ gathering_id: g.G, state: "forming", legacy: true }).select("id").single(), "crew");
   await must(
     service.from("crew_members").insert(["Hx", "Gm1", "Gm2"].map((n) => ({ crew_id: crew.id, gathering_id: g.G, person_id: m[n]!.id }))),
     "crew members",

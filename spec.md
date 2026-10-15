@@ -108,7 +108,7 @@ A pin can be edited or removed by its owner at any time.
 Deleted 30 days after the gathering's effective end.
 
 ### crew
-**Superseded 28 Sept: the room → small group → solo design — build plan §8 M3.3.** Groups now form from the room by invite, on at 3, up to 8; H5 reads "3 or more". This section is rewritten as M3.3's first step.
+**Superseded 28 Sept: the room → small group → solo design — build plan §8 M3.3.** Groups formed from the room by invite, on at 3, up to 8; H5 reads "3 or more". **Since M3.7 (14 Oct 2026) a group is a squad: named, open to anyone open to meeting there, up to 8** (A15). This section is rewritten as M3.3's first step.
 
 `kind`: **crew** (the default) or **solo**. Everything below about sizes — "3–8",
 "locks at 3", requests, sibling crews — applies to `kind = 'crew'`. A **solo plan**
@@ -361,7 +361,8 @@ room" had no reason attached. Until it is found, this is the record, assembled f
 marked **(no recorded reason)** is load-bearing and unsourced: what to look for in the doc.
 
 - **Three shapes, each opted into from the one above:** the room (everyone open to meeting
-  at a gathering), a small group (people you've talked with, invited), solo (M3.4).
+  at a gathering), a small group — **a squad since M3.7: named, open to join** — and solo
+  (M3.4).
   *Reason recorded:* the crew design asked people to commit to strangers before anyone
   had spoken (decisions, 28 Sept).
 - **The room opens at 2.** Before that, A9 says you are first, and #2 tells you when the
@@ -386,19 +387,22 @@ marked **(no recorded reason)** is load-bearing and unsourced: what to look for 
 - **Delete your own; no editing yet.** *Reason recorded:* "being unable to take something
   back is the wrong default" (Alex).
 - **Retention:** closes 24 h after the effective end, read-only 30 days, deleted (Q11).
-- **A small group: you invite 2 or 3 people you have both posted with; on at 3; one
-  group per person per gathering; no requests, no approvals.** **(no recorded reason** for
-  2–3 at the start, or "both posted"**)**
-- **A forming group under 3 closes at the later of six hours before or two hours after it
-  started, never later than three hours before.** *Reason recorded* for the moving
-  deadline (it punished the person who did what we want); **(no recorded reason** for
-  six hours itself**)**.
-- **The plan: the spot poll's leader becomes the plan three hours before.** **(no recorded
-  reason** for three hours; it is also when "I'm here" and #4 start**)**
+- **A squad (M3.7, replacing the invite-only group): a name its creator writes, a spot
+  and a time set when it is started, up to 8 people with +1s counted; anyone at the
+  gathering who is open to meeting can see it and join — not only the room, not only
+  people you've posted with; one group per person per gathering.** *Reason recorded:*
+  Alex, 14 Oct 2026 ("Squad going to the Dog & Bear beforehand — you see it, you tap join,
+  you're in"); decisions, "M3.7: named squads, open to join". The name is checked by AI
+  on the photos' loose standard before it is listed. Women-only is inherited, never
+  bypassed. **Retired with it:** invites, "Go together" from the room, the spot poll and
+  the forming deadline (decisions has their history).
+- **"I'm here" and #4 start three hours before.** **(no recorded reason** for three
+  hours**)**
 - **A16's ticks are open 7 days after the effective end.** **(no recorded reason** for 7**)**
 
 ### A8–A9 — Crowd page
-**A10 is the room since 28 Sept** — "A10–A13, A17", below. A9 leads with the room.
+**A10 is the room since 28 Sept** — "A10–A13, A15, A17", below. A9 leads with the room,
+then squads (A15, since M3.7), then 1-on-1 (A28/A29).
 
 - **A8 pre-pin** — same anatomy as W2 so a shared link feels continuous. Facts, the
   **only map in the app** (venue + named spots, never people, H1), counts, house rules,
@@ -407,20 +411,26 @@ marked **(no recorded reason)** is load-bearing and unsourced: what to look for 
   works at n=2; **crews locked** with the reason and the number named ("3 of 5 · 2 to
   go · we'll push you the moment it happens"); nudge to share the page.
 
-### A10–A13, A17 — Room and small group
+### A10–A13, A15, A17 — Room and squads
 **Superseded 28 Sept, and the IDs reused rather than retired** (decisions, "The room,
 then a small group, then solo" and "Screen IDs reused, not renumbered"). What each means
 now is in "The room, small groups, the night — the design in force (M3.3)", above, and
 build plan §8 M3.3:
 
 - **A10** — the room: everyone open to meeting at a gathering, from the second person on.
-- **A11** — your small group: invited from the room, forming until 3, then on.
-- **A12** — the group's plan: the spot poll, the plan three hours before, and "Share spot
-  & time with a friend" (a read-only card, no join link).
+- **A11** — your squad (M3.7): a named small group anyone open to meeting can join, up
+  to 8; its name, the people in it, its thread, and "Leave this squad". Until 14 Oct, the
+  invite-only small group.
+- **A12** — the squad's plan: the spot and time it was started with, "I'm here" from three
+  hours before, and "Share spot & time with a friend" (a read-only card, no join link).
+  The spot poll is retired with invite-only groups.
 - **A13** — "I'm here", from three hours before, a line of text required (Q7).
 - **A17** — done: finished, counted, and its one action is A16.
-- **A15 is retired, not reused:** groups are invite-only, so there is no non-member view
-  and nothing to request.
+- **A15** — squads on the pinned crowd page (M3.7): the list of squads you can join, with
+  Join, "Full · 8 of 8" for a full one, and "Start a squad" (name, spot, time, and who can
+  join). **Retired 28 Sept, reused 14 Oct** (decisions, "M3.7: A15 reused for squads"): it
+  was retired because invite-only groups had no non-member view, and open join is
+  exactly one.
 
 The crew design these IDs described before 28 Sept (crew cards, join requests, sibling
 crews, "Put me in a crew") is history, kept in decisions.md. The crew vibe design and
@@ -467,8 +477,8 @@ does not name. It was five until 28 Sept; how it became seven, then eight, is re
    first someone else open to meeting there: "Maya's going to X too — say hi" → the room
    (A9). *Not bait:* it is A9's promise to the first person, "We'll tell you the moment
    someone else does"; without it they have to keep checking an empty room.
-3. **Plan status** (`plan_status`) — an invite to a group ("Maya wants to go together to
-   X"); a group on, its spot set, or dissolved; **and, from M3.5, the gathering's date
+3. **Plan status** (`plan_status`) — a group's change (an invite to one, until invites
+   were retired in M3.7); **and, from M3.5, the gathering's date
    changed or withdrawn** → the group, or the crowd page (A10) when dissolved, changed or
    withdrawn; **from M3.4, a 1-on-1 accepted (to its sender) or off (to both, with no
    reason)**. *Not bait:* each is a change to a plan the person is part of; missing one
@@ -760,6 +770,7 @@ working. Hours are Alex's, agent-assisted.
 | M3.2b | The app's front door — interests, search, My Events (the build moved to M3.3b and the home and list to M3.3c, Alex, 6 Oct 2026) | **Built** (10 Oct 2026) — proved by the harness (P188–P193) and the Worker's own /search rendered against staging; merged into `phase3/m3.3c-home`. **Not yet deployed** (the deploy is Alex's): W1's search box and /search appear on pind.social with the next deploy, and the three-argument `public_gatherings` is dropped by a migration after it | 6–7 |
 | M3.4 | Solo crew (A28, A29) | **In progress** — branch `phase3/m3.4-solo-build`: who can see whom approved and built (V14, P209–P215, 14 Oct 2026); the lifecycle, proposals, the plan and the screens to come | 8–12 |
 | M3.5 | Safety and the notifications (A18, A23, A24) | **Partly built, in M3.3** — the seven notifications are written by the acts themselves and **delivered** (push to a phone, email otherwise, every minute; stop links), Settings has the switches (eight since M3.4), and a room message can be reported. **Not built:** the Monday digest (nothing writes it), #3 for a date change (withdrawal is done), block and report from a profile or group (A24; the control is hidden until it exists), blocked people and my reports in Settings, the admin block control, sign-in email monitoring. **Not walked:** push on the phone | 10–14 |
+| M3.7 | Named squads, open to join (A9, A11, A15) — replaces M3.3's invite-only group (Alex, 14 Oct 2026) | **In progress** — branch `phase3/m3.7-squads` (off `phase3/m3.4-solo-build`): data, rules, the name check and the screens built on staging (P229–P238); not walked | — |
 | M3.6 | Dogfood on staging | Not started | 6–8 |
 | **Phase 4** | **Before the first real crowd** | | 28–42 |
 | M4.1 | Policy, terms, operations (moderation rota, incident scripts) | **Partly** — the privacy and terms pages are live (published early, in M3.2). **Not done:** the moderation rota, incident scripts, and the line-by-line check of every privacy-page promise | 4–6 |

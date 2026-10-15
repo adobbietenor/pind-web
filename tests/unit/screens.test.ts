@@ -249,6 +249,7 @@ describe("The web app claims a handed-over session before any screen renders (M3
       "packages/shared/src/search.ts": "search and interests (M3.2b, 10 Oct) — Tatiana's to reword",
       "packages/shared/src/myevents.ts": "A19 My Events (M3.2b, 10 Oct) — Tatiana's to reword",
       "packages/shared/src/solo.ts": "1-on-1's sheet, section and lines 2–5 (A28/A29, M3.4) — Alex and Tatiana's; Tatiana writes the final five",
+      "packages/shared/src/squad.ts": "squads' list, start sheet and card (A15/A11, M3.7) — the one copy pass (decisions, \"Copy deferred to one pass\")",
     };
     assert.ok(/\bPROPOSED\b/.test("// PROPOSED, for Alex") && !/\bPROPOSED\b/.test("UNPROPOSED"), "the marker test cannot see a marker");
     const marked = (function walk(dir: string): string[] {

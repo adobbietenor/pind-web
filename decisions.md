@@ -4207,3 +4207,135 @@ Alex's answers to the two calls above, and to the hidden-person notification.
 - **Copy, for Tatiana:** three of the current five lines (1, 2 and 5) only work for
   meeting before the event, so a proposal for afterwards has a choice of two. Her five need
   to cover both. Alex is getting the sheet, the five lines and the notification wording.
+
+### Copy deferred to one pass (Alex, 14 Oct 2026, opening M3.7)
+
+**The 1-on-1 sheet (A28), the five preset lines (A29) and all notification wording are
+written in one copy pass later**, not milestone by milestone. Until then spec §5's drafts
+stay in force as placeholders, marked PROPOSED where they live. Swapping them must need
+**no migration**:
+- the sheet and the five lines are already words in packages/shared, with the database
+  storing only line numbers 1–5;
+- notification bodies are written by database functions today, so the copy pass will move
+  their words into packages/shared or a table the Worker reads. That change belongs to
+  the copy pass and doesn't block it, but no new notification may hard-code wording
+  anywhere a later swap would need a migration to reach.
+
+The brief for the pass stands: three of the current five lines (1, 2 and 5) only work for
+meeting before the event, so a proposal for afterwards has a choice of two. The final five
+need to cover both. Alex: "Do not ask me about copy again this milestone."
+
+**On the pass's list, by name** (so none is lost):
+- the 1-on-1 sheet (A28);
+- the five preset lines (A29);
+- every notification's wording (A18 #1–#8);
+- **a join**: someone joining your squad sends nothing today (M3.7). It is the point of
+  the feature, and the creator finds out only by opening the app. A notification for it
+  needs wording, and possibly a ninth kind, so it waits for the pass (Alex, 14 Oct 2026);
+- squads' words (`SQUAD_COPY`: the list, the start sheet, the card, the refusals).
+
+### M3.7: named squads, open to join (Alex, 14 Oct 2026)
+
+**What Alex asked:** "A small group at a gathering gets a name and is open to join. 'Squad
+going to the Dog & Bear beforehand': you see it, you tap join, you're in." His calls,
+fixed:
+- up to 8 people including whoever made it, refused at 8;
+- anyone at the gathering who has opted in to meeting can join, not only people in the
+  room and not only people you've posted with;
+- a name, written by whoever creates it;
+- it **replaces** M3.3's invite-only group: one kind of small group, not two;
+- still one group per person per gathering.
+
+**Approved as proposed** (one stop for the policy and the lifecycle, then built without
+stopping), with the handles narrowing approved by name.
+
+- **What a squad is.** A group (`crews`, kind 'crew') with a name (1–40 characters), a spot
+  from the venue's active spots and a time, all fixed when it is started. A community
+  gathering with no spots offers "at the gathering". The times are 1-on-1's window, 3 h
+  before the start to 2 h after the effective end. Spot and time can't be edited in v1,
+  because people joined on them. The name can be changed only while it hasn't passed the
+  check, which is the only time nobody else can be in it. Eight seats, +1s counted
+  (`least(party_total, 2)`, as `crew_members.seats` has always allowed). The database
+  holds the eighth seat even against the service key.
+- **Who sees and joins** (visibility.md §12m). A squad is listed to someone if all hold:
+  - they're pinned there, open to meeting and not hidden;
+  - its name is approved, and it isn't hidden;
+  - its meeting time hasn't passed, and the gathering isn't withdrawn;
+  - no member has blocked them, and they haven't blocked any member.
+
+  Otherwise it's absent, not refused with a reason. Joining re-checks all of it at the
+  tap. Every "that squad is gone" refusal (a block, full, hidden, women-only, past) is one
+  sentence, so the wording never tells a block from a full squad (P231, P232). Members are
+  named on a card only where the viewer could see them on the people list.
+- **Women-only is inherited, not bypassed.**
+  - A squad is "anyone open to meeting" or "women only", chosen at the start, and only
+    by an eligible person.
+  - A women-only squad doesn't exist for anyone ineligible: not listed, not joinable,
+    whatever the request.
+  - Someone with "women-only rooms only" makes, sees and joins only women-only squads.
+    Their own squad is women only whatever they ask for, and switching the setting on
+    takes them out of any mixed squad, as it takes them out of the general room.
+- **Instagram handles are not shown in squads** (approved: "Open join means a stranger
+  taps once and collects seven handles"). `share_crew` now counts only a 1-on-1 plan.
+  Handles stay visible to a 1-on-1 partner and to connections (P234). CLAUDE.md's
+  handles line is updated in the same commit.
+- **States.**
+  - Open (`spot_set`), from the start: listed once the name passes.
+  - Live from 3 h before the start: the day-of push, combined with a 1-on-1 plan's.
+  - Done at the later of the effective end and an hour after it meets (as 1-on-1).
+  - Dissolved when the last person leaves. Nobody is told, because nobody is left.
+
+  No "forming", no poll, no deadline, and a squad never dissolves for being small.
+- **Two corrections to the stop as sent, made in the build:**
+  - **A withdrawn gathering doesn't dissolve a squad.** It does what it does for every
+    group: members are told by #3 and the group stays for them to talk it over. The squad
+    leaves the list. (The stop had said "dissolved".)
+  - **A hidden person leaves every squad**, silently, and unhiding doesn't put them back.
+    The same goes for "women-only rooms only" switched on (mixed squads only).
+- **The creator leaving changes nothing** (Q4: groups have no owner). The name, spot and
+  time stay. The creator is recorded (`created_by`) only so that they alone can rename a
+  name that didn't pass.
+- **Joins and leaves send no notification** (no new wording this milestone). "A join" is on
+  the copy pass's list by name, above.
+- **The name check** (src/squad/; Alex: "Check it with AI on the same loose standard as
+  photos: reject only genuinely harmful, approve everything else. Automate it; do not
+  build me an approval queue").
+  - **Reject** only: sexual content or propositions; slurs or hate; threats or
+    encouraging violence or self-harm; targeting a private individual; selling drugs or
+    the clearly illegal.
+  - **Approve** everything else: crude, silly, chants, rivalry, drinking, emoji, other
+    languages.
+  - There's no `needs_review`: a call that can't decide is a failed attempt, retried, and
+    never a verdict.
+  - It runs through the photo check's machinery: a database webhook (the same Vault URL
+    with the squad path, and the same secret, so there's nothing new to configure), the
+    app's own call as the net, and the hourly sweep. It's streamed, aborted at four
+    minutes, retried at most once, pinned to the US, and counted in the daily cap.
+  - The name goes in fenced as data, so text inside it is read as a name, not an
+    instruction.
+  - **Counted, not silent:** the admin's Squads page shows names never checked, names
+    whose checks keep failing, how long the oldest has waited, and recent refusals with
+    the reason. One action, "approve anyway", is logged. That isn't a queue: nothing
+    waits on it.
+  - The harness's squads never go to the AI (P235).
+- **Reports.** Anyone a squad is listed to, and its members, can report it. H9's
+  threshold hides it: off the list and closed to joining, while its members keep it
+  (P236).
+- **What happened to the groups on staging** (all test data):
+  - forming groups were dissolved silently, and open invites withdrawn;
+  - set, live and done groups run on, unnamed, never listed and never joinable
+    (`crews.legacy`);
+  - `start_group`, `invite_more`, `respond_to_invite` and `my_invites` are revoked from
+    sessions (P237).
+
+  The room's once-only card at 3 now points at squads.
+
+### M3.7: A15 reused for squads (14 Oct 2026)
+
+A15 was retired on 28 Sept because invite-only groups had no non-member view and nothing
+to request ("Screen IDs reused, not renumbered", above). Open join is exactly a non-member
+view, so A15 is reused rather than given a new number: **A15 is squads on the pinned crowd
+page** (the list, Join, "Start a squad"). A11 is your squad, and A12 its plan (no poll).
+spec.md's heading is now "A10–A13, A15, A17 — Room and squads", and **both issue forms say
+the same in the same commit** (Alex: "We fixed this exact drift this morning and it
+misfiled two of Tatiana's issues"). F02 fails if they part.

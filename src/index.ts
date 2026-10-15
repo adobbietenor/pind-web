@@ -8,6 +8,8 @@ import { checkExpiringCredentials } from "./ops/watch";
 import { keepTestCrowdAhead } from "./admin/testcrowd";
 import { runJobsLoudly } from "./loud";
 import { sweepPhotos } from "./photo/sweep";
+import { sweepSquadNames } from "./squad/check";
+import { DEFAULT_CAP_USD } from "./photo/check";
 import { route } from "./router";
 import { ConfigError, serviceClient } from "./supabase";
 
@@ -52,6 +54,8 @@ export default {
       // of them could not complete (src/loud.ts; Alex, 6 Oct 2026).
       await runJobsLoudly([
         { name: "photo sweep", run: () => sweepPhotos(env) },
+        // M3.7: a squad name the webhook and the app both missed waits an hour at most.
+        { name: "squad name sweep", run: async () => ({ message: await sweepSquadNames(serviceClient(env), env.ANTHROPIC_API_KEY, Number(env.AI_DAILY_CAP_USD ?? DEFAULT_CAP_USD)) }) },
         ...(jobs.includes("credentials") ? [{ name: "credentials watch", run: () => checkExpiringCredentials(env) }] : []),
         ...(jobs.includes("test-crowd") ? [{ name: "test crowd", run: () => keepTestCrowdAhead(serviceClient(env)) }] : []),
       ]);

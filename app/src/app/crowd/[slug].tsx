@@ -9,7 +9,8 @@
 //   pinned and open   A9: the people the database lets you see, then the crews line
 //                     while it is worth saying. The reciprocal list works at TWO —
 //                     `can_see_at` never counts (P09–P13); five gates crews only.
-//                     Below the room and groups, 1-on-1 (A28/A29, M3.4: SoloSection).
+//                     Below the room, squads (A15, M3.7: SquadSection) — your squad's
+//                     card instead when you are in one — then 1-on-1 (A28/A29, M3.4).
 //
 // **Nothing here filters people.** The list is whatever RLS returns to you (H11): a
 // blocked pair, a hidden person, a seed person at a real gathering, someone not open —
@@ -25,7 +26,6 @@ import {
   countLine,
   CREWS_MEET,
   CROWD_COPY,
-  GROUP_COPY,
   HOUSE_RULES,
   ROOM_COPY,
   effectiveEnd,
@@ -43,6 +43,7 @@ import { Body, Button, Heading } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
 import { PushAsk } from "@/components/PushAsk";
 import { SoloSection } from "@/components/SoloSection";
+import { SquadSection } from "@/components/SquadSection";
 import { myRooms, type RoomSummary } from "@/lib/room";
 import { joinGeneralRoom, waitingForWomenOnlyRoom } from "@/lib/after";
 import { whoAmI } from "@/lib/session";
@@ -101,8 +102,6 @@ interface View9 {
   // "Women-only rooms only", and that room is not open yet (never how many — Q9).
   waitingWomenOnly: boolean;
   lastLines: { who: string; body: string }[];
-  invites: { inviteId: string; from: string; members: string[] }[];
-  group: { id: string; state: string } | null;
   email: string | null;
   meId: string | null;
 }
@@ -181,12 +180,10 @@ async function load(slug: string): Promise<View9 | null> {
     }));
   }
 
-  // The room, invites and my group (M3.3) — all through RLS.
+  // The room (M3.3) — through RLS. Squads load in their own section.
   let rooms: RoomSummary[] = [];
   let waitingWomenOnly = false;
   let lastLines: View9["lastLines"] = [];
-  let invites: View9["invites"] = [];
-  let group: View9["group"] = null;
   let email: string | null = null;
   if (mine?.open && meId) {
     rooms = await myRooms(g.id);
@@ -201,16 +198,11 @@ async function load(slug: string): Promise<View9 | null> {
         body: m.body,
       }));
     }
-    const { data: inv } = await db.rpc("my_invites", { p_gathering: g.id });
-    invites = ((inv ?? []) as { invite_id: string; from_name: string; members: string[] }[]).map((i) => ({ inviteId: i.invite_id, from: i.from_name, members: i.members }));
-    // Your group — not your 1-on-1 plan, which is a group of kind 'solo' and has its own card.
-    const { data: mem } = await db.from("crew_members").select("crew_id, crews(state)").eq("person_id", meId).eq("gathering_id", g.id).eq("kind", "crew").is("left_at", null).maybeSingle();
-    if (mem) group = { id: mem.crew_id, state: (mem as unknown as { crews: { state: string } | null }).crews?.state ?? "forming" };
     const { data: session } = await db.auth.getSession();
     email = session.session?.user.email ?? null;
   }
 
-  return { facts: await factsFor(slug), gathering, going: c?.pinned ?? 0, open: c?.open_to_meeting ?? 0, mix, mine, mayMeet, faces, rooms, waitingWomenOnly, lastLines, invites, group, email, meId };
+  return { facts: await factsFor(slug), gathering, going: c?.pinned ?? 0, open: c?.open_to_meeting ?? 0, mix, mine, mayMeet, faces, rooms, waitingWomenOnly, lastLines, email, meId };
 }
 
 export default function CrowdPage() {
@@ -324,40 +316,6 @@ export default function CrowdPage() {
       ) : (
         // A9 — open: the room first (M3.3), then the people the database lets you see.
         <View>
-          {view.invites.map((i) => (
-            <View key={i.inviteId} style={styles.oneStep}>
-              <Body>{GROUP_COPY.invited(i.from, i.members)}</Body>
-              <View style={{ flexDirection: "row", gap: spacing.sm }}>
-                <View style={{ flex: 1 }}>
-                  <Button
-                    label={GROUP_COPY.accept}
-                    busy={busy}
-                    onPress={async () => {
-                      const { error } = await supabase().rpc("respond_to_invite", { p_invite: i.inviteId, p_accept: true });
-                      if (error) setTrouble(failed("join the group", error));
-                      refresh();
-                    }}
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Button
-                    kind="quiet"
-                    label={GROUP_COPY.decline}
-                    onPress={async () => {
-                      await supabase().rpc("respond_to_invite", { p_invite: i.inviteId, p_accept: false });
-                      refresh();
-                    }}
-                  />
-                </View>
-              </View>
-            </View>
-          ))}
-          {view.group ? (
-            <Pressable onPress={() => router.push({ pathname: "/group/[id]", params: { id: view.group!.id } })} style={[styles.oneStep, { marginTop: spacing.md }]}>
-              <Text style={styles.oneStepHeading}>{GROUP_COPY.heading}</Text>
-              <Body muted>{view.group.state === "dissolved" ? GROUP_COPY.closed : "Open your group"}</Body>
-            </Pressable>
-          ) : null}
           {(() => {
             if (view.waitingWomenOnly) {
               // "Women-only rooms only", and it isn't open yet: waiting, said plainly —
@@ -416,6 +374,9 @@ export default function CrowdPage() {
               </View>
             );
           })()}
+          {view.meId ? (
+            <SquadSection gatheringId={g.id} meId={view.meId} ended={ended} faces={view.faces.map((f) => ({ id: f.id, firstName: f.firstName, photoUrl: f.photoUrl }))} />
+          ) : null}
           {view.meId ? (
             <SoloSection
               gatheringId={g.id}

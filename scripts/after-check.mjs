@@ -77,15 +77,18 @@ try {
   }
   const roomId = (await must(await rest(`/rest/v1/room_members?person_id=eq.${people.Ari.personId}&gathering_id=eq.${X.id}&women_only=eq.false&select=room_id`), "room"))[0].room_id;
   for (const n of ["Ari", "Bea", "Cal"]) await must(await rest("/rest/v1/room_messages", { method: "POST", body: JSON.stringify({ room_id: roomId, author_id: people[n].personId, body: `hi from ${n}` }) }), "say");
-  crew = await must(await as("Ari", "start_group", { p_room: roomId, p_invitees: [people.Bea.personId, people.Cal.personId] }), "start");
-  for (const n of ["Bea", "Cal"]) {
-    const [inv] = await must(await as(n, "my_invites", { p_gathering: X.id }), "invites");
-    await must(await as(n, "respond_to_invite", { p_invite: inv.invite_id, p_accept: true }), "accept");
-  }
+  // A squad (M3.7): Ari starts it, its name is approved as the check would, Bea and Cal join.
+  const [spot] = await must(await rest(`/rest/v1/meeting_spots?venue_id=eq.${crowd.venue_id}&active=eq.true&select=id&limit=1`), "a spot");
+  const meetAt = new Date(Math.floor((Date.parse(X.starts_at) - 60 * 60_000) / 900_000) * 900_000).toISOString();
+  crew = await must(await as("Ari", "start_squad", { p_gathering: X.id, p_name: "After check squad", p_spot: spot?.id ?? null, p_meet_at: meetAt, p_women_only: false }), "start");
+  await must(await rest("/rest/v1/rpc/admin_record_squad_name_check", { method: "POST", body: JSON.stringify({ p_crew: crew, p_name: "After check squad", p_outcome: "approved", p_source: "after-check" }) }), "approve the name");
+  for (const n of ["Bea", "Cal"]) await must(await as(n, "join_squad", { p_crew: crew }), `${n} joins`);
   // The night happens: two days ago, then the lifecycle job finishes the group.
   const past = new Date(Date.now() - 2 * 86_400_000);
   past.setUTCHours(23, 0, 0, 0);
   await must(await rest(`/rest/v1/gatherings?id=eq.${X.id}`, { method: "PATCH", body: JSON.stringify({ starts_at: past.toISOString() }) }), "the night");
+  // A squad is done an hour after it meets at the earliest (M3.7): its time moves with the night.
+  await must(await rest(`/rest/v1/crews?id=eq.${crew}`, { method: "PATCH", body: JSON.stringify({ meet_at: past.toISOString() }) }), "the squad's time");
   await must(await rest("/rest/v1/rpc/admin_groups_tick", { method: "POST", body: "{}" }), "tick");
   const [{ state }] = await must(await rest(`/rest/v1/crews?id=eq.${crew}&select=state`), "state");
   step("the group is done after the night", state === "done");

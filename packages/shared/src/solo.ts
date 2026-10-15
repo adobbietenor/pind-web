@@ -62,7 +62,7 @@ export const SOLO_COPY = {
   sheetLine:
     "Meet 1-on-1 is optional. You'll only see — and be seen by — people who also turned it on for this gathering. Meetings happen only at this venue's public spots. Choose who can see you:",
   groupsVsSolo:
-    "Groups are 2 or 3 people from the room, going together. 1-on-1 is one person you choose, at a spot and a time — and they choose you back.",
+    "Squads are small groups anyone here can join. 1-on-1 is one person you choose, at a spot and a time — and they choose you back.",
   everyone: "Everyone who opted in",
   womenOnly: "Women only",
   womenOnlyNote: "Women and nonbinary people who chose to be included in women-only spaces. They see you, and you see only them.",

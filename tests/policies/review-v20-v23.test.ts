@@ -851,43 +851,38 @@ test("R49 V22: a notification's text never names someone the recipient cannot se
 // V21 — small groups
 // ===========================================================================
 
-async function invitesOf(crewId: string) {
-  return must(service.from("crew_invites").select("id, to_person, status").eq("crew_id", crewId), "invites");
+// Since M3.7 a small group is a squad: started with a name, a spot and a time, its name
+// approved as the AI check would, then joined — no invites (decisions, "M3.7: named
+// squads, open to join"). The V21 cases below were rewritten on it; the ones that proved
+// invite-only rules (R51, R58, R63, R67, R94) went with those rules, and P229–P238 prove
+// their successors.
+async function squadOf(starter: string, G: string, joiners: string[], o: { women?: boolean } = {}): Promise<string> {
+  const gr = await must(service.from("gatherings").select("starts_at, venue_id").eq("id", g[G]!).single(), `gathering ${G}`);
+  const spot = await must(service.from("meeting_spots").select("id").eq("venue_id", gr.venue_id).eq("active", true).limit(1).maybeSingle(), "a spot");
+  const meetAt = new Date(Math.floor((Date.parse(gr.starts_at) - 60 * 60_000) / 900_000) * 900_000).toISOString();
+  const name = `${starter}'s squad`;
+  const id = (await must(
+    ppl[starter]!.c.rpc("start_squad", { p_gathering: g[G], p_name: name, p_spot: spot?.id ?? null, p_meet_at: meetAt, p_women_only: o.women ?? false }),
+    `${starter} starts a squad`,
+  )) as string;
+  await must(service.rpc("admin_record_squad_name_check", { p_crew: id, p_name: name, p_outcome: "approved", p_source: "review" }), "approve the name");
+  for (const n of joiners) await must(ppl[n]!.c.rpc("join_squad", { p_crew: id }), `${n} joins`);
+  return id;
 }
 
-test("R50 V21: setup — Ava starts a group from G's room with Ben, Cara, Dana (all posted)", async () => {
+test("R50 V21: setup — Ava starts a squad at G; Cara and Dana join; a join tells nobody, and nobody joins for someone else", async () => {
   const before = await notifs("Ava");
-  const r = await ppl.Ava!.c.rpc("start_group", { p_room: room.G, p_invitees: [ppl.Ben!.id, ppl.Cara!.id, ppl.Dana!.id] });
-  notes.push(`start_group: ${r.error ? r.error.message : JSON.stringify(r.data)}`);
-  assert.equal(r.error, null);
-  const c = await must(service.from("crews").select("id, women_only, state").eq("gathering_id", g.G).eq("room_id", room.G), "crew");
-  crew.ava = c[0].id;
-  const inv = await invitesOf(crew.ava!);
-  const by = (n: string) => inv.find((i: any) => i.to_person === ppl[n]!.id)!.id;
-  // An outsider tries to accept Cara's invite for her.
-  const steal = await ppl.Mo!.c.rpc("respond_to_invite", { p_invite: by("Cara"), p_accept: true });
-  notes.push(`Mo accepts Cara's invite: ${steal.error ? steal.error.message : JSON.stringify(steal.data)}`);
-  const mem = await must(service.from("crew_members").select("person_id").eq("crew_id", crew.ava!), "members");
-  assert.ok(!mem.some((m: any) => m.person_id === ppl.Mo!.id), "Mo joined by accepting Cara's invite");
-  await must(ppl.Ben!.c.rpc("respond_to_invite", { p_invite: by("Ben"), p_accept: false }), "Ben declines");
-  await must(ppl.Cara!.c.rpc("respond_to_invite", { p_invite: by("Cara"), p_accept: true }), "Cara accepts");
-  await must(ppl.Dana!.c.rpc("respond_to_invite", { p_invite: by("Dana"), p_accept: true }), "Dana accepts");
+  crew.ava = await squadOf("Ava", "G", ["Cara", "Dana"]);
+  const mem = await must(service.from("crew_members").select("person_id").eq("crew_id", crew.ava!).is("left_at", null), "members");
+  assert.equal(mem.length, 3, "setup: the squad is not Ava, Cara and Dana");
+  // There is no way to join for someone else: join_squad takes only the squad.
+  const forge = await ppl.Mo!.c.from("crew_members").insert({ crew_id: crew.ava, gathering_id: g.G, person_id: ppl.Ben!.id });
+  assert.ok(forge.error, "Mo put Ben into Ava's squad");
   await sleep(1500);
   const afterN = await notifs("Ava");
   const newRows = afterN.filter((x) => !before.some((b) => b.id === x.id));
-  notes.push(`Ava's notifications after the invites: ${JSON.stringify(newRows.map((x) => [x.kind, x.body]))}`);
-  assert.ok(!newRows.some((x) => /Ben/.test(`${x.title} ${x.body}`) || /declin/i.test(`${x.title} ${x.body}`)), "Ava was told about Ben's decline");
-});
-
-test("R51 Q4/V21: the inviter never learns of a decline — not from crew_invites, my_invites, or a re-invite's answer", async () => {
-  const r = await ppl.Ava!.c.from("crew_invites").select("to_person, status").eq("crew_id", crew.ava!);
-  assert.ok(!(r.data ?? []).some((x: any) => x.status === "declined"), `Ava reads a decline: ${JSON.stringify(r.data)}`);
-  const mi = await ppl.Ava!.c.rpc("my_invites", { p_gathering: g.G });
-  assert.ok(!JSON.stringify(mi.data ?? "").includes("declined"), `my_invites tells Ava: ${JSON.stringify(mi.data)}`);
-  // A re-invite of Ben must answer the same way as a re-invite of someone who simply has not answered.
-  const again = await ppl.Ava!.c.rpc("invite_more", { p_crew: crew.ava, p_invitees: [ppl.Ben!.id] });
-  notes.push(`invite_more Ben after decline: ${again.error ? again.error.message : JSON.stringify(again.data)}`);
-  assert.ok(!/declin/i.test(again.error?.message ?? ""), `the re-invite says why: ${again.error?.message}`);
+  notes.push(`Ava's notifications after the joins: ${JSON.stringify(newRows.map((x) => [x.kind, x.body]))}`);
+  assert.deepEqual(newRows, [], "a join sent a notification (none is written until the copy pass)");
 });
 
 test("R52 V21: a group's thread, members, plan and votes are invisible to a room peer outside it", async () => {
@@ -941,35 +936,22 @@ test("R56 V21: a member cannot rewrite the group itself (state, women-only, spot
   assert.deepEqual(after, before);
 });
 
-test("R57 V21: a second group for the same person at the same gathering is refused", async () => {
-  const r = await ppl.Ava!.c.rpc("start_group", { p_room: room.G, p_invitees: [ppl.Mo!.id, ppl.Ben!.id] });
-  const r2 = await ppl.Mo!.c.rpc("start_group", { p_room: room.G, p_invitees: [ppl.Cara!.id, ppl.Ben!.id] });
-  notes.push(`Mo invites a group member: ${r2.error ? r2.error.message : JSON.stringify(r2.data)}`);
+test("R57 V21: a second group for the same person at the same gathering is refused — starting one or joining one", async () => {
+  const r = await ppl.Ava!.c.rpc("start_squad", { p_gathering: g.G, p_name: "Another", p_spot: null, p_meet_at: inDays(1), p_women_only: false });
   assert.ok(r.error, "Ava started a second group");
-  const caraInv = await must(service.from("crew_invites").select("id").eq("to_person", ppl.Cara!.id).eq("from_person", ppl.Mo!.id), "Cara invited by Mo");
-  assert.equal(caraInv.length, 0, "Cara (already in a group) was invited into a second");
+  const mos = await squadOf("Mo", "G", []);
+  const j = await ppl.Cara!.c.rpc("join_squad", { p_crew: mos });
+  notes.push(`Cara (in Ava's squad) joins Mo's: ${j.error ? j.error.message : "joined"}`);
+  assert.ok(j.error, "Cara (already in a group) joined a second");
+  crew.mo = mos;
 });
 
-test("R58 V21: only people you have both posted with — not someone who never posted, not another room, not a blocker", async () => {
-  const silent = await ppl.Mo!.c.rpc("start_group", { p_room: room.G, p_invitees: [ppl.Nell!.id, ppl.Ben!.id] });
-  const fromSilent = await ppl.Nell!.c.rpc("start_group", { p_room: room.G, p_invitees: [ppl.Mo!.id, ppl.Ben!.id] });
-  const otherRoom = await ppl.Mo!.c.rpc("start_group", { p_room: room.H, p_invitees: [ppl.Hugo!.id, ppl.Hana!.id] });
-  const crossRoom = await ppl.Mo!.c.rpc("start_group", { p_room: room.G, p_invitees: [ppl.Hugo!.id, ppl.Ben!.id] });
-  const blocked = await ppl.Bk!.c.rpc("start_group", { p_room: room.G, p_invitees: [ppl.Ava!.id, ppl.Ben!.id] });
-  const intoWo = await ppl.Mo!.c.rpc("start_group", { p_room: room["G/wo"], p_invitees: [ppl.Nico!.id, ppl.Wo!.id] });
-  notes.push(`start_group errors: silent=${silent.error?.message}; fromSilent=${fromSilent.error?.message}; otherRoom=${otherRoom.error?.message}; crossRoom=${crossRoom.error?.message}; blocked=${blocked.error?.message}; intoWo=${intoWo.error?.message}`);
-  for (const [n, r] of [["invite a silent person", silent], ["a silent inviter", fromSilent], ["a room you're not in", otherRoom], ["someone from another gathering", crossRoom], ["someone who blocked you", blocked], ["a man into the women-only room", intoWo]] as const) {
-    refusedRpc(r, n);
-  }
-  const strays = await must(service.from("crew_invites").select("id").in("to_person", [ppl.Nell!.id, ppl.Hugo!.id, ppl.Hana!.id, ppl.Nico!.id, ppl.Wo!.id]), "stray invites");
-  assert.equal(strays.length, 0, "an invite was written");
-});
-
-test("R59 H9: refusing an invite to someone who blocked you says the same as refusing one to a hidden person (a block is never revealed)", async () => {
-  const blocked = await ppl.Bk!.c.rpc("start_group", { p_room: room.G, p_invitees: [ppl.Ava!.id, ppl.Mo!.id] });
-  const hidden = await ppl.Bk!.c.rpc("start_group", { p_room: room.G, p_invitees: [ppl.Hid!.id, ppl.Mo!.id] });
-  const nobody = await ppl.Bk!.c.rpc("start_group", { p_room: room.G, p_invitees: [randomUUID(), ppl.Mo!.id] });
+test("R59 H9: joining the squad of someone who blocked you says the same as a hidden person joining, and as a squad that does not exist (a block is never revealed)", async () => {
+  const blocked = await ppl.Bk!.c.rpc("join_squad", { p_crew: crew.ava }); // Ava blocked Bk (R05)
+  const hidden = await ppl.Hid!.c.rpc("join_squad", { p_crew: crew.mo });
+  const nobody = await ppl.Ben!.c.rpc("join_squad", { p_crew: randomUUID() });
   notes.push(`block vs hidden vs nobody: ${blocked.error?.message} | ${hidden.error?.message} | ${nobody.error?.message}`);
+  assert.ok(blocked.error && hidden.error && nobody.error, "a join that must be refused went through");
   assert.equal(blocked.error?.message, hidden.error?.message);
   assert.equal(blocked.error?.message, nobody.error?.message);
 });
@@ -988,66 +970,39 @@ test("R61 V21: group_closes_at tells an outsider nothing about a group", async (
   assert.ok(r.error || r.data === null, `an outsider learns ${JSON.stringify(r.data)}`);
 });
 
-test("R62 H7/V21: a group from the women-only room is women-only, and a man cannot be invited into it", async () => {
-  const r = await ppl.Nico!.c.rpc("start_group", { p_room: room["G/wo"], p_invitees: [ppl.Wo!.id, ppl.Eli!.id] });
-  assert.equal(r.error, null, `setup: ${r.error?.message}`);
-  const c = await must(service.from("crews").select("id, women_only").eq("room_id", room["G/wo"]!), "wo crew");
-  crew.wo = c[0].id;
-  assert.equal(c[0].women_only, true, "a group from the women-only room is not women-only");
-  const add = await ppl.Nico!.c.rpc("invite_more", { p_crew: crew.wo, p_invitees: [ppl.Ben!.id] });
-  const inv = await must(service.from("crew_invites").select("id").eq("crew_id", crew.wo!).eq("to_person", ppl.Ben!.id), "Ben invited?");
-  assert.equal(inv.length, 0, `Ben invited into the women-only group (${add.error?.message})`);
+test("R62 H7/V21: a women-only squad is invisible and unjoinable to a man, whatever he asks", async () => {
+  crew.wo = await squadOf("Nico", "G", ["Wo"], { women: true });
+  const c = await must(service.from("crews").select("women_only").eq("id", crew.wo!).single(), "wo squad");
+  assert.equal(c.women_only, true, "setup: the squad is not women-only");
+  const listed = ((await ppl.Ben!.c.rpc("squads", { p_gathering: g.G })).data ?? []) as any[];
+  assert.ok(!listed.some((x) => x.crew_id === crew.wo), "Ben was shown the women-only squad");
+  const j = await ppl.Ben!.c.rpc("join_squad", { p_crew: crew.wo });
+  assert.ok(j.error, "Ben joined a women-only squad");
   const seen = await ppl.Ben!.c.from("crews").select("id").eq("gathering_id", g.G);
   assert.ok(!(seen.data ?? []).some((x: any) => x.id === crew.wo), "Ben sees the women-only group");
-});
-
-test("R63 V21: an invitee cannot forge an invite row or flip someone else's", async () => {
-  const forge = await ppl.Mo!.c.from("crew_invites").insert({ crew_id: crew.ava, gathering_id: g.G, from_person: ppl.Ava!.id, to_person: ppl.Mo!.id });
-  const benInv = (await invitesOf(crew.ava!)).find((i: any) => i.to_person === ppl.Ben!.id)!;
-  await ppl.Mo!.c.from("crew_invites").update({ status: "accepted" }).eq("id", benInv.id);
-  await ppl.Ben!.c.from("crew_invites").update({ status: "accepted" }).eq("id", benInv.id);
-  const after = await must(service.from("crew_invites").select("status").eq("id", benInv.id).single(), "Ben's invite");
-  const benMember = await must(service.from("crew_members").select("id").eq("crew_id", crew.ava!).eq("person_id", ppl.Ben!.id).is("left_at", null), "Ben member");
-  assert.ok(forge.error, "Mo forged an invite from Ava to himself");
-  assert.equal(benMember.length, 0, "Ben joined by flipping his declined invite");
-  notes.push(`Ben's invite after direct updates: ${after.status}`);
 });
 
 // ===========================================================================
 // V23 — after the night
 // ===========================================================================
 
-test("R64 V23: setup — a group of 3 at A reaches the end of its gathering", async () => {
+test("R64 V23: setup — a squad of 3 at A reaches the end of its gathering", async () => {
   for (const [n, gender] of [["A1", "woman"], ["A2", "man"], ["A3", "man"], ["A4", "man"], ["A5", "man"]] as [string, Gender][]) await mk(n, { gender });
   for (const n of ["A1", "A2", "A3", "A4"]) await pin(n, "A");
   await pin("A5", "A", false);
   room.A = (await rooms("A"))[0]!.id;
   for (const n of ["A1", "A2", "A3", "A4"]) await post(n, "A", `hi from ${n}`);
-  await must(ppl.A1!.c.rpc("start_group", { p_room: room.A, p_invitees: [ppl.A2!.id, ppl.A3!.id] }), "A1 starts");
-  crew.A = (await must(service.from("crews").select("id").eq("room_id", room.A), "crew A"))[0].id;
-  for (const i of await invitesOf(crew.A!)) {
-    const who = Object.values(ppl).find((p) => p.id === i.to_person)!;
-    await must(who.c.rpc("respond_to_invite", { p_invite: i.id, p_accept: true }), `${who.name} accepts`);
-  }
+  crew.A = await squadOf("A1", "A", ["A2", "A3"]);
   await must(service.from("crew_members").update({ arrived_at: new Date().toISOString(), arrival_note: "red hat" }).eq("crew_id", crew.A!).eq("person_id", ppl.A2!.id), "A2 arrived (fixture)");
-  // B: a group that never reached 3.
-  for (const n of ["B1", "B2", "B3"]) {
-    await mk(n, { gender: "man" });
-    await pin(n, "B");
-  }
-  room.B = (await rooms("B"))[0]!.id;
-  for (const n of ["B1", "B2", "B3"]) await post(n, "B", `hi from ${n}`);
-  await must(ppl.B1!.c.rpc("start_group", { p_room: room.B, p_invitees: [ppl.B2!.id, ppl.B3!.id] }), "B1 starts");
-  crew.B = (await must(service.from("crews").select("id").eq("room_id", room.B), "crew B"))[0].id;
-  const b2 = (await invitesOf(crew.B!)).find((i: any) => i.to_person === ppl.B2!.id)!;
-  await must(ppl.B2!.c.rpc("respond_to_invite", { p_invite: b2.id, p_accept: true }), "B2 accepts");
-  // Both gatherings end: started two days ago, the list now closed.
-  await must(service.from("gatherings").update({ starts_at: inDays(-2) }).in("id", [g.A, g.B]), "A, B to the past");
+  // The gathering ends: started two days ago, the list now closed. A squad is done an hour
+  // after it meets at the earliest, so its time moves too.
+  await must(service.from("gatherings").update({ starts_at: inDays(-2) }).eq("id", g.A), "A to the past");
+  await must(service.from("crews").update({ meet_at: inDays(-2) }).eq("id", crew.A!), "its time too");
   const tick = await service.rpc("admin_groups_tick", {});
   notes.push(`admin_groups_tick: ${tick.error ? tick.error.message : JSON.stringify(tick.data)}`);
-  const states = await must(service.from("crews").select("id, state").in("id", [crew.A, crew.B]), "states");
-  notes.push(`after the end: A ${states.find((s: any) => s.id === crew.A)?.state}, B ${states.find((s: any) => s.id === crew.B)?.state}`);
-  assert.equal(states.find((s: any) => s.id === crew.A)?.state, "done");
+  const states = await must(service.from("crews").select("id, state").eq("id", crew.A), "states");
+  notes.push(`after the end: A ${states[0]?.state}`);
+  assert.equal(states[0]?.state, "done");
 });
 
 test("R65 V23: positive control — A1 can see crewmate A3 inside the 7 days (else the refusals prove nothing)", async () => {
@@ -1058,13 +1013,6 @@ test("R65 V23: positive control — A1 can see crewmate A3 inside the 7 days (el
 test("R66 V23: a room peer who was not in the group sees nobody once the list closes", async () => {
   const r = await ppl.A4!.c.from("people").select("id").in("id", [ppl.A1!.id, ppl.A2!.id, ppl.A3!.id]);
   assert.deepEqual(r.data ?? [], []);
-});
-
-test("R67 V23: a group that never reached 3 grants nothing after the night", async () => {
-  const r = await ppl.B1!.c.from("people").select("id").eq("id", ppl.B2!.id);
-  assert.deepEqual(r.data ?? [], [], "B1 sees B2 after a group of 2");
-  const t = await ppl.B1!.c.rpc("after_tick", { p_crew: crew.B, p_to: ppl.B2!.id, p_kind: "we_met", p_on: true });
-  refusedRpc(t, "a tick in a group of 2");
 });
 
 test("R68 Q6: a one-way 'we met' is invisible to the other person — table, after_state, and showed_up", async () => {
@@ -1327,30 +1275,22 @@ async function groupWorld(label: string, names: string[]) {
   for (const n of names) await post(n, label, `hi from ${n}`);
 }
 
-test("R86 V4/V21: an invite cannot be accepted across a block made after it was sent (respond_to_invite re-checks nothing)", async () => {
+test("R86 V4/V21: a block made after a squad was listed makes it absent and unjoinable to the blocked person, who reads nothing of it", async () => {
   await groupWorld("G5", ["P1", "P2", "P3"]);
-  await must(ppl.P1!.c.rpc("start_group", { p_room: room.G5, p_invitees: [ppl.P2!.id, ppl.P3!.id] }), "P1 starts");
-  crew.G5 = (await must(service.from("crews").select("id").eq("room_id", room.G5!), "crew G5"))[0].id;
-  // P1 blocks P2 after inviting him.
+  crew.G5 = await squadOf("P1", "G5", ["P3"]);
+  const listedBefore = ((await ppl.P2!.c.rpc("squads", { p_gathering: g.G5 })).data ?? []) as any[];
+  assert.ok(listedBefore.some((x) => x.crew_id === crew.G5), "control: P2 could not see P1's squad before the block");
   await must(service.from("blocks").insert({ blocker_id: ppl.P1!.id, blocked_id: ppl.P2!.id }), "P1 blocks P2");
-  const mine = await ppl.P2!.c.from("crew_invites").select("id, from_person, crew_id, status").eq("to_person", ppl.P2!.id);
-  const listed = await ppl.P2!.c.rpc("my_invites", { p_gathering: g.G5 });
-  notes.push(`after the block, P2 reads crew_invites: ${JSON.stringify(mine.data)}; my_invites: ${JSON.stringify(listed.data)}`);
-  // The read must have worked and found nothing — an error here is not a refusal (6 Oct:
-  // a broken read rule once made this case pass by erroring).
-  assert.equal(mine.error, null, `reading crew_invites failed: ${mine.error?.message}`);
-  assert.deepEqual(mine.data ?? [], [], "the person P1 blocked still reads P1's invite");
-  // And the accept refuses on its own, even given the invite's id (the re-check, L1).
-  const [inv] = await must(service.from("crew_invites").select("id").eq("crew_id", crew.G5!).eq("to_person", ppl.P2!.id), "P2's invite");
-  const acc = await ppl.P2!.c.rpc("respond_to_invite", { p_invite: inv.id, p_accept: true });
-  notes.push(`P2 accepts the blocker's invite by id: ${acc.error ? acc.error.message : "accepted"}`);
+  const listed = await ppl.P2!.c.rpc("squads", { p_gathering: g.G5 });
+  assert.equal(listed.error, null, `reading squads failed: ${listed.error?.message}`);
+  assert.ok(!((listed.data ?? []) as any[]).some((x) => x.crew_id === crew.G5), "the person P1 blocked still sees P1's squad");
+  const acc = await ppl.P2!.c.rpc("join_squad", { p_crew: crew.G5 });
+  notes.push(`P2 joins the blocker's squad by id: ${acc.error ? acc.error.message : "joined"}`);
   await must(ppl.P1!.c.from("crew_messages").insert({ crew_id: crew.G5, kind: "user", author_id: ppl.P1!.id, body: "P1: meet me at the north gate" }), "P1 posts");
   const joined = await must(service.from("crew_members").select("id").eq("crew_id", crew.G5!).eq("person_id", ppl.P2!.id).is("left_at", null), "P2 member?");
   const reads = await ppl.P2!.c.from("crew_messages").select("body").eq("crew_id", crew.G5!);
-  const crewRow = await ppl.P2!.c.from("crews").select("id, state, spot_id, meet_at").eq("id", crew.G5!);
-  notes.push(`P2 in P1's group: ${joined.length}; reads ${JSON.stringify(reads.data)}; crew row ${JSON.stringify(crewRow.data)}`);
-  assert.equal(joined.length, 0, "the person P1 blocked joined P1's group through a stale invite");
-  assert.ok(!(reads.data ?? []).some((m: any) => m.body.startsWith("P1:")), "the blocked person reads the blocker's group messages");
+  assert.equal(joined.length, 0, "the person P1 blocked joined P1's squad");
+  assert.ok(!(reads.data ?? []).some((m: any) => m.body.startsWith("P1:")), "the blocked person reads the blocker's squad messages");
 });
 
 // Alex, 6 Oct 2026 (L7): blocking someone you share a group with — the blocker leaves.
@@ -1358,12 +1298,7 @@ test("R86 V4/V21: an invite cannot be accepted across a block made after it was 
 // the person who chose. The cost, accepted: someone harassed in a group gives it up.
 test("R87 V4/V21: blocking a groupmate takes the blocker out of the group; the blocked person stays and reads nothing new from them", async () => {
   await groupWorld("G6", ["Q1", "Q2", "Q3"]);
-  await must(ppl.Q1!.c.rpc("start_group", { p_room: room.G6, p_invitees: [ppl.Q2!.id, ppl.Q3!.id] }), "Q1 starts");
-  crew.G6 = (await must(service.from("crews").select("id").eq("room_id", room.G6!), "crew G6"))[0].id;
-  for (const i of await invitesOf(crew.G6!)) {
-    const who = Object.values(ppl).find((p) => p.id === i.to_person)!;
-    await must(who.c.rpc("respond_to_invite", { p_invite: i.id, p_accept: true }), `${who.name} accepts`);
-  }
+  crew.G6 = await squadOf("Q1", "G6", ["Q2", "Q3"]);
   await must(service.from("blocks").insert({ blocker_id: ppl.Q1!.id, blocked_id: ppl.Q2!.id }), "Q1 blocks Q2");
   const active = async (n: string) => (await must(service.from("crew_members").select("id").eq("crew_id", crew.G6!).eq("person_id", ppl[n]!.id).is("left_at", null), `${n} member?`)).length;
   assert.equal(await active("Q1"), 0, "the blocker is still in the group");
@@ -1473,12 +1408,7 @@ test("R92 V22/A18 #6's bound: a 50-message room sends one #6 to someone who neve
 
 test("R93 V20/V21: a withdrawn gathering's group stays — names kept, still writable, and #3 tells it; an outsider gets nothing back", async () => {
   await groupWorld("G7", ["W1", "W2", "W3", "W4"]);
-  await must(ppl.W1!.c.rpc("start_group", { p_room: room.G7, p_invitees: [ppl.W2!.id, ppl.W3!.id] }), "W1 starts");
-  crew.G7 = (await must(service.from("crews").select("id").eq("room_id", room.G7!), "crew G7"))[0].id;
-  for (const i of await invitesOf(crew.G7!)) {
-    const who = Object.values(ppl).find((p) => p.id === i.to_person)!;
-    await must(who.c.rpc("respond_to_invite", { p_invite: i.id, p_accept: true }), `${who.name} accepts`);
-  }
+  crew.G7 = await squadOf("W1", "G7", ["W2", "W3"]);
   await must(service.from("gatherings").update({ withdrawn_at: new Date().toISOString() }).eq("id", g.G7!), "withdraw G7");
   await sleep(1000);
   const sees = async (who: string, whom: string) => ((await ppl[who]!.c.from("people").select("first_name").eq("id", ppl[whom]!.id)).data ?? []).length;
@@ -1496,21 +1426,6 @@ test("R93 V20/V21: a withdrawn gathering's group stays — names kept, still wri
     assert.equal(told.length, 1, `${n} was not told the gathering was called off`);
   }
   assert.equal((await notifs("W4", "plan_status")).filter((x) => /called off/.test(x.body)).length, 0, "#3 reached someone outside the group");
-});
-
-test("R94 V21: a group invites a person once — after a decline, 'invite someone else' cannot ping them again", async () => {
-  await groupWorld("G8", ["I1", "I2", "I3", "I4"]);
-  await must(ppl.I1!.c.rpc("start_group", { p_room: room.G8, p_invitees: [ppl.I2!.id, ppl.I3!.id] }), "I1 starts");
-  crew.G8 = (await must(service.from("crews").select("id").eq("room_id", room.G8!), "crew G8"))[0].id;
-  const toI2 = (await invitesOf(crew.G8!)).find((i: any) => i.to_person === ppl.I2!.id)!;
-  await must(ppl.I2!.c.rpc("respond_to_invite", { p_invite: toI2.id, p_accept: false }), "I2 declines");
-  const before = (await notifs("I2", "plan_status")).length;
-  await ppl.I1!.c.rpc("invite_more", { p_crew: crew.G8, p_invitees: [ppl.I2!.id] });
-  const invitesToI2 = (await invitesOf(crew.G8!)).filter((i: any) => i.to_person === ppl.I2!.id);
-  assert.equal(invitesToI2.length, 1, "the person who declined was invited again");
-  assert.equal((await notifs("I2", "plan_status")).length, before, "the person who declined was pinged again");
-  await must(ppl.I1!.c.rpc("invite_more", { p_crew: crew.G8, p_invitees: [ppl.I4!.id] }), "control: I1 invites I4");
-  assert.equal((await invitesOf(crew.G8!)).filter((i: any) => i.to_person === ppl.I4!.id).length, 1, "control: a first invite to someone new did not arrive");
 });
 
 test("R95 V23/H3: the invite picker says 'going' only for a pin that is open to meeting", async () => {
@@ -1541,19 +1456,15 @@ test("R96 V20/H9: a hidden person leaves every room at once, is never placed whi
   assert.ok((await membersOf(r!.id)).includes(ppl.U2!.id), "an unhidden person was not placed back in the room");
 });
 
-test("R97 V4/V21 (L1): the accept re-checks on its own — a block with someone already IN the group refuses it, though the invite was never withdrawn", async () => {
+test("R97 V4/V21 (L1): a join re-checks at the tap — a block with someone already IN the squad refuses it, in the same words as a full squad", async () => {
   await groupWorld("G10", ["Rk1", "Rk2", "Rk3", "Rk4"]);
-  await must(ppl.Rk1!.c.rpc("start_group", { p_room: room.G10, p_invitees: [ppl.Rk2!.id, ppl.Rk3!.id] }), "Rk1 starts");
-  crew.G10 = (await must(service.from("crews").select("id").eq("room_id", room.G10!), "crew G10"))[0].id;
-  const toK3 = (await invitesOf(crew.G10!)).find((i: any) => i.to_person === ppl.Rk3!.id)!;
-  await must(ppl.Rk3!.c.rpc("respond_to_invite", { p_invite: toK3.id, p_accept: true }), "Rk3 accepts");
-  // Rk3, now in the group, blocks Rk2. Rk1's invite to Rk2 is between Rk1 and Rk2: untouched.
+  crew.G10 = await squadOf("Rk1", "G10", ["Rk3"]);
+  // Rk3, now in the squad, blocks Rk2. Rk1 and Rk2 have nothing between them.
   await must(service.from("blocks").insert({ blocker_id: ppl.Rk3!.id, blocked_id: ppl.Rk2!.id }), "Rk3 blocks Rk2");
-  const toK2 = (await invitesOf(crew.G10!)).find((i: any) => i.to_person === ppl.Rk2!.id)!;
-  assert.equal(toK2.status, "sent", "setup: Rk2's invite was withdrawn — this would not test the re-check");
-  const acc = await ppl.Rk2!.c.rpc("respond_to_invite", { p_invite: toK2.id, p_accept: true });
-  assert.ok(acc.error, "Rk2 joined a group with someone who blocked them");
-  assert.match(acc.error!.message, /no longer open/, "the refusal names the block rather than looking like a closed group (R59)");
+  const acc = await ppl.Rk2!.c.rpc("join_squad", { p_crew: crew.G10 });
+  assert.ok(acc.error, "Rk2 joined a squad with someone who blocked them");
+  assert.match(acc.error!.message, /not open any more/, "the refusal names the block rather than reading as a squad that is gone (R59)");
+  await must(ppl.Rk4!.c.rpc("join_squad", { p_crew: crew.G10 }), "control: someone with no block joins");
 });
 
 test("R98 V20: simultaneous opt-ins never overfill a room, and the first two at an empty gathering both get in", async () => {

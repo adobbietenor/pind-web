@@ -90,8 +90,9 @@ describe("The 1-on-1 screens use the rules, not their own (M3.4)", () => {
 
   it("SO09 nothing shows where 1-on-1 is not offered, and a person with both plans keeps both", () => {
     assert.match(section, /if \(\(!view\.offered \|\| ended\) && !view\.choice\) return null;/);
-    const crowd = readFileSync("app/src/app/crowd/[slug].tsx", "utf8");
-    assert.match(crowd, /\.eq\("kind", "crew"\)\.is\("left_at", null\)\.maybeSingle\(\)/, "the crowd page's group read would fail with a 1-on-1 plan beside it");
+    // The crowd page's group read moved to the squads section (M3.7).
+    const squads = readFileSync("app/src/lib/squads.ts", "utf8");
+    assert.match(squads, /\.eq\("kind", "crew"\)\s*\.is\("left_at", null\)\s*\.maybeSingle\(\)/, "the squad read would fail with a 1-on-1 plan beside it");
     assert.match(readFileSync("app/src/lib/room.ts", "utf8"), /\.eq\("kind", "crew"\)\.in\("state"/, "a 1-on-1 plan stops 'go together' in the room");
     const events = readFileSync("app/src/lib/myevents.ts", "utf8");
     assert.match(events, /const soloAt = planAt\("solo"\)/, "My Events keys both plans by gathering, one over the other");

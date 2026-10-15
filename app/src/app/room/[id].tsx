@@ -6,8 +6,8 @@
 //     tags you share marked; the cards fold into a strip at 5 in the room, you included;
 //   * until you have posted, three openers sit over the box. Tapping one FILLS THE BOX,
 //     editable; nothing is ever sent for you (S29);
-//   * at 3, once: "enough to go together", and "Go together" invites 2 or 3 people you
-//     have both posted with (the database checks it; P150);
+//   * at 3, once: "enough to go together", and the way to squads (M3.7) — open to join,
+//     on the crowd page (A15). Invite-only groups and "Go together" are retired;
 //   * on the iPhone, the "Turn on" card for push — never at launch (lib/push.ts).
 // Long-press your own message to delete it; anyone else's to report it (H9).
 // Realtime through postgres_changes, which respects RLS; a 15-second poll is the net.
@@ -15,7 +15,7 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { colors as palette, fonts, GROUP_COPY, NEIGHBOURHOODS, openersFor, radius, REPORT_REASONS, ROOM_COPY, spacing } from "@pind/shared";
+import { colors as palette, fonts, NEIGHBOURHOODS, openersFor, radius, REPORT_REASONS, ROOM_COPY, spacing, SQUAD_COPY } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { PushAsk } from "@/components/PushAsk";
 import { Trouble } from "@/components/Trouble";
@@ -56,8 +56,6 @@ export default function Room() {
   const [sending, setSending] = useState(false);
   const [sendNote, setSendNote] = useState("");
   const [held, setHeld] = useState<Message | null>(null);
-  const [picking, setPicking] = useState(false);
-  const [picked, setPicked] = useState<string[]>([]);
   // null until read: the card waits for the answer rather than flashing.
   const [goDismissed, setGoDismissed] = useState<boolean | null>(null);
   const live = useRef(true);
@@ -134,7 +132,6 @@ export default function Room() {
   const closed = Date.now() >= Date.parse(view.gathering.closesAt);
   const firstShared = people.map((p) => sharedTag(view.me.tags, p.tags)).find(Boolean) ?? null;
   const openers = openersFor({ convening: view.gathering.convening, sharedTag: firstShared });
-  const talked = people.filter((p) => p.posted);
 
   const send = async () => {
     if (!draft.trim()) return;
@@ -151,13 +148,6 @@ export default function Room() {
     } finally {
       setSending(false);
     }
-  };
-
-  const startGroup = async () => {
-    setTrouble(null);
-    const { data, error } = await supabase().rpc("start_group", { p_room: view.roomId, p_invitees: picked });
-    if (error) return setTrouble(failed("send the invites", error));
-    router.push({ pathname: "/group/[id]", params: { id: data as string } });
   };
 
   return (
@@ -196,48 +186,17 @@ export default function Room() {
       )}
 
       {/* At 3, once: the next step, never pushed. */}
-      {showGo && !picking ? (
+      {showGo ? (
         <View style={styles.go}>
           <Body>{ROOM_COPY.enoughToGo}</Body>
           <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
             <View style={{ flex: 1 }}>
-              <Button label={ROOM_COPY.goTogether} onPress={() => setPicking(true)} />
+              <Button label={SQUAD_COPY.start} onPress={() => router.push({ pathname: "/crowd/[slug]", params: { slug: view.gathering.slug } })} />
             </View>
             <View style={{ flex: 1 }}>
               <Button kind="quiet" label="Later" onPress={() => setGoDismissed(true)} />
             </View>
           </View>
-        </View>
-      ) : null}
-
-      {picking ? (
-        <View style={styles.go}>
-          <Body>{GROUP_COPY.pickPeople}</Body>
-          {!view.me.posted ? (
-            <Body muted>{ROOM_COPY.sayHiFirst}</Body>
-          ) : (
-            <>
-              <Body muted>{GROUP_COPY.pickHint}</Body>
-              {people.map((p) => {
-                const on = picked.includes(p.personId);
-                return (
-                  <Pressable
-                    key={p.personId}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: on, disabled: !p.posted }}
-                    disabled={!p.posted}
-                    onPress={() => setPicked(on ? picked.filter((x) => x !== p.personId) : [...picked, p.personId].slice(0, 3))}
-                    style={[styles.pick, on && styles.pickOn, !p.posted && { opacity: 0.4 }]}
-                  >
-                    <Text style={styles.name}>{p.firstName}</Text>
-                    {!p.posted ? <Text style={styles.meta}>hasn't said anything yet</Text> : null}
-                  </Pressable>
-                );
-              })}
-              <Button label={GROUP_COPY.start} disabled={picked.length < 2 || talked.length < 2} onPress={() => void startGroup()} />
-            </>
-          )}
-          <Button kind="quiet" label="Cancel" onPress={() => setPicking(false)} />
         </View>
       ) : null}
 

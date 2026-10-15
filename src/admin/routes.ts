@@ -14,6 +14,7 @@ import * as v from "./venues";
 import * as community from "./community";
 import * as testers from "./testers";
 import * as solo from "./solo";
+import * as squads from "./squads";
 
 // "METHOD /path", where :id is a uuid. One line per admin route.
 const ROUTES: [string, AdminHandler][] = [
@@ -84,6 +85,8 @@ const ROUTES: [string, AdminHandler][] = [
   ["POST /admin/people/:id/dismiss-reports", m.dismissReports],
   ["POST /admin/people/:id/return-to-solo", m.returnToSolo],
   // M3.4 — 1-on-1: where it is offered, its numbers, the switch per platform
+  ["GET /admin/squads", squads.squadsPage],
+  ["POST /admin/squads/approve", squads.approveSquadName],
   ["GET /admin/solo", solo.soloPage],
   ["POST /admin/solo/switch", solo.setSoloSwitch],
   ["POST /admin/solo/brake", solo.setSoloBrake],

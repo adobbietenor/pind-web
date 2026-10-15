@@ -155,19 +155,22 @@ if (cmd === "setup") {
   if (!g) fixture("no practice gathering — run setup first.");
   await addStandin("Priya", g.id, await portrait());
   await say("Priya", STANDINS.Priya.says[0]);
-} else if (cmd === "accept") {
+} else if (cmd === "accept" || cmd === "join") {
+  // Squads (M3.7) replaced invites: each stand-in joins the first squad listed to them.
+  const { g } = await practice();
+  if (!g) fixture("no practice gathering — run setup first.");
   let any = 0;
   for (const u of await standins()) {
     const name = u.user_metadata?.standin;
     const s = await sessionFor(name);
-    const invites = await as(s)(`/rest/v1/crew_invites?to_person=eq.${s.personId}&status=eq.sent&select=id`);
-    for (const i of invites) {
-      await as(s)("/rest/v1/rpc/respond_to_invite", { method: "POST", body: JSON.stringify({ p_invite: i.id, p_accept: true }) });
-      console.log(`${name} accepted an invite`);
-      any++;
-    }
+    const listed = await as(s)("/rest/v1/rpc/squads", { method: "POST", body: JSON.stringify({ p_gathering: g.id }) });
+    const open = (Array.isArray(listed) ? listed : []).find((q) => !q.is_full);
+    if (!open) continue;
+    await as(s)("/rest/v1/rpc/join_squad", { method: "POST", body: JSON.stringify({ p_crew: open.crew_id }) });
+    console.log(`${name} joined "${open.name}"`);
+    any++;
   }
-  if (!any) console.log("No invites waiting for a stand-in. (Invite them from the room first: Go together.)");
+  if (!any) console.log("No squad listed to a stand-in. (Start one on the crowd page first; its name is listed once the check approves it.)");
 } else if (cmd === "say") {
   const [name, ...words] = process.argv.slice(3);
   if (!STANDINS[name] || !words.length) fixture(`say <${Object.keys(STANDINS).join("|")}> "<message>"`);
