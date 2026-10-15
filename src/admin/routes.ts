@@ -86,6 +86,8 @@ const ROUTES: [string, AdminHandler][] = [
   // M3.4 — 1-on-1: where it is offered, its numbers, the switch per platform
   ["GET /admin/solo", solo.soloPage],
   ["POST /admin/solo/switch", solo.setSoloSwitch],
+  ["POST /admin/solo/brake", solo.setSoloBrake],
+  ["POST /admin/solo/end-all", solo.endAllSoloPlans],
   // #10 — A16's comments, with the unread count on every page
   ["GET /admin/comments", comments.commentQueue],
   ["POST /admin/comments/:id/read", comments.markCommentRead],

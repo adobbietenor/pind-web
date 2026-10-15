@@ -5434,3 +5434,143 @@ describe("1-on-1 — proposals and the plan (M3.4, A29)", () => {
     assert.deepEqual(ivo.proposals_received.map((p) => p.status), ["declined"], "control: the recipient's own answer was not in their export");
   });
 });
+
+// The brake (Alex, 14 Oct 2026): held by the database, not obeyed by the app (H11). It is
+// global, so every case lifts it in `finally`, and this describe has its own gathering.
+describe("1-on-1 — the brake and ending every plan (M3.4)", () => {
+  let T = "";
+  let spot = "";
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+  const P = (label: string) => people[label]!;
+  const meetAt = () => new Date(Date.parse(startsAt) - 60 * 60_000).toISOString();
+  let startsAt = "";
+
+  const pull = (on: boolean) => ok(w.service.rpc("admin_set_solo_brake", { p_pulled: on, p_actor: ACTOR }), on ? "the admin pulls the brake" : "the admin lifts the brake");
+  const section = async (label: string) =>
+    (await rows(P(label).client.rpc("solo_people", { p_gathering: T }))).map((r: { person_id: string }) => Object.keys(people).find((n) => P(n).personId === r.person_id)).sort();
+  const propose = (from: string, to: string) =>
+    P(from).client.rpc("propose_solo", { p_gathering: T, p_to: P(to).personId, p_spot: spot, p_meet_at: meetAt(), p_line: 1 });
+  const received = async (label: string) =>
+    (await rows(P(label).client.rpc("my_solo_proposals", { p_gathering: T }))).filter((r: { direction: string }) => r.direction === "received");
+  const sent = async (label: string) =>
+    (await rows(P(label).client.rpc("my_solo_proposals", { p_gathering: T }))).filter((r: { direction: string }) => r.direction === "sent");
+  const proposalId = async (from: string, to: string) =>
+    (await ok(w.service.from("solo_proposals").select("id").eq("gathering_id", T).eq("from_person", P(from).personId).eq("to_person", P(to).personId).single())).id as string;
+  const pending = async () => (await rows(w.service.rpc("admin_pending_notifications", { p_limit: 1000 }))).map((n: { id: string }) => n.id);
+  const queue = (label: string, kind: string) =>
+    ok(w.service.from("notifications").insert({ person_id: P(label).personId, kind, gathering_id: T, title: "t", body: `${PREFIX} brake`, path: "/" }).select("id").single()).then((r) => r.id as string);
+  const note = (id: string) => ok(w.service.from("notifications").select("sent_at, channel, last_error").eq("id", id).single());
+
+  before(async () => {
+    startsAt = new Date(Math.ceil((Date.now() + 5 * 86_400_000) / 900_000) * 900_000).toISOString();
+    T = (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Solo brake`, starts_at: startsAt, venue_id: w.venue, published_at: new Date().toISOString() }).select("id").single())).id;
+    spot = (await ok(w.service.from("meeting_spots").select("id").eq("venue_id", w.venue).eq("active", true).order("name").limit(1).single())).id;
+    for (const label of ["Ava", "Ben", "Cy", "Di", "Ed", "Flo"]) {
+      const email = `${PREFIX}-${w.run}-sb-${label.toLowerCase()}@example.com`;
+      const password = randomUUID();
+      const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+      assert.equal(made.error, null, made.error?.message);
+      const authId = made.data.user!.id;
+      const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+      await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1991 }));
+      await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+      const client = newClient(w.env, w.env.publishableKey);
+      const signIn = await client.auth.signInWithPassword({ email, password });
+      assert.equal(signIn.error, null, signIn.error?.message);
+      const pin = await ok(client.from("pins").insert({ gathering_id: T, person_id: person.id, party_total: 1, open_to_meeting: true }).select("id").single());
+      await ok(client.from("pins").update({ solo_opt_in: true, solo_visibility: "everyone" }).eq("id", pin.id));
+      people[label] = { authId, personId: person.id, client };
+    }
+  }, { timeout: 120_000 });
+
+  after(async () => {
+    await w.service.rpc("admin_set_solo_brake", { p_pulled: false, p_actor: ACTOR });
+    for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
+    if (T) {
+      await w.service.from("crews").delete().eq("gathering_id", T);
+      await w.service.from("gatherings").delete().eq("id", T);
+    }
+  });
+
+  it("P226 pulled, nobody sees anyone in 1-on-1, nobody proposes or accepts, a received proposal vanishes; lifted, all of it comes back", async () => {
+    await ok(propose("Ava", "Ben"), "control: a proposal before the brake was refused");
+    assert.deepEqual(await section("Cy"), ["Ava", "Ben", "Di", "Ed", "Flo"], "control: Cy could not see the others before the brake");
+    assert.equal(await ok(w.anon.rpc("solo_available")), true);
+    // Only the admin pulls it.
+    for (const client of [P("Cy").client, w.anon]) await denied(client.rpc("admin_set_solo_brake", { p_pulled: true, p_actor: "me" }));
+    assert.equal(await ok(w.anon.rpc("solo_available")), true, "a person pulled the brake");
+    try {
+      await pull(true);
+      for (const label of ["Ava", "Ben", "Cy", "Di"]) assert.deepEqual(await section(label), [], `${label} saw someone in 1-on-1 with the brake pulled`);
+      assert.equal(await ok(w.anon.rpc("solo_available")), false, "the app is not told 1-on-1 is off");
+      await denied(propose("Cy", "Di"), "42501");
+      assert.deepEqual(await received("Ben"), [], "a received proposal showed with the brake pulled");
+      await denied(P("Ben").client.rpc("respond_to_solo", { p_proposal: await proposalId("Ava", "Ben"), p_accept: true }), "42501");
+      // The sender's card still says sent: true, and it gives nothing away.
+      assert.equal((await sent("Ava")).length, 1, "the brake changed the sender's view");
+      // Not even a direct read of the table gets round it.
+      await noAccess(P("Cy").client, "solo_proposals");
+    } finally {
+      await pull(false);
+    }
+    assert.deepEqual(await section("Cy"), ["Ava", "Ben", "Di", "Ed", "Flo"], "lifting the brake did not bring 1-on-1 back");
+    assert.equal((await received("Ben")).length, 1, "lifting the brake did not bring back the open proposal");
+    assert.equal(await ok(w.anon.rpc("solo_available")), true);
+    await ok(propose("Cy", "Di"), "control: after the lift the same proposal was refused");
+    const log = await rows(w.service.from("moderation_log").select("action").eq("actor", ACTOR).in("action", ["solo_brake_pulled", "solo_brake_lifted"]).gte("at", new Date(Date.now() - 3_600_000).toISOString()));
+    assert.ok(log.some((l: { action: string }) => l.action === "solo_brake_pulled") && log.some((l: { action: string }) => l.action === "solo_brake_lifted"), "the brake was not logged both ways");
+  });
+
+  it("P227 a 1-on-1 proposal notification queued under the brake is dropped, never held for the lift; other notifications are untouched", async () => {
+    const before = await queue("Ed", "solo_proposal");
+    const other = await queue("Ed", "plan_status");
+    assert.ok((await pending()).includes(before), "control: a queued #8 was not pending");
+    let racing = "";
+    try {
+      await pull(true);
+      const b = await note(before);
+      assert.deepEqual([b.channel, b.last_error, b.sent_at !== null], ["none", "dropped: the 1-on-1 brake was pulled", true], "the pull did not drop a queued #8");
+      // One that slipped in during the pull (a proposal racing it) is not sent while pulled…
+      racing = await queue("Flo", "solo_proposal");
+      assert.ok(!(await pending()).includes(racing), "a #8 was picked for delivery with the brake pulled");
+      const o = await note(other);
+      assert.equal(o.last_error, null, "the brake dropped a notification that is not a 1-on-1 proposal");
+    } finally {
+      await pull(false);
+    }
+    // …and not later either: the lift drops it rather than releasing it.
+    const r = await note(racing);
+    assert.deepEqual([r.channel, r.sent_at !== null], ["none", true], "a #8 held under the brake went out when it lifted");
+    assert.ok(!(await pending()).includes(racing));
+    const fresh = await queue("Flo", "solo_proposal");
+    assert.ok((await pending()).includes(fresh), "control: a #8 after the lift was not deliverable");
+    await w.service.from("notifications").delete().in("id", [before, other, racing, fresh]);
+  });
+
+  it("P228 the brake leaves plans standing; ending every plan is its own admin action, which tells both people and is logged", async () => {
+    await ok(propose("Ed", "Flo"), "Ed to Flo");
+    const ef = (await ok(P("Flo").client.rpc("respond_to_solo", { p_proposal: await proposalId("Ed", "Flo"), p_accept: true }))) as string;
+    const cd = (await ok(P("Di").client.rpc("respond_to_solo", { p_proposal: await proposalId("Cy", "Di"), p_accept: true }))) as string;
+    const state = async (id: string) => (await ok(w.service.from("crews").select("state").eq("id", id).single())).state;
+    try {
+      await pull(true);
+      assert.deepEqual([await state(ef), await state(cd)], ["spot_set", "spot_set"], "pulling the brake ended a plan");
+      await ok(P("Ed").client.from("crew_messages").insert({ crew_id: ef, author_id: P("Ed").personId, kind: "user", body: "see you there" }), "the brake stopped a plan's thread");
+      assert.equal((await rows(P("Flo").client.from("crew_messages").select("id").eq("crew_id", ef))).length, 1);
+    } finally {
+      await pull(false);
+    }
+    for (const client of [P("Ed").client, w.anon]) await denied(client.rpc("admin_end_all_solo_plans", { p_actor: "me" }));
+    assert.equal(await state(ef), "spot_set", "a person ended every plan");
+    const n = (await ok(w.service.rpc("admin_end_all_solo_plans", { p_actor: ACTOR }))) as number;
+    assert.ok(n >= 2, `ended ${n} plans`);
+    assert.deepEqual([await state(ef), await state(cd)], ["dissolved", "dissolved"], "a plan survived ending every plan");
+    for (const [label, crew] of [["Ed", ef], ["Flo", ef], ["Cy", cd], ["Di", cd]] as const) {
+      const off = await rows(w.service.from("notifications").select("body").eq("person_id", P(label).personId).eq("crew_id", crew).eq("kind", "plan_status").like("body", "%is off%"));
+      assert.equal(off.length, 1, `${label} was not told the plan is off`);
+    }
+    assert.ok((await section("Ed")).length > 0, "control: released, but his 1-on-1 list stayed closed");
+    const log = await rows(w.service.from("moderation_log").select("note").eq("actor", ACTOR).eq("action", "solo_end_all_plans").gte("at", new Date(Date.now() - 3_600_000).toISOString()));
+    assert.ok(log.length >= 1, "ending every plan was not logged");
+  });
+});

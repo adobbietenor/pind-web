@@ -4154,11 +4154,56 @@ properly rather than assumed".
   names both**. "I'm here" is separate per plan. **A16 is one page:** everyone from both
   plans, each person once, and a tick on someone is recorded on every plan you shared with
   them. §7 counts each plan's Met in its own column.
-- **Two calls made in the build, flagged for Alex:**
+- **Two calls made in the build, put to Alex** (answered in the next entry):
   - **Once you have a 1-on-1 plan at a gathering, you leave everyone else's 1-on-1 list
     there**, and your own section shows your plan instead of a list. This only narrows
     visibility. The alternative was to refuse a new proposal to someone already in a plan,
-    which would tell the sender they have one.
+    which would tell the sender they have one. **Approved.**
   - **A server flag per platform** (Part 5, "Solo's user-facing name") is a row the admin
     switches, read by the app. It is not a database rule: the database cannot tell which
-    platform asks.
+    platform asks. **Changed:** see the brake, below.
+
+### M3.4: the brake and ending every plan (Alex, 14 Oct 2026)
+
+Alex's answers to the two calls above, and to the hidden-person notification.
+
+- **Leaving the list once you have a plan: approved.** "Dropping out of the list once you
+  have a plan is right."
+- **The hidden person told their plan is off: Alex's call, kept as a recorded exception**
+  to #3's "never to a hidden person" (the lifecycle entry above says why).
+- **The emergency brake is enforced in the database, not obeyed by the app** (changed,
+  Alex): "H11, and this is the feature where it matters most." One flag, set only by the
+  admin (the 1-on-1 page), logged both ways, which `can_see_solo` reads first. Pulled:
+  - every 1-on-1 list is empty for every client, whatever it asks;
+  - nobody can propose or accept (both go through the rule);
+  - a received proposal disappears from its recipient's list. The sender's card still
+    says "Sent", which is true and gives nothing away;
+  - the app hides the switch and the section (`solo_available`), as presentation only.
+- **Its three edges (Alex: "recommended on all three, with two clarifications"):**
+  - **Plans already made stand**, with their thread and "I'm here". **Ending them is a
+    separate admin action**, "End every 1-on-1 plan", its own button. Pulling the brake
+    does not do it, and it does not pull the brake. "The brake is for 'this looks wrong';
+    the dissolve is for 'something happened'. Same pattern as Return to 1-on-1 being its
+    own decision. Log both." It tells both people in each plan "Your 1-on-1 for X is off",
+    with no reason (hidden or not, as an H9 ending).
+  - **Open proposals stay as they are**, so lifting the brake brings back those whose
+    gathering has not started.
+  - **A #8 is dropped, not deferred.** "A #8 that would have gone out while the brake was
+    on is never sent, not queued for when it lifts — a late push about a proposal that
+    may be about to expire is noise." Pulling the brake marks every unsent #8 sent to
+    nowhere, with the reason. The delivery query picks no #8 while it is pulled. Lifting
+    it drops any #8 still unsent, which can only be one a proposal racing the pull slipped
+    in. P227 proves the drop at both moments, and that other notifications are untouched.
+- **The per-platform switch stays, as cosmetic only, never a safety control.** Its purpose
+  is the build plan's risk line (§9, "Solo mode reframes Pin'd as a dating app — in
+  threads or at App Review"): App Review pulling 1-on-1 from iOS while the web keeps it. It
+  hides the app's screens on one platform and nothing else. The database cannot tell
+  which platform asks, so anyone holding a session can still read 1-on-1 through it. For
+  safety, the brake.
+- **Proofs:** P226 (the brake both ways: pulled, nothing; lifted, the same pair and the
+  same proposal come back), P227 (the drop), P228 (plans stand under the brake; ending
+  every plan is admin-only, tells both, and is logged). All flagged for the independent
+  review (`docs/m3.4-review-brief.md`).
+- **Copy, for Tatiana:** three of the current five lines (1, 2 and 5) only work for
+  meeting before the event, so a proposal for afterwards has a choice of two. Her five need
+  to cover both. Alex is getting the sheet, the five lines and the notification wording.

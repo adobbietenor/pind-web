@@ -610,12 +610,14 @@ any of it.
 - Crew `kind = 'solo'` with two seats and no requests; proposals (spot, time, one of five preset lines) with limits and expiry; accept → plan; decline silent.
 - The opt-in sheet with the forced visibility choice; the 1-on-1 section on the pinned crowd page, below crews; metrics views for solo.
 - *(14 Oct 2026, Alex — decisions, "M3.4: who can see whom in 1-on-1" and "M3.4: the 1-on-1 lifecycle".)*
-  - The solo cases are P209–P225, not "P55+".
+  - The solo cases are P209–P228, not "P55+".
   - Proposal times run from 3 h before the start to 2 h after the effective end.
   - A plan ends at H9's threshold, or when either person leaves.
   - Gatherings with no spots offer no 1-on-1, and the admin counts them.
   - A received proposal is A18's eighth notification.
-  - A per-platform switch is on the admin's 1-on-1 page.
+  - The brake is the database's (`can_see_solo` reads it), with "End every 1-on-1 plan" as
+    a separate admin action; the per-platform switch is cosmetic, for App Review (decisions,
+    "M3.4: the brake and ending every plan").
   - Built on staging and flagged for the independent review (`docs/m3.4-review-brief.md`).
 
 **Acceptance**
@@ -915,7 +917,7 @@ Everything below is a gate. Items that only applied to the WhatsApp Test 0 are g
 |------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | Reveal does not convene — crews don't form without a host              | The hinge; every reveal-only precedent died on it                                                     | The room and small groups (28 Sept; "Put me in a crew" retired); team members pin in as ordinary members; crew conversion measured; the stop rule in §7                                                                                 |
 | The photo step kills the funnel                                        | Q2's own warning; no IG escape hatch now                                                              | Photo at opt-in, not pin; step conversion measured from the first crowd; the AI check's false positives watched                                                                            |
-| Solo mode reframes Pin'd as a dating app — in threads or at App Review | The assessment's clearest lesson about 1:1                                                            | Opt-in and invisible until then; nothing in listings; a per-platform kill switch; the pre-registered rule                                                                                  |
+| Solo mode reframes Pin'd as a dating app — in threads or at App Review | The assessment's clearest lesson about 1:1                                                            | Opt-in and invisible until then; nothing in listings; a per-platform switch (cosmetic, for App Review) and the database's brake (14 Oct 2026); the pre-registered rule                                                                                  |
 | A safety incident with nobody present                                  | One badly handled incident ends the brand                                                             | Public spots, 19+, women-only, immediate hide on solo reports, the rota, the scripts; crews meet before events, not after last call                                                        |
 | A visibility leak written by an agent                                  | Strangers' faces and plans                                                                            | Harness on every migration; the adversarial review before real people; solo and review-only cases added                                                                                    |
 | Apple: Beta App Review or App Review rejections                        | Calendar, and the dating framing                                                                      | The web build is the complete product; review-only gathering; notes prepared; solo switchable                                                                                              |

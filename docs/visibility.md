@@ -859,12 +859,20 @@ Migrations `m3_4_solo_proposals_and_plan`, `m3_4_solo_two_seats`,
 | The recipient | read an open proposal to them while they can still see its sender in 1-on-1; accept or decline | see one across a block, from someone now out of 1-on-1, or after the start |
 | Anyone else | — | read any proposal, the plan, its members or its thread |
 | The two in a plan | read the plan, each other and the thread (the group rules, V21/V23), "I'm here", A16 | add a third seat (refused by the database, even with the service key); edit the spot or time |
-| The admin | `admin_solo_metrics` (counts only), `admin_gatherings_without_spots`, `admin_set_app_switch` (logged) | — |
+| The admin | `admin_solo_metrics` (counts only), `admin_gatherings_without_spots`; the brake, `admin_set_solo_brake`, and ending every plan, `admin_end_all_solo_plans` (both logged); `admin_set_app_switch` (logged, cosmetic) | — |
+| Anyone, while the brake is pulled | read that 1-on-1 is off (`solo_available`); the two in a plan keep it, its thread and "I'm here" | see anyone in 1-on-1; propose; accept; see a received proposal (the sender's still reads "Sent") |
 
 **A plan ends** when either leaves (the other is told "Your 1-on-1 for X is off", with no
 reason), or at H9's threshold — H9 hides either person, the plan, or a message in its
 thread — with both told, the hidden one included. Below H9 a report takes the reported
 person out of 1-on-1 and leaves an accepted plan standing.
+
+**The brake** (Alex, 14 Oct 2026, decisions "M3.4: the brake and ending every plan") is
+the database's: `can_see_solo` reads it first, so pulled, it answers no for every pair and
+everything that goes through the rule is refused. Plans stand; ending them is its own
+admin action. An unsent #8 is dropped, never held for the lift. The per-platform switch
+(`app_switches`) is cosmetic: it hides the app's screens on one platform, for App Review,
+and is not a safety control.
 
 **Proved by:** P216 (only a venue spot, a time on offer — the app's list and the
 database's window agree at both ends — and a line; no table access); P217 (3 open; once
@@ -875,7 +883,9 @@ report, meeting off — each closes only the proposals it touches); P221 (leavin
 both sides of the threshold); P222 (no spots: refused, and counted); P223 (expiry at the
 start; live; one day-of push naming both plans); P224 (done only after a late meet; A16
 lists each person once, with ticks on every shared plan); P225 (the admin's numbers and
-switch; the export after the start).
+switch; the export after the start); P226 (the brake both ways); P227 (a #8 under the brake
+is dropped, never held); P228 (plans stand under the brake; ending every plan is the
+admin's, tells both, and is logged).
 
 ## 13 · Spot poll
 

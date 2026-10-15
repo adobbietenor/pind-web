@@ -3020,6 +3020,7 @@ export type Database = {
         Args: { p_actor: string; p_note?: string; p_person: string }
         Returns: undefined
       }
+      admin_end_all_solo_plans: { Args: { p_actor: string }; Returns: number }
       admin_forget_device: { Args: { p_token: string }; Returns: undefined }
       admin_gatherings_without_spots: {
         Args: never
@@ -3261,6 +3262,10 @@ export type Database = {
         Args: { p_actor: string; p_gathering: string; p_slug: string }
         Returns: string
       }
+      admin_set_solo_brake: {
+        Args: { p_actor: string; p_pulled: boolean }
+        Returns: number
+      }
       admin_set_tester: {
         Args: {
           p_actor: string
@@ -3273,6 +3278,14 @@ export type Database = {
       admin_settle_series: {
         Args: { p_actor: string; p_note?: string; p_series: string }
         Returns: undefined
+      }
+      admin_solo_brake: {
+        Args: never
+        Returns: {
+          changed_at: string
+          pulled: boolean
+          pulled_at: string
+        }[]
       }
       admin_solo_metrics: {
         Args: { p_from?: string; p_to?: string }
@@ -3529,6 +3542,7 @@ export type Database = {
       room_seen: { Args: { p_room: string }; Returns: undefined }
       set_women_only_rooms: { Args: { p_on: boolean }; Returns: undefined }
       showed_up: { Args: { p_person: string }; Returns: boolean }
+      solo_available: { Args: never; Returns: boolean }
       solo_people: {
         Args: { p_gathering: string }
         Returns: {

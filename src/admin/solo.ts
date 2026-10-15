@@ -1,5 +1,10 @@
-// 1-on-1 in the admin (M3.4, A28/A29): where it is offered, its numbers, and the switch
-// per platform.
+// 1-on-1 in the admin (M3.4, A28/A29): the brake, ending every plan, where it is offered,
+// its numbers, and the switch per platform.
+//
+// **The brake is the safety control; the platform switch is cosmetic** (Alex, 14 Oct
+// 2026). The brake is held by the database (can_see_solo reads it), so pulling it empties
+// every 1-on-1 list for every client. Plans stand: ending them is its own button, "for
+// 'something happened'", as Return to 1-on-1 is its own decision. Both are logged.
 //
 // **Counted, not silent** (Alex, 14 Oct 2026): a gathering whose venue has no active
 // meeting spots offers no 1-on-1, and nothing on the gathering says so. If many do, 1-on-1
@@ -7,7 +12,7 @@
 // instead of preference (decisions, "M3.4: the 1-on-1 lifecycle"). So the count stands on
 // Venues, beside the missing maps, and on this page above the numbers it qualifies.
 import type { AdminHandler } from "./context";
-import { adminPage, back, e, must, str } from "./ui";
+import { adminPage, back, e, must, postButton, str } from "./ui";
 
 export type Spotless = { gathering_id: string; name: string; slug: string | null; starts_at: string; venue_id: string | null; venue_name: string | null };
 
@@ -44,22 +49,36 @@ const COLUMNS: [string, string][] = [
 
 // GET /admin/solo
 export const soloPage: AdminHandler = async (request, ctx) => {
-  const [switches, spotless, metrics] = await Promise.all([
+  const [brake, switches, spotless, metrics] = await Promise.all([
+    must(ctx.db.rpc("admin_solo_brake")),
     must(ctx.db.from("app_switches").select("name, ios, web, updated_at").eq("name", "solo")),
     must(ctx.db.rpc("admin_gatherings_without_spots")),
     must(ctx.db.rpc("admin_solo_metrics", {})),
   ]);
   const sw = (switches as any[])[0] ?? { ios: true, web: true, updated_at: null };
+  const b = (brake as any[])[0] ?? { pulled: false, pulled_at: null };
+  const when = (t: string | null) => (t ? new Date(t).toLocaleString("en-CA", { timeZone: "America/Toronto", dateStyle: "medium", timeStyle: "short" }) : "");
   const rows = (metrics as any[])
     .map(
       (m) => `<tr><td>${e(m.name)}<br><span class="muted">${e(new Date(m.starts_at).toLocaleString("en-CA", { timeZone: "America/Toronto", dateStyle: "medium", timeStyle: "short" }))}</span></td>
 <td>${m.has_spots ? "" : `<span class="bad">no spots</span>`}</td>${COLUMNS.map(([k]) => `<td>${e(String(m[k] ?? 0))}</td>`).join("")}</tr>`,
     )
     .join("");
-  const body = `<h2>Where it is offered</h2>
+  const body = `<h2>The brake</h2>
+${b.pulled
+    ? `<p class="bad">Pulled since ${e(when(b.pulled_at))}. Nobody sees anyone in 1-on-1, and nobody can propose or accept. Plans already made stand.</p>`
+    : `<p class="good">1-on-1 is on.</p>`}
+<p class="muted">For "this looks wrong". Held by the database: pulled, every 1-on-1 list is empty for every client, proposals and accepts are refused, and a received proposal disappears until it lifts. Open proposals stay, so lifting it brings back those whose gathering has not started. A 1-on-1 proposal notification not yet sent is dropped, never sent later. Logged.</p>
+${b.pulled
+    ? postButton("/admin/solo/brake", "Lift the brake", "/admin/solo", { fields: { pulled: "off" }, confirm: "Lift the brake? 1-on-1 comes back everywhere." })
+    : postButton("/admin/solo/brake", "Pull the brake", "/admin/solo", { fields: { pulled: "on" }, cls: "danger", confirm: "Pull the 1-on-1 brake? Every 1-on-1 list empties at once, everywhere." })}
+<h2>End every 1-on-1 plan</h2>
+<p class="muted">For "something happened". Ends every set or live 1-on-1 plan, at every gathering, and tells both people in each "Your 1-on-1 for … is off", with no reason. Cannot be undone. Separate from the brake: neither does the other. Logged with the count.</p>
+${postButton("/admin/solo/end-all", "End every 1-on-1 plan", "/admin/solo", { cls: "danger", confirm: "End EVERY current 1-on-1 plan and tell both people in each? This cannot be undone." })}
+<h2>Where it is offered</h2>
 ${withoutSpotsPanel(spotless as Spotless[])}
-<h2>The switch, per platform</h2>
-<p class="muted">Turns the 1-on-1 switch and section off in the app on one platform — for example if App Review rejects it — while the other keeps it (decisions Part 5). It hides the screens; the database does not know which platform asks. Logged.</p>
+<h2>The switch, per platform (cosmetic)</h2>
+<p class="muted">Hides the 1-on-1 switch and section in the app on one platform, for App Review pulling it from iOS while the web keeps it (decisions). <strong>Not a safety control</strong>: the database does not know which platform asks, so it hides screens and nothing else. For safety, use the brake. Logged.</p>
 <form method="post" action="/admin/solo/switch"><input type="hidden" name="back" value="/admin/solo">
 <label><input type="checkbox" name="ios" value="on"${sw.ios ? " checked" : ""}> iOS app</label>
 <label><input type="checkbox" name="web" value="on"${sw.web ? " checked" : ""}> Web</label>
@@ -81,4 +100,22 @@ export const setSoloSwitch: AdminHandler = async (request, ctx) => {
     p_actor: ctx.email,
   });
   return back(form, error ? { err: error.message } : { ok: "1-on-1 switch saved" }, "/admin/solo");
+};
+
+// POST /admin/solo/brake
+export const setSoloBrake: AdminHandler = async (request, ctx) => {
+  const form = await request.formData();
+  const pulled = str(form, "pulled") === "on";
+  const { data, error } = await ctx.db.rpc("admin_set_solo_brake", { p_pulled: pulled, p_actor: ctx.email });
+  const dropped = Number(data ?? 0);
+  const ok = (pulled ? "Brake pulled: 1-on-1 is off everywhere" : "Brake lifted: 1-on-1 is back") + (dropped ? `; ${dropped} proposal notification${dropped === 1 ? "" : "s"} dropped` : "");
+  return back(form, error ? { err: error.message } : { ok }, "/admin/solo");
+};
+
+// POST /admin/solo/end-all
+export const endAllSoloPlans: AdminHandler = async (request, ctx) => {
+  const form = await request.formData();
+  const { data, error } = await ctx.db.rpc("admin_end_all_solo_plans", { p_actor: ctx.email });
+  const n = Number(data ?? 0);
+  return back(form, error ? { err: error.message } : { ok: `${n} 1-on-1 plan${n === 1 ? "" : "s"} ended; both people in each told` }, "/admin/solo");
 };

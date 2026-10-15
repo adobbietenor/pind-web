@@ -22,7 +22,8 @@ export interface SoloProposal {
 }
 
 export interface SoloView {
-  // Off on this platform (the admin's switch), or no meeting spots: no 1-on-1 here.
+  // The brake pulled (the database's, which also empties every list), off on this platform
+  // (the admin's cosmetic switch), or no meeting spots: no 1-on-1 here.
   offered: boolean;
   choice: SoloChoice | null;
   startsAt: string;
@@ -39,10 +40,11 @@ export interface SoloView {
 
 export async function loadSolo(gatheringId: string, meId: string): Promise<SoloView> {
   const db = supabase();
-  const [g, sw, choice] = await Promise.all([
+  const [g, sw, choice, available] = await Promise.all([
     db.from("gatherings").select("starts_at, ends_at, venue_id, venues(cities(timezone))").eq("id", gatheringId).maybeSingle(),
     db.from("app_switches").select("ios, web").eq("name", "solo").maybeSingle(),
     db.rpc("my_solo", { p_gathering: gatheringId }),
+    db.rpc("solo_available"),
   ]);
   if (g.error) throw g.error;
   if (!g.data) throw new Said("This gathering is not on Pin'd any more.");
@@ -52,7 +54,7 @@ export async function loadSolo(gatheringId: string, meId: string): Promise<SoloV
     ? await db.from("meeting_spots").select("id, name").eq("venue_id", g.data.venue_id).eq("active", true).order("name")
     : { data: [] as { id: string; name: string }[] };
   const base = {
-    offered: platformOn && (spots ?? []).length > 0,
+    offered: available.data !== false && platformOn && (spots ?? []).length > 0,
     choice: (choice.data as SoloChoice | null) ?? null,
     startsAt: g.data.starts_at,
     endsAt: g.data.ends_at,
