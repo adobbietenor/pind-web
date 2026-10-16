@@ -188,9 +188,17 @@ describe("Public data — V2, V11", () => {
     // The group tables opened in M3.3 behind their own rules (P149–P158): someone in no
     // group reads nothing from them, and nobody creates a group except through
     // start_squad (M3.7; start_group until then).
-    for (const t of ["crews", "crew_members", "crew_proposals", "crew_proposal_votes", "crew_messages", "crew_invites"]) {
+    for (const t of ["crews", "crew_proposals", "crew_proposal_votes", "crew_messages", "crew_invites"]) {
       assert.deepEqual(await rows(ava.from(t).select("*").limit(1)), [], `${t}: someone in no group read a row`);
     }
+    // crew_members' seen time is sealed (A19, L11's rule): a "*" read is refused outright, and
+    // every column a person may read still returns nothing to someone in no group.
+    await denied(ava.from("crew_members").select("*").limit(1), "42501");
+    assert.deepEqual(
+      await rows(ava.from("crew_members").select("id, crew_id, gathering_id, person_id, kind, seats, joined_at, left_at, arrived_at, arrival_note").limit(1)),
+      [],
+      "crew_members: someone in no group read a row",
+    );
     await denied(ava.from("crews").insert({ gathering_id: w.G }), "42501");
     await denied(ava.from("connections").insert({ person_a: id("Ava"), person_b: id("Ben") }), "42501");
   });
