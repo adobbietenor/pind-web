@@ -15,7 +15,7 @@
 // platform by the admin (decisions Part 5).
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 import {
   colors as palette,
   fonts,
@@ -31,6 +31,8 @@ import {
 import { Body, Button, Choice } from "@/components/ui";
 import { failed } from "@/lib/errors";
 import { answerSolo, loadSolo, proposeSolo, setSolo, soloClock, withdrawSolo, type SoloChoice, type SoloView } from "@/lib/solo";
+import { Tap } from "./Tap";
+import { Rise } from "./Motion";
 
 export interface SoloFace {
   id: string;
@@ -97,11 +99,11 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
         </>
       ) : view.plan ? (
         // The plan card.
-        <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: "/group/[id]", params: { id: view.plan!.crewId } })} style={({ pressed }) => [styles.plan, pressed && { opacity: 0.8 }]}>
+        <Tap feel="card" accessibilityRole="button" onPress={() => router.push({ pathname: "/group/[id]", params: { id: view.plan!.crewId } })} style={({ pressed }) => [styles.plan, pressed && { opacity: 0.8 }]}>
           <Text style={styles.planHeading}>{SOLO_COPY.planHeading(view.plan.partner)}</Text>
           {view.plan.spot && view.plan.meetAt ? <Body>{SOLO_COPY.planWhere(view.plan.spot, at(view.plan.meetAt))}</Body> : null}
           <Text style={styles.link}>{SOLO_COPY.openPlan}</Text>
-        </Pressable>
+        </Tap>
       ) : (
         <>
           {/* Proposals to you, to answer. */}
@@ -118,7 +120,7 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
                 </View>
                 <View style={{ flexDirection: "row", gap: spacing.sm }}>
                   <View style={{ flex: 1 }}>
-                    <Button label={SOLO_COPY.accept} busy={busy === p.id} onPress={() => void act(p.id, () => answerSolo(p.id, true))} />
+                    <Button label={SOLO_COPY.accept} haptic="action" busy={busy === p.id} onPress={() => void act(p.id, () => answerSolo(p.id, true))} />
                   </View>
                   <View style={{ flex: 1 }}>
                     <Button kind="quiet" label={SOLO_COPY.decline} onPress={() => void act(p.id, () => answerSolo(p.id, false))} />
@@ -133,12 +135,12 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
           {!open ? <Body muted>{SOLO_COPY.closedAtStart}</Body> : null}
           {open && view.people.length === 0 && view.received.length === 0 ? <Body muted>{SOLO_COPY.nobodyYet}</Body> : null}
           {open
-            ? view.people.map((id) => {
+            ? view.people.map((id, i) => {
                 const f = faceOf(id);
                 if (!f) return null;
                 const sent = sentTo.get(id);
                 return (
-                  <View key={id} style={styles.personRow}>
+                  <Rise key={id} index={i} style={styles.personRow}>
                     <View style={styles.row}>
                       <Face face={f} name={f.firstName} />
                       <View style={{ flex: 1 }}>
@@ -161,7 +163,7 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
                         onPress={() => { setSaid(null); setProposing(f); }}
                       />
                     )}
-                  </View>
+                  </Rise>
                 );
               })
             : null}
@@ -271,14 +273,14 @@ function ProposalSheet({
                 {lines.map((l) => {
                   const on = l.n === line;
                   return (
-                    <Pressable key={l.n} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => setLine(l.n)} style={[styles.lineChoice, on && styles.lineOn]}>
+                    <Tap key={l.n} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => setLine(l.n)} style={[styles.lineChoice, on && styles.lineOn]}>
                       <Text style={styles.lineText}>{l.text(spotName, at(time))}</Text>
-                    </Pressable>
+                    </Tap>
                   );
                 })}
               </>
             ) : null}
-            <Button label={SOLO_COPY.sheetSend} disabled={!spot || !time || !line} busy={busy} onPress={() => onSend(spot!, time!, line!)} />
+            <Button label={SOLO_COPY.sheetSend} haptic="action" disabled={!spot || !time || !line} busy={busy} onPress={() => onSend(spot!, time!, line!)} />
             {refusal ? <Text accessibilityRole="alert" style={styles.refusal}>{refusal}</Text> : null}
             <Button kind="quiet" label="Cancel" onPress={onClose} />
           </ScrollView>
@@ -294,9 +296,9 @@ function Chips({ options, value, onChange }: { options: { key: string; name: str
       {options.map((o) => {
         const on = o.key === value;
         return (
-          <Pressable key={o.key} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => onChange(o.key)} style={[styles.chip, on && styles.chipOn]}>
+          <Tap key={o.key} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => onChange(o.key)} style={[styles.chip, on && styles.chipOn]}>
             <Text style={[styles.chipLabel, on && { color: palette.onAccent }]}>{o.name}</Text>
-          </Pressable>
+          </Tap>
         );
       })}
     </View>

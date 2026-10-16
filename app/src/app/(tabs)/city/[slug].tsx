@@ -15,7 +15,7 @@
 //     The rules are packages/shared/src/search.ts (Y02–Y05).
 import { Tabs, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Linking, StyleSheet, Text, TextInput, View } from "react-native";
 import {
   categoryLabel,
   CHIP_ALL,
@@ -51,6 +51,8 @@ import { failed, type Described } from "@/lib/errors";
 import { loadCityWeek, myPinnedSlugs, searchCity, viewOf, type CityWeek, type ListGathering } from "@/lib/crowds";
 import { readInterests, saveInterests } from "@/lib/interests";
 import { report } from "@/lib/sentry";
+import { Tap } from "@/components/Tap";
+import { Rise } from "@/components/Motion";
 
 type Found = { q: string; count: number; days: DayGroup<ListGathering>[] };
 
@@ -203,9 +205,9 @@ export default function CityList() {
           autoCorrect={false}
           style={styles.searchInput}
         />
-        <Pressable accessibilityRole="button" onPress={() => runSearch(typed)} style={styles.searchButton}>
+        <Tap feel="button" accessibilityRole="button" onPress={() => runSearch(typed)} style={styles.searchButton}>
           {searching ? <ActivityIndicator color={palette.onAccent} /> : <Text style={styles.searchButtonText}>{SEARCH_COPY.label}</Text>}
-        </Pressable>
+        </Tap>
       </View>
       {searchTrouble ? <Trouble what={searchTrouble} onRetry={() => runSearch(typed)} /> : null}
 
@@ -226,7 +228,7 @@ export default function CityList() {
             {TABS.map((t) => {
               const on = t.value === tab;
               return (
-                <Pressable
+                <Tap
                   key={t.value}
                   accessibilityRole="tab"
                   aria-selected={on}
@@ -238,7 +240,7 @@ export default function CityList() {
                   style={[styles.segment, on && styles.segmentOn]}
                 >
                   <Text style={[styles.segmentText, on && styles.segmentTextOn]}>{t.label}</Text>
-                </Pressable>
+                </Tap>
               );
             })}
           </View>
@@ -248,15 +250,15 @@ export default function CityList() {
               {/* "Everything" first: the visible way back from a filter — W1's own first
                   pill, the same word from the same constant. For someone with remembered
                   interests it is also the one-tap clear. */}
-              <Pressable accessibilityRole="checkbox" aria-checked={chips.length === 0} onPress={() => choose([])} style={[styles.pill, chips.length === 0 && styles.pillOn]}>
+              <Tap accessibilityRole="checkbox" aria-checked={chips.length === 0} onPress={() => choose([])} style={[styles.pill, chips.length === 0 && styles.pillOn]}>
                 <Text style={[styles.pillText, chips.length === 0 && styles.pillTextOn]}>{CHIP_ALL}</Text>
-              </Pressable>
+              </Tap>
               {view.offered.map((c) => {
                 const on = chips.includes(c.value);
                 return (
-                  <Pressable key={c.value} accessibilityRole="checkbox" aria-checked={on} onPress={() => toggle(c.value)} style={[styles.pill, on && styles.pillOn]}>
+                  <Tap key={c.value} accessibilityRole="checkbox" aria-checked={on} onPress={() => toggle(c.value)} style={[styles.pill, on && styles.pillOn]}>
                     <Text style={[styles.pillText, on && styles.pillTextOn]}>{c.label}</Text>
-                  </Pressable>
+                  </Tap>
                 );
               })}
             </View>
@@ -337,8 +339,10 @@ function Days({ days, mine, onOpen }: { days: DayGroup<ListGathering>[]; mine: S
             {d.label}
             {d.sub ? <Text style={styles.daySub}>{`  ${d.sub}`}</Text> : null}
           </Text>
-          {d.rows.map((g) => (
-            <Card key={g.slug} g={g} going={mine.has(g.slug)} onPress={() => onOpen(g.slug)} />
+          {d.rows.map((g, i) => (
+            <Rise key={g.slug} index={i}>
+              <Card g={g} going={mine.has(g.slug)} onPress={() => onOpen(g.slug)} />
+            </Rise>
           ))}
         </View>
       ))}
@@ -351,7 +355,7 @@ function Card({ g, going, onPress }: { g: ListGathering; going: boolean; onPress
   // plain ticketed listing (which would be a tag on every row and say nothing).
   const free = g.entry === "ticketed" && !g.entry_note ? null : entryLine(g);
   return (
-    <Pressable accessibilityRole="link" onPress={onPress} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
+    <Tap feel="card" accessibilityRole="link" onPress={onPress} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
       <Text style={styles.when}>{clockLocal(g.starts_at, g.city_timezone)}</Text>
       <Text style={styles.name}>{g.name}</Text>
       <View style={styles.tags}>
@@ -363,7 +367,7 @@ function Card({ g, going, onPress }: { g: ListGathering; going: boolean; onPress
       <Text style={styles.where}>{g.venue_name}</Text>
       {g.blurb ? <Text style={styles.what}>{g.blurb}</Text> : null}
       <Text style={styles.tally}>{crowdLine(g)}</Text>
-    </Pressable>
+    </Tap>
   );
 }
 

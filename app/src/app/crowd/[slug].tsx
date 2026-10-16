@@ -19,7 +19,7 @@
 // so a tester reaches the seed gathering and nobody else does.
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Image, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Linking, Platform, StyleSheet, Text, View } from "react-native";
 import {
   ALL_TAGS,
   colors as palette,
@@ -48,6 +48,7 @@ import { myRooms, type RoomSummary } from "@/lib/room";
 import { joinGeneralRoom, waitingForWomenOnlyRoom } from "@/lib/after";
 import { whoAmI } from "@/lib/session";
 import { supabase } from "@/lib/supabase";
+import { Tap } from "@/components/Tap";
 
 // W2's facts, as W2's own functions decide them (the Worker's /g/<slug>/facts.json):
 // the map, its numbered markers, the spots, the cost line. One copy of each rule.
@@ -391,7 +392,7 @@ export default function CrowdPage() {
             <Body muted>{CROWD_COPY.listEmpty}</Body>
           ) : (
             view.faces.map((f) => (
-              <Pressable
+              <Tap
                 key={f.id}
                 accessibilityRole="button"
                 onPress={() => router.push(`/person/${f.id}`)}
@@ -412,7 +413,7 @@ export default function CrowdPage() {
                   {hoodName(f.neighbourhood) ? <Text style={styles.hood}>{hoodName(f.neighbourhood)}</Text> : null}
                   {f.tags.length ? <Text style={styles.tags}>{f.tags.map(tagName).join(" · ")}</Text> : null}
                 </View>
-              </Pressable>
+              </Tap>
             ))
           )}
           {!ended ? (

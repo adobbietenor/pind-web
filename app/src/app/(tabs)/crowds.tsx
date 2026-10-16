@@ -11,11 +11,13 @@
 // your profile" uses.
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { CITIES, cityOpens, colors as palette, fonts, HOME_COPY, radius, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Body, Button, Heading } from "@/components/ui";
 import { readProfile } from "@/lib/profile";
+import { Tap } from "@/components/Tap";
+import { Rise } from "@/components/Motion";
 
 export default function Home() {
   const router = useRouter();
@@ -43,11 +45,12 @@ export default function Home() {
       <Body muted>{HOME_COPY.line}</Body>
 
       <View style={styles.cities}>
-        {CITIES.map((c) => {
+        {CITIES.map((c, i) => {
           const opens = cityOpens(c.slug);
           return (
-            <Pressable
-              key={c.slug}
+            <Rise key={c.slug} index={i}>
+            <Tap
+              feel="card"
               accessibilityRole="button"
               accessibilityState={{ disabled: !opens }}
               accessibilityLabel={opens ? c.name : `${c.name}, ${HOME_COPY.comingSoon}`}
@@ -57,7 +60,8 @@ export default function Home() {
             >
               <Text style={[styles.cityName, !opens && styles.cityNameOff]}>{c.name}</Text>
               {opens ? <Text style={styles.chevron}>›</Text> : <Text style={styles.soon}>{HOME_COPY.comingSoon}</Text>}
-            </Pressable>
+            </Tap>
+            </Rise>
           );
         })}
       </View>

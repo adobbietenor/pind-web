@@ -25,11 +25,12 @@
 // here: `person_handles` simply returns nothing to someone it is not for.
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, radius, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Body, Heading } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
+import { Tap } from "@/components/Tap";
 
 const tagName = (slug: string) => ALL_TAGS.find((t) => t.slug === slug)?.name ?? slug;
 const groupOf = (slug: string) => ALL_TAGS.find((t) => t.slug === slug)?.group ?? "";
@@ -179,14 +180,14 @@ export default function Person() {
             this target as its one exception and fails the day A24's route exists —
             which is when A24_EXISTS flips and the ⋯ comes back. */}
         {A24_EXISTS ? (
-          <Pressable
+          <Tap
             accessibilityRole="button"
             accessibilityLabel="More"
             onPress={() => router.push(`/person/${id}/report`)}
             style={styles.more}
           >
             <Text style={styles.moreLabel}>⋯</Text>
-          </Pressable>
+          </Tap>
         ) : null}
       </AppScreen>
   );

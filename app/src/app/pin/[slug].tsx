@@ -14,6 +14,8 @@
 import { router, useLocalSearchParams } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Linking, Platform, View } from "react-native";
+import { Pop } from "@/components/Motion";
+import { haptic } from "@/lib/motion";
 import {
   colors as palette,
   PARTY_CHOICES,
@@ -183,6 +185,9 @@ export default function QuickPin() {
       const userId = who.state === "in" ? who.userId : who.state === "out" ? await ensureAnonymousUser() : await myAuthId();
       const written = await writeQuickPin(supabase() as unknown as QuickPinDb, userId, gathering.id, read.value);
       markPinned(gathering.slug, true);
+      // Pinning is the core act: a new pin is felt the moment it lands (an edit, or one
+      // that was already there, is not a new pin).
+      if (!pinId && !written.already) haptic("success");
       // One tap for someone who may meet: straight to the room on the crowd page.
       if (returning && meetUp && !written.needsOptIn && !written.already) {
         router.replace(`/crowd/${gathering.slug}`);
@@ -244,7 +249,10 @@ export default function QuickPin() {
   if (stage === "done" && result && gathering) {
     return (
       <AppScreen>
-        <Heading>{result.already ? QUICKPIN_COPY.alreadyPinned : QUICKPIN_COPY.pinned}</Heading>
+        {/* The pin's moment: "You're pinned" lands with a small spring. */}
+        <Pop>
+          <Heading>{result.already ? QUICKPIN_COPY.alreadyPinned : QUICKPIN_COPY.pinned}</Heading>
+        </Pop>
         <Body muted>{where}</Body>
         {result.pinned !== undefined ? (
           <View style={{ marginTop: spacing.lg, gap: spacing.xs }}>

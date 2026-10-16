@@ -21,7 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { colors as palette, fonts, NEIGHBOURHOODS, openersFor, radius, ROOM_COPY, spacing, SQUAD_COPY, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
@@ -35,6 +35,8 @@ import { failed, rateRefusal, type Described } from "@/lib/errors";
 import { deleteRoomMessage, loadRoomShell, markSeen, reportFromMessage, sendRoomMessage, sharedTag, tagName, type Member } from "@/lib/room";
 import { faceSource } from "@/lib/signed-photos";
 import { useThread } from "@/lib/thread";
+import { Tap } from "@/components/Tap";
+import { Rise } from "@/components/Motion";
 
 const hoodName = (slug: string | null) => NEIGHBOURHOODS.find((n) => n.slug === slug)?.name ?? null;
 // "Enough to go together" appears once per room (build plan §8 M3.3): marked seen on this
@@ -206,17 +208,19 @@ export default function Room() {
 
       {/* The arrivals: who is here, with what you share. At 5 in the room, you included, a strip. */}
       {count <= 4 ? (
-        people.map((p) => {
+        people.map((p, i) => {
           const shared = sharedTag(view.me.tags, p.tags);
           return (
-            <Pressable key={p.personId} onPress={() => router.push(`/person/${p.personId}`)} style={styles.arrival}>
+            <Rise key={p.personId} index={i}>
+            <Tap feel="card" onPress={() => router.push(`/person/${p.personId}`)} style={styles.arrival}>
               <Face member={p} style={styles.face} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{`${p.firstName} ${ROOM_COPY.arrived}`}</Text>
                 <Text style={styles.meta}>{[hoodName(p.neighbourhood), ...p.tags.map(tagName)].filter(Boolean).join(" · ")}</Text>
                 {shared ? <Text style={styles.shared}>{ROOM_COPY.sharedTag(shared)}</Text> : null}
               </View>
-            </Pressable>
+            </Tap>
+            </Rise>
           );
         })
       ) : (
@@ -304,9 +308,9 @@ export default function Room() {
       {!closed && !posted && thread.messages ? (
         <View style={{ gap: spacing.xs, marginTop: spacing.lg }}>
           {openers.map((o) => (
-            <Pressable key={o} accessibilityRole="button" onPress={() => setDraft(o)} style={styles.opener}>
+            <Tap key={o} accessibilityRole="button" haptic="select" onPress={() => setDraft(o)} style={styles.opener}>
               <Text style={styles.openerText}>{o}</Text>
-            </Pressable>
+            </Tap>
           ))}
         </View>
       ) : null}

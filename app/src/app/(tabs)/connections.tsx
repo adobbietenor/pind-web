@@ -15,6 +15,7 @@ import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice } from "@/components/ui";
 import { invite, inviteOptions, isFiveADay, myConnections, type Connection, type InviteOption } from "@/lib/after";
 import { failed, type Described } from "@/lib/errors";
+import { Rise } from "@/components/Motion";
 
 const day = (iso: string) => new Intl.DateTimeFormat("en-CA", { weekday: "short", month: "short", day: "numeric" }).format(new Date(iso));
 
@@ -73,8 +74,8 @@ export default function Connections() {
       ) : list.length === 0 ? (
         <Notice>{CONNECTIONS_COPY.empty}</Notice>
       ) : (
-        list.map((c) => (
-          <View key={c.personId} style={styles.card}>
+        list.map((c, i) => (
+          <Rise key={c.personId} index={i} style={styles.card}>
             <View style={styles.row}>
               {c.photoUrl ? <Image source={{ uri: c.photoUrl }} style={styles.face} /> : <View style={[styles.face, styles.faceEmpty]} />}
               <View style={{ flex: 1 }}>
@@ -109,7 +110,7 @@ export default function Connections() {
             ) : null}
             {said?.personId === c.personId ? <Notice>{said.line}</Notice> : null}
             {refused?.personId === c.personId ? <Trouble what={refused.what} /> : null}
-          </View>
+          </Rise>
         ))
       )}
     </AppScreen>

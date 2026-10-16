@@ -14,12 +14,14 @@
 // part of a refusal").
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, Modal, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { colors as palette, fonts, radius, spacing, SQUAD_COPY, SQUAD_NAME_MAX, squadNameProblem, squadSeatsLabel, squadTimes } from "@pind/shared";
 import { Body, Button } from "@/components/ui";
 import { failed } from "@/lib/errors";
 import { soloClock } from "@/lib/solo";
 import { joinSquad, loadSquads, renameSquad, startSquad, type SquadCard, type SquadsView } from "@/lib/squads";
+import { Tap } from "./Tap";
+import { Rise } from "./Motion";
 
 export interface SquadFace {
   id: string;
@@ -108,9 +110,9 @@ export function SquadSection({ gatheringId, meId, faces, ended }: { gatheringId:
         ) : null}
         {mine.meetAt ? <Body>{SQUAD_COPY.meets(mine.spot ?? SQUAD_COPY.atTheGathering.toLowerCase(), at(mine.meetAt))}</Body> : null}
         {mine.womenOnly ? <Text style={styles.tag}>{SQUAD_COPY.womenOnly}</Text> : null}
-        <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: "/group/[id]", params: { id: mine.crewId } })}>
+        <Tap accessibilityRole="button" onPress={() => router.push({ pathname: "/group/[id]", params: { id: mine.crewId } })}>
           <Text style={styles.link}>{mine.legacy ? "Open your group" : "Open your squad"}</Text>
-        </Pressable>
+        </Tap>
       </View>
     );
   }
@@ -122,8 +124,10 @@ export function SquadSection({ gatheringId, meId, faces, ended }: { gatheringId:
       <Text style={styles.heading}>{SQUAD_COPY.sectionHeading}</Text>
       <Body muted>{SQUAD_COPY.sectionHint}</Body>
       {view.squads.length === 0 ? <Body muted>{SQUAD_COPY.none}</Body> : null}
-      {view.squads.map((s) => (
-        <Squad key={s.crewId} squad={s} faces={faces} time={at(s.meetAt)} busy={busy === s.crewId} onJoin={() => void act(s.crewId, () => joinSquad(s.crewId))} refusal={saidAt(s.crewId)} />
+      {view.squads.map((s, i) => (
+        <Rise key={s.crewId} index={i}>
+        <Squad squad={s} faces={faces} time={at(s.meetAt)} busy={busy === s.crewId} onJoin={() => void act(s.crewId, () => joinSquad(s.crewId))} refusal={saidAt(s.crewId)} />
+        </Rise>
       ))}
       <Button kind="quiet" label={SQUAD_COPY.start} onPress={() => { setSaid(null); setSheet(true); }} />
       {sheet ? (
@@ -164,7 +168,7 @@ function Squad({ squad, faces, time, busy, onJoin, refusal }: { squad: SquadCard
         {shown.length ? <Text style={styles.meta}>{shown.map((f) => f.firstName).slice(0, 3).join(", ")}</Text> : null}
         {squad.womenOnly ? <Text style={styles.tag}>{SQUAD_COPY.womenOnly}</Text> : null}
       </View>
-      {!squad.full ? <Button label={SQUAD_COPY.join} busy={busy} onPress={onJoin} /> : null}
+      {!squad.full ? <Button label={SQUAD_COPY.join} haptic="action" busy={busy} onPress={onJoin} /> : null}
       {refusal}
     </View>
   );
@@ -256,9 +260,9 @@ function Chips({ options, value, onChange }: { options: { key: string; name: str
       {options.map((o) => {
         const on = o.key === value;
         return (
-          <Pressable key={o.key} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => onChange(o.key)} style={[styles.chip, on && styles.chipOn]}>
+          <Tap key={o.key} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => onChange(o.key)} style={[styles.chip, on && styles.chipOn]}>
             <Text style={[styles.chipLabel, on && { color: palette.onAccent }]}>{o.name}</Text>
-          </Pressable>
+          </Tap>
         );
       })}
     </View>

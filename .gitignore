@@ -22,3 +22,6 @@ app/dist/
 tests/photos/*
 !tests/photos/labels.json
 !tests/photos/README.md
+
+# EAS run from the repo root writes an empty eas.json here; the real one is app/eas.json.
+/eas.json

@@ -1,17 +1,11 @@
 // The small set of controls the onboarding screens are built from (A1–A3).
 // Dark always (decisions Part 5), tokens from `@pind/shared`, never retyped.
 import type { ReactNode } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-  type TextInputProps,
-} from "react-native";
+import { ActivityIndicator, StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
 import { colors as palette, radius, spacing } from "@pind/shared";
 import { headlineFamily } from "@/lib/typeface";
+import type { HapticKind } from "@/lib/motion";
+import { Tap } from "./Tap";
 
 export function Heading({ children }: { children: ReactNode }) {
   return (
@@ -26,23 +20,28 @@ export function Body({ children, muted }: { children: ReactNode; muted?: boolean
 }
 
 // The one thing on a screen that commits you. Purple is spent here and nowhere else
-// on the screen (spec A7's rule, applied to a form).
+// on the screen (spec A7's rule, applied to a form). It brightens under a pointer on the
+// web, and a primary act (pin, send, join, propose, accept) asks for its haptic here.
 export function Button({
   label,
   onPress,
   busy,
   disabled,
   kind = "primary",
+  haptic,
 }: {
   label: string;
   onPress: () => void;
   busy?: boolean;
   disabled?: boolean;
   kind?: "primary" | "quiet";
+  haptic?: HapticKind;
 }) {
   const off = disabled || busy;
   return (
-    <Pressable
+    <Tap
+      feel="button"
+      haptic={haptic ?? null}
       accessibilityRole="button"
       accessibilityState={{ disabled: !!off, busy: !!busy }}
       onPress={onPress}
@@ -59,7 +58,7 @@ export function Button({
       ) : (
         <Text style={[styles.buttonLabel, kind === "quiet" && { color: palette.text }]}>{label}</Text>
       )}
-    </Pressable>
+    </Tap>
   );
 }
 
@@ -110,7 +109,7 @@ export function Choice<T extends string>({
         {options.map((o) => {
           const on = o.value === value;
           return (
-            <Pressable
+            <Tap
               key={o.value}
               accessibilityRole="radio"
               accessibilityState={{ selected: on }}
@@ -118,7 +117,7 @@ export function Choice<T extends string>({
               style={[styles.chip, on && styles.chipOn]}
             >
               <Text style={[styles.chipLabel, on && { color: palette.onAccent }]}>{o.name}</Text>
-            </Pressable>
+            </Tap>
           );
         })}
       </View>
@@ -145,7 +144,7 @@ export function Tick({
 }) {
   return (
     <View style={{ marginBottom: spacing.md }}>
-      <Pressable
+      <Tap
         accessibilityRole="checkbox"
         accessibilityState={{ checked: value }}
         onPress={() => onChange(!value)}
@@ -156,7 +155,7 @@ export function Tick({
           <Text style={styles.body}>{label}</Text>
           {hint ? <Text style={styles.hint}>{hint}</Text> : null}
         </View>
-      </Pressable>
+      </Tap>
       {error ? <Text style={styles.tickError}>{error}</Text> : null}
     </View>
   );

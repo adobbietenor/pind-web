@@ -16,6 +16,7 @@
 import { useLayoutEffect, useRef } from "react";
 import { Platform, StyleSheet, Text, TextInput, View, type NativeSyntheticEvent, type TextInputKeyPressEventData } from "react-native";
 import { colors as palette, radius, spacing, THREAD_COPY } from "@pind/shared";
+import { haptic } from "@/lib/motion";
 import { useScrollToEnd } from "./AppScreen";
 import { Button } from "./ui";
 
@@ -46,9 +47,11 @@ export function Composer({
   const box = useRef<TextInput>(null);
   const can = ready && !!value.trim();
 
+  // The Send button and the keyboard's Send key both come here: one haptic, either way.
   const submit = () => {
     if (!can) return;
     onSend();
+    haptic("action");
     toEnd();
   };
 

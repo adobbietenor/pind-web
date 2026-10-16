@@ -808,6 +808,12 @@ of decisions.md against the plan). Each points at its decisions.md entry by name
   and not in its section (decisions, "A search bar").
 - **M3.6's dogfood includes at least one web-only person** (decisions, "A steer on
   emphasis: the app is the product, the web is the on-ramp") — not in M3.6's section.
+- **My Events as each event's home — a candidate for before the first crowds** (Alex,
+  16 Oct 2026; decisions, "My Events as each event's home"). Each event in My Events opens
+  a WhatsApp-style home: the main room at the top (working name **"Everyone going"**),
+  then the squads I've joined, then the squads open to me that I haven't joined. Why
+  before the first crowds: getting back to your squad on the night is 3–4 taps deep today.
+  Recorded, not built.
 - *(The anonymous sign-in abuse revisit is now its own line on the checklist below.)*
 
 **Filed for a milestone that never picked it up:**

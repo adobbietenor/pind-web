@@ -18,7 +18,7 @@
 // from a tap near the bottom, so the eleventh tap looked like nothing at all. The
 // refusal was produced (T03 proved it) and never seen.
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import {
   ALL_TAGS,
   colors as palette,
@@ -34,6 +34,7 @@ import {
   type PickedTag,
 } from "@pind/shared";
 import { Body } from "./ui";
+import { Tap } from "./Tap";
 
 // The caps and their sentences live in `@pind/shared` so they can be tested under
 // bare node — a rule whose job is to refuse something is proved by a test that
@@ -72,7 +73,7 @@ export function TagPicker({
             {group.tags.map((t) => {
               const on = chosen.includes(t.slug);
               return (
-                <Pressable
+                <Tap
                   key={t.slug}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: on }}
@@ -80,7 +81,7 @@ export function TagPicker({
                   style={[styles.chip, on && styles.chipOn]}
                 >
                   <Text style={[styles.chipLabel, on && { color: palette.onAccent }]}>{t.name}</Text>
-                </Pressable>
+                </Tap>
               );
             })}
           </View>
@@ -100,7 +101,7 @@ export function TagPicker({
             {picked.map((p) => {
               const name = ALL_TAGS.find((t) => t.slug === p.slug)?.name ?? p.slug;
               return (
-                <Pressable
+                <Tap
                   key={p.slug}
                   accessibilityRole="checkbox"
                   accessibilityState={{ checked: p.onList }}
@@ -108,7 +109,7 @@ export function TagPicker({
                   style={[styles.chip, p.onList && styles.chipOn, !p.onList && { opacity: 0.55 }]}
                 >
                   <Text style={[styles.chipLabel, p.onList && { color: palette.onAccent }]}>{name}</Text>
-                </Pressable>
+                </Tap>
               );
             })}
           </View>

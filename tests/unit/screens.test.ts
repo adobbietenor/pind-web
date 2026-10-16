@@ -568,3 +568,55 @@ describe("Threads: a message costs a row, and the box rides the keyboard (the th
     assert.doesNotMatch(roomLib.slice(roomLib.indexOf("export async function loadRoomShell"), roomLib.indexOf("export function sharedTag")), /room_seen|markSeen/, "the shell marks seen on every refresh");
   });
 });
+
+describe("One way to press, and motion that respects the person (the 'feel alive' pass, 16 Oct 2026)", () => {
+  const SRC = join(process.cwd(), "app", "src");
+  const all = (function walk(dir: string): string[] {
+    return readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? walk(join(dir, n)) : /\.tsx?$/.test(n) ? [join(dir, n)] : []));
+  })(SRC).map((f) => ({ path: f.slice(SRC.length + 1).split("\\").join("/"), src: readFileSync(f, "utf8").replace(/^\s*\/\/.*$/gm, "") }));
+  const read = (p: string) => all.find((f) => f.path === p)?.src ?? "";
+
+  it("S45 nothing presses but Tap: no raw Pressable or Touchable* anywhere in the app — so every press springs, and none forgets its haptic", () => {
+    // A pressable from react-native, imported or used — named or as a JSX tag.
+    const raw = /\b(Pressable|TouchableOpacity|TouchableHighlight|TouchableWithoutFeedback|TouchableNativeFeedback)\b/;
+    assert.ok(raw.test('import { Pressable, View } from "react-native";') && raw.test("<TouchableOpacity onPress={x}>"), "S45 cannot see a raw pressable");
+    const offenders = all.filter((f) => f.path !== "components/Tap.tsx" && raw.test(f.src)).map((f) => f.path);
+    assert.deepEqual(offenders, [], "these draw their own pressable instead of Tap");
+    assert.match(read("components/Tap.tsx"), /Animated\.createAnimatedComponent\(Pressable\)/, "Tap is not the one place a Pressable lives");
+    assert.ok(all.filter((f) => /<Tap\b/.test(f.src)).length >= 10, "S45 found almost nothing using Tap — the swap did not happen");
+  });
+
+  it("S46 motion stays inside ~250 ms, and Reduce Motion makes it instant — in Tap, the entrances and the tab switch", () => {
+    const motion = read("lib/motion.ts");
+    const num = (name: string) => Number((motion.match(new RegExp(`export const ${name} = (\\d+)`)) ?? [])[1]);
+    for (const n of ["MOTION_MAX_MS", "RISE_MS", "STAGGER_MS", "STAGGER_MAX"]) assert.ok(Number.isFinite(num(n)), `S46 cannot read ${n}`);
+    assert.ok(num("MOTION_MAX_MS") <= 250, "the motion budget grew past 250 ms");
+    assert.ok(num("RISE_MS") <= num("MOTION_MAX_MS"), "an entrance is longer than the budget");
+    assert.ok(num("RISE_MS") + num("STAGGER_MS") * num("STAGGER_MAX") <= num("MOTION_MAX_MS") + 20, "a staggered list takes longer than ~250 ms to land");
+    const tabs = read("app/(tabs)/_layout.tsx");
+    const tabMs = Number((tabs.match(/duration: (\d+)/) ?? [])[1]);
+    assert.ok(tabMs > 0 && tabMs <= num("MOTION_MAX_MS"), "the tab crossfade is missing or too slow");
+    assert.match(tabs, /animation: reduce \? "none" : "fade"/, "the tab switch fades even under Reduce Motion");
+    assert.match(read("components/Tap.tsx"), /if \(reduce\) value\.setValue\(to\);/, "a press still animates under Reduce Motion");
+    assert.match(read("components/Motion.tsx"), /const still = reduce \|\| !animate;/, "an entrance still animates under Reduce Motion");
+    // Haptics are not motion: Reduce Motion must not silence them.
+    const fnAt = motion.indexOf("export function haptic");
+    const body = motion.slice(fnAt, motion.indexOf(String.fromCharCode(10) + "}", fnAt));
+    assert.ok(fnAt >= 0 && body.length > 50, "S46 cannot find haptic()");
+    assert.doesNotMatch(body, /reduce/i, "Reduce Motion switches haptics off");
+  });
+
+  it("S47 the haptic is where it was asked for: pin, send, join, propose, accept — and never on the web", () => {
+    const motion = read("lib/motion.ts");
+    assert.match(motion, /export function haptic\(kind: HapticKind\): void \{\s*if \(Platform\.OS === "web"\) return;/, "the web gets haptics");
+    assert.match(read("components/Composer.tsx"), /const submit = \(\) => \{\s*if \(!can\) return;\s*onSend\(\);\s*haptic\("action"\);/, "send has no haptic (or fires one for an empty box)");
+    assert.match(read("components/SquadSection.tsx"), /label=\{SQUAD_COPY\.join\} haptic="action"/, "join has no haptic");
+    assert.match(read("components/SoloSection.tsx"), /label=\{SOLO_COPY\.accept\} haptic="action"/, "accept has no haptic");
+    assert.match(read("components/SoloSection.tsx"), /label=\{SOLO_COPY\.sheetSend\} haptic="action"/, "propose has no haptic");
+    assert.match(read("app/pin/[slug].tsx"), /if \(!pinId && !written\.already\) haptic\("success"\);/, "a new pin is not felt as it lands");
+    // A selection, not an act: chips, radios, checkboxes and tabs tick by their role.
+    assert.match(read("components/Tap.tsx"), /const SELECTS = new Set\(\["radio", "checkbox", "tab", "switch", "togglebutton"\]\)/, "a chip's tap is no longer a selection tick");
+    // Nothing on a passive tap: a plain Button asks for none unless told.
+    assert.match(read("components/ui.tsx"), /haptic=\{haptic \?\? null\}/, "every Button buzzes, not only the primary acts");
+  });
+});

@@ -1,7 +1,8 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
-import { Pressable, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { MARK, WORDMARK } from "@pind/shared";
+import { Tap } from "./Tap";
 
 // **The mark at one end of the row and the wordmark at the other** — the same header
 // the public pages carry (`src/public/layout.ts`: "the mark at one end, the wordmark
@@ -28,7 +29,7 @@ import { MARK, WORDMARK } from "@pind/shared";
 // nothing to step back through and `dismissTo` does nothing, so it goes there instead.
 export function Brand() {
   return (
-    <Pressable
+    <Tap
       style={styles.row}
       accessibilityRole="link"
       accessibilityLabel="Pin'd — home"
@@ -44,7 +45,7 @@ export function Brand() {
         style={{ width: (WORDMARK.width / WORDMARK.height) * 19, height: 19 }}
         contentFit="contain"
       />
-    </Pressable>
+    </Tap>
   );
 }
 

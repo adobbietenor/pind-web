@@ -23,7 +23,8 @@
 // its logo got smaller, and it could never sit on the web's centre line. This draws
 // Apple's own logo file in the app too; expo-image renders the SVG natively.
 import { Image } from "expo-image";
-import { ActivityIndicator, Pressable, StyleSheet, Text } from "react-native";
+import { ActivityIndicator, StyleSheet, Text } from "react-native";
+import { Tap } from "./Tap";
 
 export type Provider = "apple" | "google";
 
@@ -63,7 +64,8 @@ export function SignInButton({
   const c = PAIR;
   const title = provider === "apple" ? "Continue with Apple" : "Continue with Google";
   return (
-    <Pressable
+    <Tap
+      feel="button"
       accessibilityRole="button"
       accessibilityLabel={title}
       accessibilityState={{ busy }}
@@ -87,7 +89,7 @@ export function SignInButton({
           {title}
         </Text>
       )}
-    </Pressable>
+    </Tap>
   );
 }
 

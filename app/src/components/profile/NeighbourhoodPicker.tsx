@@ -3,8 +3,9 @@
 //
 // "Pin'd never asks where you are" — a fixed list shown instead of a location, because
 // there is no location permission to grant (H4). Tapping the chosen one again clears it.
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { colors as palette, NEIGHBOURHOODS, radius, spacing } from "@pind/shared";
+import { Tap } from "../Tap";
 
 export function NeighbourhoodPicker({ value, onChange }: { value: string | null; onChange: (slug: string | null) => void }) {
   return (
@@ -12,7 +13,7 @@ export function NeighbourhoodPicker({ value, onChange }: { value: string | null;
       {NEIGHBOURHOODS.map((n) => {
         const on = n.slug === value;
         return (
-          <Pressable
+          <Tap
             key={n.slug}
             accessibilityRole="radio"
             accessibilityState={{ selected: on }}
@@ -20,7 +21,7 @@ export function NeighbourhoodPicker({ value, onChange }: { value: string | null;
             style={[styles.hood, on && styles.hoodOn]}
           >
             <Text style={[styles.hoodLabel, on && { color: palette.onAccent }]}>{n.name}</Text>
-          </Pressable>
+          </Tap>
         );
       })}
     </View>

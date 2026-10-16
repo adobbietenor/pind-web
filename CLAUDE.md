@@ -87,9 +87,17 @@ TestFlight, and the home list was already built on phase3/m3.3c-home.
     nothing saying why — a fixture failure that looked like a product bug. **A new check
     states its fixtures through `fixture.mjs`; a new fixture that can go stale gets a job
     that keeps it fresh, not a button** (the daily 09:00 run keeps the test crowd ahead).
-- EAS, from `app/`: `npx eas-cli@24.7.0 build --profile <development|internal|production>
-  --platform ios`. Profiles in `app/eas.json`; `APP_VARIANT` picks the staging or
-  production bundle ID.
+- EAS, **always from inside `app/`** — run from the repo root, EAS writes a junk empty
+  `eas.json` there (now gitignored at the root):
+  - internal (TestFlight): `cd app && npx eas-cli@24.7.0 build --profile internal --platform ios --auto-submit`
+  - development / production: `cd app && npx eas-cli@24.7.0 build --profile <development|production> --platform ios`
+
+  Profiles in `app/eas.json`; `APP_VARIANT` picks the staging or production bundle ID.
+  **Auto-submit is the `--auto-submit` flag, never an `eas.json` key** (16 Oct 2026): eas-cli
+  24.7.0 validates `eas.json` with no unknown keys allowed, and `"autoSubmit": true` in a
+  build profile made the whole file invalid — every profile, production included, refused
+  with `"build.internal.autoSubmit" is not allowed` (checked with EAS's own validator).
+  `--auto-submit` uses the submit profile of the same name (`submit.internal`).
 - **The web export is a Worker asset — never deploy one without the other.** Deploy
   with `npm run deploy`, which builds the web export and then runs `wrangler deploy`,
   releasing both together. Do not run `npx wrangler deploy` on its own: it would ship
@@ -121,8 +129,11 @@ Nothing else is built twice.
 ## Expo rules
 
 - The Expo SDK is pinned for the whole build. No native module beyond the M2.0 list
-  (apple-authentication, image-picker, image, notifications, secure-store) without a
-  decision from Alex.
+  (apple-authentication, image-picker, image, notifications, secure-store) and
+  **haptics** (Alex, 16 Oct 2026) without a decision from Alex. No Reanimated: motion is
+  React Native's own Animated (decisions, "The app feels alive").
+- Everything you press is `Tap` (components/Tap.tsx), never a raw Pressable (S45); motion
+  stays inside ~250 ms and goes instant under Reduce Motion (S46).
 - Expo Router; TanStack Query; Realtime through `postgres_changes` only (it respects
   RLS; broadcast does not).
 - Design tokens, fixed copy and constants come from `packages/shared`, never retyped.

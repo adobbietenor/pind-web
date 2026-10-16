@@ -230,6 +230,12 @@ a.dirs{display:inline-block;margin-top:8px;font-size:.88rem}
   text-decoration:none;cursor:pointer;
 }
 .cta:hover{background:var(--accent-lift);color:#fff}
+/* Hover, eased (16 Oct 2026): plain CSS, nothing to load. A pointer only, and never when
+   the visitor asked for reduced motion. */
+@media (hover:hover) and (prefers-reduced-motion:no-preference){
+  .card,.cta,.chips .chip,.tabs .tab,.pager .page{transition:background-color .15s ease,border-color .15s ease,color .15s ease,transform .15s ease}
+  a.card:hover{transform:translateY(-1px)}
+}
 .note{font-size:.86rem;color:var(--muted);text-align:center;margin:0}
 
 /* A spot is a card, not a maps link (decisions Part 5). What it is like, and whether

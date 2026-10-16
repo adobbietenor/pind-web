@@ -8,13 +8,15 @@
 // (CLAUDE.md: My Events can stay plain).
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { clockLocal, colors as palette, fonts, formatLocal, MY_EVENTS_COPY, myEventSoloLine, myEventStatus, radius, spacing, splitMyEvents } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Heading } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
 import { loadMyEvents, type MyEvent } from "@/lib/myevents";
+import { Tap } from "@/components/Tap";
+import { Rise } from "@/components/Motion";
 
 export default function MyEvents() {
   const router = useRouter();
@@ -83,17 +85,19 @@ function Section({ title, rows, now, onOpen }: { title: string; rows: MyEvent[];
   return (
     <View style={{ marginTop: spacing.lg }}>
       <Text style={styles.section}>{title}</Text>
-      {rows.map((e) => {
+      {rows.map((e, i) => {
         const line = MY_EVENTS_COPY.status(myEventStatus(e, now), (iso) => clockLocal(iso, e.timezone));
         const solo = myEventSoloLine(e, now, (iso) => clockLocal(iso, e.timezone));
         return (
-          <Pressable key={e.gatheringId} accessibilityRole="link" onPress={() => onOpen(e)} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
+          <Rise key={e.gatheringId} index={i}>
+          <Tap feel="card" accessibilityRole="link" onPress={() => onOpen(e)} style={({ pressed }) => [styles.card, pressed && { opacity: 0.85 }]}>
             <Text style={styles.when}>{formatLocal(e.startsAt, e.timezone)}</Text>
             <Text style={styles.name}>{e.name}</Text>
             {e.venue ? <Text style={styles.where}>{e.venue}</Text> : null}
             {line ? <Text style={styles.status}>{line}</Text> : null}
             {solo ? <Text style={styles.status}>{solo}</Text> : null}
-          </Pressable>
+          </Tap>
+          </Rise>
         );
       })}
     </View>

@@ -13,7 +13,7 @@
 // that the handle goes no further than crewmates and connections (V17).
 import { Link, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import {
   ALL_TAGS,
   colors as palette,
@@ -33,6 +33,7 @@ import { Trouble } from "@/components/Trouble";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
 import { oneLine, failed, type Described } from "@/lib/errors";
 import { loadMe, photoUrl, saveInstagram, type Me } from "@/lib/profile";
+import { Tap } from "@/components/Tap";
 
 const tagName = (slug: string) => ALL_TAGS.find((t) => t.slug === slug)?.name ?? slug;
 const hoodName = (slug: string | null) => NEIGHBOURHOODS.find((n) => n.slug === slug)?.name ?? null;
@@ -202,7 +203,7 @@ export default function Profile() {
         <View style={styles.counts}>
           {/* The gatherings behind the count are A19's list (#7: it looked tappable and
               was not). The crews count has no list of its own, so it stays a count. */}
-          <Pressable
+          <Tap
             accessibilityRole="button"
             accessibilityLabel={`${me.gatherings} gatherings — open My Events`}
             onPress={() => router.push("/my-events")}
@@ -210,7 +211,7 @@ export default function Profile() {
           >
             <Text style={styles.countNumber}>{me.gatherings}</Text>
             <Text style={styles.countLabel}>gatherings ›</Text>
-          </Pressable>
+          </Tap>
           <View style={styles.count}>
             <Text style={styles.countNumber}>{me.crewsMet}</Text>
             <Text style={styles.countLabel}>crews</Text>

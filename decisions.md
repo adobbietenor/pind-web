@@ -4415,3 +4415,42 @@ the newest 50 messages, dropping whatever is no longer readable.
   nobody, and they cost a full shell read.
 - **If message-level hiding ever came back**, this needs revisiting with it: a message
   hidden by a report would be a removal too, and would want the same path or a faster one.
+
+### The app feels alive: one way to press, quick motion, haptics (Alex, 16 Oct 2026)
+
+Polish only, no navigation changes.
+
+- **expo-haptics is approved** (57.0.3, Expo SDK 57's own version) — the only new
+  dependency, and a native module, so it reaches the phone with the next build. **No
+  Reanimated:** the bundle already takes ~15 s to open on the mobile profile, so motion is
+  React Native's own Animated.
+- **One pressable, `Tap`** (app/src/components/Tap.tsx), the same pattern as AppScreen and
+  the composer; every Pressable in the app was swapped to it, and S45 fails if anything
+  draws a raw one (proved by running it on the old code). It scales down a touch and springs
+  back; on the web a card lifts and grows a touch under a pointer and a button brightens.
+- **Haptics:** a light tap on the primary acts — pin, send, join, propose, accept; the
+  selection tick on chips, radios, checkboxes and tabs; nothing on passive taps or
+  scrolling. **Never on the web**: expo-haptics would vibrate an Android phone, or work
+  around iOS Safari, from a page that never asked to.
+- **Motion:** lists and cards fade and rise in, a little staggered; tabs crossfade (150 ms);
+  a new message slides in from its own side; pinning lands with a small spring and the
+  success haptic. Nothing over ~250 ms — a staggered list lands within 260 ms.
+- **Reduce Motion** (iOS, or the browser's prefers-reduced-motion): scales, rises and fades
+  go instant, and the tabs cut; **haptics stay** — they are not motion (S46).
+- **The Worker's pages:** plain CSS only — hover colours ease in over 150 ms and a card
+  lifts a pixel, only with a pointer and only without reduced motion.
+- **Auto-submit for TestFlight is the `--auto-submit` flag, not an eas.json key.** The
+  requested `"autoSubmit": true` in `app/eas.json`'s internal profile was checked with
+  eas-cli 24.7.0's own validator first: it allows no unknown keys, and the line made the
+  whole file invalid — every profile, production included (`"build.internal.autoSubmit" is
+  not allowed`). So `app/eas.json` is unchanged, and CLAUDE.md's internal build command
+  carries `--auto-submit` (which uses `submit.internal`) and the `cd app` that keeps EAS from
+  writing a junk `eas.json` at the root (now gitignored there).
+
+### My Events as each event's home (Alex, 16 Oct 2026 — recorded, not scheduled)
+
+My Events becoming a WhatsApp-style home for each event: the main room at the top (working
+name **"Everyone going"**), then the squads I've joined, then the squads open to me that I
+haven't joined. A candidate for before the first crowds, because getting back to your squad
+on the night is currently 3–4 taps deep. Recorded in spec §6, "Recorded, not scheduled";
+not built.

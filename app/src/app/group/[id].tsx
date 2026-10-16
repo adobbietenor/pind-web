@@ -30,7 +30,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
-import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Platform, Share, StyleSheet, Text, View } from "react-native";
 import { AFTER_COPY, colors as palette, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, SQUAD_COPY, type Convening, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Composer } from "@/components/Composer";
@@ -44,6 +44,7 @@ import { myPersonId, reportFromMessage, sendGroupMessage } from "@/lib/room";
 import { faceSource, signedPhotoUrls } from "@/lib/signed-photos";
 import { supabase } from "@/lib/supabase";
 import { useThread } from "@/lib/thread";
+import { Tap } from "@/components/Tap";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL || "https://pind.social";
 // The card's timer: state, the plan and "I'm here" — and faces re-signed before their URLs lapse.
@@ -281,7 +282,7 @@ export default function Group() {
               <Text style={styles.section}>{GROUP_COPY.pollHeading}</Text>
               <Body muted>{GROUP_COPY.pollHint}</Body>
               {view.proposals.map((p) => (
-                <Pressable
+                <Tap
                   key={p.id}
                   onPress={() =>
                     void act("vote", () =>
@@ -294,7 +295,7 @@ export default function Group() {
                 >
                   <Text style={styles.name}>{`${p.spot} · ${clock(p.meetAt)}`}</Text>
                   <Text style={styles.meta}>{`${p.votes} ${p.votes === 1 ? "vote" : "votes"}`}</Text>
-                </Pressable>
+                </Tap>
               ))}
             </>
           ) : view.meetAt ? (
