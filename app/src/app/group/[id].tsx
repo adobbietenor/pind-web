@@ -31,16 +31,18 @@ import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Share, StyleSheet, Text, View } from "react-native";
-import { AFTER_COPY, colors as palette, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, SQUAD_COPY, type Convening, type ThreadMessage } from "@pind/shared";
+import { AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, SQUAD_COPY, type Convening, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Composer } from "@/components/Composer";
 import { GetTheApp } from "@/components/GetTheApp";
 import { MessageSheet } from "@/components/MessageSheet";
 import { ThreadMessages } from "@/components/ThreadMessages";
 import { Trouble } from "@/components/Trouble";
-import { Body, Button, Field, Heading } from "@/components/ui";
+import { Body, Button, Field, Heading, Notice } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
-import { myPersonId, reportFromMessage, sendGroupMessage } from "@/lib/room";
+import { MY_CHATS_KEY } from "@/lib/myevents";
+import { queryClient } from "@/lib/query";
+import { markGroupSeen, myPersonId, reportFromMessage, sendGroupMessage } from "@/lib/room";
 import { faceSource, signedPhotoUrls } from "@/lib/signed-photos";
 import { supabase } from "@/lib/supabase";
 import { useThread } from "@/lib/thread";
@@ -49,6 +51,8 @@ import { Tap } from "@/components/Tap";
 const SITE = process.env.EXPO_PUBLIC_SITE_URL || "https://pind.social";
 // The card's timer: state, the plan and "I'm here" — and faces re-signed before their URLs lapse.
 const SHELL_MS = 30_000;
+// "I've looked", at most this often while messages arrive and the thread is in view.
+const SEEN_MS = 60_000;
 
 // "Share spot & time with a friend" (W3): the phone's share sheet; on a browser without
 // one, the link is copied and the button says so, where the tap was.
@@ -75,7 +79,7 @@ interface GroupView {
   solo: boolean;
   // A squad's name and where its check stands (M3.7); null for a 1-on-1 plan or an old group.
   squad: { name: string; nameStatus: "pending" | "approved" | "rejected"; womenOnly: boolean } | null;
-  gathering: { id: string; name: string; slug: string; startsAt: string };
+  gathering: { id: string; name: string; slug: string; startsAt: string; endsAt: string | null };
   convening: Convening;
   roomId: string | null;
   meId: string;
@@ -95,7 +99,7 @@ async function loadGroupShell(id: string): Promise<GroupView | null> {
   if (error) throw error;
   if (!c) return null;
   const [g, conv, mem, props, votes, closes, spot] = await Promise.all([
-    db.from("gatherings").select("id, name, slug, starts_at").eq("id", c.gathering_id).maybeSingle(),
+    db.from("gatherings").select("id, name, slug, starts_at, ends_at").eq("id", c.gathering_id).maybeSingle(),
     db.rpc("convening_of", { p_gathering: c.gathering_id }),
     db.from("crew_members").select("person_id, arrived_at, arrival_note, left_at").eq("crew_id", id),
     db.from("crew_proposals").select("id, spot_id, meet_at, meeting_spots(name)").eq("crew_id", id),
@@ -115,7 +119,7 @@ async function loadGroupShell(id: string): Promise<GroupView | null> {
     state: c.state as GroupView["state"],
     solo: c.kind === "solo",
     squad: c.kind === "crew" && !c.legacy && c.name ? { name: c.name, nameStatus: (c.name_status ?? "approved") as "pending" | "approved" | "rejected", womenOnly: c.women_only } : null,
-    gathering: { id: g.data.id, name: g.data.name, slug: g.data.slug ?? g.data.id, startsAt: g.data.starts_at },
+    gathering: { id: g.data.id, name: g.data.name, slug: g.data.slug ?? g.data.id, startsAt: g.data.starts_at, endsAt: g.data.ends_at },
     convening: (conv.data as Convening) ?? "a_spot_first",
     roomId: c.room_id,
     meId,
@@ -166,10 +170,18 @@ export default function Group() {
   const refresh = useCallback(() => void refetchShell(), [refetchShell]);
   // A message from someone the card has not met (they joined since it was read): read it once for them.
   const asked = useRef(new Set<string>());
+  // Seen (A19's unread): when the thread comes into view, at most once a minute while
+  // messages arrive, and when you leave it — then My Events and its tab dot read afresh.
+  const lastSeen = useRef(0);
+  const seen = useCallback(() => {
+    lastSeen.current = Date.now();
+    return markGroupSeen(id).catch(() => undefined);
+  }, [id]);
   const thread = useThread("group", id, {
     meId: view?.meId,
     focused,
     onIncoming: (m) => {
+      if (focused && Date.now() - lastSeen.current >= SEEN_MS) void seen();
       if (view && !view.members.some((p) => p.personId === m.authorId) && !asked.current.has(m.authorId)) {
         asked.current.add(m.authorId);
         refresh();
@@ -180,8 +192,12 @@ export default function Group() {
   useFocusEffect(
     useCallback(() => {
       setFocused(true);
-      return () => setFocused(false);
-    }, []),
+      void seen();
+      return () => {
+        setFocused(false);
+        void seen().then(() => queryClient.invalidateQueries({ queryKey: MY_CHATS_KEY }));
+      };
+    }, [seen]),
   );
 
   const shellTrouble = shell.error ? failed("open your group", shell.error) : null;
@@ -231,11 +247,15 @@ export default function Group() {
     if (words) setDraft((d) => (d.trim() ? `${words}\n${d}` : words));
   };
   const open = view.state !== "dissolved";
+  // Q11: writable until 24 h after the night, read-only after (crew_messages_post_members).
+  const closed = Date.now() >= Date.parse(effectiveEnd(view.gathering.startsAt, view.gathering.endsAt)) + 24 * 3_600_000;
 
   return (
     <AppScreen
       footer={
-        open ? (
+        open && closed ? (
+          <Notice>{GROUP_COPY.readOnly}</Notice>
+        ) : open ? (
           <Composer
             value={draft}
             onChangeText={setDraft}

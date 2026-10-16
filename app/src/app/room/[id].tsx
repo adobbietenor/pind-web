@@ -33,6 +33,8 @@ import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice } from "@/components/ui";
 import { failed, rateRefusal, type Described } from "@/lib/errors";
 import { deleteRoomMessage, loadRoomShell, markSeen, reportFromMessage, sendRoomMessage, sharedTag, tagName, type Member } from "@/lib/room";
+import { MY_CHATS_KEY } from "@/lib/myevents";
+import { queryClient } from "@/lib/query";
 import { faceSource } from "@/lib/signed-photos";
 import { useThread } from "@/lib/thread";
 import { Tap } from "@/components/Tap";
@@ -99,7 +101,7 @@ export default function Room() {
   const lastSeen = useRef(0);
   const seen = useCallback(() => {
     lastSeen.current = Date.now();
-    void markSeen(id);
+    return markSeen(id).catch(() => undefined);
   }, [id]);
   // A message from someone the shell has not met (they arrived since it was read): read
   // the shell once for them. Once — if RLS keeps them from me, asking again changes nothing.
@@ -108,7 +110,7 @@ export default function Room() {
     meId: view?.me.personId,
     focused,
     onIncoming: (m) => {
-      if (focused && Date.now() - lastSeen.current >= SEEN_MS) seen();
+      if (focused && Date.now() - lastSeen.current >= SEEN_MS) void seen();
       if (view && !view.members.some((p) => p.personId === m.authorId) && !asked.current.has(m.authorId)) {
         asked.current.add(m.authorId);
         refreshShell();
@@ -128,11 +130,16 @@ export default function Room() {
     if (view && goDismissed === false && view.members.length + 1 >= 3 && !view.me.inGroup) void markGoSeen(id);
   }, [view, goDismissed, id]);
 
+  // Seen when the room comes into view and when you leave it — then My Events and its
+  // tab dot (A19) read afresh, so what you just read is no longer "unread".
   useFocusEffect(
     useCallback(() => {
       setFocused(true);
-      seen();
-      return () => setFocused(false);
+      void seen();
+      return () => {
+        setFocused(false);
+        void seen().then(() => queryClient.invalidateQueries({ queryKey: MY_CHATS_KEY }));
+      };
     }, [seen]),
   );
 

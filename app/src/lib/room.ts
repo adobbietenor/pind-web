@@ -199,6 +199,13 @@ export async function markSeen(roomId: string): Promise<void> {
   await supabase().rpc("room_seen", { p_room: roomId });
 }
 
+// "I've looked at this thread" — a squad's or a 1-on-1 plan's (A19, 16 Oct 2026), the
+// room's markSeen for groups. It is what My Events counts unread from. Sealed like the
+// room's: nobody reads it through the API, the person included (L11).
+export async function markGroupSeen(crewId: string): Promise<void> {
+  await supabase().rpc("crew_seen", { p_crew: crewId });
+}
+
 // The only write of a group message: called from the group's Send button (S29).
 export async function sendGroupMessage(crewId: string, personId: string, body: string): Promise<ThreadRow> {
   const { data, error } = await supabase().from("crew_messages").insert({ crew_id: crewId, author_id: personId, kind: "user", body: body.trim() }).select("id, author_id, body, created_at").single();

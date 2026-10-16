@@ -15,7 +15,6 @@ import assert from "node:assert/strict";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEnv } from "./env.ts";
 import { optInMissing } from "../../packages/shared/src/optin.ts";
-import { MY_EVENTS_PINS_SELECT } from "../../packages/shared/src/myevents.ts";
 import { soloTimes } from "../../packages/shared/src/solo.ts";
 import { photoDest } from "../../src/account/merge-checks.ts";
 import { ADMIN_REPORT_SELECT } from "../../src/admin/report-select.ts";
@@ -4452,27 +4451,24 @@ describe("Search is the public list, narrowed (M3.2b)", () => {
   });
 });
 
-// P193 (Alex, 10 Oct 2026 — M3.2b, A19): My Events reads exactly what the app reads
-// (MY_EVENTS_PINS_SELECT), as the person, under RLS. The acceptance line: the pinned
-// gathering shows; removing the pin removes it. A withdrawn one stays while pinned (V13).
+// P193 (Alex, 10 Oct 2026 — M3.2b, A19; since 16 Oct, the home for your chats): My Events
+// reads exactly what the app reads — one call, my_chats — as the person, under RLS. The
+// acceptance line: the pinned gathering shows; removing the pin removes it. A withdrawn one
+// stays while pinned (V13).
 describe("My Events lists your pins (M3.2b, A19)", () => {
   it("P193 your pinned gathering shows with its venue and time zone, stays when withdrawn, and goes when you remove the pin", async () => {
     const g = await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} My Events`, starts_at: inDays(5), venue_id: w.venue, published_at: new Date().toISOString(), source: "manual" }).select("id").single());
     try {
       const slug = (await ok(w.service.rpc("admin_mint_slug", { p_gathering: g.id }))) as string;
-      const mine = async () =>
-        ((await rows(c(M("Ava")).from("pins").select(MY_EVENTS_PINS_SELECT).eq("person_id", id("Ava")))) as {
-          gathering_id: string;
-          gatherings: { slug: string | null; withdrawn_at: string | null; venues: { name: string; cities: { timezone: string } | null } | null } | null;
-        }[]).find((p) => p.gathering_id === g.id);
+      const mine = async () => ((await ok(c(M("Ava")).rpc("my_chats"))) as { gathering_id: string; slug: string; venue: string | null; timezone: string | null; withdrawn: boolean }[]).find((e) => e.gathering_id === g.id);
       assert.equal(await mine(), undefined, "setup: Ava is already pinned here");
       await ok(c(M("Ava")).from("pins").insert({ gathering_id: g.id, person_id: id("Ava"), party_total: 1 }));
       const row = await mine();
-      assert.equal(row?.gatherings?.slug, slug, "the pinned gathering is not on My Events");
-      assert.ok(row?.gatherings?.venues?.name, "My Events cannot read the venue's name");
-      assert.ok(row?.gatherings?.venues?.cities?.timezone, "My Events cannot read the venue's time zone");
+      assert.equal(row?.slug, slug, "the pinned gathering is not on My Events");
+      assert.ok(row?.venue, "My Events cannot read the venue's name");
+      assert.ok(row?.timezone, "My Events cannot read the venue's time zone");
       await ok(w.service.from("gatherings").update({ withdrawn_at: new Date().toISOString() }).eq("id", g.id));
-      assert.ok((await mine())?.gatherings?.withdrawn_at, "a withdrawn gathering vanished from My Events while still pinned (V13)");
+      assert.equal((await mine())?.withdrawn, true, "a withdrawn gathering vanished from My Events while still pinned (V13)");
       await ok(c(M("Ava")).from("pins").delete().eq("gathering_id", g.id).eq("person_id", id("Ava")));
       assert.equal(await mine(), undefined, "a removed pin is still on My Events");
     } finally {
@@ -5884,5 +5880,165 @@ describe("Reports are on people, never on messages (A10, A11, A29; Alex, 16 Oct 
     const closed = await rows(w.service.from("reports").select("id").eq("target_kind", "message").eq("status", "dismissed").like("decision_note", "%message reports were retired%"));
     const logged = await rows(w.service.from("moderation_log").select("id").eq("action", "dismiss_message_report"));
     assert.equal(logged.length, closed.length, "a closed message report has no log line");
+  });
+});
+
+describe("A19 — My Events lists your chats, in one call, as you (Alex, 16 Oct 2026)", () => {
+  // my_chats is SECURITY INVOKER: every row in it is one the existing rules let you read.
+  // Nothing here is a new rule about who sees whom; these cases prove it stays that way,
+  // and that the new seen time is nobody's to read.
+  let G = "";
+  let OLD = "";
+  let RECENT = "";
+  let squad = "";
+  let other = "";
+  let plan = "";
+  let room = "";
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+  const P = (label: string) => people[label]!;
+
+  async function person(label: string, gathering: string | null, open = true) {
+    const email = `${PREFIX}-${w.run}-mc-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const p = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: p.id, gender: "man", birth_year: 1991 }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: p.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    if (gathering) await ok(client.from("pins").insert({ gathering_id: gathering, person_id: p.id, party_total: 1, open_to_meeting: open }).select("id").single());
+    people[label] = { authId, personId: p.id, client };
+  }
+  const chats = async (label: string) => (await ok(P(label).client.rpc("my_chats"))) as any[];
+  const at = async (label: string, gathering: string) => (await chats(label)).find((e: any) => e.gathering_id === gathering);
+  const pause = () => new Promise((r) => setTimeout(r, 3100));
+  const crewOf = async (gathering: string, kind: "crew" | "solo", names: string[], name: string | null = null) => {
+    const spot = (await ok(w.service.from("meeting_spots").select("id").eq("venue_id", w.venue).eq("active", true).limit(1).single())).id;
+    const c = await ok(
+      w.service.from("crews").insert({ gathering_id: gathering, state: "spot_set", spot_id: spot, meet_at: inDays(5), kind, ...(kind === "crew" ? { name, name_status: "approved" } : {}) }).select("id").single(),
+    );
+    for (const n of names) await ok(w.service.from("crew_members").insert({ crew_id: c.id, gathering_id: gathering, person_id: P(n).personId, kind }));
+    return c.id as string;
+  };
+  const gathering = async (name: string) =>
+    (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} ${name}`, starts_at: inDays(5), venue_id: w.venue, published_at: new Date().toISOString(), room_size: 20 }).select("id").single())).id as string;
+
+  before(async () => {
+    G = await gathering("My chats");
+    await ok(w.service.rpc("admin_mint_slug", { p_gathering: G }));
+    for (const n of ["Ann", "Ben", "Cyd", "Hid"]) await person(n, G);
+    await person("Dot", G, false); // pinned, not open to meeting
+    await person("Out", null); // pinned nowhere
+    room = (await rows(P("Ann").client.rpc("my_rooms", { p_gathering: G }))).find((r: { women_only: boolean }) => !r.women_only)?.room_id as string;
+    assert.ok(room, "Ann was not placed in a room");
+    squad = await crewOf(G, "crew", ["Ann", "Ben"], "Ann and Ben");
+    other = await crewOf(G, "crew", ["Cyd"], "Cyd's squad");
+    plan = await crewOf(G, "solo", ["Ann", "Cyd"]);
+    // Two finished nights: one a day and a half ago (read-only, kept), one past retention.
+    RECENT = await gathering("My chats, recent");
+    OLD = await gathering("My chats, old");
+    for (const g of [RECENT, OLD]) {
+      await ok(w.service.rpc("admin_mint_slug", { p_gathering: g }));
+      await ok(P("Ann").client.from("pins").insert({ gathering_id: g, person_id: P("Ann").personId, party_total: 1, open_to_meeting: true }));
+      await ok(P("Ben").client.from("pins").insert({ gathering_id: g, person_id: P("Ben").personId, party_total: 1, open_to_meeting: true }));
+      await crewOf(g, "crew", ["Ann", "Ben"], "Then");
+    }
+    await ok(w.service.from("gatherings").update({ starts_at: new Date(Date.now() - 36 * 3_600_000).toISOString() }).eq("id", RECENT));
+    await ok(w.service.from("gatherings").update({ starts_at: new Date(Date.now() - 40 * 86_400_000).toISOString() }).eq("id", OLD));
+  });
+
+  after(async () => {
+    for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
+    for (const g of [G, RECENT, OLD]) if (g) await w.service.from("gatherings").delete().eq("id", g);
+  });
+
+  it("P248 each person gets their own: Ann her room, squad and plan, and Cyd's squad as one she could join; an outsider nothing; someone pinned but not open, the event with no chats", async () => {
+    const e = await at("Ann", G);
+    assert.ok(e, "Ann's pinned gathering is not in My Events");
+    assert.deepEqual(e.rooms.map((r: any) => r.room_id), [room], "Ann's room is not her 'Everyone going'");
+    assert.deepEqual(e.crews.map((c: any) => c.crew_id).sort(), [plan, squad].sort(), "Ann's squad and plan are not both listed");
+    assert.equal(e.crews.find((c: any) => c.kind === "solo")?.partner, "Cyd", "the 1-on-1 does not say who with");
+    const open = e.open_squads.map((s: any) => s.crew_id);
+    assert.ok(open.includes(other), "a squad listed to Ann is not offered");
+    assert.ok(!open.includes(squad), "Ann's own squad is offered to her as one to join");
+    // The offer is exactly what squads() lists her — my_chats adds nothing to it.
+    const listed = (await rows(P("Ann").client.rpc("squads", { p_gathering: G }))).map((s: { crew_id: string }) => s.crew_id).filter((id: string) => id !== squad);
+    assert.deepEqual(open.sort(), listed.sort(), "open squads differ from what squads() lists to her");
+    // Ben is not in the plan: it is not his chat.
+    assert.ok(!(await at("Ben", G)).crews.some((c: any) => c.crew_id === plan), "someone outside a 1-on-1 sees it in My Events");
+    assert.deepEqual(await chats("Out"), [], "someone pinned nowhere has chats");
+    const dot = await at("Dot", G);
+    assert.ok(dot && dot.open_to_meeting === false, "the pinned, not-open event is missing");
+    assert.deepEqual([dot.rooms, dot.crews], [[], []], "someone not open to meeting has chats");
+    await denied(w.anon.rpc("my_chats"));
+  });
+
+  it("P249 unread counts what others said since I looked, in each chat — never my own, and to zero when I look", async () => {
+    await pause();
+    await ok(P("Ben").client.from("room_messages").insert({ room_id: room, author_id: P("Ben").personId, body: "room one" }));
+    await ok(P("Ben").client.from("crew_messages").insert({ crew_id: squad, author_id: P("Ben").personId, kind: "user", body: "squad one" }));
+    await pause();
+    await ok(P("Ben").client.from("room_messages").insert({ room_id: room, author_id: P("Ben").personId, body: "room two" }));
+    await ok(P("Ann").client.from("crew_messages").insert({ crew_id: squad, author_id: P("Ann").personId, kind: "user", body: "mine" }));
+    let e = await at("Ann", G);
+    assert.equal(e.rooms[0].unread, 2, "the room's unread is wrong");
+    assert.equal(e.crews.find((c: any) => c.crew_id === squad).unread, 1, "my own message counted as unread, or Ben's did not");
+    assert.equal(e.rooms[0].last.body, "room two");
+    assert.equal(e.crews.find((c: any) => c.crew_id === squad).last.mine, true, "my own last message is not marked mine");
+    await ok(P("Ann").client.rpc("room_seen", { p_room: room }));
+    await ok(P("Ann").client.rpc("crew_seen", { p_crew: squad }));
+    e = await at("Ann", G);
+    assert.equal(e.rooms[0].unread, 0, "looking at the room did not clear its unread");
+    assert.equal(e.crews.find((c: any) => c.crew_id === squad).unread, 0, "looking at the squad did not clear its unread");
+    await pause();
+    await ok(P("Ben").client.from("crew_messages").insert({ crew_id: squad, author_id: P("Ben").personId, kind: "user", body: "squad two" }));
+    assert.equal((await at("Ann", G)).crews.find((c: any) => c.crew_id === squad).unread, 1, "a message after I looked is not unread");
+  });
+
+  it("P250 a seen time is nobody's to read — not a squadmate's, not your own — and crew_seen marks only your own row", async () => {
+    await denied(P("Ben").client.from("crew_members").select("last_seen_at").eq("crew_id", squad), "42501");
+    await denied(P("Ann").client.from("crew_members").select("last_seen_at").eq("person_id", P("Ann").personId), "42501");
+    await denied(P("Ben").client.from("crew_members").select("*").eq("crew_id", squad), "42501");
+    // Every other column still reads (the export, the screens).
+    assert.equal((await rows(P("Ben").client.from("crew_members").select("crew_id, person_id, joined_at, left_at").eq("crew_id", squad))).length, 2);
+    // Cyd is not in Ann's squad: her crew_seen on it changes nobody's row.
+    const before = (await ok(w.service.from("crew_members").select("person_id, last_seen_at").eq("crew_id", squad))) as { person_id: string; last_seen_at: string | null }[];
+    await ok(P("Cyd").client.rpc("crew_seen", { p_crew: squad }));
+    const afterRows = (await ok(w.service.from("crew_members").select("person_id, last_seen_at").eq("crew_id", squad))) as { person_id: string; last_seen_at: string | null }[];
+    assert.deepEqual(afterRows.sort((a, b) => a.person_id.localeCompare(b.person_id)), before.sort((a, b) => a.person_id.localeCompare(b.person_id)), "crew_seen by someone outside the squad changed a member's row");
+    // Ann's own seen times are in her export.
+    const times = (await ok(P("Ann").client.rpc("my_record_times"))) as { threads_seen: { crew_id: string }[]; rooms_seen: { room_id: string }[] };
+    assert.ok(times.threads_seen.some((t) => t.crew_id === squad), "the export leaves out a thread's seen time");
+    assert.ok(times.rooms_seen.some((t) => t.room_id === room), "the export leaves out the room's seen time");
+  });
+
+  it("P251 it is read as you: a hidden person's message is never your preview, nor counted", async () => {
+    await pause();
+    await ok(P("Ann").client.rpc("room_seen", { p_room: room }));
+    await pause();
+    await ok(P("Hid").client.from("room_messages").insert({ room_id: room, author_id: P("Hid").personId, body: "from hid" }));
+    assert.equal((await at("Ann", G)).rooms[0].last.body, "from hid", "control: Hid's message is not Ann's preview before the hide");
+    await ok(w.service.from("people").update({ hidden_at: new Date().toISOString() }).eq("id", P("Hid").personId));
+    const e = await at("Ann", G);
+    assert.notEqual(e.rooms[0].last?.body, "from hid", "a hidden person's message is still the preview");
+    assert.equal(e.rooms[0].unread, 0, "a hidden person's message is still counted unread");
+  });
+
+  it("P252 after the night: read-only chats are still listed; past retention (Q11) the event stays with no chat", async () => {
+    const recent = await at("Ann", RECENT);
+    assert.ok(recent && recent.crews.length === 1, "a chat a day and a half after the night is gone too soon");
+    assert.ok(recent.after !== undefined, "a past night does not carry A16's state");
+    const old = await at("Ann", OLD);
+    assert.ok(old, "the event itself left My Events after retention");
+    assert.deepEqual([old.rooms, old.crews, old.open_squads], [[], [], []], "a chat is still listed past retention");
+    assert.deepEqual(recent.open_squads, [], "squads are offered to join after the night");
+  });
+
+  it("P253 the export reads your groups by name — a '*' read is refused now that the seen time is sealed", async () => {
+    const mine = await rows(P("Ann").client.from("crew_members").select("crew_id, gathering_id, kind, joined_at, left_at, arrived_at, arrival_note").eq("person_id", P("Ann").personId));
+    assert.ok(mine.some((m: { crew_id: string }) => m.crew_id === squad), "the export's read of your groups lost them");
   });
 });

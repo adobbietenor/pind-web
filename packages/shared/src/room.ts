@@ -65,6 +65,8 @@ export const GROUP_COPY = {
   hereHint: "Say what you're wearing so they can find you — \"green Matthews jersey\".",
   leave: "Leave this group",
   threadPlaceholder: "Say something to your group",
+  // Q11, as the room says it: writable until 24 h after the night, then read-only.
+  readOnly: "This chat has closed. You can still read it for 30 days.",
 } as const;
 
 function listNames(names: string[]): string {

@@ -94,8 +94,9 @@ describe("The 1-on-1 screens use the rules, not their own (M3.4)", () => {
     const squads = readFileSync("app/src/lib/squads.ts", "utf8");
     assert.match(squads, /\.eq\("kind", "crew"\)\s*\.is\("left_at", null\)\s*\.maybeSingle\(\)/, "the squad read would fail with a 1-on-1 plan beside it");
     assert.match(readFileSync("app/src/lib/room.ts", "utf8"), /\.eq\("kind", "crew"\)\.in\("state"/, "a 1-on-1 plan stops 'go together' in the room");
-    const events = readFileSync("app/src/lib/myevents.ts", "utf8");
-    assert.match(events, /const soloAt = planAt\("solo"\)/, "My Events keys both plans by gathering, one over the other");
+    // Since A19 (16 Oct 2026) the keying is readMyChats' (packages/shared/src/myevents.ts); M07 proves it with both.
+    const events = readFileSync("packages/shared/src/myevents.ts", "utf8");
+    assert.match(events, /group: plan\("crew"\),\s*solo: plan\("solo"\),/, "My Events keys both plans by gathering, one over the other");
   });
 
   it("SO10 the admin counts gatherings with no spots beside the maps, and has the 1-on-1 page", () => {

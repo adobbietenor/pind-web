@@ -601,6 +601,7 @@ export type Database = {
           id: string
           joined_at: string
           kind: Database["public"]["Enums"]["crew_kind"]
+          last_seen_at: string | null
           left_at: string | null
           person_id: string
           seats: number
@@ -613,6 +614,7 @@ export type Database = {
           id?: string
           joined_at?: string
           kind?: Database["public"]["Enums"]["crew_kind"]
+          last_seen_at?: string | null
           left_at?: string | null
           person_id: string
           seats?: number
@@ -625,6 +627,7 @@ export type Database = {
           id?: string
           joined_at?: string
           kind?: Database["public"]["Enums"]["crew_kind"]
+          last_seen_at?: string | null
           left_at?: string | null
           person_id?: string
           seats?: number
@@ -3499,6 +3502,7 @@ export type Database = {
         Args: { p_gathering: string }
         Returns: Database["public"]["Enums"]["convening"]
       }
+      crew_seen: { Args: { p_crew: string }; Returns: undefined }
       delete_room_message: { Args: { p_message: string }; Returns: undefined }
       effective_end: {
         Args: { g: Database["public"]["Tables"]["gatherings"]["Row"] }
@@ -3539,6 +3543,7 @@ export type Database = {
       join_general_room: { Args: { p_gathering: string }; Returns: undefined }
       join_squad: { Args: { p_crew: string }; Returns: string }
       leave_group: { Args: { p_crew: string }; Returns: undefined }
+      my_chats: { Args: never; Returns: Json }
       my_connections: {
         Args: never
         Returns: {

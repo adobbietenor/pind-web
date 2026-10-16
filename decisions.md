@@ -4453,4 +4453,45 @@ My Events becoming a WhatsApp-style home for each event: the main room at the to
 name **"Everyone going"**), then the squads I've joined, then the squads open to me that I
 haven't joined. A candidate for before the first crowds, because getting back to your squad
 on the night is currently 3–4 taps deep. Recorded in spec §6, "Recorded, not scheduled";
-not built.
+not built. *(Built the same day — "A19: My Events is the home for your chats", below; it
+has left the "Recorded, not scheduled" list.)*
+
+### A19: My Events is the home for your chats (Alex, 16 Oct 2026)
+
+"On the night, standing outside a venue, nobody can find their group. Every chat I belong to
+has to be one tap from this tab."
+
+- **The screen** is spec A19's "In force since 16 Oct 2026": each pinned event a section,
+  tonight's on top; under it "Everyone going" (the room), your squad, your 1-on-1 plan, then
+  the squads you could join (a tap offers to join, never opens a thread); past events folded
+  below; a dot on the tab when anything is unread. A main screen now (CLAUDE.md).
+- **One call: `my_chats`**, SECURITY INVOKER — read as the person under the rules already in
+  force, so it adds no rule about who sees whom (P248, P251 prove it reads as you). **Measured**
+  (measure:thread, same data, real Chrome): opening the tab is **1 request and 599 ms** to the
+  event on screen, against **4 requests and 640 ms** for the M3.2b list (which also made one more
+  per past event, and showed no chats). The call itself: 116 ms median, against 174 ms for the
+  old list's reads. The tab's dot shares the same query, refreshed once a minute.
+- **It was slow first, and the plan said why.** The first my_chats took ~650 ms a call: the
+  unread count put every message in the room through the room's read rule (~2 ms each under
+  RLS) before comparing times. EXPLAIN ANALYZE as the person showed the time bound in the
+  Filter, behind the read rule; written as a scalar subquery it became an index condition and
+  the body went from 549 ms to 25 ms (20261016195609). The count also stops at 100 (the badge
+  says 99+). Lesson kept: **under RLS, a bound on a non-leakproof function call is applied
+  after the policy, not before — make it a parameter, and read the plan as the person.**
+- **Unread needs a seen time; groups had none.** Squads and 1-on-1 plans get the room's:
+  `crew_members.last_seen_at`, marked as a thread comes into view, at most once a minute while
+  it is, and as you leave it. **Sealed like the room's since L11**: no column grant, so nobody
+  reads it through the API, the person included — a seen time other members can read is a read
+  receipt. The count reaches only the caller's own through two owner-only helpers. The export
+  (`my_record_times`) now carries both seen times, the room's too — it had left the room's out.
+  The A23 export's read of your groups names its columns: its `select("*")` would have been
+  refused once the column was sealed, and its `Promise.all` would have dropped your groups from
+  the export silently.
+- **Pinned but not open to meeting:** the event with a line saying how chats appear, and the
+  way to A27. Not an empty section.
+- **Past chats** open read-only (the group thread now says so, as the room did) until 30 days
+  after the read-only day begins (Q11), then the event stays with no chat.
+- **Found, not fixed — Alex to decide:** nothing deletes squad or 1-on-1 messages. The 30-day
+  purge (`admin_delete_expired_room_messages`) covers room messages only, though Q11 says
+  threads are deleted at +30 days. My Events stops listing them on Q11's schedule; the rows stay.
+- **The crowd page (A9) is unchanged** — another way into the same chats.

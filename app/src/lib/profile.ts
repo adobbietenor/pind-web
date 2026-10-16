@@ -134,7 +134,10 @@ export async function exportMyData(): Promise<Record<string, unknown>> {
     db.from("spot_votes").select("*").eq("person_id", person.id),
     db.from("survey_responses").select("*").eq("person_id", person.id),
     db.from("blocks").select("blocked_id, created_at").eq("blocker_id", person.id),
-    db.from("crew_members").select("*").eq("person_id", person.id),
+    // Named columns, not "*": last_seen_at is sealed (L11, A19) and a "*" read would now be
+    // refused outright — and this Promise.all would drop the groups from the export silently.
+    // Your seen times come through my_record_times instead.
+    db.from("crew_members").select("crew_id, gathering_id, kind, joined_at, left_at, arrived_at, arrival_note").eq("person_id", person.id),
     db.from("crew_messages").select("crew_id, body, created_at").eq("author_id", person.id),
     db.from("reports").select("id, target_kind, reason, created_at"),
     db.from("person_interests").select("categories").eq("person_id", person.id),

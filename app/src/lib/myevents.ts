@@ -1,91 +1,28 @@
-// A19 — My Events (M3.2b). Everything read as the signed-in person, under RLS: their
-// own pins (pins_read_own), the gatherings those are at (readable while published, and
-// withdrawn ones you are pinned to), the groups they are in (in_group), and — for past
-// rows only — A16's own after_state for whether they ticked "we met". No new database
-// surface. The line each row says is packages/shared/src/myevents.ts.
-import { isPast, MY_EVENTS_PINS_SELECT, type MyEventInput } from "@pind/shared";
+// A19 — My Events, the home for your chats (Alex, 16 Oct 2026; until then the M3.2b list).
+//
+// **One call for the whole screen**: my_chats (supabase/migrations/20261016190356), read
+// as the signed-in person — SECURITY INVOKER, so every row in it is one RLS already lets
+// them read: their pins and those gatherings, their rooms and the room's messages, their
+// squad and 1-on-1 threads, the names they may see, the squads listed to them, and A16's
+// own state for a past night. No per-event or per-chat reads (the old list made 4 reads
+// plus one per past event); what each row says is packages/shared/src/myevents.ts.
+//
+// The tab's unread dot reads the same query (MY_CHATS_KEY), so it costs nothing extra
+// while the tab is open, and one call a minute while the app is elsewhere.
+import { readMyChats, type MyChatsEvent } from "@pind/shared";
 import { SessionProblem, whoAmI } from "./session";
 import { supabase } from "./supabase";
 
-export interface MyEvent extends MyEventInput {
-  gatheringId: string;
-  slug: string;
-  name: string;
-  venue: string;
-  timezone: string;
-}
+export const MY_CHATS_KEY = ["my-chats"] as const;
 
-type PinRow = {
-  gathering_id: string;
-  open_to_meeting: boolean;
-  gatherings: {
-    slug: string | null;
-    name: string;
-    starts_at: string;
-    ends_at: string | null;
-    withdrawn_at: string | null;
-    venues: { name: string; cities: { timezone: string } | null } | null;
-  } | null;
-};
+export type MyEvent = MyChatsEvent;
 
-export async function loadMyEvents(now = new Date()): Promise<MyEvent[]> {
-  const db = supabase();
+export async function loadMyChats(): Promise<MyChatsEvent[]> {
   const read = await whoAmI();
+  // Signed out: no chats, and no session made for it — the tab's dot simply stays off.
+  if (read.state === "out") return [];
   if (read.state !== "in") throw new SessionProblem(read);
-  const { data: me, error: meError } = await db.from("people").select("id").eq("auth_user_id", read.userId).maybeSingle();
-  if (meError) throw meError;
-  if (!me) return []; // signed in, never pinned
-
-  const [pins, members] = await Promise.all([
-    db
-      .from("pins")
-      .select(MY_EVENTS_PINS_SELECT)
-      .eq("person_id", me.id),
-    db.from("crew_members").select("crew_id, gathering_id").eq("person_id", me.id).is("left_at", null),
-  ]);
-  if (pins.error) throw pins.error;
-  if (members.error) throw members.error;
-
-  const crewIds = (members.data ?? []).map((m) => m.crew_id);
-  const crews = crewIds.length
-    ? await db.from("crews").select("id, kind, gathering_id, state, meet_at, meeting_spots(name)").in("id", crewIds)
-    : { data: [], error: null };
-  if (crews.error) throw crews.error;
-  // A group and a 1-on-1 plan can share a gathering (M3.4): one map each, never one over the other.
-  const planAt = (kind: "crew" | "solo") => new Map(
-    (crews.data ?? []).filter((c) => c.kind === kind).map((c) => [
-      c.gathering_id,
-      { state: c.state, spot: (c.meeting_spots as { name: string } | null)?.name ?? null, meetAt: c.meet_at },
-    ]),
-  );
-  const groupAt = planAt("crew");
-  const soloAt = planAt("solo");
-
-  // A pin whose gathering this person can no longer read (a draft again, say) is not
-  // shown: there is nothing to open.
-  const rows = ((pins.data ?? []) as unknown as PinRow[]).filter((p) => p.gatherings?.slug);
-  return Promise.all(
-    rows.map(async (p): Promise<MyEvent> => {
-      const g = p.gatherings!;
-      const base = {
-        gatheringId: p.gathering_id,
-        slug: g.slug!,
-        name: g.name,
-        venue: g.venues?.name ?? "",
-        timezone: g.venues?.cities?.timezone ?? "America/Toronto",
-        startsAt: g.starts_at,
-        endsAt: g.ends_at,
-        withdrawn: g.withdrawn_at !== null,
-        openToMeeting: p.open_to_meeting,
-        group: groupAt.get(p.gathering_id) ?? null,
-        solo: soloAt.get(p.gathering_id) ?? null,
-        after: null as MyEventInput["after"],
-      };
-      if (!isPast(base, now)) return base;
-      // Past: A16's own view of this night — your ticks, and whether they are still open.
-      const { data } = await db.rpc("after_state", { p_gathering: p.gathering_id });
-      const s = data as { open: boolean; people: { we_met: boolean }[] } | null;
-      return { ...base, after: s ? { weMet: s.people.filter((x) => x.we_met).length, open: s.open } : null };
-    }),
-  );
+  const { data, error } = await supabase().rpc("my_chats");
+  if (error) throw error;
+  return readMyChats(data);
 }

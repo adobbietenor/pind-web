@@ -91,6 +91,8 @@ const says = async (label, roomId, body) =>
 const report = { label: LABEL, profiles: {} };
 try {
   [gathering] = await must(await rest("/rest/v1/gatherings", { method: "POST", body: JSON.stringify({ name: `Thread cost ${Date.now()}`, starts_at: new Date(Date.now() + 3 * 86_400_000).toISOString(), venue_id: crowd.venue_id, published_at: new Date().toISOString(), source: "manual" }) }), "gathering");
+  // A slug, as every published gathering has: My Events lists nothing without one (there is nothing to open).
+  await must(await rest("/rest/v1/rpc/admin_mint_slug", { method: "POST", body: JSON.stringify({ p_gathering: gathering.id }) }), "slug");
   for (const n of ["Ari", "Bea", "Cal", "Dee"]) await person(n);
   for (const n of ["Ari", "Bea", "Cal", "Dee"]) await optIn(n);
   const roomId = (await must(await rest(`/rest/v1/room_members?person_id=eq.${people.Ari.personId}&gathering_id=eq.${gathering.id}&women_only=eq.false&select=room_id`), "room"))[0]?.room_id;
@@ -361,6 +363,78 @@ try {
     console.log(JSON.stringify(g.summary, null, 2));
     g.incoming.forEach((x, i) => console.log(`  incoming ${i + 1}: ${x.ms} ms · ${x.requests} req + ${x.images} img — ${x.detail || "none"}`));
     g.send.forEach((x, i) => console.log(`  send ${i + 1}: on screen ${x.appearMs} ms, confirmed ${x.confirmedMs} ms · ${x.requests} req — ${x.detail || "none"}`));
+    // A19: open My Events with a pinned event, its room and this squad — what does the tab cost?
+    const evFrom = Date.now();
+    await send("Page.navigate", { url: `${SITE}/my-events` });
+    await sleep(300);
+    await evaluate(HELPERS);
+    const evShown = await evaluate(`window.__appear(${JSON.stringify(gathering.name)}, 20000)`);
+    await sleep(3000);
+    const evReqs = between(evFrom, Date.now()).filter((r) => !r.image);
+    report.events = { ms: evShown ? evShown - evFrom : null, requests: evReqs.length, detail: tally(evReqs) };
+    if (!evShown) console.log(`My Events did not show "${gathering.name}" — the page says:
+${(await evaluate("location.pathname + ' :: ' + document.body.innerText")).slice(0, 700)}`);
+    console.log(`\n== ${LABEL} · opening My Events: ${report.events.ms} ms to the event on screen · ${evReqs.length} requests — ${report.events.detail || "none"}`);
+    // The call itself, five times, as Ari, against the same data — and the four reads the
+    // M3.2b list made, for comparison. Server time, not the page's.
+    const asAri = { apikey: pub, authorization: `Bearer ${people.Ari.session.access_token}`, "content-type": "application/json" };
+    const timeIt = async (run) => { const t = performance.now(); const r = await run(); if (!r.ok) throw new Error(`timing: ${r.status} ${await r.text()}`); await r.text(); return Math.round(performance.now() - t); };
+    const rpcMs = [];
+    for (let i = 0; i < 5; i++) rpcMs.push(await timeIt(() => fetch(`${base}/rest/v1/rpc/my_chats`, { method: "POST", headers: asAri, body: "{}" })));
+    const oldMs = [];
+    for (let i = 0; i < 5; i++) {
+      const t = performance.now();
+      await fetch(`${base}/rest/v1/people?auth_user_id=eq.${people.Ari.authId}&select=id`, { headers: asAri }).then((r) => r.text());
+      await Promise.all([
+        fetch(`${base}/rest/v1/pins?person_id=eq.${people.Ari.personId}&select=gathering_id,open_to_meeting,gatherings(slug,name,starts_at,ends_at,withdrawn_at,venues(name,cities(timezone)))`, { headers: asAri }).then((r) => r.text()),
+        fetch(`${base}/rest/v1/crew_members?person_id=eq.${people.Ari.personId}&left_at=is.null&select=crew_id,gathering_id`, { headers: asAri }).then((r) => r.text()),
+      ]);
+      await fetch(`${base}/rest/v1/crews?id=eq.${crew.id}&select=id,kind,gathering_id,state,meet_at,meeting_spots(name)`, { headers: asAri }).then((r) => r.text());
+      oldMs.push(Math.round(performance.now() - t));
+    }
+    console.log(`   my_chats, one call: ${rpcMs.join(", ")} ms (median ${median(rpcMs)}) · the old list's four reads: ${oldMs.join(", ")} ms (median ${median(oldMs)})`);
+    if (process.env.THREAD_EXPLAIN) {
+      // Where my_chats spends its time: its own body, EXPLAIN ANALYZE'd as Ari — the signed-in
+      // role and his claims, so RLS is exactly what the app meets — in a transaction rolled back.
+      // Read-only; it runs the query and reports the plan.
+      const { readdirSync, writeFileSync } = await import("node:fs");
+      const { execFileSync } = await import("node:child_process");
+      const migs = readdirSync("supabase/migrations").filter((f) => /a19_my_chats/.test(f)).sort();
+      const src = readFileSync(join("supabase/migrations", migs.at(-1)), "utf8");
+      const bodyAt = src.indexOf("as $$", src.indexOf("function public.my_chats()")) + 5;
+      const body = src.slice(bodyAt, src.indexOf("$$;", bodyAt)).trim().replace(/;$/, "");
+      const sql = `begin;
+set local role authenticated;
+select set_config('request.jwt.claims', '${JSON.stringify({ sub: people.Ari.authId, role: "authenticated" })}', true);
+explain (analyze, buffers, format text) ${body};
+rollback;`;
+      const file = join(tmpdir(), `my-chats-explain-${Date.now()}.sql`);
+      writeFileSync(file, sql);
+      const out = execFileSync("npx", ["supabase", "db", "query", "--linked", "-f", file], { input: "", encoding: "utf8", shell: true, maxBuffer: 1 << 24 });
+      writeFileSync(process.env.THREAD_EXPLAIN, out);
+      console.log(`   EXPLAIN written to ${process.env.THREAD_EXPLAIN}`);
+    }
+    if (process.env.THREAD_PROFILE_RPC) {
+      // Each piece my_chats does, alone, as Ari (each includes one round trip; compare to a bare one).
+      const pieces = {
+        "round trip (pins, tiny)": () => fetch(`${base}/rest/v1/pins?person_id=eq.${people.Ari.personId}&select=gathering_id&limit=1`, { headers: asAri }),
+        my_rooms: () => fetch(`${base}/rest/v1/rpc/my_rooms`, { method: "POST", headers: asAri, body: JSON.stringify({ p_gathering: gathering.id }) }),
+        squads: () => fetch(`${base}/rest/v1/rpc/squads`, { method: "POST", headers: asAri, body: JSON.stringify({ p_gathering: gathering.id }) }),
+        "room: last message": () => fetch(`${base}/rest/v1/room_messages?room_id=eq.${roomId}&select=body,created_at,author_id&order=created_at.desc&limit=1`, { headers: asAri }),
+        "room: count all readable": () => fetch(`${base}/rest/v1/room_messages?room_id=eq.${roomId}&select=id`, { headers: { ...asAri, prefer: "count=exact", range: "0-0" } }),
+        "people: one name": () => fetch(`${base}/rest/v1/people?id=eq.${people.Bea.personId}&select=first_name`, { headers: asAri }),
+        "crew: last message": () => fetch(`${base}/rest/v1/crew_messages?crew_id=eq.${crew.id}&kind=eq.user&select=body,created_at&order=created_at.desc&limit=1`, { headers: asAri }),
+      };
+      for (const [name, run] of Object.entries(pieces)) {
+        const ms = [];
+        for (let i = 0; i < 5; i++) ms.push(await timeIt(run));
+        console.log(`   piece · ${name}: median ${median(ms)} ms (${ms.join(", ")})`);
+      }
+    }
+    if (process.env.THREAD_EVENTS_SHOT) {
+      const shot = await send("Page.captureScreenshot", { format: "png" });
+      (await import("node:fs")).writeFileSync(process.env.THREAD_EVENTS_SHOT, Buffer.from(shot.result.data, "base64"));
+    }
     await rest(`/rest/v1/crews?id=eq.${crew.id}`, { method: "DELETE" });
   }
   ws.close();

@@ -225,8 +225,10 @@ own cron, not inside the nightly import.
   its data, policies, keys and delivery on a real device, then builds its screens to
   finished quality.
 - **W2, A10 and A26 carry the first impression** (the crowd page, the pinned crowd
-  page, quick pin) and get real design attention. Plain screens, such as My Events,
-  can stay plain.
+  page, quick pin) and get real design attention. **A19, My Events, is a main screen
+  since 16 Oct 2026** — the home for every chat you belong to, and where you find your
+  group on the night — and gets the same attention. Plain screens (Settings, say) can
+  stay plain.
 - Why it matters: the empty M2.0 shell surfaced three real bugs — keys missing from
   the web bundle, PostHog events never flushing, wrong device-registration steps.
   Each would otherwise have surfaced during the M3.6 dogfood walk.

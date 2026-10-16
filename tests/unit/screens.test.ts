@@ -561,11 +561,17 @@ describe("Threads: a message costs a row, and the box rides the keyboard (the th
     assert.match(room, /const SHELL_MS = 60_000;/, "the room's shell moved off its minute");
   });
 
-  it("S42 'I've looked' is marked when the room comes into view and at most once a minute after — never on a refresh", () => {
-    assert.equal((room.match(/markSeen\(/g) ?? []).length, 1, "markSeen is called from more than one place");
-    assert.match(room, /const seen = useCallback\(\(\) => \{\s*lastSeen\.current = Date\.now\(\);\s*void markSeen\(id\);/, "markSeen is not behind the throttle");
-    assert.match(room, /Date\.now\(\) - lastSeen\.current >= SEEN_MS\) seen\(\)/, "an arriving message marks seen without the throttle");
+  it("S42 'I've looked' is marked as a thread comes into view, at most once a minute while it is, and as you leave — in the room and in a group alike; never on a refresh", () => {
+    // The group's half since A19 (16 Oct 2026): My Events counts unread from these marks.
+    for (const [name, src, fn] of [["the room", room, "markSeen"], ["the group", group, "markGroupSeen"]] as const) {
+      assert.equal((src.match(new RegExp(`${fn}\\(`, "g")) ?? []).length, 1, `${name}: ${fn} is called from more than one place`);
+      assert.match(src, new RegExp(`const seen = useCallback\\(\\(\\) => \\{\\s*lastSeen\\.current = Date\\.now\\(\\);\\s*return ${fn}\\(id\\)`), `${name}: ${fn} is not behind the throttle`);
+      assert.match(src, /Date\.now\(\) - lastSeen\.current >= SEEN_MS\) void seen\(\)/, `${name}: an arriving message marks seen without the throttle`);
+      assert.match(src, /setFocused\(true\);\s*void seen\(\);/, `${name}: coming into view does not mark seen`);
+      assert.match(src, /setFocused\(false\);\s*void seen\(\)\.then\(\(\) => queryClient\.invalidateQueries\(\{ queryKey: MY_CHATS_KEY \}\)\)/, `${name}: leaving does not mark seen and refresh My Events — what you just read stays "unread"`);
+    }
     assert.doesNotMatch(roomLib.slice(roomLib.indexOf("export async function loadRoomShell"), roomLib.indexOf("export function sharedTag")), /room_seen|markSeen/, "the shell marks seen on every refresh");
+    assert.doesNotMatch(group.slice(group.indexOf("async function loadGroupShell"), group.indexOf("export default")), /crew_seen|markGroupSeen/, "the group's card marks seen on every refresh");
   });
 });
 

@@ -525,6 +525,19 @@ link. **Nobody is ever sent anything while they are a test person** (P162). SMS 
 used (decisions Part 5, "Email delivery", "Notification delivery").
 
 ### A19 — My Events
+**In force since 16 Oct 2026 — the home for your chats (Alex; decisions, "A19: My Events is
+the home for your chats"). A main screen, not a plain one.** Each event you pinned is a
+section, soonest first; **tonight's sits on top and stands out**. Under each, in this order:
+**"Everyone going"** (the room; working name, copy pass later), **your squad**, **your 1-on-1
+plan**, then **squads you could join** — quieter, and a tap offers to join (A15's join),
+never opens a thread. Each chat row: name, last message, its time, unread count; one tap
+opens the thread. Pinned but not open to meeting: the event, with the way to A27 — never an
+empty section. Past events below, collapsed, newest first; their chats open read-only for
+as long as retention keeps them (Q11), then the event stays with no chat. **A dot on the My
+Events tab** when any of your chats has something new. One call for the screen
+(`my_chats`, read as the person); the crowd page (A9) is still a way into the same chats.
+The two readings below are history.
+
 *(Superseded 10 Oct 2026 by the room-era reading below — decisions, "M3.2b: interests,
 search, My Events":)* Upcoming (pinned, with crew and spot if any; one day-of reminder
 toggle) and past (crew met / went solo). Empty: "Nothing pinned yet — this week's crowds →".
@@ -808,12 +821,6 @@ of decisions.md against the plan). Each points at its decisions.md entry by name
   and not in its section (decisions, "A search bar").
 - **M3.6's dogfood includes at least one web-only person** (decisions, "A steer on
   emphasis: the app is the product, the web is the on-ramp") — not in M3.6's section.
-- **My Events as each event's home — a candidate for before the first crowds** (Alex,
-  16 Oct 2026; decisions, "My Events as each event's home"). Each event in My Events opens
-  a WhatsApp-style home: the main room at the top (working name **"Everyone going"**),
-  then the squads I've joined, then the squads open to me that I haven't joined. Why
-  before the first crowds: getting back to your squad on the night is 3–4 taps deep today.
-  Recorded, not built.
 - *(The anonymous sign-in abuse revisit is now its own line on the checklist below.)*
 
 **Filed for a milestone that never picked it up:**
