@@ -4491,7 +4491,8 @@ has to be one tap from this tab."
   way to A27. Not an empty section.
 - **Past chats** open read-only (the group thread now says so, as the room did) until 30 days
   after the read-only day begins (Q11), then the event stays with no chat.
-- **Found, not fixed — Alex to decide:** nothing deletes squad or 1-on-1 messages. The 30-day
-  purge (`admin_delete_expired_room_messages`) covers room messages only, though Q11 says
-  threads are deleted at +30 days. My Events stops listing them on Q11's schedule; the rows stay.
+- **Found while building this, then fixed (Alex, 16 Oct 2026):** nothing deleted squad or 1-on-1
+  messages — the 30-day purge covered room messages only, though Q11 and the privacy page say
+  threads go at 30 days. `admin_delete_expired_crew_messages` now deletes them on the room's rule
+  and schedule (effective end + 24 h + 30 days, daily at 09:15 UTC; 20261016211217, P254).
 - **The crowd page (A9) is unchanged** — another way into the same chats.

@@ -6050,3 +6050,65 @@ describe("A19 — My Events lists your chats, in one call, as you (Alex, 16 Oct 
     assert.ok(mine.some((m: { crew_id: string }) => m.crew_id === squad), "the export's read of your groups lost them");
   });
 });
+
+describe("Q11 — squad and 1-on-1 thread messages are deleted on the room's schedule (16 Oct 2026)", () => {
+  // The privacy page promises "Crew messages — read-only 24 hours after the gathering,
+  // deleted 30 days after it"; until this, only room messages were ever deleted. The rule is
+  // the room's: a message goes once now() >= effective end + 24 h + 30 days.
+  const DAY = 86_400_000;
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+  const P = (label: string) => people[label]!;
+  const made: string[] = [];
+  const msg: Record<string, string> = {};
+
+  async function person(label: string) {
+    const email = `${PREFIX}-${w.run}-q11-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const u = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(u.error, null, u.error?.message);
+    const p = await ok(w.service.from("people").insert({ auth_user_id: u.data.user!.id, first_name: label }).select("id").single());
+    const client = newClient(w.env, w.env.publishableKey);
+    assert.equal((await client.auth.signInWithPassword({ email, password })).error, null);
+    people[label] = { authId: u.data.user!.id, personId: p.id, client };
+  }
+  // A gathering whose effective end (start + 3 h) was `endedDaysAgo` days ago, with a squad
+  // and a 1-on-1 plan, each holding one message written as the night ended.
+  async function night(label: string, endedDaysAgo: number) {
+    const end = Date.now() - endedDaysAgo * DAY;
+    const g = (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Q11 ${label}`, starts_at: new Date(end - 3 * 3_600_000).toISOString(), venue_id: w.venue, published_at: new Date(end - 30 * DAY).toISOString() }).select("id").single())).id as string;
+    made.push(g);
+    for (const kind of ["crew", "solo"] as const) {
+      const spot = (await ok(w.service.from("meeting_spots").select("id").eq("venue_id", w.venue).eq("active", true).limit(1).single())).id;
+      const c = await ok(w.service.from("crews").insert({ gathering_id: g, state: "done", spot_id: spot, meet_at: new Date(end - 4 * 3_600_000).toISOString(), kind, ...(kind === "crew" ? { name: `Q11 ${label}`, name_status: "approved" } : {}) }).select("id").single());
+      for (const n of ["Ola", "Pip"]) await ok(w.service.from("crew_members").insert({ crew_id: c.id, gathering_id: g, person_id: P(n).personId, kind }));
+      const m = await ok(w.service.from("crew_messages").insert({ crew_id: c.id, author_id: P("Ola").personId, kind: "user", body: `${label} ${kind}`, created_at: new Date(end).toISOString() }).select("id").single());
+      msg[`${label}-${kind}`] = m.id;
+    }
+  }
+  const still = async (key: string) => (await rows(w.service.from("crew_messages").select("id").eq("id", msg[key]))).length === 1;
+
+  before(async () => {
+    for (const n of ["Ola", "Pip"]) await person(n);
+    await night("old", 31.5); // 31½ days old: the purge point (end + 24 h + 30 days) passed half a day ago
+    await night("recent", 29); // 29 days old: two days before it
+  });
+
+  after(async () => {
+    for (const g of made) await w.service.from("gatherings").delete().eq("id", g);
+    for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
+  });
+
+  it("P254 the job deletes a 31-day-old squad message and 1-on-1 message, keeps 29-day-old ones — and nobody else can run it", async () => {
+    for (const key of ["old-crew", "old-solo", "recent-crew", "recent-solo"]) assert.ok(await still(key), `setup: ${key} is not there to begin with`);
+    for (const client of [P("Ola").client, w.anon]) {
+      assert.ok((await client.rpc("admin_delete_expired_crew_messages")).error, "someone other than the service ran the retention job");
+    }
+    assert.ok(await still("old-crew"), "a refused run deleted something");
+    const n = (await ok(w.service.rpc("admin_delete_expired_crew_messages"))) as number;
+    assert.ok(n >= 2, `the job reported deleting ${n}`);
+    assert.equal(await still("old-crew"), false, "a 31-day-old squad message survived the job");
+    assert.equal(await still("old-solo"), false, "a 31-day-old 1-on-1 message survived the job");
+    assert.equal(await still("recent-crew"), true, "a 29-day-old squad message was deleted early");
+    assert.equal(await still("recent-solo"), true, "a 29-day-old 1-on-1 message was deleted early");
+  });
+});
