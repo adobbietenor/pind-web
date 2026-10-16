@@ -27,5 +27,6 @@ export * from "./signin";
 export * from "./solo";
 export * from "./squad";
 export * from "./tags";
+export * from "./thread";
 export * from "./tokens";
 export type { Database, Json, Tables, TablesInsert, TablesUpdate, Enums } from "./database.types";

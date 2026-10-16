@@ -10,19 +10,29 @@
 //     on the crowd page (A15). Invite-only groups and "Go together" are retired;
 //   * on the iPhone, the "Turn on" card for push — never at launch (lib/push.ts).
 // Long-press your own message to delete it; anyone else's to report it (H9).
-// Realtime through postgres_changes, which respects RLS; a 15-second poll is the net.
+//
+// **Two parts since the thread pass (16 Oct 2026):** the shell (lib/room.ts — who is
+// here, read on opening and every minute) and the thread (lib/thread.ts — the messages,
+// changed one row at a time by Realtime, by Send and by a cheap "since" poll). A message
+// never reloads the shell. The box is the shared Composer in AppScreen's footer, so it
+// stays on the keyboard, and Enter sends.
+import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Image, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { colors as palette, fonts, NEIGHBOURHOODS, openersFor, radius, REPORT_REASONS, ROOM_COPY, spacing, SQUAD_COPY } from "@pind/shared";
+import { colors as palette, fonts, NEIGHBOURHOODS, openersFor, radius, REPORT_REASONS, ROOM_COPY, spacing, SQUAD_COPY, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
+import { Composer } from "@/components/Composer";
 import { PushAsk } from "@/components/PushAsk";
+import { ThreadMessages } from "@/components/ThreadMessages";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice } from "@/components/ui";
 import { failed, rateRefusal, type Described } from "@/lib/errors";
-import { deleteRoomMessage, loadRoom, markSeen, reportRoomMessage, sendRoomMessage, sharedTag, tagName, type Message, type RoomView } from "@/lib/room";
-import { supabase } from "@/lib/supabase";
+import { deleteRoomMessage, loadRoomShell, markSeen, reportRoomMessage, sendRoomMessage, sharedTag, tagName, type Member } from "@/lib/room";
+import { faceSource } from "@/lib/signed-photos";
+import { useThread } from "@/lib/thread";
 
 const hoodName = (slug: string | null) => NEIGHBOURHOODS.find((n) => n.slug === slug)?.name ?? null;
 // "Enough to go together" appears once per room (build plan §8 M3.3): marked seen on this
@@ -45,20 +55,62 @@ async function markGoSeen(roomId: string): Promise<void> {
   }
 }
 
-const clock = (iso: string) => new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+// The shell's slow timer: new arrivals, the mix, and faces re-signed before their URLs lapse.
+const SHELL_MS = 60_000;
+// "I've looked": at most this often while messages arrive and the room is in view (#6
+// waits two minutes from the last look, so a reader is never told about what they're reading).
+const SEEN_MS = 60_000;
+
+function Face({ member, style }: { member: Member; style: object }) {
+  return member.photoUrl && member.photoPath ? (
+    <Image source={faceSource(member.photoUrl, member.photoPath)} style={style} />
+  ) : (
+    <View style={[style, styles.faceEmpty]} />
+  );
+}
 
 export default function Room() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const [view, setView] = useState<RoomView | null | undefined>(undefined);
   const [trouble, setTrouble] = useState<Described | null>(null);
   const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
   const [sendNote, setSendNote] = useState("");
-  const [held, setHeld] = useState<Message | null>(null);
+  const [held, setHeld] = useState<ThreadMessage | null>(null);
   // null until read: the card waits for the answer rather than flashing.
   const [goDismissed, setGoDismissed] = useState<boolean | null>(null);
-  const live = useRef(true);
+  const [focused, setFocused] = useState(false);
+
+  const shell = useQuery({
+    queryKey: ["room", id],
+    queryFn: () => loadRoomShell(id),
+    enabled: focused,
+    refetchInterval: focused ? SHELL_MS : false,
+    refetchOnWindowFocus: false,
+  });
+  const view = shell.data;
+  const { refetch: refetchShell } = shell;
+  const refreshShell = useCallback(() => void refetchShell(), [refetchShell]);
+
+  // Seen: when the room comes into view, then at most once a minute as messages arrive.
+  const lastSeen = useRef(0);
+  const seen = useCallback(() => {
+    lastSeen.current = Date.now();
+    void markSeen(id);
+  }, [id]);
+  // A message from someone the shell has not met (they arrived since it was read): read
+  // the shell once for them. Once — if RLS keeps them from me, asking again changes nothing.
+  const asked = useRef(new Set<string>());
+  const thread = useThread("room", id, {
+    meId: view?.me.personId,
+    focused,
+    onIncoming: (m) => {
+      if (focused && Date.now() - lastSeen.current >= SEEN_MS) seen();
+      if (view && !view.members.some((p) => p.personId === m.authorId) && !asked.current.has(m.authorId)) {
+        asked.current.add(m.authorId);
+        refreshShell();
+      }
+    },
+  });
 
   useEffect(() => {
     let on = true;
@@ -72,55 +124,29 @@ export default function Room() {
     if (view && goDismissed === false && view.members.length + 1 >= 3 && !view.me.inGroup) void markGoSeen(id);
   }, [view, goDismissed, id]);
 
-  const refresh = useCallback(() => {
-    loadRoom(id)
-      .then((v) => {
-        if (!live.current) return;
-        setView(v);
-        void markSeen(id);
-      })
-      .catch((err) => {
-        setTrouble(failed("open the room", err));
-        setView((v) => v ?? null);
-      });
-  }, [id]);
-
   useFocusEffect(
     useCallback(() => {
-      live.current = true;
-      refresh();
-      const poll = setInterval(refresh, 15_000);
-      return () => {
-        live.current = false;
-        clearInterval(poll);
-      };
-    }, [refresh]),
+      setFocused(true);
+      seen();
+      return () => setFocused(false);
+    }, [seen]),
   );
 
-  // New messages arrive live (RLS decides who receives each one).
-  useEffect(() => {
-    const channel = supabase()
-      .channel(`room:${id}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "room_messages", filter: `room_id=eq.${id}` }, () => refresh())
-      .on("postgres_changes", { event: "DELETE", schema: "public", table: "room_messages" }, () => refresh())
-      .subscribe();
-    return () => {
-      void supabase().removeChannel(channel);
-    };
-  }, [id, refresh]);
+  const shellTrouble = shell.error ? failed("open the room", shell.error) : null;
+  const threadTrouble = thread.error ? failed("open the room", thread.error) : null;
 
-  if (view === undefined) {
+  if (view === undefined && !shellTrouble) {
     return (
       <AppScreen scroll={false}>
         <ActivityIndicator style={{ marginTop: spacing.xl }} color={palette.textMuted} />
       </AppScreen>
     );
   }
-  if (view === null) {
+  if (!view) {
     return (
       <AppScreen>
         <Heading>The room</Heading>
-        {trouble ? <Trouble what={trouble} onRetry={refresh} /> : <Body muted>This room isn't open to you.</Body>}
+        {shellTrouble ? <Trouble what={shellTrouble} onRetry={refreshShell} /> : <Body muted>This room isn't open to you.</Body>}
       </AppScreen>
     );
   }
@@ -132,26 +158,41 @@ export default function Room() {
   const closed = Date.now() >= Date.parse(view.gathering.closesAt);
   const firstShared = people.map((p) => sharedTag(view.me.tags, p.tags)).find(Boolean) ?? null;
   const openers = openersFor({ convening: view.gathering.convening, sharedTag: firstShared });
+  const messages = thread.messages ?? [];
+  // "Posted" is the shell's record, or a message of mine on its way: the openers go the
+  // moment I send, and come back if it fails.
+  const posted = view.me.posted || messages.some((m) => m.authorId === view.me.personId && m.status !== "failed");
 
+  // The box is cleared and the message is on screen at once; the insert confirms it.
   const send = async () => {
-    if (!draft.trim()) return;
-    setSending(true);
+    const body = draft.trim();
+    if (!body) return;
+    setDraft("");
     setSendNote("");
     try {
-      await sendRoomMessage(view.roomId, view.me.personId, draft);
-      setDraft("");
-      refresh();
+      await thread.post(body, () => sendRoomMessage(view.roomId, view.me.personId, body));
     } catch (err) {
       const why = rateRefusal(err);
       if (why) setSendNote(why === "too-many" ? ROOM_COPY.tooMany : ROOM_COPY.tooFast);
       else setTrouble(failed("send that", err));
-    } finally {
-      setSending(false);
     }
+  };
+  // A failed message, back in the box: the person sends it again, or doesn't (S29).
+  const takeBack = (localId: string) => {
+    const words = thread.takeBack(localId);
+    if (words) setDraft((d) => (d.trim() ? `${words}\n${d}` : words));
   };
 
   return (
-    <AppScreen>
+    <AppScreen
+      footer={
+        closed ? (
+          <Notice>{ROOM_COPY.readOnly}</Notice>
+        ) : (
+          <Composer value={draft} onChangeText={setDraft} onSend={() => void send()} placeholder={ROOM_COPY.placeholder} note={sendNote} ready={!!thread.messages} />
+        )
+      }
+    >
       <Heading>{view.gathering.name}</Heading>
       <Body muted>{view.womenOnly ? `Women-only room · ${ROOM_COPY.inRoom(count)}` : ROOM_COPY.inRoom(count)}</Body>
       {/* At 5, the mix (Q3's floor) — the gathering's public numbers, never the room's own. */}
@@ -167,7 +208,7 @@ export default function Room() {
           const shared = sharedTag(view.me.tags, p.tags);
           return (
             <Pressable key={p.personId} onPress={() => router.push(`/person/${p.personId}`)} style={styles.arrival}>
-              {p.photoUrl ? <Image source={{ uri: p.photoUrl }} style={styles.face} /> : <View style={[styles.face, styles.faceEmpty]} />}
+              <Face member={p} style={styles.face} />
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{`${p.firstName} ${ROOM_COPY.arrived}`}</Text>
                 <Text style={styles.meta}>{[hoodName(p.neighbourhood), ...p.tags.map(tagName)].filter(Boolean).join(" · ")}</Text>
@@ -178,9 +219,9 @@ export default function Room() {
         })
       ) : (
         <View style={styles.strip}>
-          {people.slice(0, 8).map((p) =>
-            p.photoUrl ? <Image key={p.personId} source={{ uri: p.photoUrl }} style={styles.stripFace} /> : <View key={p.personId} style={[styles.stripFace, styles.faceEmpty]} />,
-          )}
+          {people.slice(0, 8).map((p) => (
+            <Face key={p.personId} member={p} style={styles.stripFace} />
+          ))}
           <Text style={styles.meta}>{ROOM_COPY.morePeople(count)}</Text>
         </View>
       )}
@@ -200,21 +241,34 @@ export default function Room() {
         </View>
       ) : null}
 
-      {trouble ? <Trouble what={trouble} onRetry={refresh} /> : null}
+      {/* An action that failed (delete, report, a page of history): "Try again" reads the room afresh, as it always did. */}
+      {trouble ? (
+        <Trouble
+          what={trouble}
+          onRetry={() => {
+            setTrouble(null);
+            refreshShell();
+            thread.recheck();
+          }}
+        />
+      ) : null}
+      {threadTrouble ? <Trouble what={threadTrouble} onRetry={thread.retry} /> : null}
 
-      {/* The conversation. */}
-      <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
-        {view.messages.map((m) => {
-          const mine = m.authorId === view.me.personId;
-          const who = mine ? "You" : byId.get(m.authorId)?.firstName ?? "Someone";
-          return (
-            <Pressable key={m.id} onLongPress={() => setHeld(m)} style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
-              <Text style={styles.who}>{`${who} · ${clock(m.createdAt)}`}</Text>
-              <Text style={styles.body}>{m.body}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {/* The conversation: a page at a time, mine on screen the moment I send. */}
+      {thread.messages ? (
+        <ThreadMessages
+          messages={messages}
+          meId={view.me.personId}
+          nameOf={(a) => byId.get(a)?.firstName ?? "Someone"}
+          hasOlder={thread.hasOlder}
+          olderBusy={thread.olderBusy}
+          onOlder={() => void thread.loadOlder().catch((err) => setTrouble(failed("load earlier messages", err)))}
+          onTakeBack={takeBack}
+          onLongPress={setHeld}
+        />
+      ) : !threadTrouble ? (
+        <ActivityIndicator style={{ marginTop: spacing.lg }} color={palette.textMuted} />
+      ) : null}
 
       {/* Long-press: delete your own, report anyone else's (two taps, H9). */}
       {held ? (
@@ -225,9 +279,15 @@ export default function Room() {
               <Button
                 label="Delete"
                 onPress={async () => {
-                  await deleteRoomMessage(held.id).catch((err) => setTrouble(failed("delete that", err)));
+                  const gone = await deleteRoomMessage(held.id).then(
+                    () => true,
+                    (err) => {
+                      setTrouble(failed("delete that", err));
+                      return false;
+                    },
+                  );
+                  if (gone) thread.forget(held.id);
                   setHeld(null);
-                  refresh();
                 }}
               />
             </>
@@ -242,7 +302,8 @@ export default function Room() {
                   onPress={async () => {
                     await reportRoomMessage(view.me.personId, held.id, r.value).catch((err) => setTrouble(failed("report that", err)));
                     setHeld(null);
-                    refresh();
+                    // A report can hide the message: check the thread now, not within the minute.
+                    thread.recheck();
                   }}
                 />
               ))}
@@ -252,33 +313,16 @@ export default function Room() {
         </View>
       ) : null}
 
-      {/* The box. Openers until you've said something: they fill it, never send it. */}
-      {closed ? (
-        <Notice>{ROOM_COPY.readOnly}</Notice>
-      ) : (
-        <View style={{ marginTop: spacing.lg }}>
-          {!view.me.posted ? (
-            <View style={{ gap: spacing.xs, marginBottom: spacing.sm }}>
-              {openers.map((o) => (
-                <Pressable key={o} accessibilityRole="button" onPress={() => setDraft(o)} style={styles.opener}>
-                  <Text style={styles.openerText}>{o}</Text>
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-          <TextInput
-            value={draft}
-            onChangeText={setDraft}
-            placeholder={ROOM_COPY.placeholder}
-            placeholderTextColor={palette.tabInactive}
-            maxLength={500}
-            multiline
-            style={styles.input}
-          />
-          {sendNote ? <Body muted>{sendNote}</Body> : null}
-          <Button label={ROOM_COPY.send} busy={sending} disabled={!draft.trim()} onPress={() => void send()} />
+      {/* Openers until you've said something, just over the box: they fill it, never send it. */}
+      {!closed && !posted && thread.messages ? (
+        <View style={{ gap: spacing.xs, marginTop: spacing.lg }}>
+          {openers.map((o) => (
+            <Pressable key={o} accessibilityRole="button" onPress={() => setDraft(o)} style={styles.opener}>
+              <Text style={styles.openerText}>{o}</Text>
+            </Pressable>
+          ))}
         </View>
-      )}
+      ) : null}
     </AppScreen>
   );
 }
@@ -293,14 +337,6 @@ const styles = StyleSheet.create({
   strip: { flexDirection: "row", alignItems: "center", gap: 4, marginVertical: spacing.sm },
   stripFace: { width: 28, height: 28, borderRadius: 14 },
   go: { padding: spacing.md, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, backgroundColor: palette.surface, marginTop: spacing.md, gap: spacing.sm },
-  pick: { padding: spacing.sm, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md },
-  pickOn: { borderColor: palette.accent, backgroundColor: palette.background },
-  bubble: { padding: spacing.sm, borderRadius: radius.md, maxWidth: "88%" },
-  mine: { alignSelf: "flex-end", backgroundColor: palette.accent },
-  theirs: { alignSelf: "flex-start", backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },
-  who: { fontSize: 12, color: palette.textMuted, marginBottom: 2 },
-  body: { fontSize: 15, color: palette.text },
   opener: { paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: palette.accent, borderRadius: 999, alignSelf: "flex-start" },
   openerText: { fontSize: 14, color: palette.text },
-  input: { minHeight: 44, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, padding: spacing.sm, color: palette.text, backgroundColor: palette.surface, marginBottom: spacing.sm, fontSize: 15 },
 });

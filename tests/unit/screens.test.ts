@@ -345,11 +345,25 @@ describe("The web app claims a handed-over session before any screen renders (M3
     assert.deepEqual(files.filter((f) => inserts.test(f.src)).map((f) => f.path), ["lib/room.ts"], "a message is written somewhere other than the two send functions");
     const room = files.find((f) => f.path === "app/room/[id].tsx")!.src;
     const group = files.find((f) => f.path === "app/group/[id].tsx")!.src;
-    // Each send function is called once, from the code behind that screen's Send button.
-    assert.equal((room.match(/sendRoomMessage\(/g) ?? []).length, 1);
-    assert.match(room, /const send = async \(\) => \{[\s\S]{0,200}sendRoomMessage\(/, "the room sends from somewhere other than its Send button");
-    assert.match(room, /label=\{ROOM_COPY\.send\}[^>]*onPress=\{\(\) => void send\(\)\}/, "the room's Send button does not send");
-    assert.equal((group.match(/sendGroupMessage\(/g) ?? []).length, 1);
+    // Each send function is called once, from the code behind that screen's Send — which,
+    // since the thread pass, is the shared Composer's `onSend` (its button, or Enter).
+    for (const [name, src, fn] of [["the room", room, "sendRoomMessage"], ["the group", group, "sendGroupMessage"]] as const) {
+      assert.equal((src.match(new RegExp(`${fn}\\(`, "g")) ?? []).length, 1, `${name} calls ${fn} more than once`);
+      assert.match(src, new RegExp(`const send = async \\(\\) => \\{[\\s\\S]{0,300}${fn}\\(`), `${name} sends from somewhere other than its Send`);
+      assert.match(src, /<Composer[^>]*onSend=\{\(\) => void send\(\)\}/, `${name}'s box does not send through send()`);
+      // A failed message, tapped, goes back into the box — it is never re-sent for you.
+      const back = src.slice(src.indexOf("const takeBack"), src.indexOf("\n  };", src.indexOf("const takeBack")));
+      assert.ok(back.length > 20 && /setDraft\(/.test(back), `${name} has no take-back into the box`);
+      assert.doesNotMatch(back, /send|post\(/i, `${name}'s take-back sends`);
+    }
+    // In the composer, the button and Enter are one act; nothing else calls onSend.
+    const composer = files.find((f) => f.path === "components/Composer.tsx")!.src;
+    assert.equal((composer.match(/onSend\(\)/g) ?? []).length, 1, "the composer calls onSend from more than one place");
+    assert.match(composer, /const submit = \(\) => \{\s*if \(!can\) return;\s*onSend\(\);/, "onSend is called from somewhere other than submit");
+    assert.match(composer, /<Button label=\{THREAD_COPY\.send\}[^>]*onPress=\{submit\}/, "the composer's Send button does not submit");
+    const bubbles = files.find((f) => f.path === "components/ThreadMessages.tsx")!.src;
+    assert.match(bubbles, /onPress=\{failed \? \(\) => onTakeBack\(m\.id\) : undefined\}/, "a failed message's tap does something other than take it back");
+    assert.doesNotMatch(bubbles, /onSend|post\(|insert/, "the thread's bubbles can send");
     // An opener's tap fills the box and does nothing else.
     assert.match(room, /openers\.map\(\(o\) => \([\s\S]{0,200}onPress=\{\(\) => setDraft\(o\)\}/, "an opener does something other than fill the box");
     assert.doesNotMatch(room.slice(room.indexOf("openers.map"), room.indexOf("openers.map") + 400), /send|insert/i, "an opener sends");
@@ -439,5 +453,84 @@ describe("The header is the way home, on every screen that has one (#1)", () => 
     // S11 holds every route to AppScreen or Screen; this holds nothing else to a header of its own.
     const own = screens.filter((s) => /<Image[^>]*mark\.png|wordmark\.png/.test(s.source)).map((s) => s.path);
     assert.deepEqual(own, [], "a screen draws the logo itself, outside the shared header");
+  });
+});
+
+describe("Threads: a message costs a row, and the box rides the keyboard (the thread pass, 16 Oct 2026)", () => {
+  const read = (p: string) => readFileSync(join(process.cwd(), "app", "src", p), "utf8").replace(/^\s*\/\/.*$/gm, "");
+  const room = read("app/room/[id].tsx");
+  const group = read("app/group/[id].tsx");
+  const lib = read("lib/thread.ts");
+  const roomLib = read("lib/room.ts");
+  const composer = read("components/Composer.tsx");
+  const frame = read("components/AppScreen.tsx");
+  const threads = [["the room", room], ["the group (squads and 1-on-1 plans)", group]] as const;
+
+  it("S38 every thread's box is the one Composer, in AppScreen's footer — no thread draws its own", () => {
+    assert.match(composer, /<TextInput\b/, "S38 cannot see a text input in the composer");
+    for (const [name, src] of threads) {
+      assert.doesNotMatch(src, /<TextInput\b/, `${name} draws its own text box`);
+      assert.match(src, /<AppScreen\s+footer=\{[\s\S]{0,200}<Composer\b/, `${name}'s box is not the composer in the frame's footer`);
+      assert.match(src, /<ThreadMessages\b/, `${name} draws its own messages, and a sending or failed one would look different`);
+      assert.match(src, /useThread\("(room|group)"/, `${name} does not keep its thread through useThread`);
+    }
+  });
+
+  it("S39 Enter sends: the web's Enter (not Shift+Enter, not mid-composition) and the iPhone's Send key, and the button stays", () => {
+    assert.match(composer, /submitBehavior="submit"/, "the iPhone's return key would make a new line instead of sending");
+    assert.match(composer, /enterKeyHint="send"/, "the keyboard's return key does not say Send");
+    assert.match(composer, /onSubmitEditing=\{Platform\.OS === "web" \? undefined : submit\}/, "the iPhone's Send key does not send");
+    assert.match(composer, /onKeyPress=\{Platform\.OS === "web" \? onKeyPress : undefined\}/, "the web's Enter is not handled");
+    const keys = composer.slice(composer.indexOf("const onKeyPress"), composer.indexOf("\n  };", composer.indexOf("const onKeyPress")));
+    assert.match(keys, /key\.key !== "Enter" \|\| key\.shiftKey \|\| key\.isComposing \|\| key\.keyCode === 229\) return;/, "Shift+Enter or a half-composed word would send");
+    assert.match(keys, /e\.preventDefault\(\);\s*submit\(\);/, "Enter sends and ALSO types a new line");
+    assert.match(composer, /<Button label=\{THREAD_COPY\.send\}/, "the Send button is gone");
+  });
+
+  it("S40 the frame keeps a footer on the keyboard and the newest message in view — in the shared frame, not a screen", () => {
+    assert.match(frame, /<KeyboardAvoidingView[^>]*behavior=\{Platform\.OS === "ios" \? "padding" : undefined\}/, "iOS does not lift the footer by the keyboard");
+    const conv = frame.slice(frame.indexOf("function Conversation"));
+    assert.ok(conv.length > 100, "the conversation frame is gone");
+    assert.doesNotMatch(conv.slice(0, conv.indexOf("function useVisualViewportHeight")), /automaticallyAdjustKeyboardInsets/, "the scroll insets itself AND sits in a keyboard-avoiding view: the keyboard counted twice");
+    assert.match(conv, /onContentSizeChange=\{follow\}/, "a new message does not keep the newest in view");
+    assert.match(conv, /onLayout=\{follow\}/, "the keyboard or a taller box does not keep the newest in view");
+    assert.match(conv, /visualViewport/, "on the web the footer sits behind a phone's keyboard");
+    // React Native Web dismisses "on-drag" on ANY scroll, its own included: following the
+    // newest message blurred the box mid-word (every other new line lost, in real Chrome).
+    assert.match(conv, /keyboardDismissMode=\{Platform\.OS === "ios" \? "on-drag" : "none"\}/, "the web blurs the box every time the conversation follows a new message");
+    for (const [name, src] of threads) assert.doesNotMatch(src, /KeyboardAvoidingView|visualViewport|Keyboard\./, `${name} handles the keyboard itself`);
+  });
+
+  it("S41 a message never reloads the room: Realtime merges its own row, the poll reads 'since', and only postgres_changes", () => {
+    const handler = lib.slice(lib.indexOf('.on("postgres_changes"'), lib.indexOf(".subscribe("));
+    assert.ok(handler.length > 50, "S41 cannot find the Realtime handler");
+    assert.match(handler, /arrived\(\[row\]\)/, "a Realtime row is not merged as itself");
+    assert.doesNotMatch(handler, /refetch|invalidate|loadRoom|loadGroup/, "a Realtime event reloads something");
+    assert.doesNotMatch(lib, /broadcast/, "broadcast ignores RLS (decisions, 'Realtime via postgres_changes only')");
+    assert.match(lib, /\.gte\("created_at", since\)/, "the poll is not a 'since' read");
+    assert.match(lib, /POLL_FALLBACK_MS = 10_000/, "Realtime down: decisions says poll every 10 seconds");
+    assert.match(lib, /healthy \? POLL_HEALTHY_MS : POLL_FALLBACK_MS/, "the poll does not back off while Realtime is healthy");
+    for (const [name, src] of threads) {
+      assert.doesNotMatch(src, /\.channel\(|postgres_changes/, `${name} subscribes on its own, outside the thread`);
+      assert.doesNotMatch(src, /setInterval\(/, `${name} polls on its own`);
+    }
+    // The shell no longer reads messages, and a face is signed only through the cache.
+    const shell = roomLib.slice(roomLib.indexOf("export async function loadRoomShell"), roomLib.indexOf("export function sharedTag"));
+    assert.ok(shell.length > 200, "S41 cannot find the room's shell");
+    assert.doesNotMatch(shell, /room_messages/, "the room's shell reads the messages again");
+    assert.doesNotMatch(group.slice(group.indexOf("async function loadGroupShell"), group.indexOf("export default")), /crew_messages/, "the group's card reads the messages again");
+    const SRC = join(process.cwd(), "app", "src");
+    const signers = (function walk(dir: string): string[] {
+      return readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? walk(join(dir, n)) : /\.tsx?$/.test(n) && /createSignedUrls\(/.test(readFileSync(join(dir, n), "utf8")) ? [n] : []));
+    })(SRC);
+    assert.ok(signers.includes("signed-photos.ts"), "S41 cannot see the photo cache sign anything");
+    for (const f of ["room.ts", "[id].tsx", "thread.ts"]) assert.ok(!signers.includes(f), `${f} signs photos itself, outside the cache`);
+  });
+
+  it("S42 'I've looked' is marked when the room comes into view and at most once a minute after — never on a refresh", () => {
+    assert.equal((room.match(/markSeen\(/g) ?? []).length, 1, "markSeen is called from more than one place");
+    assert.match(room, /const seen = useCallback\(\(\) => \{\s*lastSeen\.current = Date\.now\(\);\s*void markSeen\(id\);/, "markSeen is not behind the throttle");
+    assert.match(room, /Date\.now\(\) - lastSeen\.current >= SEEN_MS\) seen\(\)/, "an arriving message marks seen without the throttle");
+    assert.doesNotMatch(roomLib.slice(roomLib.indexOf("export async function loadRoomShell"), roomLib.indexOf("export function sharedTag")), /room_seen|markSeen/, "the shell marks seen on every refresh");
   });
 });

@@ -16,20 +16,33 @@
 // and A17/A16 (spec A29). It is born with its spot and time, so it never shows the poll
 // or "invite someone else"; leaving calls it off for both, and the other is told only
 // that it is off.
+//
+// **The thread pass (16 Oct 2026):** the card is a shell, read on opening and every 30
+// seconds (it carries "I'm here" on the night); the thread is lib/thread.ts, changed one
+// row at a time — a message never reloads the card. The box is the shared Composer in
+// AppScreen's footer, on the keyboard, and Enter sends. The thread is the last thing on
+// the page, so its newest message sits directly over the box; "Leave" and A17 come before it.
+import { useQuery } from "@tanstack/react-query";
+import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Image, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from "react-native";
+import { useCallback, useRef, useState } from "react";
+import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { AFTER_COPY, colors as palette, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, SQUAD_COPY, type Convening } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
+import { Composer } from "@/components/Composer";
 import { GetTheApp } from "@/components/GetTheApp";
+import { ThreadMessages } from "@/components/ThreadMessages";
 import { Trouble } from "@/components/Trouble";
-import { Body, Button, Field, Heading, Notice } from "@/components/ui";
+import { Body, Button, Field, Heading } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
-import { readProfile } from "@/lib/profile";
-import { sendGroupMessage } from "@/lib/room";
+import { myPersonId, sendGroupMessage } from "@/lib/room";
+import { faceSource, signedPhotoUrls } from "@/lib/signed-photos";
 import { supabase } from "@/lib/supabase";
+import { useThread } from "@/lib/thread";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL || "https://pind.social";
+// The card's timer: state, the plan and "I'm here" — and faces re-signed before their URLs lapse.
+const SHELL_MS = 30_000;
 
 // "Share spot & time with a friend" (W3): the phone's share sheet; on a browser without
 // one, the link is copied and the button says so, where the tap was.
@@ -60,28 +73,27 @@ interface GroupView {
   convening: Convening;
   roomId: string | null;
   meId: string;
-  members: { personId: string; firstName: string; photoUrl: string | null; arrivedAt: string | null; arrivalNote: string | null }[];
+  members: { personId: string; firstName: string; photoUrl: string | null; photoPath: string | null; arrivedAt: string | null; arrivalNote: string | null }[];
   closesAt: string | null;
   spot: string | null;
   meetAt: string | null;
   proposals: { id: string; spot: string; meetAt: string; votes: number; mine: boolean }[];
-  messages: { id: string; authorId: string; body: string; createdAt: string }[];
 }
 
-async function loadGroup(id: string): Promise<GroupView | null> {
+// The card: everything on this screen except the thread.
+async function loadGroupShell(id: string): Promise<GroupView | null> {
   const db = supabase();
-  const me = await readProfile();
-  if (!me.personId) return null;
+  const meId = await myPersonId();
+  if (!meId) return null;
   const { data: c, error } = await db.from("crews").select("id, kind, state, gathering_id, room_id, spot_id, meet_at, name, name_status, women_only, legacy").eq("id", id).maybeSingle();
   if (error) throw error;
   if (!c) return null;
-  const [g, conv, mem, props, votes, msgs, closes, spot] = await Promise.all([
+  const [g, conv, mem, props, votes, closes, spot] = await Promise.all([
     db.from("gatherings").select("id, name, slug, starts_at").eq("id", c.gathering_id).maybeSingle(),
     db.rpc("convening_of", { p_gathering: c.gathering_id }),
     db.from("crew_members").select("person_id, arrived_at, arrival_note, left_at").eq("crew_id", id),
     db.from("crew_proposals").select("id, spot_id, meet_at, meeting_spots(name)").eq("crew_id", id),
     db.from("crew_proposal_votes").select("proposal_id, person_id"),
-    db.from("crew_messages").select("id, author_id, body, created_at, kind").eq("crew_id", id).order("created_at").limit(300),
     db.rpc("group_closes_at", { p_crew: id }),
     c.spot_id ? db.from("meeting_spots").select("name").eq("id", c.spot_id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
@@ -89,9 +101,7 @@ async function loadGroup(id: string): Promise<GroupView | null> {
   const active = (mem.data ?? []).filter((m) => !m.left_at);
   const ids = active.map((m) => m.person_id);
   const { data: people } = await db.from("people").select("id, first_name, photo_path").in("id", ids);
-  const paths = (people ?? []).map((p) => p.photo_path).filter((x): x is string => !!x);
-  const signed = paths.length ? (await db.storage.from("photos").createSignedUrls(paths, 300)).data ?? [] : [];
-  const urlFor = new Map(signed.filter((s) => s.signedUrl && s.path).map((s) => [s.path as string, s.signedUrl]));
+  const urlFor = await signedPhotoUrls((people ?? []).map((p) => p.photo_path));
   const myProps = new Set((props.data ?? []).map((p) => p.id));
   const v = (votes.data ?? []).filter((x) => myProps.has(x.proposal_id));
   return {
@@ -102,13 +112,14 @@ async function loadGroup(id: string): Promise<GroupView | null> {
     gathering: { id: g.data.id, name: g.data.name, slug: g.data.slug ?? g.data.id, startsAt: g.data.starts_at },
     convening: (conv.data as Convening) ?? "a_spot_first",
     roomId: c.room_id,
-    meId: me.personId,
+    meId,
     members: active.map((m) => {
       const p = (people ?? []).find((x) => x.id === m.person_id);
       return {
         personId: m.person_id,
         firstName: p?.first_name ?? "Someone",
         photoUrl: p?.photo_path ? urlFor.get(p.photo_path) ?? null : null,
+        photoPath: p?.photo_path ?? null,
         arrivedAt: m.arrived_at,
         arrivalNote: m.arrival_note,
       };
@@ -121,59 +132,66 @@ async function loadGroup(id: string): Promise<GroupView | null> {
       spot: (p as unknown as { meeting_spots: { name: string } | null }).meeting_spots?.name ?? "A spot",
       meetAt: p.meet_at,
       votes: v.filter((x) => x.proposal_id === p.id).length,
-      mine: v.some((x) => x.proposal_id === p.id && x.person_id === me.personId),
+      mine: v.some((x) => x.proposal_id === p.id && x.person_id === meId),
     })),
-    messages: (msgs.data ?? []).filter((m) => m.kind !== "system").map((m) => ({ id: m.id, authorId: m.author_id ?? "", body: m.body, createdAt: m.created_at })),
   };
 }
 
 export default function Group() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const [view, setView] = useState<GroupView | null | undefined>(undefined);
   const [trouble, setTrouble] = useState<Described | null>(null);
   const [draft, setDraft] = useState("");
   const [note, setNote] = useState("");
   const [shared, setShared] = useState<"shared" | "copied" | "failed" | null>(null);
   const [busy, setBusy] = useState(false);
+  const [focused, setFocused] = useState(false);
 
-  const refresh = useCallback(() => {
-    loadGroup(id)
-      .then(setView)
-      .catch((err) => {
-        setTrouble(failed("open your group", err));
-        setView((v) => v ?? null);
-      });
-  }, [id]);
+  const shell = useQuery({
+    queryKey: ["group", id],
+    queryFn: () => loadGroupShell(id),
+    enabled: focused,
+    refetchInterval: focused ? SHELL_MS : false,
+    refetchOnWindowFocus: false,
+  });
+  const view = shell.data;
+  const { refetch: refetchShell } = shell;
+  const refresh = useCallback(() => void refetchShell(), [refetchShell]);
+  // A message from someone the card has not met (they joined since it was read): read it once for them.
+  const asked = useRef(new Set<string>());
+  const thread = useThread("group", id, {
+    meId: view?.meId,
+    focused,
+    onIncoming: (m) => {
+      if (view && !view.members.some((p) => p.personId === m.authorId) && !asked.current.has(m.authorId)) {
+        asked.current.add(m.authorId);
+        refresh();
+      }
+    },
+  });
+
   useFocusEffect(
     useCallback(() => {
-      refresh();
-      const poll = setInterval(refresh, 15_000);
-      return () => clearInterval(poll);
-    }, [refresh]),
+      setFocused(true);
+      return () => setFocused(false);
+    }, []),
   );
-  useEffect(() => {
-    const channel = supabase()
-      .channel(`group:${id}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "crew_messages", filter: `crew_id=eq.${id}` }, () => refresh())
-      .subscribe();
-    return () => {
-      void supabase().removeChannel(channel);
-    };
-  }, [id, refresh]);
 
-  if (view === undefined) {
+  const shellTrouble = shell.error ? failed("open your group", shell.error) : null;
+  const threadTrouble = thread.error ? failed("open your group", thread.error) : null;
+
+  if (view === undefined && !shellTrouble) {
     return (
       <AppScreen scroll={false}>
         <ActivityIndicator style={{ marginTop: spacing.xl }} color={palette.textMuted} />
       </AppScreen>
     );
   }
-  if (view === null) {
+  if (!view) {
     return (
       <AppScreen>
         <Heading>{GROUP_COPY.heading}</Heading>
-        {trouble ? <Trouble what={trouble} onRetry={refresh} /> : <Body muted>This plan isn't yours to see — or it's off.</Body>}
+        {shellTrouble ? <Trouble what={shellTrouble} onRetry={refresh} /> : <Body muted>This plan isn't yours to see — or it's off.</Body>}
       </AppScreen>
     );
   }
@@ -189,9 +207,38 @@ export default function Group() {
     if (error) setTrouble(failed(what, error));
     refresh();
   };
+  // The box is cleared and the message is on screen at once; the insert confirms it.
+  const send = async () => {
+    const body = draft.trim();
+    if (!body) return;
+    setDraft("");
+    try {
+      await thread.post(body, () => sendGroupMessage(view.id, view.meId, body));
+    } catch (err) {
+      setTrouble(failed("send that", err));
+    }
+  };
+  // A failed message, back in the box: the person sends it again, or doesn't (S29).
+  const takeBack = (localId: string) => {
+    const words = thread.takeBack(localId);
+    if (words) setDraft((d) => (d.trim() ? `${words}\n${d}` : words));
+  };
+  const open = view.state !== "dissolved";
 
   return (
-    <AppScreen>
+    <AppScreen
+      footer={
+        open ? (
+          <Composer
+            value={draft}
+            onChangeText={setDraft}
+            onSend={() => void send()}
+            placeholder={view.solo ? SOLO_COPY.threadPlaceholder(names[0] ?? "them") : GROUP_COPY.threadPlaceholder}
+            ready={!!thread.messages}
+          />
+        ) : undefined
+      }
+    >
       <Heading>{view.solo ? SOLO_COPY.planHeading(names[0] ?? "") : view.squad ? view.squad.name : GROUP_COPY.heading}</Heading>
       <Body muted>{view.squad ? `${SQUAD_COPY.heading} · ${view.gathering.name}` : view.gathering.name}</Body>
       {view.squad?.nameStatus === "pending" ? <Body muted>{SQUAD_COPY.checking}</Body> : null}
@@ -201,7 +248,11 @@ export default function Group() {
 
       <View style={styles.faces}>
         {view.members.map((m) =>
-          m.photoUrl ? <Image key={m.personId} source={{ uri: m.photoUrl }} style={styles.face} /> : <View key={m.personId} style={[styles.face, styles.faceEmpty]} />,
+          m.photoUrl && m.photoPath ? (
+            <Image key={m.personId} source={faceSource(m.photoUrl, m.photoPath)} style={styles.face} />
+          ) : (
+            <View key={m.personId} style={[styles.face, styles.faceEmpty]} />
+          ),
         )}
       </View>
 
@@ -282,42 +333,19 @@ export default function Group() {
         </View>
       ) : null}
 
-      {/* The group's own thread. */}
-      {view.state !== "dissolved" ? (
+      {/* A17 — done: said, counted, and its only action points at A16. */}
+      {view.state === "done" ? (
+        <View style={styles.card}>
+          <Text style={styles.section}>{AFTER_COPY.finished}</Text>
+          <Body muted>{AFTER_COPY.finishedCounts(view.members.length, view.members.filter((m) => m.arrivedAt).length)}</Body>
+          <Body muted>{AFTER_COPY.finishedLine}</Body>
+          <Button label={AFTER_COPY.howDidItGo} onPress={() => router.push({ pathname: "/after/[slug]", params: { slug: view.gathering.slug } })} />
+        </View>
+      ) : null}
+
+      {open ? (
         <>
-          <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
-            {view.messages.map((m) => {
-              const mine = m.authorId === view.meId;
-              const who = mine ? "You" : view.members.find((x) => x.personId === m.authorId)?.firstName ?? "Someone";
-              return (
-                <View key={m.id} style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
-                  <Text style={styles.meta}>{`${who} · ${clock(m.createdAt)}`}</Text>
-                  <Text style={styles.body}>{m.body}</Text>
-                </View>
-              );
-            })}
-          </View>
-          <View style={{ marginTop: spacing.md }}>
-            <TextInput value={draft} onChangeText={setDraft} placeholder={view.solo ? SOLO_COPY.threadPlaceholder(names[0] ?? "them") : GROUP_COPY.threadPlaceholder} placeholderTextColor={palette.tabInactive} maxLength={500} multiline style={styles.input} />
-            <Button
-              label="Send"
-              disabled={!draft.trim()}
-              busy={busy}
-              onPress={async () => {
-                setBusy(true);
-                try {
-                  await sendGroupMessage(view.id, view.meId, draft);
-                  setDraft("");
-                } catch (err) {
-                  setTrouble(failed("send that", err));
-                } finally {
-                  setBusy(false);
-                  refresh();
-                }
-              }}
-            />
-          </View>
-          <View style={{ marginTop: spacing.lg }}>
+          <View>
             {view.solo ? (
               <>
                 <Button
@@ -341,16 +369,23 @@ export default function Group() {
               />
             )}
           </View>
+
+          {/* The group's own thread, last, so its newest message sits over the box. */}
+          {threadTrouble ? <Trouble what={threadTrouble} onRetry={thread.retry} /> : null}
+          {thread.messages ? (
+            <ThreadMessages
+              messages={thread.messages}
+              meId={view.meId}
+              nameOf={(a) => view.members.find((x) => x.personId === a)?.firstName ?? "Someone"}
+              hasOlder={thread.hasOlder}
+              olderBusy={thread.olderBusy}
+              onOlder={() => void thread.loadOlder().catch((err) => setTrouble(failed("load earlier messages", err)))}
+              onTakeBack={takeBack}
+            />
+          ) : !threadTrouble ? (
+            <ActivityIndicator style={{ marginTop: spacing.lg }} color={palette.textMuted} />
+          ) : null}
         </>
-      ) : null}
-      {/* A17 — done: said, counted, and its only action points at A16. */}
-      {view.state === "done" ? (
-        <View style={styles.card}>
-          <Text style={styles.section}>{AFTER_COPY.finished}</Text>
-          <Body muted>{AFTER_COPY.finishedCounts(view.members.length, view.members.filter((m) => m.arrivedAt).length)}</Body>
-          <Body muted>{AFTER_COPY.finishedLine}</Body>
-          <Button label={AFTER_COPY.howDidItGo} onPress={() => router.push({ pathname: "/after/[slug]", params: { slug: view.gathering.slug } })} />
-        </View>
       ) : null}
     </AppScreen>
   );
@@ -366,10 +401,5 @@ const styles = StyleSheet.create({
   pickOn: { borderColor: palette.accent, backgroundColor: palette.background },
   name: { fontFamily: fonts.headline, fontSize: 15, color: palette.text },
   meta: { fontSize: 12, color: palette.textMuted },
-  bubble: { padding: spacing.sm, borderRadius: radius.md, maxWidth: "88%" },
-  mine: { alignSelf: "flex-end", backgroundColor: palette.accent },
-  theirs: { alignSelf: "flex-start", backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },
-  body: { fontSize: 15, color: palette.text },
   refusal: { fontSize: 14, color: "#E06B6B" },
-  input: { minHeight: 44, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, padding: spacing.sm, color: palette.text, backgroundColor: palette.surface, marginBottom: spacing.sm, fontSize: 15 },
 });
