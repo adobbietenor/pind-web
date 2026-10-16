@@ -877,7 +877,7 @@ export function about(): Response {
 <h2 id="safety">Safety</h2>
 <p>Nobody sees your name or your photo until you have both pinned in and said you&#39;d like to meet at the same gathering. Until then there is nothing to browse — which is the point.</p>
 <p>Crews meet at named public places, before the event, and Pin&#39;d is never there. There are no direct messages: the only conversation is inside a crew, once one has formed.</p>
-<p>${escape(SAFETY_TODAY.app)} Some reasons hide a message the moment they are used.</p>
+<p>${escape(SAFETY_TODAY.app)} Some reasons hide the person the moment they are used.</p>
 <p>Pin&#39;d never asks where you are. The only coordinates we hold belong to venues and the spots crews meet at.</p>
 <p>19+.</p>
 

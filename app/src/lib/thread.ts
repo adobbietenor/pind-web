@@ -14,8 +14,13 @@
 //   * the poll is the net, not the feed: "messages since the newest I hold", every 10 s
 //     while Realtime is down (decisions, "Realtime via postgres_changes only": "poll every
 //     10 seconds while the thread is open") and every 60 s while it is healthy;
-//   * a removal or a hide is never broadcast (L9), so once a minute the poll also reads
-//     the ids still there among the newest page, and drops what is gone.
+//   * a removal is never broadcast (L9), and neither is a person disappearing from the
+//     room's read rule — hidden by a report, blocked, gone — so a recheck reads the ids
+//     still there among the newest page and drops what is gone. **It runs every 15 s,
+//     faster than anything else here** (Alex, 16 Oct 2026): a person hidden for a safety
+//     reason must leave everyone's open screen promptly, and the recheck is one ids-only
+//     query, not the reload this pass removed. Arrivals, "I'm here" and the shell stay on
+//     their slower timers (decisions, "Removal is on a faster path").
 //
 // **Everything is read as the signed-in person** (H11): the page reads, the "since" read,
 // the recheck and the Realtime rows are all what RLS hands this person. Nothing here
@@ -50,7 +55,8 @@ export type ThreadKind = "room" | "group";
 
 const POLL_HEALTHY_MS = 60_000;
 const POLL_FALLBACK_MS = 10_000;
-const RECHECK_MS = 60_000;
+// Removal's own timer: one ids-only read of the newest page (see the header).
+const RECHECK_MS = 15_000;
 // A "since" read this long means a long gap: start again from the newest page.
 const SINCE_LIMIT = 100;
 
@@ -118,7 +124,6 @@ export function useThread(
   incomingRef.current = onIncoming;
   const [healthy, setHealthy] = useState(false);
   const [olderBusy, setOlderBusy] = useState(false);
-  const lastRecheck = useRef(0);
   // Rows that arrive before the first page has: merged the moment it lands.
   const early = useRef<ThreadRow[]>([]);
 
@@ -151,35 +156,42 @@ export function useThread(
     }
   }, [query.data, arrived]);
 
-  // The net: what arrived since the newest I hold, and — at most once a minute — which
-  // of the newest page are still there. Never the page again, never the room.
+  // Removal: which of the newest page are still readable. One ids-only read.
+  const sweep = useCallback(async () => {
+    const s = held();
+    const window = s ? recheckWindow(s) : null;
+    if (!window) return;
+    try {
+      const still = await rows(read(kind, id, "id").gte("created_at", window.from).lte("created_at", window.to));
+      change((x) => withRecheck(x, window, still.map((r) => String(r.id))));
+    } catch {
+      // A missed recheck is caught by the next one, fifteen seconds on.
+    }
+  }, [kind, id, change, held]);
+
+  // The net for arrivals: what arrived since the newest I hold. Never the page again,
+  // never the room. `withSweep` also rechecks removals, for the moments that call for
+  // both at once (coming into view, Realtime back after a gap).
   const catchUp = useCallback(
-    async (recheck: boolean) => {
+    async (withSweep: boolean) => {
       const s = held();
       if (!s) return;
       const since = newestConfirmed(s);
-      const window = recheck || Date.now() - lastRecheck.current >= RECHECK_MS ? recheckWindow(s) : null;
+      if (withSweep) void sweep();
       try {
-        const [fresh, still] = await Promise.all([
-          since ? rows(read(kind, id, COLUMNS).gte("created_at", since).order("created_at", { ascending: true }).limit(SINCE_LIMIT)) : Promise.resolve(null),
-          window ? rows(read(kind, id, "id").gte("created_at", window.from).lte("created_at", window.to)) : Promise.resolve(null),
-        ]);
+        const fresh = since ? await rows(read(kind, id, COLUMNS).gte("created_at", since).order("created_at", { ascending: true }).limit(SINCE_LIMIT)) : null;
         // Nothing held yet, or a gap too long to stitch: the newest page, keeping mine in flight.
         if (!since || (fresh && fresh.length >= SINCE_LIMIT)) {
           const page = await rows(read(kind, id, COLUMNS).order("created_at", { ascending: false }).limit(THREAD_PAGE + 1));
           change((x) => withFreshPage(x, page, meRef.current));
           return;
         }
-        if (still && window) {
-          lastRecheck.current = Date.now();
-          change((x) => withRecheck(x, window, still.map((r) => String(r.id))));
-        }
         if (fresh?.length) arrived(fresh);
       } catch {
         // A missed poll is caught by the next one; the thread on screen stays as it is.
       }
     },
-    [kind, id, change, held, arrived],
+    [kind, id, change, held, arrived, sweep],
   );
 
   // Realtime: the row itself. postgres_changes is filtered by RLS for this person.
@@ -213,6 +225,13 @@ export function useThread(
     const t = setInterval(() => void catchUp(false), healthy ? POLL_HEALTHY_MS : POLL_FALLBACK_MS);
     return () => clearInterval(t);
   }, [focused, healthy, catchUp]);
+
+  // Removal, on its own faster timer, only while the screen is in front.
+  useEffect(() => {
+    if (!focused) return;
+    const t = setInterval(() => void sweep(), RECHECK_MS);
+    return () => clearInterval(t);
+  }, [focused, sweep]);
 
   const loadOlder = useCallback(async () => {
     const s = held();
@@ -272,8 +291,8 @@ export function useThread(
     post,
     takeBack,
     forget,
-    // After a report, which can hide a message: check now rather than within the minute.
-    recheck: () => void catchUp(true),
+    // After a report, which can hide its author at once: check now, not in fifteen seconds.
+    recheck: () => void sweep(),
     healthy,
   };
 }

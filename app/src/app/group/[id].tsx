@@ -17,6 +17,10 @@
 // or "invite someone else"; leaving calls it off for both, and the other is told only
 // that it is off.
 //
+// Long-press someone else's message to report THEM — a report on the person, with where
+// and when, never on the message (H9; Alex, 16 Oct 2026). A safety reason hides them at
+// once, which calls a 1-on-1 plan with them off.
+//
 // **The thread pass (16 Oct 2026):** the card is a shell, read on opening and every 30
 // seconds (it carries "I'm here" on the night); the thread is lib/thread.ts, changed one
 // row at a time — a message never reloads the card. The box is the shared Composer in
@@ -27,15 +31,16 @@ import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
-import { AFTER_COPY, colors as palette, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, SQUAD_COPY, type Convening } from "@pind/shared";
+import { AFTER_COPY, colors as palette, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, SQUAD_COPY, type Convening, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Composer } from "@/components/Composer";
 import { GetTheApp } from "@/components/GetTheApp";
+import { MessageSheet } from "@/components/MessageSheet";
 import { ThreadMessages } from "@/components/ThreadMessages";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Field, Heading } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
-import { myPersonId, sendGroupMessage } from "@/lib/room";
+import { myPersonId, reportFromMessage, sendGroupMessage } from "@/lib/room";
 import { faceSource, signedPhotoUrls } from "@/lib/signed-photos";
 import { supabase } from "@/lib/supabase";
 import { useThread } from "@/lib/thread";
@@ -145,6 +150,7 @@ export default function Group() {
   const [note, setNote] = useState("");
   const [shared, setShared] = useState<"shared" | "copied" | "failed" | null>(null);
   const [busy, setBusy] = useState(false);
+  const [held, setHeld] = useState<ThreadMessage | null>(null);
   const [focused, setFocused] = useState(false);
 
   const shell = useQuery({
@@ -381,9 +387,28 @@ export default function Group() {
               olderBusy={thread.olderBusy}
               onOlder={() => void thread.loadOlder().catch((err) => setTrouble(failed("load earlier messages", err)))}
               onTakeBack={takeBack}
+              onLongPress={(m) => (m.authorId === view.meId ? undefined : setHeld(m))}
             />
           ) : !threadTrouble ? (
             <ActivityIndicator style={{ marginTop: spacing.lg }} color={palette.textMuted} />
+          ) : null}
+
+          {/* Long-press someone else's message: report THEM, never the message (two taps, H9).
+              A group's thread has no delete, so your own message offers nothing. */}
+          {held ? (
+            <MessageSheet
+              held={held}
+              mine={held.authorId === view.meId}
+              authorName={view.members.find((x) => x.personId === held.authorId)?.firstName ?? "them"}
+              onReport={async (reason) => {
+                await reportFromMessage(view.meId, held, { crewId: view.id }, reason).catch((err) => setTrouble(failed("report that", err)));
+                setHeld(null);
+                // A safety reason hides them at once (and calls a 1-on-1 plan with them off): look now.
+                thread.recheck();
+                refresh();
+              }}
+              onCancel={() => setHeld(null)}
+            />
           ) : null}
         </>
       ) : null}

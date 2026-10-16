@@ -3,6 +3,7 @@
 import type { AdminHandler } from "./context";
 import { adminPage, back, e, here, must, one, postButton, str } from "./ui";
 import { sweepPhotos } from "../photo/sweep";
+import { ADMIN_REPORT_SELECT } from "./report-select";
 
 const PHOTOS = "photos";
 const REASONS: Record<string, string> = {
@@ -142,6 +143,24 @@ export const decidePhoto: AdminHandler = async (request, ctx) => {
   return back(form, error ? { err: error.message } : { ok: `Photo ${status}` });
 };
 
+// Where a report came from (Alex, 16 Oct 2026). A report filed from a message — long-press,
+// "Report <name>" — carries the room or the thread and the message's own time: enough to go
+// and look, never the words. A report from a profile carries nothing, and says so.
+function origin(r: any): string {
+  const at = r.context_at ? `${String(r.context_at).slice(0, 16).replace("T", " ")} UTC` : null;
+  const g = (x: any) => (x?.gatherings?.name ? `<a href="/admin/gatherings/${e(x.gatherings.id)}">${e(x.gatherings.name)}</a>` : "a gathering since deleted");
+  if (r.context_room) {
+    const which = `room ${e(String(r.context_room.number))}${r.context_room.women_only ? " (women-only)" : ""}`;
+    return `from a message in ${which} at ${g(r.context_room)}, said ${e(at ?? "?")} · <span class="muted">room ${e(r.context_room.id)}</span>`;
+  }
+  if (r.context_crew) {
+    const which = r.context_crew.kind === "solo" ? "a 1-on-1 plan's thread" : `the squad &ldquo;${e(r.context_crew.name ?? "unnamed")}&rdquo;'s thread`;
+    return `from a message in ${which} at ${g(r.context_crew)}, said ${e(at ?? "?")} · <span class="muted">thread ${e(r.context_crew.id)}</span>`;
+  }
+  if (at) return `from a message said ${e(at)}, in a room or thread since deleted`;
+  return "from their profile";
+}
+
 // GET /admin/reports — hidden people and open reports, grouped by person.
 export const reportQueue: AdminHandler = async (request, ctx) => {
   const { db } = ctx;
@@ -149,7 +168,7 @@ export const reportQueue: AdminHandler = async (request, ctx) => {
     must(
       db
         .from("reports")
-        .select("id, reporter_id, target_person_id, reason, is_safety, status, created_at")
+        .select(ADMIN_REPORT_SELECT)
         .eq("target_kind", "person")
         .in("status", ["open", "auto_hidden"])
         .order("created_at"),
@@ -185,7 +204,7 @@ export const reportQueue: AdminHandler = async (request, ctx) => {
     const list = theirs
       .map(
         (r: any) =>
-          `<li>${e(REASONS[r.reason] ?? r.reason)}${r.is_safety ? " <strong>(safety)</strong>" : ""} — by ${e(byId.get(r.reporter_id)?.first_name ?? "someone")}, ${e(r.created_at.slice(0, 16).replace("T", " "))} UTC · ${e(r.status)}</li>`,
+          `<li>${e(REASONS[r.reason] ?? r.reason)}${r.is_safety ? " <strong>(safety)</strong>" : ""} — by ${e(byId.get(r.reporter_id)?.first_name ?? "someone")}, ${e(r.created_at.slice(0, 16).replace("T", " "))} UTC · ${e(r.status)}<br><span class="muted">${origin(r)}</span></li>`,
       )
       .join("");
     const actions = p.hidden_at
@@ -208,7 +227,7 @@ ${p.hidden_at ? `<span class="bad">hidden since ${e(p.hidden_at.slice(0, 16).rep
 
   const body = `<p class="muted">Safety reasons hide at once; "not who they said" and spam hide at two reports from different people.
 Unhide dismisses their reports (a new report starts the count again). Keep hidden upholds them.
-Any report — on a person or on one of their messages — also takes them out of 1-on-1 at once, silently. Unhide and Dismiss do not return them:
+Any report also takes them out of 1-on-1 at once, silently. A report filed from a message says where and when it was said — never what. Unhide and Dismiss do not return them:
 "Return to 1-on-1" is its own decision, made after review.</p>
 <h2>Hidden, awaiting review (${needsReview.length})</h2>
 <table>${needsReview.map(card).join("") || `<tr><td class="muted">None.</td></tr>`}</table>

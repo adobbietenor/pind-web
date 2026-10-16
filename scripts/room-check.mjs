@@ -11,7 +11,8 @@
 //      on a step that no longer exists — the stale-fixture failure CLAUDE.md warns about.
 //   5  two more → the cards fold into "5 here", and the mix chip shows
 //   *  long-press your own message → Delete → gone for everyone; long-press someone
-//      else's → a reason → a report that keeps the words (H9)
+//      else's → "Report <name>" → a reason → a report on the PERSON, with where and when,
+//      never the words (H9; 16 Oct 2026)
 //   *  Settings → "Room activity" off → a message that would have sent #6 does not
 //      (and the control, with the switch on, gets it)
 //   (Alex, 6 Oct 2026: these were walk steps; the per-milestone checking lives here now.)
@@ -160,16 +161,19 @@ try {
   const removed = await must(await rest(`/rest/v1/room_messages?author_id=eq.${people.Ari.personId}&select=body,deleted_at`), "removed");
   step("…a removal: its words cleared, not a row deleted (nothing broadcast)", removed.length === 1 && removed[0].body === "" && !!removed[0].deleted_at);
 
-  // Report someone else's: long-press → a reason → a report with the message's words kept.
+  // Report someone else's: long-press → "Report Bea" → a reason → a report on BEA, with the
+  // room and the message's time, never its words (16 Oct 2026: reports are on people).
   await send("Page.reload");
   await until("hi from Bea");
-  step("long-press someone else's message", (await longPress("hi from Bea")) && (await until(ROOM_COPY.report, 5000)));
+  step("long-press someone else's message", (await longPress("hi from Bea")) && (await until(ROOM_COPY.reportPerson("Bea"), 5000)));
   await click("Spam");
-  const beaMsg = (await must(await rest(`/rest/v1/room_messages?author_id=eq.${people.Bea.personId}&select=id`), "Bea's message"))[0].id;
+  const beaMsg = (await must(await rest(`/rest/v1/room_messages?author_id=eq.${people.Bea.personId}&select=id,created_at`), "Bea's message"))[0];
   let reports = [];
   for (let t = 0; t < 20 && reports.length === 0; t++) { await sleep(500); reports = await must(await rest(`/rest/v1/reports?reporter_id=eq.${people.Ari.personId}&select=*`), "reports"); }
   step("the report is made, by Ari, for spam", reports.length === 1 && reports[0].reason === "spam");
-  step("…keeping the message's words (H9)", JSON.stringify(reports[0]).includes("hi from Bea") || JSON.stringify(reports[0]).includes(beaMsg));
+  step("…on Bea, the person — not on the message", reports[0].target_kind === "person" && reports[0].target_person_id === people.Bea.personId);
+  step("…saying where and when: the room, and the message's time", reports[0].context_room_id === roomId && Date.parse(reports[0].context_at) === Date.parse(beaMsg.created_at));
+  step("…and never the words", !JSON.stringify(reports[0]).includes("hi from Bea"));
 
   // The room-activity switch: off in Settings, and then #6 really does not come.
   await send("Page.navigate", { url: `${SITE}/settings` });

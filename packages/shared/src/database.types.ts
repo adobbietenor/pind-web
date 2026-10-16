@@ -2327,6 +2327,9 @@ export type Database = {
       }
       reports: {
         Row: {
+          context_at: string | null
+          context_crew_id: string | null
+          context_room_id: string | null
           created_at: string
           decision_note: string | null
           id: string
@@ -2343,6 +2346,9 @@ export type Database = {
           target_room_message_id: string | null
         }
         Insert: {
+          context_at?: string | null
+          context_crew_id?: string | null
+          context_room_id?: string | null
           created_at?: string
           decision_note?: string | null
           id?: string
@@ -2359,6 +2365,9 @@ export type Database = {
           target_room_message_id?: string | null
         }
         Update: {
+          context_at?: string | null
+          context_crew_id?: string | null
+          context_room_id?: string | null
           created_at?: string
           decision_note?: string | null
           id?: string
@@ -2375,6 +2384,20 @@ export type Database = {
           target_room_message_id?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "reports_context_crew_id_fkey"
+            columns: ["context_crew_id"]
+            isOneToOne: false
+            referencedRelation: "crews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_context_room_id_fkey"
+            columns: ["context_room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "reports_reporter_id_fkey"
             columns: ["reporter_id"]

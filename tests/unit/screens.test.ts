@@ -527,6 +527,40 @@ describe("Threads: a message costs a row, and the box rides the keyboard (the th
     for (const f of ["room.ts", "[id].tsx", "thread.ts"]) assert.ok(!signers.includes(f), `${f} signs photos itself, outside the cache`);
   });
 
+  it("S43 a long-press reports the PERSON, from every thread, through one sheet — no message report is written anywhere", () => {
+    // Alex, 16 Oct 2026: "We report people, not messages."
+    const SRC = join(process.cwd(), "app", "src");
+    const all = (function walk(dir: string): string[] {
+      return readdirSync(dir).flatMap((n) => (statSync(join(dir, n)).isDirectory() ? walk(join(dir, n)) : /\.tsx?$/.test(n) ? [join(dir, n)] : []));
+    })(SRC).map((f) => ({ path: f.slice(SRC.length + 1).split("\\").join("/"), src: readFileSync(f, "utf8").replace(/^\s*\/\/.*$/gm, "") }));
+    const messageReport = /target_kind:\s*"message"|target_room_message_id|target_message_id/;
+    assert.ok(messageReport.test('{ target_kind: "message" }'), "S43 cannot see a message report");
+    assert.deepEqual(all.filter((f) => messageReport.test(f.src)).map((f) => f.path), [], "a message report is still written");
+    const fnAt = roomLib.indexOf("export async function reportFromMessage");
+    const fn = roomLib.slice(fnAt, roomLib.indexOf(String.fromCharCode(10) + "}", fnAt));
+    assert.ok(fn.length > 100, "reportFromMessage is gone");
+    assert.match(fn, /target_kind: "person",\s*target_person_id: message\.authorId/, "a report from a message is not a report on its author");
+    assert.match(fn, /context_at: message\.createdAt/, "the report does not say when");
+    assert.doesNotMatch(fn, /body|snapshot/, "the report carries the message's words");
+    const sheet = read("components/MessageSheet.tsx");
+    assert.match(sheet, /ROOM_COPY\.reportPerson\(authorName\)/, "the sheet does not say whose report it is");
+    for (const [name, src, where] of [["the room", room, "{ roomId: view.roomId }"], ["the group", group, "{ crewId: view.id }"]] as const) {
+      assert.ok(src.includes("<MessageSheet"), `${name} draws its own long-press menu`);
+      assert.ok(src.includes(`reportFromMessage(`) && src.includes(where), `${name} does not report from its own thread`);
+      assert.match(src, /onLongPress=\{/, `${name} has no long-press: report is not two taps from its messages (H9)`);
+    }
+  });
+
+  it("S44 removal has its own 15-second recheck, apart from the arrivals poll and the shell", () => {
+    assert.match(lib, /const RECHECK_MS = 15_000;/, "removal is not on its 15-second path");
+    assert.match(lib, /setInterval\(\(\) => void sweep\(\), RECHECK_MS\)/, "the recheck has no timer of its own");
+    const sweep = lib.slice(lib.indexOf("const sweep = useCallback"), lib.indexOf("const catchUp = useCallback"));
+    assert.ok(sweep.length > 50, "S44 cannot find the recheck");
+    assert.match(sweep, /read\(kind, id, "id"\)/, "the recheck reads more than ids");
+    assert.equal((sweep.match(/rows\(/g) ?? []).length, 1, "the recheck is more than one query");
+    assert.match(room, /const SHELL_MS = 60_000;/, "the room's shell moved off its minute");
+  });
+
   it("S42 'I've looked' is marked when the room comes into view and at most once a minute after — never on a refresh", () => {
     assert.equal((room.match(/markSeen\(/g) ?? []).length, 1, "markSeen is called from more than one place");
     assert.match(room, /const seen = useCallback\(\(\) => \{\s*lastSeen\.current = Date\.now\(\);\s*void markSeen\(id\);/, "markSeen is not behind the throttle");

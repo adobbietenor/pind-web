@@ -18,6 +18,7 @@ import { optInMissing } from "../../packages/shared/src/optin.ts";
 import { MY_EVENTS_PINS_SELECT } from "../../packages/shared/src/myevents.ts";
 import { soloTimes } from "../../packages/shared/src/solo.ts";
 import { photoDest } from "../../src/account/merge-checks.ts";
+import { ADMIN_REPORT_SELECT } from "../../src/admin/report-select.ts";
 import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, harnessLeftovers, markHarness, newClient, sweep, sweepTwice, type Member, type World, removeUser, accountlessPeople } from "./world.ts";
 
 interface Result {
@@ -3582,17 +3583,15 @@ describe("The room — who is in it, who reads it, who can post (M3.3)", () => {
     assert.ok(row.deleted_at && row.body === "", "a deleted message kept its words");
   });
 
-  it("P144 a safety report hides the message at once for others, keeps its snapshot, and the author still sees it", async () => {
+  it("P144 a room message cannot be reported — the message path is gone (16 Oct 2026: reports are on people) — and a refused report leaves it readable", async () => {
     const r1 = (await generalRoom("Rae"))!;
     await pause();
     const msg = await ok(post("Rae", r1, "reportable line"));
-    await ok(people.Sol.client.from("reports").insert({ reporter_id: people.Sol.personId, target_kind: "message", target_room_message_id: msg.id, reason: "uncomfortable" }));
-    assert.ok(!(await readBodies("Sol", r1)).includes("reportable line"), "a reported message stayed visible");
-    assert.ok((await readBodies("Rae", r1)).includes("reportable line"), "the author lost sight of their own message");
-    const report = await serviceRow("reports", "target_room_message_id", msg.id, "reported_content_snapshot");
-    assert.equal(report.reported_content_snapshot, "reportable line", "the report did not keep the text");
-    // Nobody can report a message they cannot read.
-    await denied(people.Uma.client.from("reports").insert({ reporter_id: people.Uma.personId, target_kind: "message", target_room_message_id: msg.id, reason: "spam" }));
+    await denied(people.Sol.client.from("reports").insert({ reporter_id: people.Sol.personId, target_kind: "message", target_room_message_id: msg.id, reason: "uncomfortable" }), "42501");
+    assert.ok((await readBodies("Sol", r1)).includes("reportable line"), "a refused message report hid the message");
+    const [row] = await ok(w.service.from("room_messages").select("hidden_at").eq("id", msg.id));
+    assert.equal(row.hidden_at, null, "the message was hidden by a report that was refused");
+    // Reporting Rae from it is P240's (the person, with where and when).
   });
 
   it("P145 the women-only room: only the eligible are placed in it, and it is offered only from 3", async () => {
@@ -4861,7 +4860,7 @@ describe("1-on-1 — who can see whom (M3.4, V14)", () => {
     assert.ok((await sees("Sue", "Max")) && (await sees("Sue", "Ola")), "a block between two people hid them from a third");
   });
 
-  it("P213 any report takes someone out at once — a spam report on them, or a report on one of their room messages — silently, without hiding them from the people list", async () => {
+  it("P213 any report takes someone out at once — a spam report on them, or one filed from their room message — silently, without hiding them from the people list", async () => {
     assert.ok(await sees("Sue", "Rep"), "control: Sue could not see Rep before the report");
     // One spam report: not enough to hide him anywhere (H9 needs two), enough to take him out of 1-on-1.
     await ok(P("Sue").client.from("reports").insert({ reporter_id: P("Sue").personId, target_kind: "person", target_person_id: P("Rep").personId, reason: "spam" }));
@@ -4872,12 +4871,16 @@ describe("1-on-1 — who can see whom (M3.4, V14)", () => {
     await denied(P("Rep").client.from("people").select("hidden_from_solo").eq("id", P("Rep").personId), "42501");
     await denied(P("Sue").client.from("people").select("hidden_from_solo").eq("id", P("Rep").personId), "42501");
 
-    // A report on a room message is a report on its author.
+    // A report filed from someone's room message is a report on them (16 Oct 2026: there are no message reports).
     const room = (await rows(P("Msg").client.rpc("my_rooms", { p_gathering: S }))).find((r: { women_only: boolean }) => !r.women_only)?.room_id as string;
     assert.ok(room, "Msg was not placed in a room");
-    const msg = await ok(P("Msg").client.from("room_messages").insert({ room_id: room, author_id: P("Msg").personId, body: "anyone want to walk in together?" }).select("id").single());
+    const msg = await ok(P("Msg").client.from("room_messages").insert({ room_id: room, author_id: P("Msg").personId, body: "anyone want to walk in together?" }).select("id, created_at").single());
     assert.ok(await sees("Sue", "Msg"), "control: Sue could not see Msg before the report");
-    await ok(P("Sue").client.from("reports").insert({ reporter_id: P("Sue").personId, target_kind: "message", target_room_message_id: msg.id, reason: "spam" }));
+    await ok(
+      P("Sue").client.from("reports").insert({
+        reporter_id: P("Sue").personId, target_kind: "person", target_person_id: P("Msg").personId, reason: "spam", context_room_id: room, context_at: msg.created_at,
+      }),
+    );
     for (const viewer of ["Sue", "Max", "Ola"]) assert.ok(!(await sees(viewer, "Msg")), `${viewer} still saw someone whose message was reported`);
   });
 
@@ -5670,5 +5673,216 @@ describe("Squads — who sees and joins what, and the name (M3.7, A15)", () => {
     await denied(P("Bob").client.rpc("my_invites", { p_gathering: T }), "42501");
     assert.equal((await rows(w.service.from("crew_invites").select("id").eq("status", "sent"))).length, 0, "an invite is still open");
     assert.equal((await rows(w.service.from("crews").select("id").eq("kind", "crew").eq("state", "forming"))).length, 0, "a forming group is left from the invite-only days");
+  });
+});
+
+describe("Reports are on people, never on messages (A10, A11, A29; Alex, 16 Oct 2026)", () => {
+  // "We report people, not messages." Long-press a message → "Report <name>" → a report on
+  // the PERSON, carrying where (the room or the thread) and when (the message's time), never
+  // the words. Who may file one from a message is exactly who can READ that message — the
+  // message tables' own read rules — minus a hidden reporter (Q39) and across a block.
+  let R = "";
+  let RO = "";
+  let room = "";
+  let roRoom = "";
+  let squad = "";
+  let doneSquad = "";
+  let plan = "";
+  const msg: Record<string, { id: string; created_at: string }> = {};
+  const people: Record<string, { authId: string; personId: string; client: SupabaseClient }> = {};
+  const P = (label: string) => people[label]!;
+
+  async function person(label: string, gathering: string, gender: "woman" | "man") {
+    const email = `${PREFIX}-${w.run}-rp-${label.toLowerCase()}@example.com`;
+    const password = randomUUID();
+    const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
+    assert.equal(made.error, null, made.error?.message);
+    const authId = made.data.user!.id;
+    const p = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
+    await ok(w.service.from("people_private").insert({ person_id: p.id, gender, birth_year: 1992 }));
+    await ok(w.service.from("age_attestations").upsert({ person_id: p.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
+    const client = newClient(w.env, w.env.publishableKey);
+    const signIn = await client.auth.signInWithPassword({ email, password });
+    assert.equal(signIn.error, null, signIn.error?.message);
+    await ok(client.from("pins").insert({ gathering_id: gathering, person_id: p.id, party_total: 1, open_to_meeting: true }).select("id").single());
+    people[label] = { authId, personId: p.id, client };
+  }
+  const generalRoom = async (label: string, gathering: string) =>
+    (await rows(P(label).client.rpc("my_rooms", { p_gathering: gathering }))).find((r: { women_only: boolean }) => !r.women_only)?.room_id as string;
+  const pause = () => new Promise((r) => setTimeout(r, 3100));
+  const say = async (label: string, where: string, body: string) =>
+    ok(P(label).client.from("room_messages").insert({ room_id: where, author_id: P(label).personId, body }).select("id, created_at").single());
+  const sayIn = async (label: string, crew: string, body: string) =>
+    ok(P(label).client.from("crew_messages").insert({ crew_id: crew, author_id: P(label).personId, kind: "user", body }).select("id, created_at").single());
+  // A report from a message, exactly as the app files it (app/src/lib/room.ts reportFromMessage).
+  const fromMessage = (reporter: string, author: string, m: { created_at: string }, where: { roomId?: string; crewId?: string }, reason = "spam") =>
+    P(reporter).client.from("reports").insert({
+      reporter_id: P(reporter).personId,
+      target_kind: "person",
+      target_person_id: P(author).personId,
+      reason,
+      context_room_id: where.roomId ?? null,
+      context_crew_id: where.crewId ?? null,
+      context_at: m.created_at,
+    });
+  const reportsOn = (author: string) =>
+    rows(w.service.from("reports").select("target_kind, target_person_id, context_room_id, context_crew_id, context_at, reported_content_snapshot, reason").eq("target_person_id", P(author).personId));
+  const readsRoom = async (label: string, where: string) =>
+    (await rows(P(label).client.from("room_messages").select("body").eq("room_id", where))).map((m: { body: string }) => m.body);
+
+  before(async () => {
+    R = (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Report people`, starts_at: inDays(5), venue_id: w.venue, published_at: new Date().toISOString(), room_size: 20 }).select("id").single())).id;
+    for (const [n, g] of [["Ari", "man"], ["Bea", "woman"], ["Cal", "man"], ["Dee", "woman"], ["Hid", "man"], ["Eve", "woman"], ["Fay", "woman"], ["Gil", "man"]] as const) await person(n, R, g);
+    room = await generalRoom("Ari", R);
+    assert.ok(room, "Ari was not placed in a room");
+    for (const n of ["Bea", "Cal", "Hid"]) assert.equal(await generalRoom(n, R), room, `${n} is not in Ari's room`);
+    msg.bea = await say("Bea", room, "bea says hello");
+    msg.hid = await say("Hid", room, "hid says hello");
+    msg.cal = await say("Cal", room, "cal says hello");
+    // A squad, and a 1-on-1 plan — made as the harness makes them (crewOf, V17).
+    const spot = (await ok(w.service.from("meeting_spots").select("id").eq("venue_id", w.venue).eq("active", true).limit(1).single())).id;
+    const crewOf = async (kind: "crew" | "solo", names: string[]) => {
+      const c = await ok(
+        w.service
+          .from("crews")
+          .insert({ gathering_id: R, state: "spot_set", spot_id: spot, meet_at: inDays(5), kind, ...(kind === "crew" ? { name: "Report squad", name_status: "approved" } : {}) })
+          .select("id")
+          .single(),
+      );
+      for (const n of names) await ok(w.service.from("crew_members").insert({ crew_id: c.id, gathering_id: R, person_id: P(n).personId, kind }));
+      return c.id as string;
+    };
+    squad = await crewOf("crew", ["Ari", "Cal", "Dee"]);
+    // A finished squad: a hide takes someone out of every ACTIVE squad (M3.7), not a done one,
+    // so a hidden member can still read this thread — the case Q39's check exists for.
+    // One active squad per person per gathering: Gil and Hid are in no other.
+    doneSquad = await crewOf("crew", ["Gil", "Hid"]);
+    plan = await crewOf("solo", ["Eve", "Fay"]);
+    await pause();
+    msg.deeSquad = await sayIn("Dee", squad, "dee in the squad");
+    msg.calSquad = await sayIn("Cal", squad, "cal in the squad");
+    msg.gilDone = await sayIn("Gil", doneSquad, "good night all");
+    msg.hidDone = await sayIn("Hid", doneSquad, "see you next time");
+    await ok(w.service.from("crews").update({ state: "done" }).eq("id", doneSquad));
+    msg.fayPlan = await sayIn("Fay", plan, "fay in the plan");
+    await pause();
+    msg.fayPlan2 = await sayIn("Fay", plan, "fay again");
+    // The read-only days: the people list closes 24 h after the effective end, the room
+    // stays readable (read-only) for 30 days (Q11) — between the two, only the room's rule reads.
+    RO = (await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} Report read-only`, starts_at: inDays(5), venue_id: w.venue, published_at: new Date().toISOString(), room_size: 20 }).select("id").single())).id;
+    for (const [n, g] of [["Ro1", "man"], ["Ro2", "woman"]] as const) await person(n, RO, g);
+    roRoom = await generalRoom("Ro1", RO);
+    assert.ok(roRoom, "Ro1 was not placed in a room");
+    msg.ro2 = await say("Ro2", roRoom, "see you there");
+    // Started two days ago: the effective end (start + 3 h) was 45 hours ago, so the list
+    // closed 21 hours ago; the room still reads, read-only, for weeks.
+    await ok(w.service.from("gatherings").update({ starts_at: new Date(Date.now() - 48 * 3_600_000).toISOString() }).eq("id", RO));
+  });
+
+  after(async () => {
+    const ids = Object.values(people).map((p) => p.personId);
+    await w.service.from("reports").delete().in("reporter_id", ids);
+    await w.service.from("reports").delete().in("target_person_id", ids);
+    for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
+    for (const g of [R, RO]) if (g) await w.service.from("gatherings").delete().eq("id", g);
+  });
+
+  it("P239 the message path is refused: no room-message or thread-message report, no 'message' kind, and no text can be written", async () => {
+    const as = P("Ari").client.from("reports");
+    await denied(as.insert({ reporter_id: P("Ari").personId, target_kind: "message", target_room_message_id: msg.bea.id, reason: "spam" }), "42501");
+    await denied(P("Ari").client.from("reports").insert({ reporter_id: P("Ari").personId, target_kind: "message", target_message_id: msg.deeSquad.id, reason: "spam" }), "42501");
+    await denied(P("Ari").client.from("reports").insert({ reporter_id: P("Ari").personId, target_kind: "message", target_person_id: P("Bea").personId, reason: "spam" }));
+    await denied(P("Ari").client.from("reports").insert({ reporter_id: P("Ari").personId, target_kind: "person", target_person_id: P("Bea").personId, reason: "spam", reported_content_snapshot: "words" }), "42501");
+    assert.deepEqual(await reportsOn("Bea"), [], "a refused report was stored");
+  });
+
+  it("P240 a report from a room message is a report on its author — where and when, no words — and leaves the message alone", async () => {
+    await ok(fromMessage("Ari", "Bea", msg.bea, { roomId: room }));
+    const [r] = await reportsOn("Bea");
+    assert.ok(r, "the report was not stored");
+    assert.equal(r.target_kind, "person");
+    assert.equal(r.context_room_id, room, "the report does not say which room");
+    assert.equal(Date.parse(r.context_at), Date.parse(msg.bea.created_at), "the report does not say when");
+    assert.equal(r.reported_content_snapshot, null, "the report kept the message's words");
+    const [m] = await rows(w.service.from("room_messages").select("hidden_at").eq("id", msg.bea.id));
+    assert.equal(m.hidden_at, null, "the message itself was touched");
+    assert.ok((await readsRoom("Cal", room)).includes("bea says hello"), "one spam report removed Bea's message for others");
+  });
+
+  it("P241 a safety reason from a message hides the PERSON at once — their messages leave the room's read rule, the message row is untouched", async () => {
+    assert.ok((await readsRoom("Cal", room)).includes("hid says hello"), "control: Cal could not read Hid before the report");
+    await ok(fromMessage("Ari", "Hid", msg.hid, { roomId: room }, "uncomfortable"));
+    const [p] = await rows(w.service.from("people").select("hidden_at, hidden_from_solo").eq("id", P("Hid").personId));
+    assert.ok(p.hidden_at, "a safety report from a message did not hide its author");
+    assert.ok(p.hidden_from_solo, "a report from a message did not take its author out of 1-on-1");
+    assert.ok(!(await readsRoom("Cal", room)).includes("hid says hello"), "a hidden person's message is still readable — the recheck would have nothing to catch");
+    const [m] = await rows(w.service.from("room_messages").select("hidden_at").eq("id", msg.hid.id));
+    assert.equal(m.hidden_at, null, "the old message rule still runs: the message was hidden");
+  });
+
+  it("P242 the place and time cannot be forged: wrong time, someone else's message, a room you are not in, two places, yourself", async () => {
+    const wrongTime = { created_at: new Date(Date.parse(msg.bea.created_at) - 60_000).toISOString() };
+    await denied(fromMessage("Cal", "Bea", wrongTime, { roomId: room }));
+    await denied(fromMessage("Cal", "Bea", msg.cal, { roomId: room })); // Cal's own message's time, reported as Bea's
+    await denied(fromMessage("Ro1", "Bea", msg.bea, { roomId: room })); // not in that room
+    await denied(fromMessage("Cal", "Bea", msg.bea, { roomId: room, crewId: squad }));
+    await denied(fromMessage("Cal", "Cal", msg.cal, { roomId: room })); // yourself
+    // A squad report may not carry a place.
+    await denied(
+      P("Cal").client.from("reports").insert({ reporter_id: P("Cal").personId, target_kind: "crew", target_crew_id: squad, reason: "spam", context_room_id: room, context_at: msg.bea.created_at }),
+    );
+    assert.equal((await reportsOn("Bea")).filter((r: { context_room_id: string | null }) => r.context_room_id).length, 1, "a forged report was stored (only P240's should be)");
+  });
+
+  it("P243 from a squad's thread: a member can report another member; not an outsider, not a hidden member still in a finished squad (Q39), not across a block", async () => {
+    await ok(fromMessage("Ari", "Dee", msg.deeSquad, { crewId: squad }));
+    const [r] = (await reportsOn("Dee")).filter((x: { context_crew_id: string | null }) => x.context_crew_id === squad);
+    assert.ok(r && Date.parse(r.context_at) === Date.parse(msg.deeSquad.created_at), "the squad report does not say where and when");
+    await denied(fromMessage("Bea", "Dee", msg.deeSquad, { crewId: squad })); // in the room, not in the squad
+    // Hid was hidden in P241. He has left the active squad (M3.7) but is still in the finished
+    // one, and can read its thread: only may_report_from_a_message stands between him and a report.
+    assert.ok((await rows(P("Hid").client.from("crew_messages").select("id").eq("crew_id", doneSquad))).length > 0, "control: Hid cannot read the finished squad's thread, so this proves nothing");
+    await denied(fromMessage("Hid", "Gil", msg.gilDone, { crewId: doneSquad }));
+    await ok(fromMessage("Gil", "Hid", msg.hidDone, { crewId: doneSquad })); // control: a member who is not hidden can
+    assert.deepEqual((await reportsOn("Gil")).filter((x: { context_crew_id: string | null }) => x.context_crew_id), [], "Hid, hidden, reported Gil from the finished squad");
+    await ok(w.service.from("blocks").insert({ blocker_id: P("Cal").personId, blocked_id: P("Ari").personId }));
+    await denied(fromMessage("Ari", "Cal", msg.calSquad, { crewId: squad }));
+    await w.service.from("blocks").delete().eq("blocker_id", P("Cal").personId).eq("blocked_id", P("Ari").personId);
+    assert.deepEqual((await reportsOn("Cal")).filter((x: { context_crew_id: string | null }) => x.context_crew_id), [], "a refused squad report was stored (by Hid, or across the block)");
+  });
+
+  it("P244 a 1-on-1 plan: a hidden thread message no longer calls it off; a safety report from its thread hides the person, which does", async () => {
+    const state = async () => (await ok(w.service.from("crews").select("state").eq("id", plan).single())).state as string;
+    await ok(w.service.from("crew_messages").update({ hidden_at: new Date().toISOString() }).eq("id", msg.fayPlan.id));
+    assert.equal(await state(), "spot_set", "the old rule still runs: a hidden thread message called the plan off");
+    await ok(fromMessage("Eve", "Fay", msg.fayPlan2, { crewId: plan }, "under_19"));
+    const [p] = await rows(w.service.from("people").select("hidden_at, hidden_from_solo").eq("id", P("Fay").personId));
+    assert.ok(p.hidden_at && p.hidden_from_solo, "a safety report from the plan's thread did not hide Fay and take her out of 1-on-1");
+    assert.equal(await state(), "dissolved", "Fay was hidden and the plan with her still stands");
+  });
+
+  it("P245 the read-only days: the people list has closed, the room still reads — and its messages can still be reported", async () => {
+    assert.ok((await readsRoom("Ro1", roRoom)).includes("see you there"), "control: the room is not readable after the list closed");
+    // The gap this policy closes: the plain person rule (can_see) refuses here.
+    await denied(P("Ro1").client.from("reports").insert({ reporter_id: P("Ro1").personId, target_kind: "person", target_person_id: P("Ro2").personId, reason: "spam" }));
+    await ok(fromMessage("Ro1", "Ro2", msg.ro2, { roomId: roRoom }));
+  });
+
+  it("P246 the plain person report still works, and the admin can read where a report came from (the queue's own select)", async () => {
+    await ok(P("Gil").client.from("reports").insert({ reporter_id: P("Gil").personId, target_kind: "person", target_person_id: P("Cal").personId, reason: "spam" }));
+    const got = await rows(w.service.from("reports").select(ADMIN_REPORT_SELECT).in("target_person_id", [P("Bea").personId, P("Dee").personId, P("Cal").personId]));
+    const fromRoom = got.find((r: any) => r.context_room);
+    const fromSquad = got.find((r: any) => r.context_crew);
+    assert.ok(fromRoom?.context_room?.gatherings?.name?.includes("Report people"), "the admin cannot tell which room");
+    assert.equal(fromSquad?.context_crew?.name, "Report squad", "the admin cannot tell which squad");
+    assert.ok(got.some((r: any) => !r.context_room && !r.context_crew), "the plain person report is missing");
+  });
+
+  it("P247 the message reports open before this change were closed as dismissed, each logged", async () => {
+    const open = await rows(w.service.from("reports").select("id").eq("target_kind", "message").in("status", ["open", "auto_hidden"]));
+    assert.deepEqual(open, [], "a message report is still open");
+    const closed = await rows(w.service.from("reports").select("id").eq("target_kind", "message").eq("status", "dismissed").like("decision_note", "%message reports were retired%"));
+    const logged = await rows(w.service.from("moderation_log").select("id").eq("action", "dismiss_message_report"));
+    assert.equal(logged.length, closed.length, "a closed message report has no log line");
   });
 });

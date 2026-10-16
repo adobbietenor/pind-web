@@ -165,10 +165,29 @@ export async function deleteRoomMessage(id: string): Promise<void> {
   if (error) throw error;
 }
 
-export async function reportRoomMessage(reporterId: string, messageId: string, reason: "uncomfortable" | "not_who_they_said" | "under_19" | "spam"): Promise<void> {
+// Long-press someone else's message → "Report <name>": a report on the PERSON, never the
+// message (Alex, 16 Oct 2026). It carries where it came from — the room or the thread —
+// and the message's own time, so the admin can go and look; never the words. The database
+// checks the reporter can read that message, by that person, there, then
+// (reports_insert_from_a_message) — so the place cannot point anywhere else.
+export type ReportReason = "uncomfortable" | "not_who_they_said" | "under_19" | "spam";
+export async function reportFromMessage(
+  reporterId: string,
+  message: { authorId: string; createdAt: string },
+  where: { roomId: string } | { crewId: string },
+  reason: ReportReason,
+): Promise<void> {
   const { error } = await supabase()
     .from("reports")
-    .insert({ reporter_id: reporterId, target_kind: "message", target_room_message_id: messageId, reason });
+    .insert({
+      reporter_id: reporterId,
+      target_kind: "person",
+      target_person_id: message.authorId,
+      reason,
+      context_room_id: "roomId" in where ? where.roomId : null,
+      context_crew_id: "crewId" in where ? where.crewId : null,
+      context_at: message.createdAt,
+    });
   if (error) throw error;
 }
 

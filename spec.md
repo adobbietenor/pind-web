@@ -184,7 +184,7 @@ stored on the report, set from the reason at insert:
 - **not who they said**, **spam** → the target is auto-hidden at two reports.
 Separately, **any** report on a person sets `hidden_from_solo` immediately, whatever
 its reason and independent of `is_safety`.
-A report on a message snapshots the message body at insert, so the report stays
+*(Retired 16 Oct 2026 — reports are on people, not messages: long-press a message to report its author; the report records the room or thread and the message's time, never its words. The sentence that follows is history.)* A report on a message snapshots the message body at insert, so the report stays
 reviewable for its full 12 months after the thread is deleted.
 
 ---
@@ -438,7 +438,7 @@ Tatiana's starting list stay on file there ("Vibe chips retired").
 
 ### A14 — Group thread
 The small group's own conversation (the crew thread until 28 Sept), invisible to the room.
-Long-press any message to report. No phone numbers are exchanged. Closes 24h after the
+Long-press anyone's message to report them — the person, never the message (16 Oct 2026). No phone numbers are exchanged. Closes 24h after the
 gathering; read-only 30 days; then deleted (Q11).
 
 ### A16 — After the event
@@ -769,7 +769,7 @@ working. Hours are Alex's, agent-assisted.
 | M3.3c | The app's home — pick a city (Toronto live), Toronto's list, the same query as W1; **pulled forward from M3.2b** (Alex, 6 Oct 2026) | **Built, being checked on the phone** — in build 9, and walked on build 10 with M3.3b; `check:home` passes on the web. Branch `phase3/m3.3c-home` (on top of M3.3b), not merged | 6.5–9.5 |
 | M3.2b | The app's front door — interests, search, My Events (the build moved to M3.3b and the home and list to M3.3c, Alex, 6 Oct 2026) | **Built** (10 Oct 2026) — proved by the harness (P188–P193) and the Worker's own /search rendered against staging; merged into `phase3/m3.3c-home`. **Not yet deployed** (the deploy is Alex's): W1's search box and /search appear on pind.social with the next deploy, and the three-argument `public_gatherings` is dropped by a migration after it | 6–7 |
 | M3.4 | Solo crew (A28, A29) | **In progress** — branch `phase3/m3.4-solo-build`: who can see whom approved and built (V14, P209–P215, 14 Oct 2026); the lifecycle, proposals, the plan and the screens to come | 8–12 |
-| M3.5 | Safety and the notifications (A18, A23, A24) | **Partly built, in M3.3** — the seven notifications are written by the acts themselves and **delivered** (push to a phone, email otherwise, every minute; stop links), Settings has the switches (eight since M3.4), and a room message can be reported. **Not built:** the Monday digest (nothing writes it), #3 for a date change (withdrawal is done), block and report from a profile or group (A24; the control is hidden until it exists), blocked people and my reports in Settings, the admin block control, sign-in email monitoring. **Not walked:** push on the phone | 10–14 |
+| M3.5 | Safety and the notifications (A18, A23, A24) | **Partly built, in M3.3** — the seven notifications are written by the acts themselves and **delivered** (push to a phone, email otherwise, every minute; stop links), Settings has the switches (eight since M3.4), and long-pressing anyone's message in a room, a squad or a 1-on-1 plan reports its author (16 Oct 2026; there are no message reports). **Not built:** the Monday digest (nothing writes it), #3 for a date change (withdrawal is done), block and report from a profile or group (A24; the control is hidden until it exists), blocked people and my reports in Settings, the admin block control, sign-in email monitoring. **Not walked:** push on the phone | 10–14 |
 | M3.7 | Named squads, open to join (A9, A11, A15) — replaces M3.3's invite-only group (Alex, 14 Oct 2026) | **In progress** — branch `phase3/m3.7-squads` (off `phase3/m3.4-solo-build`): data, rules, the name check and the screens built on staging (P229–P238); not walked | — |
 | M3.6 | Dogfood on staging | Not started | 6–8 |
 | **Phase 4** | **Before the first real crowd** | | 28–42 |

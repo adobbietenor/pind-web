@@ -32,7 +32,10 @@ export const ROOM_COPY = {
   tooFast: "One message every few seconds — try again in a moment.",
   tooMany: "That's today's messages from you in this room.",
   deleteOwn: "Delete this message? It's removed for everyone.",
-  report: "Report this message",
+  // Long-press someone else's message: a report on THEM, never on the message (Alex,
+  // 16 Oct 2026: "We report people, not messages"). It records where and when, not the words.
+  reportPerson: (name: string) => `Report ${name}`,
+  reportHint: "It's a report on them, not on this message.",
   readOnly: "This room has closed. You can still read it for 30 days.",
 } as const;
 

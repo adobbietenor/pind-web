@@ -20,7 +20,7 @@ Last updated: 18 September 2026 (the revised build plan, `docs/build-plan.md`, m
 | H6 | **Honest counts, always — including zero.** Never inflate, never hide a small number, never fabricate a user or a pin. | IRL raised $200M on fake users and its founder was charged with fraud. |
 | H7 | **Women-only crews available on every gathering.** Open to `gender = woman` plus nonbinary people who set `include_in_women_only`; invisible to everyone else. | The least-safe user is also the most likely customer. |
 | H8 | **19+ only** (Ontario drinking age). Under-19 date of birth is a hard stop at sign-up, no soft fail. | Legal and safety. |
-| H9 | **Block and report are two taps from any person, crew or message.** Blocking is mutual invisibility and never notifies the other party. Report severity is derived from the reason, never asked: "uncomfortable" and "under 19" auto-hide the target immediately; "not who they said" and "spam" auto-hide at two reports. | Apple Guideline 1.2 and Google UGC policy require it; users look for it first. |
+| H9 | **Block and report are two taps from any person, crew or message.** From a message, "report" means **report its author** (16 Oct 2026, "Reports are on people, not messages"): there are no message reports. Blocking is mutual invisibility and never notifies the other party. Report severity is derived from the reason, never asked: "uncomfortable" and "under 19" auto-hide the target immediately; "not who they said" and "spam" auto-hide at two reports. | Apple Guideline 1.2 and Google UGC policy require it; users look for it first. |
 | H10 | **The company is never present at a gathering.** No hosting, no staffing, no attending as operators. | Team constraint. The product's job finishes before the event starts. |
 | H11 | **Visibility is decided in the database, never by filtering in application code.** | One place to review, one place to get right. |
 
@@ -151,7 +151,7 @@ screenshot the plan.
 | Keep-in-touch ticks | Expire 72h after the gathering if not mutual (Q6) — *superseded 29 Sept 2026: open 7 days after the effective end ("The night and after")* |
 | Gender | Kept on the person; never shown per-person, only in the aggregate chip and women-only eligibility |
 | Reports and moderation decisions | Kept 12 months |
-| Reported message content | Retained with the report for 12 months, independent of thread deletion |
+| Reported message content | **None kept since 16 Oct 2026** — a report is on the person and records where and when, never the words. Snapshots taken before then stay with their reports, read-only, until a later migration drops the column |
 | Profiles, connections, gatherings-attended counts | Persist |
 | Date of birth | Year kept after the 19+ check; full date discarded |
 | Device location | Never collected (H4) |
@@ -4057,7 +4057,7 @@ Approved as proposed, all five calls as recommended. This closes the open item i
   in spec §7).
 - **Women-only applies both ways.**
 - **A reported person is out of 1-on-1, silently.** Any report on them, for any reason,
-  including a report on one of their messages, sets `hidden_from_solo` at once. They see
+  including one filed from one of their messages (a report on them, since 16 Oct 2026), sets `hidden_from_solo` at once. They see
   an empty section, cannot propose, and are never told why: telling them would point at
   the reporter.
   **It must be reversible** (Alex: "a single bad report must not be a one-way door"). The
@@ -4131,7 +4131,9 @@ properly rather than assumed".
     auto-hide dissolves the plan; one below it does not, whoever filed it. In the build,
     "trips H9" means H9 hid either person, the plan itself, or a message in its thread. An
     admin hide is a hide and counts the same way. A room message hidden by a report hides
-    only that message, as before, and leaves the plan alone. **Both people get the
+    only that message, as before, and leaves the plan alone. *(16 Oct 2026: messages are
+    no longer reported or hidden, so "a message in its thread" is gone; a safety report
+    filed from the thread hides the person, which dissolves the plan — P244.)* **Both people get the
     plan-status notification, with no reason.** That includes the hidden person, which
     departs from #3's usual "never to a hidden person": otherwise they would walk to a
     spot where nobody is coming. Unhiding someone later does not bring a dissolved plan
@@ -4355,3 +4357,61 @@ app.** A long message wraps instead.
 - **Deliberate, not a bug.** Nobody should file "can't add a line break on iPhone": this is
   the trade, chosen. Revisit only together with a native-module decision.
 - The Send button stays for everyone; Return and the button are the same act (S29, S39).
+
+### Reports are on people, not messages (Alex, 16 Oct 2026)
+
+"I don't want people reporting individual messages. We report people, not messages. Keep the
+chat clean."
+
+- **Long-press anyone's message → "Report <name>" → a reason.** It files a report on the
+  **person** who wrote it, in the room (A10), a squad (A11) and a 1-on-1 plan (A29) alike —
+  the group threads had no report before. Your own room message still offers Delete.
+- **H9 is kept, and its meaning stated:** "two taps from any person, crew or message" — from
+  a message, report means **report its author**. Why not drop "message" from H9: removing
+  message reports outright would have left the app with no report at all until A24 ships
+  (reporting from a profile, M3.5), and H9's own reason is Apple 1.2 — a report mechanism
+  wherever user content appears. Reporting the author from the message keeps the taps where
+  the content is, while only people are ever reported.
+- **The report records where and when, never what.** It carries the room or the thread and
+  the message's own time, so the admin can go and look; it keeps no message text. The
+  privacy page says so. The database checks the place and time name a real message by that
+  person that the reporter can read — the context cannot be forged.
+- **Who may report from a message** is exactly who could report the message before —
+  anyone who can read it — so the room's read-only days still work: the people list
+  closes 24 hours after the effective end, the room stays readable for 30 days (Q11), and
+  the plain person report (which follows the list) would refuse there (P245). Never yourself, never across a block, never while hidden (Q39).
+- **What the old rules became:** a safety reason hides the PERSON at once (no message is
+  hidden any more); any report still takes them out of 1-on-1; a 1-on-1 plan is called off
+  when the person in it is hidden — which a safety report from its thread does — and no
+  longer by a hidden thread message (P244); a squad's H9 hide was always driven by reports
+  on the squad itself and does not change.
+- **The table:** the message-report permission is dropped now. The message columns
+  (`target_message_id`, `target_room_message_id`, `reported_content_snapshot`) and the
+  `'message'` kind stay, read-only, so the admin's history stays readable, and go in a
+  later migration once nothing reads them. The message reports still open — 59 on staging,
+  never shown by the admin, which lists person reports only — were closed as dismissed,
+  each logged (P247). People they had already taken out of 1-on-1 stay out until "Return
+  to 1-on-1": dismissing a report never returns someone, as before.
+- **The admin's queue** shows, under each report, where it came from: the room (its number,
+  women-only or not) or the squad or 1-on-1 plan's thread, linked to its gathering, the
+  message's time, and the room or thread id. A report from a profile says so.
+
+### Removal is on a faster path than everything else in a thread (Alex, 16 Oct 2026)
+
+In the room and the group threads (the thread pass, 16 Oct 2026), new messages arrive over
+Realtime, arrivals and "I'm here" come with the shell's refresh (60 s in the room, 30 s in a
+group's card), and a cheap "since" poll is the net (60 s while Realtime is healthy, 10 s
+while it is down). **Removal is checked every 15 seconds**, on its own: one ids-only read of
+the newest 50 messages, dropping whatever is no longer readable.
+
+- **Why removal gets its own faster path:** nothing that removes a message from someone's
+  view is ever broadcast. A deletion is a removal nobody else receives (L9); a person
+  hidden by a report, blocked, or gone leaves the room's read rule with no event at all.
+  The urgent one is the person **hidden for a safety reason**: everyone with the room open
+  must stop seeing their messages promptly, and a minute was too long. It was 15 s before
+  the thread pass (by accident, inside the full reload every 15 s); it is 15 s now on
+  purpose, for one cheap query rather than the reload.
+- **Why everything else can wait longer:** an arrival or an "I'm here" a little late harms
+  nobody, and they cost a full shell read.
+- **If message-level hiding ever came back**, this needs revisiting with it: a message
+  hidden by a report would be a removal too, and would want the same path or a faster one.

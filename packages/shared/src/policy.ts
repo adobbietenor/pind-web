@@ -12,12 +12,13 @@ export const POLICY_DRAFT_NOTICE =
 export const PRIVACY_CONTACT = "privacy@pind.social";
 
 // What block and report actually are TODAY, said wherever a page talks about them
-// (Alex, 10 Oct 2026: "no promises on live pages that the product does not keep"). A room
-// message can be reported by holding it; blocking and reporting a person or a group are
-// not in the app yet. **When A24 ships, the stronger wording comes back** ("two taps from
+// (Alex, 10 Oct 2026: "no promises on live pages that the product does not keep").
+// Holding someone's message in a room, a squad or a 1-on-1 plan reports THEM — never the
+// message (Alex, 16 Oct 2026); blocking, and reporting from a profile or a squad's card,
+// are not in the app yet. **When A24 ships, the stronger wording comes back** ("two taps from
 // any person, group or message") — SC01 fails until it does, and fails if anything claims
 // the taps before then.
 export const SAFETY_TODAY = {
-  app: "Hold any message in a room to report it. Blocking, and reporting a person or a group, are coming to the app — until then, write to safety@pind.social and a person reads it.",
-  sheet: "Hold any message in a room to report it — and safety@pind.social reaches a person.",
+  app: "Hold anyone's message in a room, a squad or a 1-on-1 plan to report the person who wrote it. Blocking, and reporting from a profile or a squad, are coming to the app — until then, write to safety@pind.social and a person reads it.",
+  sheet: "Hold anyone's message to report the person who wrote it — and safety@pind.social reaches a person.",
 } as const;

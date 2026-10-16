@@ -598,44 +598,50 @@ test("R32 V20: an author cannot move their message into another room, or re-auth
   assert.deepEqual(row, { room_id: room.G, author_id: ppl.Mo!.id });
 });
 
-// A room-message report exactly as the app files it (app/src/lib/room.ts reportRoomMessage).
+// A report filed from a room message, exactly as the app files it (app/src/lib/room.ts
+// reportFromMessage): a report on the AUTHOR, carrying the room and the message's time — never
+// its words. Message reports were retired on 16 Oct 2026 (Alex: "We report people, not messages").
 async function report(name: string, messageId: string, reason: string, extra: Record<string, unknown> = {}) {
   const p = ppl[name]!;
-  return p.c.from("reports").insert({ reporter_id: p.id, target_kind: "message", target_room_message_id: messageId, reason, ...extra });
+  const m = await must(service.from("room_messages").select("author_id, room_id, created_at").eq("id", messageId).single(), "the message");
+  return p.c.from("reports").insert({ reporter_id: p.id, target_kind: "person", target_person_id: m.author_id, reason, context_room_id: m.room_id, context_at: m.created_at, ...extra });
 }
+const fromRoom = (reporter: string, roomId: string) =>
+  must(service.from("reports").select("status, context_room_id, context_at, reported_content_snapshot").eq("reporter_id", ppl[reporter]!.id).eq("context_room_id", roomId), "reports");
 
-test("R33 V20: a report snapshots the real body — a forged snapshot is not stored", async () => {
+test("R33 V20: a report keeps no message text — a forged snapshot is refused, and none is stored", async () => {
   const r = await report("Mo", msg.dana!, "spam", { reported_content_snapshot: "FORGED: Dana threatened me" });
   notes.push(`report with forged snapshot: ${r.error ? r.error.message : "accepted"}`);
-  const rows = await must(service.from("reports").select("reported_content_snapshot").eq("target_room_message_id", msg.dana!), "report");
-  assert.ok(!rows.some((x: any) => (x.reported_content_snapshot ?? "").includes("FORGED")), "the forged snapshot was stored");
+  assert.ok(r.error, "a report carrying text was accepted");
+  const rows = await must(service.from("reports").select("reported_content_snapshot").eq("reporter_id", ppl.Mo!.id).not("reported_content_snapshot", "is", null), "report");
+  assert.deepEqual(rows, [], "a report stored message text");
 });
 
-test("R34 V20/H9: a report made before a delete keeps its snapshot (positive), and the message is gone for everyone", async () => {
-  // Mo reports Ava's 'delete me' message, then Ava deletes it.
+test("R34 V20/H9: a report made before a delete keeps where and when (positive), and the message is gone for everyone", async () => {
+  // Mo reports Ava from her 'delete me' message, then Ava deletes it.
   const id = await post("Ava", "G", "delete me later");
+  const at = (await must(service.from("room_messages").select("created_at").eq("id", id).single(), "the message")).created_at;
   const r = await report("Mo", id, "spam");
-  notes.push(`Mo reports a room message: ${r.error ? r.error.message : "accepted"}`);
+  notes.push(`Mo reports Ava from a room message: ${r.error ? r.error.message : "accepted"}`);
   assert.equal(r.error, null, `setup: report refused: ${r.error?.message}`);
   const d = await ppl.Ava!.c.rpc("delete_room_message", { p_message: id });
   assert.equal(d.error, null, `Ava could not delete her own message: ${d.error?.message}`);
   assert.ok(!(await readable("Ben", "G")).includes(id), "the deleted message is still readable");
-  const rep = await must(service.from("reports").select("reported_content_snapshot").eq("reporter_id", ppl.Mo!.id).like("reported_content_snapshot", "%delete me later%"), "report");
-  assert.equal(rep.length, 1, "the snapshot did not survive the delete");
+  const rep = (await fromRoom("Mo", room.G)).filter((x: any) => Date.parse(x.context_at) === Date.parse(at));
+  assert.equal(rep.length, 1, "the report lost where and when once the message was deleted");
+  assert.equal(rep[0].reported_content_snapshot, null, "the report kept the words");
 });
 
-test("R35 V20/H9: someone who cannot read a message cannot report it (and so cannot hide it)", async () => {
+test("R35 V20/H9: someone who cannot read a message cannot report its author from it (and so cannot hide them)", async () => {
   for (const n of ["Hugo", "Strg", "Out"]) {
     const r = await report(n, msg.ben!, "uncomfortable");
-    notes.push(`${n} reports Ben's message: ${r.error ? r.error.message : "accepted"}`);
-    assert.ok(r.error, `${n} reported Ben's message`);
+    notes.push(`${n} reports Ben from his message: ${r.error ? r.error.message : "accepted"}`);
+    assert.ok(r.error, `${n} reported Ben from a message they cannot read`);
   }
   const bk = await report("Bk", msg.ava!, "uncomfortable");
-  assert.ok(bk.error, "Bk (blocked by Ava) reported Ava's message");
-  const ava = await must(service.from("room_messages").select("hidden_at").eq("id", msg.ava!).single(), "Ava's message");
-  assert.equal(ava.hidden_at, null, "Ava's message hidden by the person she blocked");
-  const row = await must(service.from("room_messages").select("hidden_at").eq("id", msg.ben!).single(), "Ben's message");
-  assert.equal(row.hidden_at, null, "Ben's message was hidden by an outsider's report");
+  assert.ok(bk.error, "Bk (blocked by Ava) reported Ava from her message");
+  const hidden = await must(service.from("people").select("first_name, hidden_at").in("id", [ppl.Ava!.id, ppl.Ben!.id]), "Ava and Ben");
+  assert.ok(hidden.every((x: any) => x.hidden_at === null), "Ava or Ben was hidden by a report from someone who could not read their message");
 });
 
 test("R36 V9: a reporter cannot set a report's status or forge another reporter", async () => {
@@ -645,7 +651,7 @@ test("R36 V9: a reporter cannot set a report's status or forge another reporter"
   assert.equal(byAva.length, 0, "Mo filed a report as Ava");
   assert.ok(r1.error);
   notes.push(`report with status set: ${r2.error ? r2.error.message : "accepted"}`);
-  const st = await must(service.from("reports").select("status").eq("reporter_id", ppl.Mo!.id).eq("target_room_message_id", msg.cara!), "status");
+  const st = await fromRoom("Mo", room.G);
   assert.ok(!st.some((x: any) => x.status === "dismissed"), "Mo set his report's status");
 });
 

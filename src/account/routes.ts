@@ -16,7 +16,7 @@
 //           — and the photo file itself.
 //   stays   `moderation_log` (no foreign keys, 12 months); `reports` filed by or
 //           about them, with the person references nulled and the reason, the date
-//           and any message snapshot kept for the 12 months; `gathering_stats`
+//           and, on reports from before 16 Oct 2026, the message snapshot they kept, for the 12 months (newer reports keep none); `gathering_stats`
 //           aggregates. And **crew messages stay with the author nulled**, rendered
 //           as "someone who left": removing a departed member's lines rewrites a
 //           conversation other people are still reading.

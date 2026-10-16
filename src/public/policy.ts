@@ -88,7 +88,7 @@ ${draftBanner()}
 <li><strong>Crew messages</strong> — read-only 24 hours after the gathering, deleted 30 days after it.</li>
 <li><strong>Your date of birth</strong> — only the year is ever kept.</li>
 <li><strong>A rejected photo</strong> — deleted at once; the record of the check, 12 months.</li>
-<li><strong>Reports and moderation decisions</strong> — 12 months, including the message a report was about.</li>
+<li><strong>Reports and moderation decisions</strong> — 12 months. A report made from a message records where and when it was said — never the message itself.</li>
 <li><strong>Your answer after a gathering</strong> — kept; when you delete your account, it loses your name. <strong>Any comment you wrote</strong> is deleted with your account.</li>
 <li><strong>Your profile</strong> — until you delete your account.</li>
 </ul>

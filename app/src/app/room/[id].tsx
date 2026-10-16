@@ -9,7 +9,8 @@
 //   * at 3, once: "enough to go together", and the way to squads (M3.7) — open to join,
 //     on the crowd page (A15). Invite-only groups and "Go together" are retired;
 //   * on the iPhone, the "Turn on" card for push — never at launch (lib/push.ts).
-// Long-press your own message to delete it; anyone else's to report it (H9).
+// Long-press your own message to delete it; anyone else's to report THEM — a report on
+// the person, with where and when, never on the message (H9; Alex, 16 Oct 2026).
 //
 // **Two parts since the thread pass (16 Oct 2026):** the shell (lib/room.ts — who is
 // here, read on opening and every minute) and the thread (lib/thread.ts — the messages,
@@ -22,15 +23,16 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { colors as palette, fonts, NEIGHBOURHOODS, openersFor, radius, REPORT_REASONS, ROOM_COPY, spacing, SQUAD_COPY, type ThreadMessage } from "@pind/shared";
+import { colors as palette, fonts, NEIGHBOURHOODS, openersFor, radius, ROOM_COPY, spacing, SQUAD_COPY, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Composer } from "@/components/Composer";
+import { MessageSheet } from "@/components/MessageSheet";
 import { PushAsk } from "@/components/PushAsk";
 import { ThreadMessages } from "@/components/ThreadMessages";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice } from "@/components/ui";
 import { failed, rateRefusal, type Described } from "@/lib/errors";
-import { deleteRoomMessage, loadRoomShell, markSeen, reportRoomMessage, sendRoomMessage, sharedTag, tagName, type Member } from "@/lib/room";
+import { deleteRoomMessage, loadRoomShell, markSeen, reportFromMessage, sendRoomMessage, sharedTag, tagName, type Member } from "@/lib/room";
 import { faceSource } from "@/lib/signed-photos";
 import { useThread } from "@/lib/thread";
 
@@ -270,47 +272,32 @@ export default function Room() {
         <ActivityIndicator style={{ marginTop: spacing.lg }} color={palette.textMuted} />
       ) : null}
 
-      {/* Long-press: delete your own, report anyone else's (two taps, H9). */}
+      {/* Long-press: delete your own; anyone else's reports THEM, never the message (two taps, H9). */}
       {held ? (
-        <View style={styles.go}>
-          {held.authorId === view.me.personId ? (
-            <>
-              <Body>{ROOM_COPY.deleteOwn}</Body>
-              <Button
-                label="Delete"
-                onPress={async () => {
-                  const gone = await deleteRoomMessage(held.id).then(
-                    () => true,
-                    (err) => {
-                      setTrouble(failed("delete that", err));
-                      return false;
-                    },
-                  );
-                  if (gone) thread.forget(held.id);
-                  setHeld(null);
-                }}
-              />
-            </>
-          ) : (
-            <>
-              <Body>{ROOM_COPY.report}</Body>
-              {REPORT_REASONS.map((r) => (
-                <Button
-                  key={r.value}
-                  kind="quiet"
-                  label={r.label}
-                  onPress={async () => {
-                    await reportRoomMessage(view.me.personId, held.id, r.value).catch((err) => setTrouble(failed("report that", err)));
-                    setHeld(null);
-                    // A report can hide the message: check the thread now, not within the minute.
-                    thread.recheck();
-                  }}
-                />
-              ))}
-            </>
-          )}
-          <Button kind="quiet" label="Cancel" onPress={() => setHeld(null)} />
-        </View>
+        <MessageSheet
+          held={held}
+          mine={held.authorId === view.me.personId}
+          authorName={byId.get(held.authorId)?.firstName ?? "them"}
+          onDelete={async () => {
+            const gone = await deleteRoomMessage(held.id).then(
+              () => true,
+              (err) => {
+                setTrouble(failed("delete that", err));
+                return false;
+              },
+            );
+            if (gone) thread.forget(held.id);
+            setHeld(null);
+          }}
+          onReport={async (reason) => {
+            await reportFromMessage(view.me.personId, held, { roomId: view.roomId }, reason).catch((err) => setTrouble(failed("report that", err)));
+            setHeld(null);
+            // A safety reason hides them at once, and their messages with them: look now.
+            thread.recheck();
+            refreshShell();
+          }}
+          onCancel={() => setHeld(null)}
+        />
       ) : null}
 
       {/* Openers until you've said something, just over the box: they fill it, never send it. */}

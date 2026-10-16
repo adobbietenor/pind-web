@@ -260,12 +260,37 @@ directions from one row.
 ## 11 · Reports and auto-hide — V9, V10
 
 - **V9 filing:** a signed-in person can file a report on a person V1 lets them see.
+- **V9 from a message (16 Oct 2026, Alex: "We report people, not messages"):** long-press
+  a message → "Report <name>" files a report **on its author** (`target_kind = 'person'`),
+  carrying where it came from (`context_room_id` or `context_crew_id`) and when
+  (`context_at`, the message's own time) — never its words. Policy
+  `reports_insert_from_a_message`, in plain words:
+  - **allows** anyone who can READ that message to report its author from it — decided by
+    the message tables' own read rules (the policy's subqueries run as the reporter, under
+    `room_messages_read` and `crew_messages_read_members`). That is the same set who could
+    report the message before, and wider than V1: the people list closes 24 hours after
+    the effective end, but the room stays readable, read-only, for 30 days (Q11), and its
+    messages can be reported throughout (P245);
+  - **denies** reporting yourself; reporting across a block (either way); a hidden reporter
+    (Q39 — a hide takes someone out of every active squad (M3.7) but not a finished one, or a
+    pre-M3.7 group, whose thread they can still read: they must not hide another member by
+    reporting them — P243 proves this check alone refuses); and any place or time that is not a real message by that
+    person, in that room or thread, at that moment — so the context cannot be forged to
+    point elsewhere (P242, P243);
+  - the plain person report (`reports_insert_on_visible_person`) is unchanged but may not
+    carry a context, and a squad report may not carry one either (constraint
+    `reports_context_is_a_place_and_a_time`).
+  **Retired with it:** the room-message report policy and its grant, the snapshot trigger,
+  the message branch of auto-hide, `reports_hide_room_message`, and
+  `crew_messages_solo_follows_hide`. A safety reason from a message hides the PERSON at once
+  (P241). The message columns and the `'message'` kind stay read-only for history; the open
+  message reports were closed as dismissed, each logged (P247). Proved by P239–P247, R33–R36.
 - **V9 reading, added in M3.1 for "export my data" (Alex):** a reporter can read
   **their own** reports, and the column grant lets them see four things — the id, what
   kind of thing it was about, **their reason and the date**. Everything the moderator
   touched stays shut: `status` (where `auto_hidden` would tell a reporter their report
   hid someone, which is what H9 keeps quiet), `decision_note`, `reviewed_at`,
-  `is_safety`, the message snapshot, and the ids. A report is still unreadable by its
+  `is_safety`, the message snapshot (on reports from before 16 Oct 2026), the place and time a report came from, and the ids. A report is still unreadable by its
   target, by any other person and by `anon`. It exists because the export is **read as
   the person through RLS** rather than with the service key — walking around RLS is
   how an export quietly becomes a wider query.
@@ -280,7 +305,8 @@ directions from one row.
   - hiding sets `hidden_at` and marks the target's open reports `auto_hidden`, pending
     human review (unhiding is the admin milestone). Dismissed and actioned reports no
     longer count.
-  - The trigger also handles crew and message targets, ready for the app.
+  - The trigger also handles crew targets (squads, M3.7). Its message branch was removed on
+    16 Oct 2026 with message reports.
 - **Hidden people:** invisible to everyone (V1), cannot see anyone themselves, still
   counted in "pinned", not in "open to meeting" or the mix.
 - Accepted risk: auto-hide on one safety report can be abused, but only by someone
@@ -842,7 +868,7 @@ its own decision: Unhide and Dismiss do not. **Solo does not ship until this exi
 **Proved by:** P209 (both see each other; someone without 1-on-1 sees no one and is in no
 one's section, while still on the people list); P210 (the switch); P211 (women-only both
 ways, with the nonbinary cases); P212 (a block, both ways); P213 (a spam report, and a
-report on a room message, take someone out silently, and nothing else moves); P214 (the
+report filed from their room message, take someone out silently, and nothing else moves); P214 (the
 way back); P215 (hidden, withdrawn).
 
 **Narrowed by the plan (M3.4, flagged to Alex):** once either person has a 1-on-1 plan at
@@ -1014,11 +1040,12 @@ Migrations are in `supabase/migrations/`, prefixed `20260918134…_m1_1_` (M1.1)
 | V17 Instagram handles (M3.1) | table `public.person_handles`; `private.can_see_handle`, `private.share_crew`, `private.are_connected`, `private.is_hidden`; policies `person_handles_read_own`, `person_handles_read_visible`, `person_handles_*_own` | P67–P70, P11, P24 |
 | V19 a person's tags (M3.1) | policies `tags_read`, `person_tags_read_own`, `person_tags_read_visible`, `person_tags_*_own` (insert, delete, update of `on_list`); `private.can_see`; constraint trigger `person_tags_within_caps` → `private.person_tags_cap` (ten tags, three on the list) | P74–P77, P04 |
 | V18 seed rows | `venues.is_seed`, `gatherings.is_seed`, `people.is_seed`; triggers `gatherings_seed_follows_venue`, `venues_seed_spreads`; `private.is_published`, `private.list_open`, `private.is_open_at`, `private.is_seed_venue`; policies `gatherings_read_published`, `gathering_spots_read_published`, `venues_read`, `meeting_spots_read`; `public.gathering_counts`; testers: `private.testers`, `private.i_am_tester`, `public.admin_set_tester` | P55–P58; testers P92–P99 |
-| V20 the room (M3.3) | tables `rooms`, `room_members`, `room_messages`; `private.room_peer` (V1 without the list's closing time, for Q11's read-only days), `private.in_room`, `private.room_writable`, `private.place_in_room` via trigger `pins_place_in_rooms`; policies `rooms_read_own`, `room_members_read`, `room_messages_read`, `room_messages_post`, `room_messages_delete_own`, `reports_insert_on_readable_room_message`; rate limits in `private.room_messages_rate_limit` (people only); a safety report hides the message (`private.reports_hide_room_message`); retention `admin_delete_expired_room_messages` | P139–P148 |
+| V20 the room (M3.3) | tables `rooms`, `room_members`, `room_messages`; `private.room_peer` (V1 without the list's closing time, for Q11's read-only days), `private.in_room`, `private.room_writable`, `private.place_in_room` via trigger `pins_place_in_rooms`; policies `rooms_read_own`, `room_members_read`, `room_messages_read`, `room_messages_post`, `room_messages_delete_own`, `reports_insert_on_readable_room_message` (retired 16 Oct 2026); rate limits in `private.room_messages_rate_limit` (people only); a safety report hid the message (`private.reports_hide_room_message`, retired 16 Oct 2026 — it hides the person now); retention `admin_delete_expired_room_messages` | P139–P148 |
 | V21 small groups (M3.3) | `crews` (+ `room_id`), `crew_members`, `crew_proposals`, `crew_proposal_votes`, `crew_messages`, `crew_invites`; `private.can_invite` (both in the room, both posted, `room_peer`, not already in a group), `private.in_group`; `public.start_group`, `public.respond_to_invite`, `public.my_invites`, `public.leave_group`; policies `crews_read_members`, `crew_members_read_members`, `crew_proposals_read_members`, `crew_votes_*`, `crew_invites_read_invitee` (the inviter never reads an invite, so a decline is silent), `crew_messages_*_members`, `crew_members_arrive_own`; the lifecycle `admin_groups_tick` (pg_cron, every 10 min); `public.convening_of` | P149–P158; P04, P70 updated |
 | V22 notifications (M3.3) | `notifications` (no person reads it; service-key delivery through `admin_pending_notifications`, `admin_mark_notification`, `admin_forget_device`, `admin_switch_off`); `notification_settings` and `device_tokens` own-only (`register_device`); #2 by trigger `room_members_notify_open`, #6 by `room_messages_notify_activity` — never across a block, never to a hidden person, never to the author, off by the person's switch | P159–P162 |
 | V23 after the night (M3.3) | `private.after_peer` inside `private.can_see`; `private.after_open`, `public.after_tick`, `public.after_state`, `public.showed_up`, `public.my_connections`; `survey_responses_insert_own` (after the end, open to meeting); `people_private.women_only_rooms` via `public.set_women_only_rooms`, `public.join_general_room`, `public.waiting_for_women_only_room`, `pins_place_in_rooms`; #2 for a women-only room at 3; #4 in `crews_notify_change`, #5 `admin_next_morning_tick` (pg_cron hourly), #7 `connection_invites` via `public.invite_connection` and `public.invite_options` | P167–P181; P32, P69 updated |
 | A16's comment (#10, 14 Oct 2026) | `survey_responses.comment` + `survey_responses_comment_shape`; trigger `survey_comment_leaves_with_person`; `survey_comment_reads` (no grants); `admin_unread_comments`, `admin_comments`, `admin_comment_read` (service role only) | P205–P208; P03, P04 |
+| V9 a report from a message is a report on its author (16 Oct 2026) | policy `reports_insert_from_a_message` (subqueries under `room_messages_read` / `crew_messages_read_members`; `private.may_report_from_a_message` — not yourself, not hidden, not across a block — granted to sessions, as `room_peer` is: a policy may only call what the filer may execute, or it refuses every report); `reports_insert_on_visible_person` (no context); constraint `reports_context_is_a_place_and_a_time`; `private.auto_hide_on_report`, `private.report_takes_out_of_solo` (message branches removed) | P239–P247, P144, P213, R33–R36 |
 | The public web's one door | `public.public_gatherings`, `public.public_gathering` | P55, P59, P61, P65 |
 | The chip a Ticketmaster gathering wears (M2.3) | `public.chip_category`, `public.admin_categorise_gatherings` — both `service_role` only; written once, never over an existing value | P66 |
 | The public slug and its 301 | `gatherings.slug`, `gathering_slug_history`, trigger `gatherings_slug_history`; `admin_mint_slug`, `admin_set_slug`, `admin_publish_gathering` | P59, P60 |
