@@ -4339,3 +4339,19 @@ page** (the list, Join, "Start a squad"). A11 is your squad, and A12 its plan (n
 spec.md's heading is now "A10–A13, A15, A17 — Room and squads", and **both issue forms say
 the same in the same commit** (Alex: "We fixed this exact drift this morning and it
 misfiled two of Tatiana's issues"). F02 fails if they part.
+
+### The thread pass: on iOS, Return always sends (Alex, 16 Oct 2026)
+
+The room (A10), a squad (A11) and a 1-on-1 plan (A29) share one box, `Composer`. On the web
+and with a hardware keyboard on a computer, **Enter sends and Shift+Enter makes a new line**.
+**In the iOS app, Return always sends** — from the on-screen keyboard (whose return key
+reads "Send") and from a hardware keyboard alike — **so a line break cannot be typed in the
+app.** A long message wraps instead.
+
+- **Why:** React Native's iOS text input reports no modifier keys, so the app cannot tell
+  Shift+Enter from Enter. The only ways to tell them apart are a native module (none beyond
+  the M2.0 list without a decision) or a return key that makes new lines and a Send key
+  somewhere else — which is the behaviour Alex asked to change.
+- **Deliberate, not a bug.** Nobody should file "can't add a line break on iPhone": this is
+  the trade, chosen. Revisit only together with a native-module decision.
+- The Send button stays for everyone; Return and the button are the same act (S29, S39).

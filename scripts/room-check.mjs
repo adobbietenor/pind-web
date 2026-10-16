@@ -5,8 +5,10 @@
 //      → A9 shows the room → the room shows their arrival card and three openers
 //   *  tapping an opener FILLS THE BOX and sends nothing (the database says 0 messages);
 //      Send writes one (Alex: "never send anything for anyone")
-//   3  a third → "enough to go together" → Go together → pick two who have posted →
-//      the group page: "Just you so far — a group needs 3", and its deadline
+//   3  a third → "enough to go together", once → "Start a squad" opens the crowd page's
+//      squads (A15, M3.7). Invite-only groups, "Go together" and the group's deadline are
+//      retired (spec A10–A13); until 16 Oct 2026 this check still walked them, and failed
+//      on a step that no longer exists — the stale-fixture failure CLAUDE.md warns about.
 //   5  two more → the cards fold into "5 here", and the mix chip shows
 //   *  long-press your own message → Delete → gone for everyone; long-press someone
 //      else's → a reason → a report that keeps the words (H9)
@@ -25,7 +27,8 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { seal } from "../src/public/sealed.ts";
-import { GROUP_COPY, ROOM_COPY, openersFor } from "../packages/shared/src/room.ts";
+import { ROOM_COPY, openersFor } from "../packages/shared/src/room.ts";
+import { SQUAD_COPY } from "../packages/shared/src/squad.ts";
 import { needChrome, needEnv, sessionSecretMatches, testCrowd } from "./fixture.mjs";
 
 // Fixtures first: a check whose ground moved says so in a sentence (scripts/fixture.mjs).
@@ -115,19 +118,16 @@ try {
   for (let t = 0; t < 20 && (await countMessages("Ari")) === 0; t++) await sleep(500);
   step("Send writes it", (await countMessages("Ari")) === 1);
 
-  // 3 — a third: go together.
+  // 3 — a third: enough to go together, and the way to squads.
   await optIn("Cal");
   const roomId = (await must(await rest(`/rest/v1/room_members?person_id=eq.${people.Ari.personId}&gathering_id=eq.${gathering.id}&women_only=eq.false&select=room_id`), "room"))[0].room_id;
   for (const who of ["Bea", "Cal"]) await must(await rest("/rest/v1/room_messages", { method: "POST", body: JSON.stringify({ room_id: roomId, author_id: people[who].personId, body: `hi from ${who}` }) }), "say");
   await send("Page.reload");
   step("at 3: 'enough to go together'", await until(ROOM_COPY.enoughToGo));
-  await click(ROOM_COPY.goTogether);
-  await sleep(500);
-  await click("Bea");
-  await click("Cal");
-  await click(GROUP_COPY.start);
-  step("the group page: progress without attribution", await until(GROUP_COPY.soFar([])));
-  step("…and its deadline", (await body()).includes("If there aren't 3 of you by"));
+  step("…and no 'Go together' (retired with invite-only groups)", !(await body()).includes(ROOM_COPY.goTogether));
+  await click(SQUAD_COPY.start);
+  step("'Start a squad' opens the crowd page's squads (A15)", await until(SQUAD_COPY.sectionHeading));
+  step("…where there are none yet, and one can be started", (await body()).includes(SQUAD_COPY.none) && (await body()).includes(SQUAD_COPY.start));
 
   // 5 — the room fills out (Alex, 6 Oct: the steps once given as a walk are checked here).
   await person("Dee");
@@ -140,7 +140,7 @@ try {
   step("at 5: the arrival cards fold into '5 here'", folded);
   step("…and no single arrival card is left", !(await body()).includes(`Dee ${ROOM_COPY.arrived}`));
   step("at 5: the gender-mix chip in the room's header (Q3's floor)", /\d+ men/.test(await body()));
-  step("'enough to go together' does not come back — shown once, and Ari is in a group", !(await body()).includes(ROOM_COPY.enoughToGo));
+  step("'enough to go together' does not come back — it is shown once", !(await body()).includes(ROOM_COPY.enoughToGo));
 
   // Long-press, the way a finger does it: press, hold, release.
   const longPress = async (text) => {
