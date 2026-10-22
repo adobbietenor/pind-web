@@ -203,6 +203,70 @@ export async function markHarness(service: SupabaseClient, authId: string): Prom
   if (error) throw new Error(`mark ${authId} as a harness user: ${error.message}`);
 }
 
+// ---------------------------------------------------------------------------
+// Signing in, under auth's rate limits (22 Oct 2026).
+// ---------------------------------------------------------------------------
+// Auth limits sign-ins per IP. Measured on pind-staging, 22 Oct: a full run made 132
+// password sign-ins in 220 s and the server refused from the 127th
+// (`over_request_rate_limit`), so every suite after P228 failed in setup on every run —
+// a suite that cannot run, reported as 98 product failures. Anonymous sign-ins have their
+// own limit, 150 an hour per IP (`npx supabase config diff`); a run makes 46.
+//
+// So every harness sign-in goes through these two, never `client.auth` directly
+// (tests/unit/harness.test.ts fails if one does). Each answers exactly what supabase-js
+// would, so a test's own assertions on `.error` and `.data.user` stand, except that:
+//   - a refused password sign-in waits for the five-minute window and tries again, so a
+//     run is slower, never defeated;
+//   - a limit still refusing after that, and the hourly anonymous one (not worth waiting
+//     for), throw "FIXTURE, not product:" — never surface as a product failure.
+// A hook or test that signs people in adds SIGN_IN_WAIT_MS to its timeout.
+
+const WINDOW_MS = 5 * 60 * 1000;
+const RETRY_EVERY_MS = 20_000;
+// The longest one sign-in can wait: one window and a margin.
+export const SIGN_IN_WAIT_MS = WINDOW_MS + 60_000;
+
+export function rateLimited(error: { status?: number; code?: string } | null): boolean {
+  return !!error && (error.code === "over_request_rate_limit" || error.status === 429);
+}
+
+let waitNoted = false;
+
+// `timing` exists for tests/unit/harness.test.ts, which makes the wait and the give-up fire.
+export async function passwordSignIn(
+  client: SupabaseClient,
+  credentials: { email: string; password: string },
+  timing = { retryEveryMs: RETRY_EVERY_MS, waitMs: SIGN_IN_WAIT_MS },
+) {
+  const giveUp = Date.now() + timing.waitMs;
+  for (;;) {
+    const res = await client.auth.signInWithPassword(credentials);
+    if (!rateLimited(res.error)) return res;
+    if (Date.now() + timing.retryEveryMs > giveUp) {
+      throw new Error(
+        `FIXTURE, not product: sign in ${credentials.email}: auth's sign-in rate limit was still refusing after ` +
+          `${Math.round(timing.waitMs / 1000)} s — something else on this IP is signing in, or the limit was lowered`,
+      );
+    }
+    if (!waitNoted) {
+      console.error("harness: auth's sign-in rate limit reached; waiting for its window (a fixture, not a product failure)");
+      waitNoted = true;
+    }
+    await new Promise((r) => setTimeout(r, timing.retryEveryMs));
+  }
+}
+
+export async function anonSignIn(client: SupabaseClient, credentials?: Parameters<SupabaseClient["auth"]["signInAnonymously"]>[0]) {
+  const res = await client.auth.signInAnonymously(credentials);
+  if (rateLimited(res.error)) {
+    throw new Error(
+      "FIXTURE, not product: anonymous sign-in: auth's anonymous limit (150 an hour per IP) is used up — " +
+        "a run makes 46, so this is the fourth run in an hour or something else on this IP; wait, then rerun",
+    );
+  }
+  return res;
+}
+
 // A signed-in person: an auth user with a session, plus their people rows made by
 // the service key (the self-service insert path is exercised by Newt in the tests).
 async function signedIn(
@@ -212,7 +276,7 @@ async function signedIn(
 ): Promise<{ client: SupabaseClient; authId: string }> {
   const client = newClient(w.env, w.env.publishableKey);
   if (opts.anonymous) {
-    const { data, error } = await client.auth.signInAnonymously({ options: { data: { harness: PREFIX } } });
+    const { data, error } = await anonSignIn(client, { options: { data: { harness: PREFIX } } });
     if (error || !data.user) throw new Error(`anonymous sign-in for ${name}: ${error?.message}`);
     await markHarness(w.service, data.user.id);
     return { client, authId: data.user.id };
@@ -226,7 +290,7 @@ async function signedIn(
     app_metadata: { pind_harness: true },
   });
   if (created.error || !created.data.user) throw new Error(`create user ${name}: ${created.error?.message}`);
-  const { error } = await client.auth.signInWithPassword({ email, password });
+  const { error } = await passwordSignIn(client, { email, password });
   if (error) throw new Error(`sign in ${name}: ${error.message}`);
   return { client, authId: created.data.user.id };
 }

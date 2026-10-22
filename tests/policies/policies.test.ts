@@ -18,7 +18,7 @@ import { optInMissing } from "../../packages/shared/src/optin.ts";
 import { soloTimes } from "../../packages/shared/src/solo.ts";
 import { photoDest } from "../../src/account/merge-checks.ts";
 import { ADMIN_REPORT_SELECT } from "../../src/admin/report-select.ts";
-import { ACTOR, BUCKET, MAPS, PNG, PREFIX, buildWorld, handleFor, harnessLeftovers, markHarness, newClient, sweep, sweepTwice, type Member, type World, removeUser, accountlessPeople } from "./world.ts";
+import { ACTOR, BUCKET, MAPS, PNG, PREFIX, SIGN_IN_WAIT_MS, anonSignIn, passwordSignIn, buildWorld, handleFor, harnessLeftovers, markHarness, newClient, sweep, sweepTwice, type Member, type World, removeUser, accountlessPeople } from "./world.ts";
 
 interface Result {
   data: any;
@@ -124,7 +124,7 @@ before(async () => {
   // P184's firing proof: PIND_P184_FIRE=1 leaves one person with no account behind on
   // purpose, and the check at the end must refuse the run.
   if (process.env.PIND_P184_FIRE === "1") await ok(w.service.from("people").insert({ first_name: "P184 probe" }));
-}, { timeout: 300_000 });
+}, { timeout: 300_000 + SIGN_IN_WAIT_MS });
 
 // P184 (Alex, 6 Oct 2026): the harness deletes its own people. Checked here, the very
 // last thing a run does — after every suite's clean-up and the sweep: a person row left
@@ -143,7 +143,7 @@ after(async () => {
   assert.ok(now <= accountlessAtStart, `P184: this run left ${now - accountlessAtStart} person rows with no account behind (${accountlessAtStart} → ${now})`);
   const left = await harnessLeftovers(service);
   assert.deepEqual(left, { people: 0, gatherings: 0, venues: 0, users: 0 }, `this run left harness rows behind: ${JSON.stringify(left)}`);
-}, { timeout: 300_000 });
+}, { timeout: 300_000 + SIGN_IN_WAIT_MS });
 
 describe("Public data — V2, V11", () => {
   it("P01 anon CAN read published G, its venue, spots and spot options / CANNOT read unpublished U or its spot options", async () => {
@@ -240,7 +240,7 @@ describe("Own rows — V1 writes", () => {
 
   it("P07 an anonymous visitor CAN create their own person, private row, pin, contact and photo / CANNOT act for anyone else or set moderation fields", async () => {
     const client = newClient(w.env, w.env.publishableKey);
-    const { data, error } = await client.auth.signInAnonymously({ options: { data: { harness: "pindhx" } } });
+    const { data, error } = await anonSignIn(client, { options: { data: { harness: "pindhx" } } });
     assert.equal(error, null, error?.message);
     assert.ok(data.user?.is_anonymous, "session is anonymous");
     const authId = data.user!.id;
@@ -1237,7 +1237,7 @@ describe("Seed rows never reach the public — V18 (Alex, M2.1)", () => {
     // A seeded person with their own session, pinned and opted in at the REAL
     // gathering G, bringing two friends.
     seedSession = newClient(w.env, w.env.publishableKey);
-    const signIn = await seedSession.auth.signInAnonymously({ options: { data: { harness: "pindhx" } } });
+    const signIn = await anonSignIn(seedSession, { options: { data: { harness: "pindhx" } } });
     assert.equal(signIn.error, null, signIn.error?.message);
     await markHarness(w.service, signIn.data.user!.id);
     seedPerson = (
@@ -2199,7 +2199,7 @@ describe("Export and delete — A23 (Alex, M3.1)", () => {
 describe("A person sets themselves up — the app's own sequence (M3.1)", () => {
   it("P80 sign in, create the person, the private row, a neighbourhood, three tags and a handle — twice, because the second time is the update path", async () => {
     const client = newClient(w.env, w.env.publishableKey);
-    const signedIn = await client.auth.signInAnonymously({ options: { data: { harness: PREFIX } } });
+    const signedIn = await anonSignIn(client, { options: { data: { harness: PREFIX } } });
     assert.equal(signedIn.error, null, signedIn.error?.message);
     const authId = signedIn.data.user!.id;
     await markHarness(w.service, authId);
@@ -2425,7 +2425,7 @@ describe("The harness is invisible to the live photo check — P82, P83 (M3.1)",
 
   it("P83 a person cannot mark themselves to skip the check", async () => {
     const client = newClient(w.env, w.env.publishableKey);
-    const signedIn = await client.auth.signInAnonymously();
+    const signedIn = await anonSignIn(client);
     assert.equal(signedIn.error, null, signedIn.error?.message);
     const authId = signedIn.data.user!.id;
     try {
@@ -2463,7 +2463,7 @@ describe("Anonymous → permanent, the pin survives — P84–P86 (M3.1, for M3.
   // and its own pin, opted in, bringing a friend.
   async function quickPin(label: string) {
     const client = newClient(w.env, w.env.publishableKey);
-    const signedIn = await client.auth.signInAnonymously();
+    const signedIn = await anonSignIn(client);
     assert.equal(signedIn.error, null, signedIn.error?.message);
     const authId = signedIn.data.user!.id;
     await markHarness(w.service, authId);
@@ -2638,7 +2638,7 @@ describe("Nothing waits on the check — P87 (M3.1)", () => {
 describe("Changing or removing a photo — P89 (M3.1)", () => {
   it("P89 a person CAN replace their photo, delete the old file and clear the photo / the old file is really gone", async () => {
     const client = newClient(w.env, w.env.publishableKey);
-    const signedIn = await client.auth.signInAnonymously();
+    const signedIn = await anonSignIn(client);
     assert.equal(signedIn.error, null, signedIn.error?.message);
     const authId = signedIn.data.user!.id;
     await markHarness(w.service, authId);
@@ -2681,7 +2681,7 @@ describe("Changing or removing a photo — P89 (M3.1)", () => {
 describe("A pin needs the 19+ tick, recorded where nobody else can read it (M3.2)", () => {
   async function anonPerson(label: string) {
     const client = newClient(w.env, w.env.publishableKey);
-    const signedIn = await client.auth.signInAnonymously();
+    const signedIn = await anonSignIn(client);
     assert.equal(signedIn.error, null, signedIn.error?.message);
     const authId = signedIn.data.user!.id;
     await markHarness(w.service, authId);
@@ -2781,10 +2781,10 @@ describe("Open to meeting only for someone who has finished A27 — permanent, d
       const made = await w.service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
       assert.equal(made.error, null, made.error?.message);
       authId = made.data.user!.id;
-      const signIn = await client.auth.signInWithPassword({ email, password });
+      const signIn = await passwordSignIn(client, { email, password });
       assert.equal(signIn.error, null, signIn.error?.message);
     } else {
-      const signIn = await client.auth.signInAnonymously();
+      const signIn = await anonSignIn(client);
       assert.equal(signIn.error, null, signIn.error?.message);
       authId = signIn.data.user!.id;
       await markHarness(w.service, authId);
@@ -2943,7 +2943,7 @@ describe("Policy acceptances: one row per acceptance, owner-only, never changed 
 describe("Merging an anonymous pinner into their existing account (M3.2)", () => {
   async function anonWithPin(label: string, gathering: string, party: number) {
     const client = newClient(w.env, w.env.publishableKey);
-    const signIn = await client.auth.signInAnonymously();
+    const signIn = await anonSignIn(client);
     assert.equal(signIn.error, null, signIn.error?.message);
     const authId = signIn.data.user!.id;
     await markHarness(w.service, authId);
@@ -3228,7 +3228,7 @@ describe("Merging an anonymous pinner into their existing account (M3.2)", () =>
     const authId = made.data.user!.id;
     await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label }));
     const client = newClient(w.env, w.env.publishableKey);
-    const signIn = await client.auth.signInWithPassword({ email, password });
+    const signIn = await passwordSignIn(client, { email, password });
     assert.equal(signIn.error, null, signIn.error?.message);
     return { authId, client };
   }
@@ -3266,7 +3266,7 @@ describe("Merging an anonymous pinner into their existing account (M3.2)", () =>
 
   it("P138 an anonymous tester who becomes permanent by LINK (same user) keeps the test crowd", async () => {
     const client = newClient(w.env, w.env.publishableKey);
-    const signIn = await client.auth.signInAnonymously();
+    const signIn = await anonSignIn(client);
     assert.equal(signIn.error, null, signIn.error?.message);
     const authId = signIn.data.user!.id;
     await markHarness(w.service, authId);
@@ -3288,7 +3288,7 @@ describe("Merging an anonymous pinner into their existing account (M3.2)", () =>
 
   it("P135 an ANONYMOUS pinner can set their own neighbourhood and tags (A27's 'where' comes before sign-in) — and nobody else's", async () => {
     const client = newClient(w.env, w.env.publishableKey);
-    const signIn = await client.auth.signInAnonymously();
+    const signIn = await anonSignIn(client);
     assert.equal(signIn.error, null, signIn.error?.message);
     const authId = signIn.data.user!.id;
     await markHarness(w.service, authId);
@@ -3413,7 +3413,7 @@ describe("A person's gathering count — readable as widely as their first name,
 describe("Anonymous tester sessions (M3.2)", () => {
   async function anon() {
     const client = newClient(w.env, w.env.publishableKey);
-    const s = await client.auth.signInAnonymously();
+    const s = await anonSignIn(client);
     assert.equal(s.error, null, s.error?.message);
     return { client, authId: s.data.user!.id };
   }
@@ -3483,7 +3483,7 @@ describe("The room — who is in it, who reads it, who can post (M3.3)", () => {
     await ok(w.service.from("people_private").insert({ person_id: person.id, gender, birth_year: 1994, include_in_women_only: womenOnly }));
     await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
     const client = newClient(w.env, w.env.publishableKey);
-    const signIn = await client.auth.signInWithPassword({ email, password });
+    const signIn = await passwordSignIn(client, { email, password });
     assert.equal(signIn.error, null, signIn.error?.message);
     await ok(client.from("pins").insert({ gathering_id: G, person_id: person.id, party_total: 1, open_to_meeting: open }).select("id").single());
     people[label] = { authId, personId: person.id, client };
@@ -3665,7 +3665,7 @@ describe("Convening — a spot first or at the gathering (M3.3)", () => {
     await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1993 }));
     await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
     const client = newClient(w.env, w.env.publishableKey);
-    const signIn = await client.auth.signInWithPassword({ email, password });
+    const signIn = await passwordSignIn(client, { email, password });
     assert.equal(signIn.error, null, signIn.error?.message);
     await ok(client.from("pins").insert({ gathering_id: gathering, person_id: person.id, party_total: 1, open_to_meeting: true }).select("id").single());
     people[label] = { authId, personId: person.id, client };
@@ -3723,7 +3723,7 @@ describe("Notifications #2 and #6 — written by the act itself, and refused whe
     await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1992 }));
     await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
     const client = newClient(w.env, w.env.publishableKey);
-    const signIn = await client.auth.signInWithPassword({ email, password });
+    const signIn = await passwordSignIn(client, { email, password });
     assert.equal(signIn.error, null, signIn.error?.message);
     people[label] = { authId, personId: person.id, client };
     return people[label];
@@ -3873,7 +3873,7 @@ describe("The night and after — #4, A16, connections (V23), the question, #5 (
     await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1990 }));
     await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
     const client = newClient(w.env, w.env.publishableKey);
-    const signIn = await client.auth.signInWithPassword({ email, password });
+    const signIn = await passwordSignIn(client, { email, password });
     assert.equal(signIn.error, null, signIn.error?.message);
     if (pinAt) await ok(client.from("pins").insert({ gathering_id: pinAt, person_id: person.id, party_total: 1, open_to_meeting: true }).select("id").single());
     people[label] = { authId, personId: person.id, client };
@@ -4111,7 +4111,7 @@ describe("Women-only rooms only — a real only (Alex, 29 Sept 2026)", () => {
     await ok(w.service.from("people_private").insert({ person_id: p.id, gender, birth_year: 1995, include_in_women_only: include }));
     await ok(w.service.from("age_attestations").upsert({ person_id: p.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
     const client = newClient(w.env, w.env.publishableKey);
-    assert.equal((await client.auth.signInWithPassword({ email, password })).error, null);
+    assert.equal((await passwordSignIn(client, { email, password })).error, null);
     people[label] = { authId, personId: p.id, client };
   }
   const cl = (l: string) => people[l]!.client;
@@ -4192,7 +4192,7 @@ describe("Invite — #7, between connections only (Alex, 29 Sept 2026)", () => {
     const authId = made.data.user!.id;
     const p = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: label, photo_path: `${authId}/face.png` }).select("id").single());
     const client = newClient(w.env, w.env.publishableKey);
-    assert.equal((await client.auth.signInWithPassword({ email, password })).error, null);
+    assert.equal((await passwordSignIn(client, { email, password })).error, null);
     people[label] = { authId, personId: p.id, client };
   }
   const id = (l: string) => people[l]!.personId;
@@ -4276,7 +4276,7 @@ describe("The public list is one city's (M3.3c)", () => {
       const thereSeed = await gathering("Elsewhere seed gig", await venue("Elsewhere Seed Hall", elsewhere, true));
       const here = await gathering("Toronto gig", await venue("Toronto Hall", null, false));
 
-      const s = await newClient(env, env.publishableKey).auth.signInAnonymously({ options: { data: { harness: "pindhx" } } });
+      const s = await anonSignIn(newClient(env, env.publishableKey), { options: { data: { harness: "pindhx" } } });
       assert.equal(s.error, null, s.error?.message);
       const testerClient = newClient(env, env.publishableKey);
       await testerClient.auth.setSession({ access_token: s.data.session!.access_token, refresh_token: s.data.session!.refresh_token });
@@ -4414,14 +4414,14 @@ describe("Search is the public list, narrowed (M3.2b)", () => {
     const draft = await ok(w.service.from("gatherings").insert({ name: `${PREFIX} ${w.run} ${tag()} Draft Show`, starts_at: inDays(3), venue_id: plain, source: "manual" }).select("id").single());
     made.gatherings.push(draft.id);
 
-    const s = await newClient(env, env.publishableKey).auth.signInAnonymously({ options: { data: { harness: "pindhx" } } });
+    const s = await anonSignIn(newClient(env, env.publishableKey), { options: { data: { harness: "pindhx" } } });
     assert.equal(s.error, null, s.error?.message);
     testerClient = newClient(env, env.publishableKey);
     await testerClient.auth.setSession({ access_token: s.data.session!.access_token, refresh_token: s.data.session!.refresh_token });
     tester = { authId: s.data.user!.id };
     await markHarness(w.service, tester.authId);
     await ok(w.service.rpc("admin_add_anonymous_tester", { p_user: tester.authId, p_actor: ACTOR }));
-  }, { timeout: 120_000 });
+  }, { timeout: 120_000 + SIGN_IN_WAIT_MS });
 
   after(async () => {
     for (const g of made.gatherings) await w.service.from("gatherings").delete().eq("id", g);
@@ -4500,7 +4500,7 @@ describe("19+ is enforced by the database, not only the app (H8; Q41)", () => {
     made.push(u.data.user!.id);
     const person = await ok(w.service.from("people").insert({ auth_user_id: u.data.user!.id, first_name: label }).select("id").single());
     const client = newClient(w.env, w.env.publishableKey);
-    const s = await client.auth.signInWithPassword({ email, password });
+    const s = await passwordSignIn(client, { email, password });
     assert.equal(s.error, null, s.error?.message);
     return { personId: person.id as string, client };
   }
@@ -4590,7 +4590,7 @@ describe("A new photo is always a new file (M4.2: Q17)", () => {
     authId = u.data.user!.id;
     const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: "Quill" }).select("id").single());
     const me = newClient(w.env, w.env.publishableKey);
-    assert.equal((await me.auth.signInWithPassword({ email, password })).error, null);
+    assert.equal((await passwordSignIn(me, { email, password })).error, null);
 
     const first = `${authId}/1.png`;
     await ok(me.storage.from(BUCKET).upload(first, PNG, { contentType: "image/png", upsert: false }));
@@ -4635,7 +4635,7 @@ describe("A photo is a file (M4.2: Q40)", () => {
     const person = await ok(w.service.from("people").insert({ auth_user_id: authId, first_name: "Zia" }).select("id").single());
     await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "woman", birth_year: 1992 }));
     const me = newClient(w.env, w.env.publishableKey);
-    assert.equal((await me.auth.signInWithPassword({ email, password })).error, null);
+    assert.equal((await passwordSignIn(me, { email, password })).error, null);
     const path = async () => (await rows(w.service.from("people").select("photo_path").eq("id", person.id)))[0]?.photo_path as string | null;
 
     // The attack: point photo_path at a file that does not exist, then opt in.
@@ -4680,7 +4680,7 @@ describe("A hidden person sees no one, and cannot hide anyone with a report (M4.
     made.push(u.data.user!.id);
     const person = await ok(w.service.from("people").insert({ auth_user_id: u.data.user!.id, first_name: label }).select("id").single());
     const client = newClient(w.env, w.env.publishableKey);
-    assert.equal((await client.auth.signInWithPassword({ email, password })).error, null);
+    assert.equal((await passwordSignIn(client, { email, password })).error, null);
     return { id: person.id as string, client };
   }
 
@@ -4758,7 +4758,7 @@ describe("1-on-1 — who can see whom (M3.4, V14)", () => {
     await ok(w.service.from("people_private").insert({ person_id: person.id, gender, birth_year: 1994, include_in_women_only: womenOnly }));
     await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
     const client = newClient(w.env, w.env.publishableKey);
-    const signIn = await client.auth.signInWithPassword({ email, password });
+    const signIn = await passwordSignIn(client, { email, password });
     assert.equal(signIn.error, null, signIn.error?.message);
     const pin = await ok(client.from("pins").insert({ gathering_id: S, person_id: person.id, party_total: 1, open_to_meeting: true }).select("id").single());
     people[label] = { authId, personId: person.id, client, pinId: pin.id };
@@ -4788,7 +4788,7 @@ describe("1-on-1 — who can see whom (M3.4, V14)", () => {
     await solo("Rep", "man", "everyone");
     await solo("Msg", "man", "everyone");
     await solo("Hid", "man", "everyone");
-  }, { timeout: 120_000 });
+  }, { timeout: 120_000 + SIGN_IN_WAIT_MS });
 
   after(async () => {
     for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
@@ -4947,7 +4947,7 @@ describe("1-on-1 — proposals and the plan (M3.4, A29)", () => {
     await ok(w.service.from("people_private").insert({ person_id: person.id, gender, birth_year: 1993 }));
     await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
     const client = newClient(w.env, w.env.publishableKey);
-    const signIn = await client.auth.signInWithPassword({ email, password });
+    const signIn = await passwordSignIn(client, { email, password });
     assert.equal(signIn.error, null, signIn.error?.message);
     const pin = await ok(client.from("pins").insert({ gathering_id: T, person_id: person.id, party_total: 1, open_to_meeting: true }).select("id").single());
     people[label] = { authId, personId: person.id, client, pinId: pin.id };
@@ -4995,7 +4995,7 @@ describe("1-on-1 — proposals and the plan (M3.4, A29)", () => {
       ["Jo", "woman"], ["Kit", "man"], ["Lu", "woman"], ["Mo", "man"], ["Pam", "woman"], ["Quin", "man"], ["Rae", "woman"], ["Sam", "man"],
       ["Tia", "woman"], ["Uma", "woman"]] as const) await solo(n, g, "everyone");
     await solo("Ned", "man", null);
-  }, { timeout: 240_000 });
+  }, { timeout: 240_000 + SIGN_IN_WAIT_MS });
 
   after(async () => {
     for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
@@ -5302,13 +5302,13 @@ describe("1-on-1 — the brake and ending every plan (M3.4)", () => {
       await ok(w.service.from("people_private").insert({ person_id: person.id, gender: "man", birth_year: 1991 }));
       await ok(w.service.from("age_attestations").upsert({ person_id: person.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
       const client = newClient(w.env, w.env.publishableKey);
-      const signIn = await client.auth.signInWithPassword({ email, password });
+      const signIn = await passwordSignIn(client, { email, password });
       assert.equal(signIn.error, null, signIn.error?.message);
       const pin = await ok(client.from("pins").insert({ gathering_id: T, person_id: person.id, party_total: 1, open_to_meeting: true }).select("id").single());
       await ok(client.from("pins").update({ solo_opt_in: true, solo_visibility: "everyone" }).eq("id", pin.id));
       people[label] = { authId, personId: person.id, client };
     }
-  }, { timeout: 120_000 });
+  }, { timeout: 120_000 + SIGN_IN_WAIT_MS });
 
   after(async () => {
     await w.service.rpc("admin_set_solo_brake", { p_pulled: false, p_actor: ACTOR });
@@ -5447,7 +5447,7 @@ describe("Squads — who sees and joins what, and the name (M3.7, A15)", () => {
     await ok(w.service.from("people_private").insert({ person_id: p.id, gender, birth_year: 1992 }));
     await ok(w.service.from("age_attestations").upsert({ person_id: p.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
     const client = newClient(w.env, w.env.publishableKey);
-    const signIn = await client.auth.signInWithPassword({ email, password });
+    const signIn = await passwordSignIn(client, { email, password });
     assert.equal(signIn.error, null, signIn.error?.message);
     const pin = await ok(client.from("pins").insert({ gathering_id: T, person_id: p.id, party_total: o.party ?? 1, open_to_meeting: o.open ?? true }).select("id").single());
     people[label] = { authId, personId: p.id, client, pinId: pin.id };
@@ -5485,7 +5485,7 @@ describe("Squads — who sees and joins what, and the name (M3.7, A15)", () => {
     await person("Dan", "man", { party: 2 });
     await person("Ned", "man", { open: false });
     await ok(P("Wol").client.rpc("set_women_only_rooms", { p_on: true }), "Wol: women-only rooms only");
-  }, { timeout: 300_000 });
+  }, { timeout: 300_000 + SIGN_IN_WAIT_MS });
 
   after(async () => {
     for (const p of Object.values(people)) await removeUser(w.service, p.authId).catch(() => undefined);
@@ -5706,7 +5706,7 @@ describe("Reports are on people, never on messages (A10, A11, A29; Alex, 16 Oct 
     await ok(w.service.from("people_private").insert({ person_id: p.id, gender, birth_year: 1992 }));
     await ok(w.service.from("age_attestations").upsert({ person_id: p.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
     const client = newClient(w.env, w.env.publishableKey);
-    const signIn = await client.auth.signInWithPassword({ email, password });
+    const signIn = await passwordSignIn(client, { email, password });
     assert.equal(signIn.error, null, signIn.error?.message);
     await ok(client.from("pins").insert({ gathering_id: gathering, person_id: p.id, party_total: 1, open_to_meeting: true }).select("id").single());
     people[label] = { authId, personId: p.id, client };
@@ -5915,7 +5915,7 @@ describe("A19 — My Events lists your chats, in one call, as you (Alex, 16 Oct 
     await ok(w.service.from("people_private").insert({ person_id: p.id, gender: "man", birth_year: 1991 }));
     await ok(w.service.from("age_attestations").upsert({ person_id: p.id, source: "a26" }, { onConflict: "person_id", ignoreDuplicates: true }));
     const client = newClient(w.env, w.env.publishableKey);
-    const signIn = await client.auth.signInWithPassword({ email, password });
+    const signIn = await passwordSignIn(client, { email, password });
     assert.equal(signIn.error, null, signIn.error?.message);
     if (gathering) await ok(client.from("pins").insert({ gathering_id: gathering, person_id: p.id, party_total: 1, open_to_meeting: open }).select("id").single());
     people[label] = { authId, personId: p.id, client };
@@ -6068,7 +6068,7 @@ describe("Q11 — squad and 1-on-1 thread messages are deleted on the room's sch
     assert.equal(u.error, null, u.error?.message);
     const p = await ok(w.service.from("people").insert({ auth_user_id: u.data.user!.id, first_name: label }).select("id").single());
     const client = newClient(w.env, w.env.publishableKey);
-    assert.equal((await client.auth.signInWithPassword({ email, password })).error, null);
+    assert.equal((await passwordSignIn(client, { email, password })).error, null);
     people[label] = { authId: u.data.user!.id, personId: p.id, client };
   }
   // A gathering whose effective end (start + 3 h) was `endedDaysAgo` days ago, with a squad

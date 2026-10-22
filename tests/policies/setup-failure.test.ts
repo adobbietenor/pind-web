@@ -16,9 +16,9 @@
 import { it } from "node:test";
 import assert from "node:assert/strict";
 import { loadEnv } from "./env.ts";
-import { accountlessPeople, buildWorld, harnessLeftovers, newClient, sweep } from "./world.ts";
+import { SIGN_IN_WAIT_MS, accountlessPeople, buildWorld, harnessLeftovers, newClient, sweep } from "./world.ts";
 
-it("P204 a setup that throws half-way through leaves no people, accounts, gatherings or venues behind", { timeout: 300_000 }, async () => {
+it("P204 a setup that throws half-way through leaves no people, accounts, gatherings or venues behind", { timeout: 300_000 + SIGN_IN_WAIT_MS }, async () => {
   const env = loadEnv();
   const service = newClient(env, env.secretKey);
   // Start from nothing of ours, so whatever is found afterwards was left by this setup.

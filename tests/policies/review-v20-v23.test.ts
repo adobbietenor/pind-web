@@ -21,7 +21,7 @@ import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEnv } from "./env.ts";
-import { newClient, must, markHarness, handleFor, PREFIX, PNG, BUCKET } from "./world.ts";
+import { newClient, must, markHarness, handleFor, anonSignIn, passwordSignIn, PREFIX, PNG, BUCKET } from "./world.ts";
 
 const env = loadEnv();
 const service = newClient(env, env.secretKey);
@@ -58,7 +58,7 @@ async function mk(
   let authId: string | null = null;
   if (spec.anonymous) {
     c = newClient(env, env.publishableKey);
-    const { data, error } = await c.auth.signInAnonymously({ options: { data: { harness: PREFIX } } });
+    const { data, error } = await anonSignIn(c, { options: { data: { harness: PREFIX } } });
     if (error || !data.user) throw new Error(`anon sign-in ${name}: ${error?.message}`);
     authId = data.user.id;
     await markHarness(service, authId);
@@ -69,7 +69,7 @@ async function mk(
     const created = await service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
     if (created.error || !created.data.user) throw new Error(`create ${name}: ${created.error?.message}`);
     authId = created.data.user.id;
-    const s = await c.auth.signInWithPassword({ email, password });
+    const s = await passwordSignIn(c, { email, password });
     if (s.error) throw new Error(`sign in ${name}: ${s.error.message}`);
   }
   let photoPath: string | null = null;

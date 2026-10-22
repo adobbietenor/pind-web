@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { loadEnv, type HarnessEnv } from "./env.ts";
-import { newClient, must, removeUser, accountlessPeople, PREFIX, BUCKET, PNG, ACTOR } from "./world.ts";
+import { newClient, must, removeUser, accountlessPeople, anonSignIn, passwordSignIn, PREFIX, BUCKET, PNG, ACTOR } from "./world.ts";
 
 const env: HarnessEnv = loadEnv();
 const service = newClient(env, env.secretKey);
@@ -50,7 +50,7 @@ const findings: string[] = [];
 async function user(name: string, anonymous = false): Promise<{ c: SupabaseClient; authId: string }> {
   const c = newClient(env, env.publishableKey);
   if (anonymous) {
-    const { data, error } = await c.auth.signInAnonymously({ options: { data: { harness: PREFIX } } });
+    const { data, error } = await anonSignIn(c, { options: { data: { harness: PREFIX } } });
     if (error || !data.user) throw new Error(`anon sign-in ${name}: ${error?.message}`);
     const mk = await service.auth.admin.updateUserById(data.user.id, { app_metadata: { pind_harness: true } });
     if (mk.error) throw new Error(`mark ${name}: ${mk.error.message}`);
@@ -62,7 +62,7 @@ async function user(name: string, anonymous = false): Promise<{ c: SupabaseClien
   const created = await service.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { pind_harness: true } });
   if (created.error || !created.data.user) throw new Error(`create ${name}: ${created.error?.message}`);
   authIds.push(created.data.user.id);
-  const { error } = await c.auth.signInWithPassword({ email, password });
+  const { error } = await passwordSignIn(c, { email, password });
   if (error) throw new Error(`sign in ${name}: ${error.message}`);
   return { c, authId: created.data.user.id };
 }
