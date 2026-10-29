@@ -4622,3 +4622,27 @@ the rules as one batch. Migrations `20261029140204` – `20261029141837`; plain 
 - **Found, not fixed (outside the batch):** a block takes the blocker out of a shared squad
   only while it is forming, set or live — so after the night, blocker and blocked can share a
   finished squad's chat for its last 24 hours. For Alex.
+
+### A block holds in every state and costs the blocker nothing (Alex, 29 Oct 2026)
+
+Found while fixing the reviews: a block took the blocker out of a shared group only while it
+was forming, set or live, so for the 24 hours after the night blocker and blocked shared a
+finished squad's chat — "the window where it matters most — that's when someone blocks after
+actually meeting a person". Now a block removes the blocker from every group they share with
+the blocked person, in any state except already dissolved, silently: squads, 1-on-1 plans and
+older groups.
+
+**V23 changes (option b):** leaving a finished group by blocking keeps your ticks with
+everyone else in it; never with the person blocked, both ways. Alex, for the record: "a block
+is the only safety tool the person being harmed operates themselves, so it must cost them
+nothing. If blocking one person in a squad of five also erases the connections you made with
+the other three, blocking has a price, and the people most likely to need it are the ones most
+likely to decide it isn't worth paying. A hide is different and should keep working as it
+does — that's moderation removing someone for their own behaviour, so the loss is theirs."
+Migration `20261029143155`; P264, P265.
+
+Rule 9, confirmed: one squad per person per gathering at a time (the per-kind index); the cap
+of 3 counts sequential starts. No contradiction with M3.3's one-group rule.
+
+**Open:** a block during the night itself (the squad is live) still takes the blocker out
+before the squad finishes, so it keeps no ticks — the rule as approved covers finished groups.

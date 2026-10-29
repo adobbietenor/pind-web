@@ -5284,8 +5284,20 @@ describe("1-on-1 — the brake and ending every plan (M3.4)", () => {
   const proposalId = async (from: string, to: string) =>
     (await ok(w.service.from("solo_proposals").select("id").eq("gathering_id", T).eq("from_person", P(from).personId).eq("to_person", P(to).personId).single())).id as string;
   const pending = async () => (await rows(w.service.rpc("admin_pending_notifications", { p_limit: 1000 }))).map((n: { id: string }) => n.id);
-  const queue = (label: string, kind: string) =>
-    ok(w.service.from("notifications").insert({ person_id: P(label).personId, kind, gathering_id: T, title: "t", body: `${PREFIX} brake`, path: "/" }).select("id").single()).then((r) => r.id as string);
+  // A queued #8 names a real, open request (R5, M4.2, 29 Oct): delivery sends one only while
+  // its request is open, its sender not hidden and no block — a bare row would never be
+  // pending, and this case would prove nothing about the brake. One sender per queued #8
+  // (a pair is once per gathering; P226 uses Ava–Ben and Cy–Di).
+  const senders = ["Ava", "Ben", "Cy"];
+  const queue = async (label: string, kind: string): Promise<string> => {
+    let proposal: string | null = null;
+    if (kind === "solo_proposal") {
+      proposal = (await ok(w.service.from("solo_proposals").insert({ gathering_id: T, from_person: P(senders.shift()!).personId, to_person: P(label).personId, spot_id: spot, meet_at: meetAt(), line: 1 }).select("id").single())).id as string;
+      // The request's own #8, written by its trigger, is not the one this case watches.
+      await w.service.from("notifications").delete().eq("solo_proposal_id", proposal);
+    }
+    return ok(w.service.from("notifications").insert({ person_id: P(label).personId, kind, gathering_id: T, solo_proposal_id: proposal, title: "t", body: `${PREFIX} brake`, path: "/" }).select("id").single()).then((r) => r.id as string);
+  };
   const note = (id: string) => ok(w.service.from("notifications").select("sent_at, channel, last_error").eq("id", id).single());
 
   before(async () => {
@@ -5843,11 +5855,14 @@ describe("Reports are on people, never on messages (A10, A11, A29; Alex, 16 Oct 
     const [r] = (await reportsOn("Dee")).filter((x: { context_crew_id: string | null }) => x.context_crew_id === squad);
     assert.ok(r && Date.parse(r.context_at) === Date.parse(msg.deeSquad.created_at), "the squad report does not say where and when");
     await denied(fromMessage("Bea", "Dee", msg.deeSquad, { crewId: squad })); // in the room, not in the squad
-    // Hid was hidden in P241. He has left the active squad (M3.7) but is still in the finished
-    // one, and can read its thread: only may_report_from_a_message stands between him and a report.
-    assert.ok((await rows(P("Hid").client.from("crew_messages").select("id").eq("crew_id", doneSquad))).length > 0, "control: Hid cannot read the finished squad's thread, so this proves nothing");
+    // Hid was hidden in P241. Since M4.2 (F2, 29 Oct) a hide takes him out of every group in
+    // any state, the finished one included, and (F1) his words go with him: he reads nothing
+    // there, cannot report from it, and Gil no longer reads what he wrote. Ari's report from
+    // Dee's message, above, is the control that the from-a-message path itself still works.
+    assert.equal((await rows(w.service.from("crew_members").select("id").eq("crew_id", doneSquad).eq("person_id", P("Hid").personId).is("left_at", null))).length, 0, "a hidden person is still a member of a finished squad");
+    assert.equal((await rows(P("Hid").client.from("crew_messages").select("id").eq("crew_id", doneSquad))).length, 0, "a hidden person still reads a finished squad's thread");
     await denied(fromMessage("Hid", "Gil", msg.gilDone, { crewId: doneSquad }));
-    await ok(fromMessage("Gil", "Hid", msg.hidDone, { crewId: doneSquad })); // control: a member who is not hidden can
+    assert.ok(!(await rows(P("Gil").client.from("crew_messages").select("id").eq("crew_id", doneSquad))).some((m: { id: string }) => m.id === msg.hidDone.id), "a hidden person's words are still read in a finished squad");
     assert.deepEqual((await reportsOn("Gil")).filter((x: { context_crew_id: string | null }) => x.context_crew_id), [], "Hid, hidden, reported Gil from the finished squad");
     await ok(w.service.from("blocks").insert({ blocker_id: P("Cal").personId, blocked_id: P("Ari").personId }));
     await denied(fromMessage("Ari", "Cal", msg.calSquad, { crewId: squad }));

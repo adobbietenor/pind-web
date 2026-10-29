@@ -15,6 +15,8 @@
 //   P261  F5: raising your +1s in a squad with room changes your seats (the other side of RV04)
 //   P262  the app's women-only rule (packages/shared womenOnlyEligible) agrees with the database's
 //   P263  one AI call per squad name: the first claim wins, a second within 10 minutes loses
+//   P264  a block in a finished squad: out of the chat, ticks kept with everyone but the blocked (V23)
+//   P265  a hide in a finished squad is unchanged: the hidden person keeps nothing
 //
 // Run with the harness: npm run test:policies.
 import { test, before, after } from "node:test";
@@ -93,6 +95,9 @@ after(async () => {
   const gids = Object.values(g);
   if (gids.length) {
     await service.from("solo_proposals").delete().in("gathering_id", gids);
+    // Ticks hold their group (P264 makes some): they go first, or the group cannot.
+    const crewIds = ((await must(service.from("crews").select("id").in("gathering_id", gids), "crews")) as { id: string }[]).map((c) => c.id);
+    if (crewIds.length) await service.from("confirmations").delete().in("crew_id", crewIds);
     await service.from("crews").delete().in("gathering_id", gids);
     await service.from("moderation_log").delete().in("gathering_id", gids);
     await service.from("gatherings").delete().in("id", gids);
@@ -285,4 +290,59 @@ test("P263 one AI call per squad name: the first claim wins, a second within ten
   // A session can never claim (service only).
   const r = await ppl.Jo!.c.rpc("admin_claim_squad_name_check", { p_crew: crew, p_name: "x" });
   assert.ok(r.error, "a signed-in person could claim a name check");
+});
+
+// A finished squad, built directly: the night was four hours ago, so after_open holds.
+async function finishedSquad(G: string, members: string[]): Promise<string> {
+  const past = Date.now() - 4 * 3_600_000;
+  g[G] = (await must(service.from("gatherings").insert({ name: `${PREFIX} ${run} ${G}`, starts_at: new Date(past).toISOString(), venue_id: venue, published_at: new Date(past - 86_400_000).toISOString() }).select("id").single(), `gathering ${G}`)).id;
+  for (const n of members) await must(service.from("pins").insert({ gathering_id: g[G], person_id: ppl[n]!.id, open_to_meeting: true, party_total: 1 }), `pin ${n}`);
+  const crew = (await must(service.from("crews").insert({ gathering_id: g[G], kind: "crew", state: "done", spot_id: spot, meet_at: new Date(past - 3_600_000).toISOString(), name: "After the show", name_status: "approved", created_by: ppl[members[0]!]!.id }).select("id").single(), "crew")).id as string;
+  await must(service.from("crew_members").insert(members.map((n) => ({ crew_id: crew, gathering_id: g[G], person_id: ppl[n]!.id, seats: 1 }))), "members");
+  await must(service.from("crew_messages").insert({ crew_id: crew, author_id: ppl[members[2]!]!.id, kind: "user", body: "good to meet you all" }), "a message");
+  return crew;
+}
+const afterPeople = async (who: string, G: string) =>
+  (((await must(ppl[who]!.c.rpc("after_state", { p_gathering: g[G] }), `${who}'s after`)) as { people: { person_id: string }[] }).people ?? [])
+    .map((p) => Object.keys(ppl).find((n) => ppl[n]!.id === p.person_id)).sort();
+const tick = (from: string, crew: string, to: string, kind = "we_met") => ppl[from]!.c.rpc("after_tick", { p_crew: crew, p_to: ppl[to]!.id, p_kind: kind, p_on: true });
+
+test("P264 a block in a finished squad: the blocker leaves the chat but keeps 'Who did you meet?' with everyone else — never with the one they blocked — silently", async () => {
+  for (const [n, gen] of [["Kai", "man"], ["Lev", "man"], ["Mia", "woman"], ["Ned", "man"]] as const) await mk(n, gen);
+  const crew = await finishedSquad("B", ["Kai", "Lev", "Mia", "Ned"]);
+  const reads = async (who: string) => (await ppl[who]!.c.from("crew_messages").select("id").eq("crew_id", crew)).data?.length ?? 0;
+  assert.equal(await reads("Kai"), 1, "control: Kai cannot read the finished squad before the block — this proves nothing");
+  assert.deepEqual(await afterPeople("Kai", "B"), ["Lev", "Mia", "Ned"], "control: Kai's after-the-night list");
+  const notesBefore = (await must(service.from("notifications").select("id").in("person_id", ["Kai", "Lev", "Mia", "Ned"].map((n) => ppl[n]!.id)), "notes")).length;
+
+  assert.equal((await block("Kai", "Lev")).error, null, "Kai could not block Lev");
+
+  // Out of the chat: not a member, reads nothing, cannot post.
+  assert.ok(!(await isMember("Kai", crew)), "the blocker is still in a finished squad with the person they blocked");
+  assert.equal(await reads("Kai"), 0, "the blocker still reads the finished squad's chat");
+  assert.ok((await ppl.Kai!.c.from("crew_messages").insert({ crew_id: crew, author_id: ppl.Kai!.id, kind: "user", body: "still here" })).error, "the blocker can still post to the finished squad");
+  // Keeps the ticks with everyone else, never with the one blocked — both ways.
+  assert.deepEqual(await afterPeople("Kai", "B"), ["Mia", "Ned"], "the blocker lost the others, or still sees the one they blocked");
+  assert.ok((await afterPeople("Mia", "B")).includes("Kai"), "the others no longer see the blocker for ticks");
+  assert.ok(!(await afterPeople("Lev", "B")).includes("Kai"), "the blocked person still sees the blocker after the night");
+  assert.equal((await tick("Kai", crew, "Mia")).error, null, "the blocker could not tick someone else in the squad");
+  assert.equal((await tick("Mia", crew, "Kai")).error, null, "someone else could not tick the blocker back");
+  const kaiState = (await must(ppl.Kai!.c.rpc("after_state", { p_gathering: g.B }), "Kai's after")) as { people: { person_id: string; we_met_matched: boolean }[] };
+  assert.ok(kaiState.people.find((p) => p.person_id === ppl.Mia!.id)?.we_met_matched, "the blocker's tick with Mia did not match");
+  assert.ok((await tick("Kai", crew, "Lev")).error, "the blocker could tick the person they blocked");
+  assert.ok((await tick("Lev", crew, "Kai")).error, "the blocked person could tick the blocker");
+  // Silent.
+  const notesAfter = (await must(service.from("notifications").select("id").in("person_id", ["Kai", "Lev", "Mia", "Ned"].map((n) => ppl[n]!.id)), "notes")).length;
+  assert.equal(notesAfter, notesBefore, "the block in a finished squad told someone");
+});
+
+test("P265 a hide in a finished squad is unchanged: the hidden person keeps nothing — moderation's loss is theirs", async () => {
+  for (const [n, gen] of [["Oli", "man"], ["Pia", "woman"], ["Quy", "man"]] as const) await mk(n, gen);
+  const crew = await finishedSquad("H", ["Oli", "Pia", "Quy"]);
+  assert.deepEqual(await afterPeople("Oli", "H"), ["Pia", "Quy"], "control: Oli's after-the-night list");
+  await must(service.from("people").update({ hidden_at: new Date().toISOString() }).eq("id", ppl.Oli!.id), "hide Oli");
+  assert.ok(!(await isMember("Oli", crew)), "a hidden person is still in a finished squad");
+  assert.deepEqual(await afterPeople("Oli", "H"), [], "a hidden person still sees people after the night");
+  assert.ok(!(await afterPeople("Pia", "H")).includes("Oli"), "others still see a hidden person after the night");
+  await must(service.from("people").update({ hidden_at: null }).eq("id", ppl.Oli!.id), "unhide Oli");
 });
