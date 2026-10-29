@@ -3,7 +3,7 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { categoryLabel, clockLocal, countLine, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, readShareCard, SEARCH_COPY, SEARCH_DAYS, SEARCH_MAX, searchQuery, SAFETY_TODAY, SEE_WHO, SHARE_COPY, SUGGEST_TO, suggestSubject, THRESHOLD, THRESHOLD_EXPLANATION } from "@pind/shared";
+import { categoryLabel, clockLocal, countLine, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, readShareCard, SEARCH_COPY, SEARCH_DAYS, SEARCH_MAX, searchQuery, SAFETY_TODAY, SEE_WHO, SHARE_COPY, SUGGEST_TO, suggestSubject, THRESHOLD_EXPLANATION } from "@pind/shared";
 import type { Env } from "../env";
 import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
 import { faviconSvg } from "./favicon";
@@ -78,8 +78,10 @@ const longWhen = (iso: string, tz: string) => `${dateLong(iso, tz)}, ${clock(iso
 //     reader rather than anything about that gathering;
 //   - the pinned page in M3.3 leads with "Find your crew", where forming one is
 //     genuinely the next action (Alex; recorded for A9/A10).
+// #14 (29 Oct 2026): the signal stays (`crews_open`, 5+ open to meeting — a lively one);
+// the words were the crew design's, retired on 28 Sept. PROPOSED copy.
 function crewLine(c: { crews_open: boolean }): string {
-  return c.crews_open ? "crews forming" : "";
+  return c.crews_open ? "people meeting up" : "";
 }
 
 
@@ -521,10 +523,10 @@ function tallies(c: Counts): string {
   // M3.2): "23 going · nobody open to meeting yet" / "· 3 open to meeting" / and the
   // crews line only at 3–4. It replaced the two tally boxes, whose "0 open to meeting"
   // said nothing about the state where someone could be first.
-  const count = countLine(c.pinned, c.open_to_meeting, THRESHOLD);
+  const count = countLine(c.pinned, c.open_to_meeting);
   return `<h2 class="asks">Who else is going?</h2>
 <p class="count-line">${escape(count.line)}</p>
-${count.crews ? `<p class="mix">${escape(count.crews)}</p>` : ""}
+${count.next ? `<p class="mix">${escape(count.next)}</p>` : ""}
 ${mix ? `<p class="mix">${escape(mix)}</p>` : ""}
 ${crews ? `<p class="mix">${escape(crews)}</p>` : ""}
 <p class="rule">${escape(THRESHOLD_EXPLANATION)}</p>`;
@@ -855,7 +857,7 @@ export function about(): Response {
     `${header()}
 <h1>About Pin&#39;d</h1>
 <p>You&#39;re already going. So are other people. Pin&#39;d is how you find each other beforehand and walk in together, instead of arriving alone because nobody knew who else was coming.</p>
-<p>Pin in to something you have a ticket for, or are just going to. If you fancy company, say so — that part is optional, and you can change your mind at any point. Once ${THRESHOLD} people have said so, crews open: small groups of three to eight who pick a spot nearby, meet there beforehand, and go in together.</p>
+<p>Pin in to something you have a ticket for, or are just going to. If you fancy company, say so — that part is optional, and you can change your mind at any point. Once two people have said so, a room opens for everyone there who would like to meet, so you can say hi first. From there you can start or join a squad — a small group of up to eight — or meet one person 1-on-1, at the event or at a public spot near it.</p>
 <p>No messaging strangers, no swiping, no feed. Just the people who are going to the same thing as you.</p>
 
 <h2>House rules</h2>
@@ -864,7 +866,7 @@ export function about(): Response {
 
 <h2 id="safety">Safety</h2>
 <p>Nobody sees your name or your photo until you have both pinned in and said you&#39;d like to meet at the same gathering. Until then there is nothing to browse — which is the point.</p>
-<p>Crews meet at named public places, before the event, and Pin&#39;d is never there. There are no direct messages: the only conversation is inside a crew, once one has formed.</p>
+<p>Squads and 1-on-1s meet at the event or at a named public place near it, and Pin&#39;d is never there. The only conversations are about the event: its room, for everyone there who would like to meet, and the chat inside a squad or a 1-on-1.</p>
 <p>${escape(SAFETY_TODAY.app)} Some reasons hide the person the moment they are used.</p>
 <p>Pin&#39;d never asks where you are. The only coordinates we hold belong to venues and the spots crews meet at.</p>
 <p>19+.</p>

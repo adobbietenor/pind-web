@@ -32,7 +32,6 @@ import {
   pinnedMarker,
   readQuickPin,
   supabaseStorageKey,
-  THRESHOLD,
   type QuickPinDb,
   type QuickPinInput,
   writeQuickPin,
@@ -313,8 +312,8 @@ function done(
 <h1>${escape(already ? QUICKPIN_COPY.alreadyPinned : QUICKPIN_COPY.pinned)}</h1>
 <p class="lede">${escape(g.name)}${DOT}${escape(door.venue.name)}</p>
 ${counts ? (() => {
-  const c = countLine(counts.pinned, counts.open_to_meeting, THRESHOLD);
-  return `<p class="place">${escape(c.line)}</p>${c.crews ? `<p class="lede">${escape(c.crews)}</p>` : ""}`;
+  const c = countLine(counts.pinned, counts.open_to_meeting);
+  return `<p class="place">${escape(c.line)}</p>${c.next ? `<p class="lede">${escape(c.next)}</p>` : ""}`;
 })() : ""}
 ${needsOptIn ? `<p class="note" style="text-align:left;margin-top:16px">${escape(QUICKPIN_COPY.optInNext)}</p>
 <a class="cta" href="/opt-in/${escape(g.slug)}">${escape(QUICKPIN_COPY.nextDetails)}</a>` : `<a class="cta" href="/crowd/${escape(g.slug)}">${escape(SEE_WHOS_GOING)}</a>`}

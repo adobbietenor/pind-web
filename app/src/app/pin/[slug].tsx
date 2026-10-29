@@ -27,7 +27,6 @@ import {
   readQuickPin,
   SEE_WHOS_GOING,
   spacing,
-  THRESHOLD,
   writeQuickPin,
   type QuickPinDb,
   type QuickPinInput,
@@ -256,9 +255,9 @@ export default function QuickPin() {
         <Body muted>{where}</Body>
         {result.pinned !== undefined ? (
           <View style={{ marginTop: spacing.lg, gap: spacing.xs }}>
-            <Heading>{countLine(result.pinned, result.open ?? 0, THRESHOLD).line}</Heading>
-            {countLine(result.pinned, result.open ?? 0, THRESHOLD).crews ? (
-              <Body muted>{countLine(result.pinned, result.open ?? 0, THRESHOLD).crews}</Body>
+            <Heading>{countLine(result.pinned, result.open ?? 0).line}</Heading>
+            {countLine(result.pinned, result.open ?? 0).next ? (
+              <Body muted>{countLine(result.pinned, result.open ?? 0).next}</Body>
             ) : null}
           </View>
         ) : null}

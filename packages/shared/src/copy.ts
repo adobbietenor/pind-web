@@ -63,7 +63,10 @@ export function entryLine(g: {
 // One word for the second number everywhere: "open to meeting" (Alex, M3.2 — it read
 // "opt in" here and "opted in" on A26, two words for one idea). "Form", not "open", so
 // the sentence does not say "open" twice.
-export const THRESHOLD_EXPLANATION = "Crews form once 5 people are open to meeting.";
+// #14 (Alex, 29 Oct 2026: "draft all four lines yourself"): it said crews form at 5 — the
+// design retired on 28 Sept — while the room opens at 2 and going together starts at 3.
+// PROPOSED copy (Tatiana's to reword).
+export const THRESHOLD_EXPLANATION = "When two people are open to meeting, a room opens for them to say hi. From three, they can go together.";
 
 // Verbatim, on every crowd surface (spec W2). Rewritten by Alex after the M2.1
 // on-device walk: the safety property each line describes is unchanged, only how it
@@ -78,7 +81,13 @@ export const HOUSE_RULES = [
 // **Not decoration**: this is the line App Review is pointed at under Guideline 1.2,
 // and it is what says meetings happen somewhere public, before the event, with staff
 // and crowds around (H5, H10).
-export const CREWS_MEET = "Crews meet at a spot near the venue before doors.";
+//
+// **LOAD-BEARING: the App Review line** (#14, Alex, 29 Oct 2026: treat it as a claim, not
+// copy). It must stay true of what the database enforces: H5 as amended (a group at a
+// curated public spot or at the gathering itself; 1-on-1 always at a curated spot; never a
+// private address). It used to add "before doors", which nothing enforces — a squad or a
+// 1-on-1 may meet from 3 h before the start to 2 h after the end (`solo_time_ok`).
+export const CREWS_MEET = "Squads and 1-on-1s meet at the event itself or at a public spot near it, chosen from a short list — never at a private address.";
 
 // ---------------------------------------------------------------------------
 // Onboarding, store path (A1–A2). Final lines are marked; the rest is in the new
@@ -157,19 +166,27 @@ export type GenderChoice = (typeof GENDER_CHOICES)[number]["value"];
 
 // How a crowd's two numbers read — W2, A26's confirmation and A9 alike (Alex, M3.2).
 // "Going" counts bodies (a +1 is a body); "open to meeting" counts people, never +1s
-// (Q1, and a +1 is never counted as open — decisions). Progress wording only while it
-// is genuinely below the threshold and worth saying: nothing at 0 beyond "nobody open
-// to meeting yet" (the state where someone could be first), a crews line only at 3–4.
+// (Q1, and a +1 is never counted as open — decisions). The next step is said only when
+// it is one person away (#14, 29 Oct 2026): at 1 open, the room opens at 2; at 2, three
+// can go together. It used to say "N more and crews form" at 3–4, counting to the 5 of
+// the crew design retired on 28 Sept — while the room had in fact been open since 2.
+// PROPOSED copy (Tatiana's to reword).
+import { GO_TOGETHER_AT, ROOM_OPENS_AT } from "./constants.ts";
+
 export const SEE_WHOS_GOING = "See who's going";
 
-export function countLine(going: number, open: number, threshold: number): { line: string; crews: string | null } {
+export function countLine(going: number, open: number): { line: string; next: string | null } {
   // Nobody at all: a bare zero reads as dead rather than early (M2.3), so it invites
   // (Alex, M3.2).
-  if (going === 0) return { line: "Nobody’s pinned yet — be the first", crews: null };
+  if (going === 0) return { line: "Nobody’s pinned yet — be the first", next: null };
   const line = open === 0 ? `${going} going · nobody open to meeting yet` : `${going} going · ${open} open to meeting`;
-  const short = threshold - open;
-  const crews = open > 0 && short > 0 && short <= 2 ? `${short} more and crews form` : null;
-  return { line, crews };
+  const next =
+    open > 0 && open === ROOM_OPENS_AT - 1
+      ? "1 more and the room opens"
+      : open === GO_TOGETHER_AT - 1
+        ? "1 more and there’s enough to go together"
+        : null;
+  return { line, next };
 }
 
 // A gathering's effective end: `ends_at`, or `starts_at` + 180 minutes (decisions Part

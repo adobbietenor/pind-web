@@ -4496,3 +4496,32 @@ has to be one tap from this tab."
   threads go at 30 days. `admin_delete_expired_crew_messages` now deletes them on the room's rule
   and schedule (effective end + 24 h + 30 days, daily at 09:15 UTC; 20261016211217, P254).
 - **The crowd page (A9) is unchanged** — another way into the same chats.
+
+### #14: the copy says what the product does — the room at 2, going together at 3 (Alex, 29 Oct 2026)
+
+Tatiana (#14) read "crews form at 5" while a room had opened with two of them in it. The
+product was right (the room opens at 2, `my_rooms`; "enough to go together" at 3; the mix at
+5, Q3); six public lines still described the crew design retired on 28 Sept. Alex: "draft
+all four lines yourself. Don't wait on me. Flag which one is the App Review line."
+
+- **Rewritten, PROPOSED (Tatiana's to reword):** W2's rule line (`THRESHOLD_EXPLANATION`);
+  the count's next step (`countLine`: "1 more and the room opens" at 1 open, "1 more and
+  there's enough to go together" at 2, nothing from 3 — it said "N more and crews form" at
+  3–4); W1's card ("people meeting up" on the same 5+ signal, was "crews forming"); the
+  About page's two paragraphs (crews, and "there are no direct messages").
+- **`ROOM_OPENS_AT = 2` and `GO_TOGETHER_AT = 3`** in `packages/shared`; C16 reads the 2
+  back out of `my_rooms`, so the copy and the database cannot part. `THRESHOLD` (5) stays
+  for what 5 still means: the mix, and the room's cards folding.
+- **The App Review line is load-bearing, not copy** (`CREWS_MEET`, under the house rules
+  on every crowd surface and on the terms page): now "Squads and 1-on-1s meet at the event
+  itself or at a public spot near it, chosen from a short list — never at a private
+  address." — H5 as amended, which the database enforces. **"Before doors" was dropped
+  because nothing enforces it:** squad and 1-on-1 times run from 3 h before the start to
+  2 h after the end (`solo_time_ok`, M3.4, approved 14 Oct). Spec §5 said the line tells App
+  Review meetings happen "before the event" (H10). **Open, Alex's:** hold meeting times to
+  before the start (a migration and harness cases), or keep the times and the claim as now
+  written.
+- **Not changed, Alex's (legal text):** the terms page still says "Once 5 people who would
+  like to meet have pinned in, small crews can form" (`src/public/policy.ts`). Proposed:
+  "Once two people who would like to meet have pinned in, they can talk in the event's room,
+  and go together in a squad or 1-on-1, at the event or at a public spot near it."

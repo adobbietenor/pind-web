@@ -256,10 +256,15 @@ Public, no account, shareable. Contains:
   3. Come as you are. No pressure, no commitment.
 
   then, underneath, styled as a fact rather than a fourth rule:
-  **"Crews meet at a spot near the venue before doors."** That line is **not
+  **"Squads and 1-on-1s meet at the event itself or at a public spot near it, chosen
+  from a short list — never at a private address."** That line is **not
   decoration** — it is what App Review is pointed at under Guideline 1.2, and what
-  says meetings happen somewhere public, before the event (H5, H10). It stays on
-  every crowd surface.
+  says meetings happen somewhere public (H5). It stays on every crowd surface.
+  *(#14, 29 Oct 2026; was "Crews meet at a spot near the venue before doors." Crews
+  were retired on 28 Sept. "Before doors" — and "before the event" here (H10) — is not
+  what the database enforces: a squad or a 1-on-1 may meet from 3 h before the start to
+  2 h after the end (M3.4, `solo_time_ok`). The line now claims only what is enforced;
+  whether meetings should be held to before the start is Alex's open question.)*
 - Primary action: *(since the M2.2 walk every crowd page reads "Pin in — I'm going" — §6, "Superseded copy — the pin-in button"; kept as written:)* **"Pin in — I've got a ticket"**; for free gatherings, **"Pin in —
   I'm going"** (§5). It opens the product's quick pin (A26) at `/g/<slug>/pin`. If a
   signed-in session exists in this browser, a small script swaps the button to
@@ -692,11 +697,14 @@ the web build must be the complete product.
 - One-liner: "See who's going, meet them there."
 - Primary action: *(retired after the M2.2 walk — every crowd page reads `PIN_IN`, "Pin in — I'm going"; §6, "Superseded copy"; kept as written:)* **"Pin in — I've got a ticket"**. For gatherings with `is_free = true`:
   **"Pin in — I'm going"** (Alex, Phase 1 M1.2).
-- Threshold explanation: "Crews form once 5 people are open to meeting." (Alex, M3.2:
+- Threshold explanation: "When two people are open to meeting, a room opens for them to
+  say hi. From three, they can go together." (#14, 29 Oct 2026, PROPOSED: the room opens
+  at 2 and going together starts at 3. It said "Crews form once 5 people are open to
+  meeting", the crew design retired on 28 Sept.) The earlier wording's note — (Alex, M3.2:
   one word for the second number everywhere, "open to meeting" — it read "opt in" here
   and "opted in" on A26. "Form" so the sentence does not say "open" twice.)
 - The three house rules, verbatim, on every crowd surface (see W2), and under them
-  "Crews meet at a spot near the venue before doors." Rewritten by Alex after the M2.1
+  the App Review line (W2 above; rewritten for #14 on 29 Oct 2026). Rewritten by Alex after the M2.1
   walk: **the safety property each line describes is unchanged, only how it is said.**
   Block and report leave the front-page rules and stay **two taps away everywhere in
   the product** (H9), which M3.5's acceptance already requires.

@@ -1,5 +1,13 @@
-// Crews open when this many people at one gathering opt in to meeting (spec §0, §5).
+// The crew design's number (spec §0, §5), retired with crews on 28 Sept. What 5 still
+// means: the gathering's mix is shown from 5 (Q3's floor), and a room's cards fold at 5.
+// It is no longer when anything "forms" — see ROOM_OPENS_AT and GO_TOGETHER_AT (#14).
 export const THRESHOLD = 5;
+
+// A room opens when this many are in it (`my_rooms`: `c.n >= 2`; C16 reads it back from
+// the migration). Before that, A9 says you are the first.
+export const ROOM_OPENS_AT = 2;
+// From this many in a room, "enough to go together" (A10), and a group needs this many.
+export const GO_TOGETHER_AT = 3;
 
 // A complete profile has exactly this many tags (spec A3). Never a gate before a pin.
 export const TAGS_PER_PROFILE = 3;

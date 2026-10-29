@@ -34,7 +34,6 @@ import {
   QUICKPIN_COPY,
   radius,
   spacing,
-  THRESHOLD,
   WOMEN_ONLY_COPY,
 } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
@@ -262,7 +261,7 @@ export default function CrowdPage() {
   }
 
   const g = view.gathering;
-  const count = countLine(view.going, view.open, THRESHOLD);
+  const count = countLine(view.going, view.open);
   const ended = Date.now() >= Date.parse(g.effectiveEnd);
 
   return (
@@ -279,7 +278,7 @@ export default function CrowdPage() {
 
       <View style={styles.counts}>
         <Text style={styles.countLine}>{count.line}</Text>
-        {count.crews ? <Body muted>{count.crews}</Body> : null}
+        {count.next ? <Body muted>{count.next}</Body> : null}
         {view.mix ? <Body muted>{view.mix}</Body> : null}
       </View>
 
