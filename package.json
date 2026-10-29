@@ -42,6 +42,7 @@
     "brand": "node scripts/build-brand.ts",
     "deploy": "npm run build:web && wrangler deploy",
     "brand:app": "node scripts/build-app-logo.ts",
-    "measure:thread": "node --env-file=.dev.vars scripts/thread-cost.mjs"
+    "measure:thread": "node --env-file=.dev.vars scripts/thread-cost.mjs",
+    "measure:room-latency": "node --env-file=.dev.vars scripts/room-latency.mjs"
   }
 }
