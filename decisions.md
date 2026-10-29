@@ -4518,10 +4518,65 @@ all four lines yourself. Don't wait on me. Flag which one is the App Review line
   address." — H5 as amended, which the database enforces. **"Before doors" was dropped
   because nothing enforces it:** squad and 1-on-1 times run from 3 h before the start to
   2 h after the end (`solo_time_ok`, M3.4, approved 14 Oct). Spec §5 said the line tells App
-  Review meetings happen "before the event" (H10). **Open, Alex's:** hold meeting times to
-  before the start (a migration and harness cases), or keep the times and the claim as now
-  written.
+  Review meetings happen "before the event" (H10). **Settled (Alex, 29 Oct): keep the times
+  and the line as rewritten.** "We widened it deliberately on 14 Oct, and changing the
+  product so an older sentence stays true is the wrong way round. The guardrail that matters
+  is 'a curated public spot, never a private address', and that holds at any hour." Recorded
+  against M4.1 rather than acted on: meeting a stranger after a late event is a different
+  risk from meeting before doors, and that is what the 14 Oct change introduced.
 - **Not changed, Alex's (legal text):** the terms page still says "Once 5 people who would
   like to meet have pinned in, small crews can form" (`src/public/policy.ts`). Proposed:
   "Once two people who would like to meet have pinned in, they can talk in the event's room,
   and go together in a squad or 1-on-1, at the event or at a public spot near it."
+
+### main is what is running (Alex, 29 Oct 2026)
+
+**main moves when work is deployed, harness-green and browser-checked**, as M3.3 did on 6
+Oct. **The phone walk gates closing a milestone, not merging.** main was fast-forwarded the
+same day (`fa14dee..d541e57`), so it now matches pind.social. CLAUDE.md, "main is what is
+running", carries the rule.
+
+Why: main sat 75 commits and 34 migrations behind the live site, because the merge waited on
+a phone walk, which waited on a whole-loop walk, which waited on everything being built. A
+main that cannot reproduce the live site is the broken repo CLAUDE.md warns about; "a gate
+that produces the exact state it exists to prevent is the wrong gate." It also meant no
+"Fixes #N" ever fired, since GitHub closes issues only from the default branch, so issues
+were closed by hand on 29 Oct. A merge waits on neither the phone walk nor the independent
+reviews: what it merges is already live.
+
+### #17: 1-on-1 "Let's meet up!" — answers before the rule is written (Alex, 29 Oct 2026)
+
+The lifecycle: an invite with no spot or time ("Let's meet up!"), under today's proposal
+rules → accepted, it is a **pair**, not a plan (a `solo` group in `forming`, with no spot and
+no time) → either suggests a curated spot and a time, the other confirms → **the plan**
+(`spot_set` → live → done, or dissolved, as today). **A spot must be chosen before it is a
+plan; reordering when it is picked is fine, removing it is not** (Alex: meetings happen only
+at curated public spots — the safety guardrail and the App Review answer).
+
+- (a) **A pair can chat before a spot is chosen** — that casualness is the point. It is a new
+  visibility surface: the plain-English rule comes first and waits for Alex's OK, then the
+  harness cases and an independent review, like anything else.
+- (b) A pair that never picks a spot **expires at the gathering's start**, as a proposal does
+  today. No new concept.
+- (c) **Instagram handles only once it is a plan** (V17), never in a pair.
+- (d) **No new notifications.** "We went from five to seven without a decision and a ticket is
+  not going to take it to nine." If "plan made" must reach someone, it folds into #3, plan
+  status, which already covers formed and spot set.
+- (e) **A pair counts as your one 1-on-1** at that gathering.
+
+### #18: an ended event says so — and its last 24 hours stay writable (Alex, 29 Oct 2026)
+
+Approved: A9 for an ended event says "This event has ended", with the date, venue and
+address, and offers no pin, share, notification prompt, "Start a squad" or 1-on-1 list. It
+never says "You're the first here" (that card ignored the end). Each chat it had (room,
+squad, 1-on-1) shows by phase: **the last day** (writable until 24 h after the effective
+end), **read-only** for 30 days after that (Q11), then **cleared**, with a line and no
+button. A group of 3+ keeps "Who did you meet?" → A16 for its 7 days. **The last 24 hours
+stay writable:** "That's when people say it was good to meet you, which is the only moment
+this product exists for."
+
+### #16 on hold; the terms page is Alex's (29 Oct 2026)
+
+#16 (squads as request-to-join, sections) stays `ready` and untouched until Alex has talked
+to Tatiana: not built, not redesigned. The terms page's crew sentence is Alex's to rewrite
+(legal text); the #14 entry above holds a proposal.

@@ -16,14 +16,24 @@ Part 5, "Repo layout"; `docs/build-plan.md` §3):
 
 There is no separate `pind-app` repo. `app/` and `packages/shared/` arrived in M2.0.
 
-## The repo's state is not main
+## main is what is running
 
-main is the slowest-moving view of this repo: work merges at the end of a
-milestone, and sessions routinely end on an unmerged branch. Before stating
-what is built, run `git ls-remote --heads origin` and read spec §6 from the
-newest branch — never from main. A clone made with `--depth 1` or
-`--single-branch` fetches one refspec, so `git branch -a` lists one branch and
-says nothing about what exists.
+**main moves when work is deployed, harness-green and browser-checked** — as M3.3 did
+on 6 Oct. Fast-forward it then; do not hold it for anything else. **The phone walk
+gates closing a milestone (and its issues), not merging** (Alex, 29 Oct 2026).
+
+Why, recorded: by 29 Oct main sat 75 commits and 34 migrations behind pind.social,
+because the merge waited on a phone walk that waited on a whole-loop walk that waited
+on everything being built. A main that cannot reproduce the live site is exactly the
+broken repo this file warns about ("a schema I cannot reproduce from this repo"). **A
+gate that produces the state it exists to prevent is the wrong gate.** It also meant
+"Fixes #N" never fired: GitHub closes issues only from the default branch.
+
+Branches can still be ahead of main between a commit and its deploy, and sessions
+still end on a branch. So before stating what is built, run `git ls-remote --heads
+origin` and read spec §6 from the newest branch as well as main. A clone made with
+`--depth 1` or `--single-branch` fetches one refspec, so `git branch -a` lists one
+branch and says nothing about what exists.
 
 10 Oct 2026: a brief written from main alone said M3.3b was not started and told
 a session not to build a home list. M3.3b was in progress with builds 8 and 9 on
@@ -215,7 +225,9 @@ own cron, not inside the nightly import.
 - Before coding, for anything with a **lifecycle** (pins, crews, threads,
   confirmations): list the states and what moves the object between them, and wait.
 - Work is done when the acceptance list passes **on a real phone**, not when the code
-  looks right. Say "ready to check on device", do not declare it finished.
+  looks right. Say "ready to check on device", do not declare it finished. That walk
+  closes the milestone; it does **not** hold the merge — main moves as soon as the work
+  is deployed, harness-green and browser-checked (see "main is what is running").
 - **Within each milestone: data and rules first, then the screen, built properly.**
   The front end is the most important part of this product. Flow, usability and look
   must be genuinely good, because people judge the crowd page in one second from a
