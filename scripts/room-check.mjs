@@ -128,7 +128,13 @@ try {
   step("…and no 'Go together' (retired with invite-only groups)", !(await body()).includes(ROOM_COPY.goTogether));
   await click(SQUAD_COPY.start);
   step("'Start a squad' opens the crowd page's squads (A15)", await until(SQUAD_COPY.sectionHeading));
-  step("…where there are none yet, and one can be started", (await body()).includes(SQUAD_COPY.none) && (await body()).includes(SQUAD_COPY.start));
+  // The heading draws before the list has loaded: wait for the list's own words, not the
+  // heading (29 Oct: read on the heading, this step failed once and passed on a re-run).
+  await until(SQUAD_COPY.none);
+  const squadsPage = await body();
+  const squadsOk = squadsPage.includes(SQUAD_COPY.none) && squadsPage.includes(SQUAD_COPY.start);
+  if (!squadsOk) console.log(`  (page at ${await evaluate("location.pathname")}: ${JSON.stringify(squadsPage.slice(squadsPage.indexOf(SQUAD_COPY.sectionHeading), squadsPage.indexOf(SQUAD_COPY.sectionHeading) + 400))})`);
+  step("…where there are none yet, and one can be started", squadsOk);
 
   // 5 — the room fills out (Alex, 6 Oct: the steps once given as a walk are checked here).
   await person("Dee");
