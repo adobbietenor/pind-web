@@ -141,10 +141,14 @@ try {
   // Home is Toronto's list, not the city picker (29 Oct: the picker was a dead end).
   const goHome = () => evaluate(`(() => { const e=[...document.querySelectorAll('[role=link]')].find((x) => x.getAttribute('aria-label') === ${JSON.stringify("Pin'd — home")}); if(!e) return false; e.click(); return true; })()`);
   const HOME = homeList();
-  const atHome = async () => (await path()) === HOME && (await until("This week's crowds")) && !(await body()).includes(HOME_COPY.comingSoon);
+  // The path and the list's own heading. Not "no 'Coming soon' on the page": the web keeps
+  // the picker's tab mounted underneath, so its text stays in innerText — the first
+  // version of this read failed on a header that had gone exactly where it should.
+  const atHome = async () => (await path()) === HOME && (await until("This week's crowds"));
   await sleep(1500);
   step("A8 has the header link home (#1)", await goHome());
   for (let t = 0; t < 30 && (await path()) !== HOME; t++) await sleep(500);
+  if ((await path()) !== HOME) console.log(`  (the header landed on ${await path()})`);
   step("…and it opens Toronto's list, not the city picker (#1)", await atHome());
   await send("Page.navigate", { url: `${SITE}${crowdPath}` });
   for (let t = 0; t < 30 && !(await goHome()); t++) await sleep(500);
