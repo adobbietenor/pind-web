@@ -19,6 +19,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { seal } from "../src/public/sealed.ts";
 import { AFTER_COPY, CONNECTIONS_COPY } from "../packages/shared/src/after.ts";
+import { ENDED_COPY, MY_CHATS_COPY } from "../packages/shared/src/myevents.ts";
+import { ROOM_COPY } from "../packages/shared/src/room.ts";
 import { needChrome, needEnv, sessionSecretMatches, testCrowd } from "./fixture.mjs";
 
 // Fixtures first: a check whose ground moved says so in a sentence (scripts/fixture.mjs).
@@ -151,6 +153,25 @@ try {
   const [stored] = await must(await rest(`/rest/v1/survey_responses?gathering_id=eq.${X.id}&person_id=eq.${people.Ari.personId}&select=would_have_gone,comment`), "stored answer");
   step("…with the comment in the same row, trimmed", stored?.would_have_gone === "no" && stored?.comment === said.trim());
   step("…and thanked", await until(AFTER_COPY.thanks));
+
+  // #18 — A9 for the ended event: it says so, offers the room and the squad to read (the
+  // night was two days ago, so read-only), keeps "Who did you meet?" — and never the
+  // room's "you're the first here", a squad to start, or the 1-on-1 list.
+  await send("Page.navigate", { url: `${SITE}/crowd/${slug}` });
+  step("A9 says the event has ended (#18)", await until(ENDED_COPY.heading));
+  const a9 = await body();
+  step("…read-only, with the room and the squad to read", a9.includes(ENDED_COPY.readOnly) && a9.includes(`${ENDED_COPY.read}: ${MY_CHATS_COPY.everyoneGoing}`) && a9.includes(`${ENDED_COPY.read}: After check squad`));
+  step("…and 'Who did you meet?' for the group's ticks", a9.includes(AFTER_COPY.howDidItGo));
+  // Whole lines, not substrings: the 1-on-1 section's heading is the bare word "1-on-1", and
+  // the App Review line under the house rules ("Squads and 1-on-1s meet at…") contains it —
+  // the first version of this step failed on that sentence, not on a section.
+  const lines = new Set(a9.split("\n").map((l) => l.trim()));
+  const leaked = [ROOM_COPY.firstHeading, "Start a squad", "1-on-1"].filter((w) => lines.has(w));
+  if (leaked.length) console.log(`  (found as a line: ${leaked.join(", ")})`);
+  step("…never the first-here card, a squad to start or the 1-on-1 list", leaked.length === 0);
+  await click(`${ENDED_COPY.read}: ${MY_CHATS_COPY.everyoneGoing}`);
+  for (let t = 0; t < 30 && !String(await evaluate("location.pathname")).startsWith("/room/"); t++) await sleep(500);
+  step("'Read' opens the room", String(await evaluate("location.pathname")) === `/room/${roomId}` && (await until("hi from Bea")));
 
   // A20 — Connections and invite.
   await send("Page.navigate", { url: `${SITE}/connections` });
