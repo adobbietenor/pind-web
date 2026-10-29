@@ -10,10 +10,12 @@
 //   * **One question** for everyone who was open to meeting, group or not: "Would you
 //     have gone alone anyway?" — the attendance metric (§7). Asked gently: they said
 //     they'd like to meet, and we're asking how the night went (Alex).
-//   * **An optional comment** (#10, Alex, 14 Oct 2026), above the answers because an
-//     answer is sent on one tap: it goes in the same row, or not at all. Read by its
-//     author and people at Pin'd only; deleted with the account (decisions, "A16's
-//     comment box").
+//   * **An optional comment** (#10, Alex, 14 Oct 2026): it goes in the same row as the
+//     answer, or not at all. Read by its author and people at Pin'd only; deleted with
+//     the account (decisions, "A16's comment box").
+//     **Picking an answer does not send it** (Tatiana, 21 Oct; Alex, 29 Oct). It used to:
+//     the box sat above the answers so it could be filled first, and anyone who answered
+//     first — the natural order — never got to write. Now: pick, write if you like, Send.
 // #5, the morning after, opens this screen.
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
@@ -21,7 +23,7 @@ import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { AFTER_COPY, colors as palette, COMMENT_MAX, commentToSend, fonts, radius, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
-import { Body, Button, Field, Heading, Notice } from "@/components/ui";
+import { Body, Button, Choice, Field, Heading, Notice } from "@/components/ui";
 import { answer, loadAfter, tick, type AfterPerson, type AfterView } from "@/lib/after";
 import { failed, type Described } from "@/lib/errors";
 
@@ -31,6 +33,7 @@ export default function After() {
   const [trouble, setTrouble] = useState<Described | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [comment, setComment] = useState("");
+  const [picked, setPicked] = useState<(typeof AFTER_COPY.answers)[number]["value"] | null>(null);
   // A refusal is said where the tap was (CLAUDE.md, "seen is part of a refusal").
   const [refusedFor, setRefusedFor] = useState<{ key: string; what: Described } | null>(null);
 
@@ -136,8 +139,14 @@ export default function After() {
             <Body>{AFTER_COPY.thanks}</Body>
           ) : (
             <>
-              <Text style={styles.section}>{AFTER_COPY.question}</Text>
               <Body muted>{AFTER_COPY.questionWhy}</Body>
+              {/* Picking is not sending (#10): the answer, then the comment if any, then Send. */}
+              <Choice
+                label={AFTER_COPY.question}
+                options={AFTER_COPY.answers.map((a) => ({ value: a.value, name: a.label }))}
+                value={picked}
+                onChange={setPicked}
+              />
               <Field
                 label={AFTER_COPY.commentLabel}
                 hint={AFTER_COPY.commentHint}
@@ -147,17 +156,14 @@ export default function After() {
                 maxLength={COMMENT_MAX}
                 editable={!busy}
               />
-              {AFTER_COPY.answers.map((a) => (
-                <Button
-                  key={a.value}
-                  kind="quiet"
-                  label={a.label}
-                  busy={busy === `q:${a.value}`}
-                  disabled={!!busy}
-                  onPress={() => void act(`q:${a.value}`, "save your answer", () => answer(view.gathering.id, a.value, commentToSend(comment)))}
-                />
-              ))}
-              {refusedFor?.key.startsWith("q:") ? <Trouble what={refusedFor.what} /> : null}
+              <Button
+                label={AFTER_COPY.send}
+                busy={busy === "q"}
+                disabled={!picked || !!busy}
+                onPress={() => picked && void act("q", "send your answer", () => answer(view.gathering.id, picked, commentToSend(comment)))}
+              />
+              {!picked ? <Body muted>{AFTER_COPY.pickFirst}</Body> : null}
+              {refusedFor?.key === "q" ? <Trouble what={refusedFor.what} /> : null}
             </>
           )}
         </View>

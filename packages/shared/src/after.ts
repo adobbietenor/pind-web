@@ -26,9 +26,12 @@ export const AFTER_COPY = {
   ] as const,
   questionWhy: "One question, so we know whether Pin'd helps anyone get out who wouldn't have.",
   // #10 (Alex, 14 Oct 2026): optional, sent with the answer, read by its author and by
-  // people at Pin'd only. Above the answers, because an answer is sent on one tap.
+  // people at Pin'd only. Since 29 Oct picking an answer does not send it: Send does, with
+  // the comment. PROPOSED copy for the three lines below (Tatiana's to reword).
   commentLabel: "Anything else you'd like to tell us?",
-  commentHint: "Optional. It's sent with your answer below, and only people at Pin'd can read it.",
+  commentHint: "Optional. It's sent with your answer, and only people at Pin'd can read it.",
+  send: "Send",
+  pickFirst: "Pick an answer above, then Send.",
   thanks: "Thank you — that helps.",
   nothing: "Nothing to do here — this is for people who said they'd like to meet.",
   notYet: "This opens once the night is over.",

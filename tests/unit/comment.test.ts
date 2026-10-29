@@ -31,7 +31,7 @@ describe("A16's comment (#10)", () => {
 
   it("C12 the screen sends through the shared rule and limits the box by the shared cap", () => {
     const screen = readFileSync("app/src/app/after/[slug].tsx", "utf8");
-    assert.match(screen, /answer\(view\.gathering\.id, a\.value, commentToSend\(comment\)\)/, "the answer is sent without the comment, or past the shared rule");
+    assert.match(screen, /answer\(view\.gathering\.id, picked, commentToSend\(comment\)\)/, "the answer is sent without the comment, or past the shared rule");
     assert.match(screen, /maxLength=\{COMMENT_MAX\}/, "the box is not limited by the shared cap");
     const lib = readFileSync("app/src/lib/after.ts", "utf8");
     assert.match(lib, /would_have_gone: wouldHaveGone, comment \}/, "the write leaves the comment out of the row");
