@@ -626,3 +626,22 @@ describe("One way to press, and motion that respects the person (the 'feel alive
     assert.match(read("components/ui.tsx"), /haptic=\{haptic \?\? null\}/, "every Button buzzes, not only the primary acts");
   });
 });
+
+describe("A1 over an anonymous session is the link (#11)", () => {
+  const identitySteps = [...screens]
+    .flatMap((s) => [...s.source.matchAll(/<IdentityStep\b[\s\S]*?\/>/g)].map((m) => ({ path: s.path, tag: m[0] })));
+
+  it("S49 the identity steps are found (A1 and A27's two) — a pattern that matches nothing must not pass", () => {
+    assert.ok(identitySteps.length >= 3, `found ${identitySteps.length}`);
+    assert.ok(identitySteps.some((s) => /mode="link"/.test(s.tag)), "cannot see A27's link step, so the pattern below proves nothing");
+  });
+
+  it("S50 no screen hands the identity step a fixed sign-in; A1 takes its mode from identityModeFor", () => {
+    const fixed = identitySteps.filter((s) => /mode="sign-in"/.test(s.tag)).map((s) => s.path);
+    assert.deepEqual(fixed, [], "these sign in over whatever session is on the device — a quick pin's person is left behind, counted");
+    const a1 = screens.find((s) => s.path.replace(/\\/g, "/") === "(onboarding)/sign-in.tsx");
+    assert.ok(a1, "A1 not found");
+    assert.match(a1.source, /identityModeFor\(data\.session\)/, "A1 does not read its mode from the session");
+    assert.match(a1.source, /mode=\{mode\}/, "A1 does not pass the mode it read");
+  });
+});

@@ -11,6 +11,7 @@
 // under HELD_KEY, and A27 finishes the merge when the page returns.
 
 import { Platform } from "react-native";
+import { OPTIN_COPY } from "@pind/shared";
 import { supabase } from "./supabase";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL || "https://pind.social";
@@ -123,7 +124,15 @@ export type WebReturn =
   | { kind: "merge-failed" }
   // Apple or Google already belongs to an account: offer to bring the pin into it.
   | { kind: "has-account"; provider: Provider }
-  | { kind: "link-failed"; provider: Provider | null };
+  | { kind: "link-failed"; provider: Provider | null }
+  // Apple or Google came back and was linked to this same user (A1 moves on; #11).
+  | { kind: "linked"; provider: Provider };
+
+// What A1 and A27 say when the page comes back from a failed merge or link.
+export const RETURN_SAYS = {
+  "merge-failed": OPTIN_COPY.nothingLost,
+  "link-failed": "That sign-in didn't go through, and nothing was changed. Try again, or use another way.",
+} as const;
 
 // Called by A27 before it reads anything: finish a merge the page left to go and sign
 // in for, or report how a link attempt came back.
@@ -146,5 +155,6 @@ export async function finishWebReturn(): Promise<WebReturn> {
     return { kind: "has-account", provider: back.linking };
   }
   if (back.errorCode) return { kind: "link-failed", provider: back.linking };
+  if (back.linking) return { kind: "linked", provider: back.linking };
   return { kind: "none" };
 }

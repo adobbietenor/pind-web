@@ -21,6 +21,21 @@ export function signInMethods(platform: string): SignInMethod[] {
 }
 
 // ---------------------------------------------------------------------------
+// **A1 over an anonymous session is the link, never a fresh sign-in** (#11, Tatiana,
+// 29 Oct 2026). Someone who quick-pinned on the web and then tapped "Set up my profile"
+// reached A1, which signed in to their account and dropped the anonymous session — and
+// the anonymous person, still holding the pin, stayed counted. One person, two pins on
+// the same crowd: the public count inflated. With an anonymous session on the device,
+// A1 draws the same step A27 does: a new address links to the SAME user, and an account
+// that already exists is the merge, which folds a pin both hold into one.
+// ---------------------------------------------------------------------------
+export type IdentityMode = "sign-in" | "link";
+
+export function identityModeFor(session: { user: { is_anonymous?: boolean } } | null | undefined): IdentityMode {
+  return session?.user?.is_anonymous === true ? "link" : "sign-in";
+}
+
+// ---------------------------------------------------------------------------
 // What a failed sign-in says (M3.1, from the walk).
 //
 // **"That code has expired" appeared when no code was in play.** The old rule turned

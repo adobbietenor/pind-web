@@ -41,7 +41,7 @@ import type { Picked } from "@/components/TagPicker";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Tick } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
-import { finishWebReturn, type Provider } from "@/lib/merge";
+import { finishWebReturn, RETURN_SAYS, type Provider } from "@/lib/merge";
 import { readProfile } from "@/lib/profile";
 import { report } from "@/lib/sentry";
 import { supabase } from "@/lib/supabase";
@@ -114,11 +114,6 @@ function rememberSkip(slug: string) {
     // No storage: the skip holds for this page only.
   }
 }
-
-const RETURN_SAYS = {
-  "merge-failed": OPTIN_COPY.nothingLost,
-  "link-failed": "That sign-in didn't go through, and nothing was changed. Try again, or use another way.",
-} as const;
 
 export default function OptIn() {
   const { slug } = useLocalSearchParams<{ slug: string }>();

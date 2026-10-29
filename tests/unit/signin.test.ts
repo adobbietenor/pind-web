@@ -47,3 +47,14 @@ describe("What a failed sign-in says (M3.1, from the walk)", () => {
     assert.equal(signInSays("oauth", "ERR_REQUEST_CANCELED"), "");
   });
 });
+
+describe("A1 over an anonymous session is the link (#11)", () => {
+  it("S48 an anonymous session links; a permanent one, or none, signs in", async () => {
+    const { identityModeFor } = await import("../../packages/shared/src/signin.ts");
+    assert.equal(identityModeFor({ user: { is_anonymous: true } }), "link", "a quick pin's session would be signed in over and left counted");
+    assert.equal(identityModeFor({ user: { is_anonymous: false } }), "sign-in");
+    assert.equal(identityModeFor({ user: {} }), "sign-in");
+    assert.equal(identityModeFor(null), "sign-in");
+    assert.equal(identityModeFor(undefined), "sign-in");
+  });
+});

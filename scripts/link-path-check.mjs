@@ -21,7 +21,13 @@
 //   skip    Skip at "where": Profile must then name the neighbourhood and tags as
 //           missing, with a way to each, and the neighbourhood must save from there.
 //
-//   npm run check:link-path              all three
+//   a1      #11, Tatiana's shape: an account already pinned to the crowd (her phone), a
+//           browser that quick-pins it again anonymously, then Crowds → "Set up my
+//           profile" → A1 with the account's address. A1 used to sign in over the
+//           anonymous session and leave that person counted: the crowd must end with
+//           the count it started with, and one pin, the account's.
+//
+//   npm run check:link-path              all of them
 //   npm run check:link-path -- merge     one
 //
 // Every user it makes is a harness user (the photo check skips them) and is deleted at
@@ -37,6 +43,7 @@ import { NEIGHBOURHOODS } from "../packages/shared/src/neighbourhoods.ts";
 import { CODE_SENT_TO, PROFILE_GAP_ACTION, profileGapLine, profileGaps } from "../packages/shared/src/profile.ts";
 import { OPTIN_COPY } from "../packages/shared/src/optin.ts";
 import { QUICKPIN_COPY } from "../packages/shared/src/quickpin.ts";
+import { HOME_COPY } from "../packages/shared/src/cities.ts";
 import { needChrome, needEnv, sessionSecretMatches, testCrowd } from "./fixture.mjs";
 
 // Fixtures first: a check whose ground moved says so in a sentence (scripts/fixture.mjs).
@@ -96,6 +103,17 @@ async function walk(kind) {
       await must(await rest("/rest/v1/age_attestations?on_conflict=person_id", { method: "POST", headers: { prefer: "resolution=ignore-duplicates" }, body: JSON.stringify({ person_id: acct.id, source: "a26" }) }), "19+");
       await must(await rest("/rest/v1/person_tags", { method: "POST", body: JSON.stringify(TAGS.map((t) => ({ person_id: acct.id, tag: t.slug }))) }), "tags");
     }
+    let pinnedBefore = null;
+    if (kind === "a1") {
+      // Tatiana's account, already pinned to the crowd from her phone.
+      const u = await must(await rest("/auth/v1/admin/users", { method: "POST", body: JSON.stringify({ email, password: randomUUID(), email_confirm: true, app_metadata: { pind_harness: true } }) }), "account");
+      accountId = u.id;
+      made.push(accountId);
+      const [acct] = await must(await rest("/rest/v1/people", { method: "POST", body: JSON.stringify({ auth_user_id: accountId, first_name: "Phonepinner" }) }), "account person");
+      await must(await rest("/rest/v1/age_attestations?on_conflict=person_id", { method: "POST", headers: { prefer: "resolution=ignore-duplicates" }, body: JSON.stringify({ person_id: acct.id, source: "a26" }) }), "19+");
+      await must(await rest("/rest/v1/pins", { method: "POST", body: JSON.stringify({ gathering_id: crowd.id, person_id: acct.id }) }), "the phone's pin");
+      pinnedBefore = (await must(await rest(`/rest/v1/pins?gathering_id=eq.${crowd.id}&select=id`), "pins before")).length;
+    }
     if (kind === "merge") {
       // An existing account with nothing on it, and NOT a tester — exactly Alex's. The
       // first version of this check made it a tester "as Alex's would be", and so walked
@@ -152,6 +170,33 @@ async function walk(kind) {
     await click(QUICKPIN_COPY.nineteen);
     await click(QUICKPIN_COPY.submit);
     step("You're in, with the primary button", await until(QUICKPIN_COPY.nextDetails));
+
+    if (kind === "a1") {
+      const pins = async () => (await must(await rest(`/rest/v1/pins?gathering_id=eq.${crowd.id}&select=id`), "pins")).length;
+      step("the anonymous pin counts once more, as it did for Tatiana", (await pins()) === pinnedBefore + 1);
+      await send("Page.navigate", { url: `${SITE}/crowds` });
+      step("Crowds offers 'Set up my profile' to the anonymous pinner", await until(HOME_COPY.profileButton, 20000));
+      await click(HOME_COPY.profileButton);
+      step("A1 opens", await until("Email me a code", 20000));
+      await type("Email me a code", email);
+      await click("Send the code");
+      step("A1 names the existing account — the merge, not a sign-in over the pin", await until(OPTIN_COPY.emailHasAccount));
+      const link = await must(await rest("/auth/v1/admin/generate_link", { method: "POST", body: JSON.stringify({ type: "magiclink", email }) }), "mint a code");
+      await type(CODE_SENT_TO(email), link.email_otp ?? link.properties?.email_otp);
+      await click("Continue");
+      for (let t = 0; t < 40; t++) { if ((await evaluate("location.pathname")) === "/you") break; await sleep(500); }
+      step("on to the profile step", (await evaluate("location.pathname")) === "/you");
+      step("the crowd counts what it counted before the second device", (await pins()) === pinnedBefore);
+      const [acct] = await must(await rest(`/rest/v1/people?auth_user_id=eq.${accountId}&select=id`), "account person");
+      const mine = await must(await rest(`/rest/v1/pins?gathering_id=eq.${crowd.id}&person_id=eq.${acct.id}&select=id`), "account pin");
+      step("one pin, the account's", mine.length === 1);
+      const anon = await must(await rest(`/rest/v1/people?auth_user_id=eq.${anonId}&select=id`), "anonymous person");
+      step("the anonymous person is gone, not left behind", anon.length === 0);
+      step("the merge recorded itself: email, web, at the sign-in step", JSON.stringify(await mergeRecord(accountId)) === JSON.stringify([{ method: "email", platform: "web", via: "sign_in_step" }]));
+      ws.close();
+      return true;
+    }
+
     await click(QUICKPIN_COPY.nextDetails);
 
     if (kind === "returning") {
@@ -327,7 +372,7 @@ async function walk(kind) {
   }
 }
 
-const which = process.argv[2] ? [process.argv[2]] : ["fresh", "merge", "skip", "returning"];
+const which = process.argv[2] ? [process.argv[2]] : ["fresh", "merge", "skip", "returning", "a1"];
 let ok = true;
 for (const kind of which) ok = (await walk(kind)) && ok;
 console.log(ok ? "PASS" : "FAIL");
