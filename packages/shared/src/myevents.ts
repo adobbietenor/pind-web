@@ -8,6 +8,7 @@
 
 import { effectiveEnd } from "./copy.ts";
 import { localDate } from "./time.ts";
+import { SQUAD_COPY } from "./squad.ts";
 
 export interface MyEventInput {
   startsAt: string;
@@ -245,6 +246,57 @@ export function chatsReadOnly(e: Pick<MyEventInput, "startsAt" | "endsAt">, now:
 export function chatsKept(e: Pick<MyEventInput, "startsAt" | "endsAt">, now: Date): boolean {
   return now.getTime() < Date.parse(effectiveEnd(e.startsAt, e.endsAt)) + DAY + 30 * DAY;
 }
+
+// ---------------------------------------------------------------------------
+// #18 — an ended event says so (Alex, 29 Oct 2026). A9 for an ended event used to keep
+// drawing the room card, so a room that never opened still said "You're the first here …
+// we'll tell you the moment someone else does" about a night that was over. Three phases
+// after the effective end, from Q11's two rules: the LAST DAY, writable ("that's when
+// people say it was good to meet you" — Alex), then READ-ONLY for 30 days, then CLEARED.
+// ---------------------------------------------------------------------------
+export type EndedPhase = "last-day" | "read-only" | "cleared";
+
+export function endedPhase(e: Pick<MyEventInput, "startsAt" | "endsAt">, now: Date): EndedPhase {
+  if (!chatsReadOnly(e, now)) return "last-day";
+  return chatsKept(e, now) ? "read-only" : "cleared";
+}
+
+// When the last day's chats close: 24 h after the effective end.
+export function lastDayCloses(e: Pick<MyEventInput, "startsAt" | "endsAt">): string {
+  return new Date(Date.parse(effectiveEnd(e.startsAt, e.endsAt)) + DAY).toISOString();
+}
+
+export interface EndedChat {
+  kind: "room" | "crew";
+  id: string;
+  label: string;
+}
+
+// The chats an ended event still has, in the order A9 lists them: the rooms that opened
+// (a room of one was never a chat), then your squad and your 1-on-1. None once cleared.
+export function endedChats(e: Pick<MyChatsEvent, "rooms" | "crews" | "startsAt" | "endsAt">, now: Date): EndedChat[] {
+  if (endedPhase(e, now) === "cleared") return [];
+  const rooms = e.rooms
+    .filter((r) => r.open)
+    .map((r) => ({ kind: "room" as const, id: r.roomId, label: r.womenOnly ? MY_CHATS_COPY.everyoneGoingWomen : MY_CHATS_COPY.everyoneGoing }));
+  const crews = e.crews.map((c) => ({
+    kind: "crew" as const,
+    id: c.crewId,
+    label: c.kind === "solo" ? MY_CHATS_COPY.plan(c.partner) : c.legacy ? MY_CHATS_COPY.yourGroup : (c.name ?? SQUAD_COPY.heading),
+  }));
+  return [...rooms, ...crews];
+}
+
+// PROPOSED copy (Tatiana's to reword).
+export const ENDED_COPY = {
+  heading: "This event has ended",
+  lastDay: (closes: string) => `The chats stay open until ${closes} — time to say it was good to meet.`,
+  readOnly: "The chats are read-only now. They're cleared 30 days after that.",
+  cleared: "The chats from this one were cleared 30 days after it ended.",
+  none: "No chats from this one.",
+  open: "Open",
+  read: "Read",
+} as const;
 
 // Every chat's unread count, for the tab's dot. Open squads are not yours yet: not counted.
 export function unreadTotal(events: Pick<MyChatsEvent, "rooms" | "crews">[]): number {

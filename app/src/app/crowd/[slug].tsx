@@ -43,6 +43,7 @@ import { failed, type Described } from "@/lib/errors";
 import { PushAsk } from "@/components/PushAsk";
 import { SoloSection } from "@/components/SoloSection";
 import { SquadSection } from "@/components/SquadSection";
+import { EndedEvent } from "@/components/EndedEvent";
 import { myRooms, type RoomSummary } from "@/lib/room";
 import { joinGeneralRoom, waitingForWomenOnlyRoom } from "@/lib/after";
 import { whoAmI } from "@/lib/session";
@@ -296,6 +297,10 @@ export default function CrowdPage() {
           // silently vanishes reads as a broken page (Alex, 6 Oct, on the phone).
           <Body muted>{QUICKPIN_COPY.closed}</Body>
         )
+      ) : ended ? (
+        // #18: an ended event says so, with each chat by its phase — never the room's
+        // "you're the first here", a share or a squad to start (components/EndedEvent).
+        <EndedEvent gatheringId={g.id} slug={slug} />
       ) : !view.mine.open ? (
         // A9's empty state — one step away, and the step is the biggest thing here.
         <View style={styles.oneStep}>
