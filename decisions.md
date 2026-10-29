@@ -4646,3 +4646,7 @@ of 3 counts sequential starts. No contradiction with M3.3's one-group rule.
 
 **Open:** a block during the night itself (the squad is live) still takes the blocker out
 before the squad finishes, so it keeps no ticks — the rule as approved covers finished groups.
+- **Follow-up, same day:** the morning-after push (#5) now asks "Did you meet up?" of anyone
+  who keeps "Who did you meet?", a blocker kept by V23 included (`20261029145956`). The full
+  harness caught it (P174): Ann blocked Ben in a finished group (P172) and was then sent the
+  no-group question about a night she had a group for.
