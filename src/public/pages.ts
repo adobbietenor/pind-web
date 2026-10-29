@@ -6,7 +6,7 @@
 import { categoryLabel, clockLocal, countLine, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, readShareCard, SEARCH_COPY, SEARCH_DAYS, SEARCH_MAX, searchQuery, SAFETY_TODAY, SEE_WHO, SHARE_COPY, SUGGEST_TO, suggestSubject, THRESHOLD, THRESHOLD_EXPLANATION } from "@pind/shared";
 import type { Env } from "../env";
 import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
-import { markSvg } from "./brand";
+import { faviconSvg } from "./favicon";
 import { city, crowd, crowds, type Counts, type Crowd, type Crowd2, type Spot } from "./data";
 import { DOT, escape, header, notice, page } from "./layout";
 import {
@@ -887,12 +887,7 @@ export function robots(): Response {
 }
 
 export function favicon(): Response {
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">` +
-    `<rect width="64" height="64" rx="14" fill="#0B0A0D"/>` +
-    `<g transform="translate(12,12)" color="#FFFFFF">${markSvg(40)}</g>` +
-    `</svg>`;
-  return new Response(svg, {
+  return new Response(faviconSvg(), {
     headers: { "content-type": "image/svg+xml", "cache-control": "public, max-age=86400" },
   });
 }

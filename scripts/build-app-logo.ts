@@ -21,6 +21,7 @@ import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { Resvg } from "@cf-wasm/resvg/node";
 import { MARK, WORDMARK } from "../src/public/brand.ts";
+import { faviconSvg } from "../src/public/favicon.ts";
 
 // **Two pieces, not one lockup.** The header is the mark at one end and the wordmark
 // at the other, with the row between them — which is what `src/public/layout.ts` does
@@ -56,6 +57,12 @@ async function main() {
     const width = Math.round((art.width / art.height) * height * SCALE);
     console.log(`${piece.name.padEnd(9)} ${width}×${Math.round(height * SCALE)}  ${(png.length / 1024).toFixed(1)} KB`);
   }
+
+  // The web export's favicon (#5): the Worker's own /favicon.svg drawing, so the tab's
+  // icon is the same on the Worker's pages and the app's. Expo makes favicon.ico from it.
+  const icon = (await Resvg.async(faviconSvg(), { fitTo: { mode: "width", value: 48 } })).render().asPng();
+  await writeFile(join(process.cwd(), "app", "assets", "favicon.png"), icon);
+  console.log(`favicon   48×48  ${(icon.length / 1024).toFixed(1)} KB`);
 }
 
 main().catch((err) => {
