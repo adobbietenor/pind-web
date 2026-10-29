@@ -97,6 +97,21 @@ export const SOLO_COPY = {
   callOff: "Call off this 1-on-1",
   callOffNote: "They'll be told it's off — not why. You can't send each other another proposal here.",
   threadPlaceholder: (name: string) => `Say something to ${name}`,
+  // #17 (Tatiana's "Let's meet up!", Alex, 29 Oct 2026): connect first, pick the spot after.
+  // A pair is not a plan until one of you suggests a spot and the other says yes. PROPOSED.
+  letsMeetUp: "Let's meet up!",
+  invited: "wants to meet up",
+  inviteNote: "If they say yes, you can say hi and pick a spot together.",
+  pairHeading: (name: string) => `You and ${name} are meeting up`,
+  pairLine: "Say hi, then pick a spot together — it's a plan once you both agree on one.",
+  pairPick: "Pick a spot",
+  pairSuggest: "Suggest a spot",
+  pairSuggestAnother: "Suggest another",
+  pairTheirs: (name: string, spot: string, time: string) => `${name} suggested ${spot}, ${time}.`,
+  pairMine: (name: string, spot: string, time: string) => `You suggested ${spot}, ${time}. It's ${name}'s to say yes to.`,
+  pairConfirm: "Sounds good",
+  pairSend: "Suggest it",
+  pairClosed: "It started before you two picked a spot, so this one won't become a plan.",
   // A23: a summary only; it is switched at each gathering (spec A23).
   settingsHeading: "Meet 1-on-1",
   settingsNone: "Off everywhere. You turn it on at a gathering, on its crowd page.",
@@ -112,6 +127,11 @@ export function soloRefusal(refusal: unknown): string {
   if (m.includes("three open")) return `You have ${SOLO_MAX_OPEN} proposals open. Withdraw one to send another.`;
   if (m.includes("already asked")) return "You've already asked each other here — one proposal per person per gathering.";
   if (m.includes("closed at the start")) return SOLO_COPY.closedAtStart;
+  // #17's pair (29 Oct 2026), above "spot": its stale-spot refusal names a spot too.
+  if (m.includes("pair is not open")) return SOLO_COPY.pairClosed;
+  if (m.includes("the other person confirms")) return "That one's theirs to say yes to — or suggest another.";
+  if (m.includes("no longer on offer")) return "That spot or time isn't on offer any more. Suggest another.";
+  if (m.includes("a spot and a time together")) return "Pick a spot and a time together, or neither.";
   if (m.includes("not available")) return "They're not available for 1-on-1 now.";
   if (m.includes("spot")) return "Pick one of the spots on the list.";
   if (m.includes("times on offer")) return "Pick one of the times on the list.";

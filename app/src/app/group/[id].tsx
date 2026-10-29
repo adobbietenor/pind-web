@@ -35,6 +35,7 @@ import { AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, radius,
 import { AppScreen } from "@/components/AppScreen";
 import { Composer } from "@/components/Composer";
 import { GetTheApp } from "@/components/GetTheApp";
+import { PairSpot } from "@/components/PairSpot";
 import { MessageSheet } from "@/components/MessageSheet";
 import { ThreadMessages } from "@/components/ThreadMessages";
 import { Trouble } from "@/components/Trouble";
@@ -266,7 +267,7 @@ export default function Group() {
         ) : undefined
       }
     >
-      <Heading>{view.solo ? SOLO_COPY.planHeading(names[0] ?? "") : view.squad ? view.squad.name : GROUP_COPY.heading}</Heading>
+      <Heading>{view.solo ? (view.state === "forming" ? SOLO_COPY.pairHeading(names[0] ?? "") : SOLO_COPY.planHeading(names[0] ?? "")) : view.squad ? view.squad.name : GROUP_COPY.heading}</Heading>
       <Body muted>{view.squad ? `${SQUAD_COPY.heading} · ${view.gathering.name}` : view.gathering.name}</Body>
       {view.squad?.nameStatus === "pending" ? <Body muted>{SQUAD_COPY.checking}</Body> : null}
       {view.squad?.nameStatus === "rejected" ? <Text accessibilityRole="alert" style={styles.refusal}>{SQUAD_COPY.rejected}</Text> : null}
@@ -292,6 +293,10 @@ export default function Group() {
         </View>
       ) : (
         <View style={styles.card}>
+          {/* #17: a pair picks its spot here; it is a plan only once both agree. */}
+          {view.solo && view.state === "forming" ? (
+            <PairSpot crewId={view.id} gatheringId={view.gathering.id} meId={view.meId} partner={names[0] ?? ""} onChanged={refresh} />
+          ) : null}
           {view.solo ? null : view.squad ? (
             <Body>{names.length ? `${SQUAD_COPY.members(view.members.length)} You and ${names.join(", ")}.` : SQUAD_COPY.members(1)}</Body>
           ) : (

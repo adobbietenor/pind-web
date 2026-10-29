@@ -15,7 +15,7 @@
 // platform by the admin (decisions Part 5).
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Image, Modal, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Modal, StyleSheet, Text, View } from "react-native";
 import {
   colors as palette,
   fonts,
@@ -23,15 +23,13 @@ import {
   SOLO_COPY,
   SOLO_MAX_OPEN,
   soloLine,
-  soloLinesFor,
   soloProposalsOpen,
-  soloTimes,
   spacing,
 } from "@pind/shared";
 import { Body, Button, Choice } from "@/components/ui";
 import { womenOnlyRooms } from "@/lib/after";
 import { failed } from "@/lib/errors";
-import { answerSolo, loadSolo, proposeSolo, setSolo, soloClock, withdrawSolo, type SoloChoice, type SoloView } from "@/lib/solo";
+import { answerSolo, inviteSolo, loadSolo, setSolo, soloClock, withdrawSolo, type SoloChoice, type SoloView } from "@/lib/solo";
 import { Tap } from "./Tap";
 import { Rise } from "./Motion";
 
@@ -48,7 +46,6 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sheet, setSheet] = useState(false);
   const [choice, setChoice] = useState<SoloChoice | null>(null);
-  const [proposing, setProposing] = useState<SoloFace | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   // A refusal, keyed by where the tap was ("switch", "sheet", a person or a proposal id).
   const [said, setSaid] = useState<{ at: string; text: string } | null>(null);
@@ -114,7 +111,15 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
       ) : view.plan ? (
         // The plan card.
         <Tap feel="card" accessibilityRole="button" onPress={() => router.push({ pathname: "/group/[id]", params: { id: view.plan!.crewId } })} style={({ pressed }) => [styles.plan, pressed && { opacity: 0.8 }]}>
-          <Text style={styles.planHeading}>{SOLO_COPY.planHeading(view.plan.partner)}</Text>
+          {view.plan.state === "forming" ? (
+            // #17: a pair — not a plan until a spot is agreed.
+            <>
+              <Text style={styles.planHeading}>{SOLO_COPY.pairHeading(view.plan.partner)}</Text>
+              <Body muted>{SOLO_COPY.pairLine}</Body>
+            </>
+          ) : (
+            <Text style={styles.planHeading}>{SOLO_COPY.planHeading(view.plan.partner)}</Text>
+          )}
           {view.plan.spot && view.plan.meetAt ? <Body>{SOLO_COPY.planWhere(view.plan.spot, at(view.plan.meetAt))}</Body> : null}
           <Text style={styles.link}>{SOLO_COPY.openPlan}</Text>
         </Tap>
@@ -128,8 +133,18 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
                 <View style={styles.row}>
                   <Face face={f} name={p.firstName} />
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.name}>{`${p.firstName} ${SOLO_COPY.received}`}</Text>
-                    <Body>{soloLine(p.line, p.spot, at(p.meetAt))}</Body>
+                    {p.spot && p.meetAt && p.line ? (
+                      <>
+                        <Text style={styles.name}>{`${p.firstName} ${SOLO_COPY.received}`}</Text>
+                        <Body>{soloLine(p.line, p.spot, at(p.meetAt))}</Body>
+                      </>
+                    ) : (
+                      // "Let's meet up!" (#17): no spot yet — that comes after, together.
+                      <>
+                        <Text style={styles.name}>{`${p.firstName} ${SOLO_COPY.invited}`}</Text>
+                        <Body muted>{SOLO_COPY.inviteNote}</Body>
+                      </>
+                    )}
                   </View>
                 </View>
                 <View style={{ flexDirection: "row", gap: spacing.sm }}>
@@ -160,7 +175,11 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
                       <View style={{ flex: 1 }}>
                         <Text style={styles.name}>{f.firstName}</Text>
                         {f.tags ? <Text style={styles.meta}>{f.tags}</Text> : null}
-                        {sent ? <Text style={styles.sent}>{`${SOLO_COPY.sent} · ${soloLine(sent.line, sent.spot, at(sent.meetAt))}`}</Text> : null}
+                        {sent ? (
+                          <Text style={styles.sent}>
+                            {sent.spot && sent.meetAt && sent.line ? `${SOLO_COPY.sent} · ${soloLine(sent.line, sent.spot, at(sent.meetAt))}` : SOLO_COPY.sent}
+                          </Text>
+                        ) : null}
                       </View>
                     </View>
                     {sent ? (
@@ -170,12 +189,19 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
                         {saidAt(sent.id)}
                       </>
                     ) : (
-                      <Button
-                        kind="quiet"
-                        label={SOLO_COPY.propose}
-                        disabled={view.sent.length >= SOLO_MAX_OPEN}
-                        onPress={() => { setSaid(null); setProposing(f); }}
-                      />
+                      <>
+                        {/* #17: "Let's meet up!" asks nothing first — the spot is picked
+                            together, after they say yes. */}
+                        <Button
+                          kind="quiet"
+                          label={SOLO_COPY.letsMeetUp}
+                          haptic="action"
+                          busy={busy === id}
+                          disabled={view.sent.length >= SOLO_MAX_OPEN}
+                          onPress={() => void act(id, () => inviteSolo(gatheringId, id))}
+                        />
+                        {saidAt(id)}
+                      </>
                     )}
                   </Rise>
                 );
@@ -229,95 +255,6 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
         </View>
       </Modal>
 
-      {proposing ? (
-        <ProposalSheet
-          view={view}
-          to={proposing}
-          busy={busy === proposing.id}
-          refusal={said?.at === proposing.id ? said.text : null}
-          onClose={() => setProposing(null)}
-          onSend={(spotId, meetAt, line) => void act(proposing.id, () => proposeSolo(gatheringId, proposing.id, spotId, meetAt, line), () => setProposing(null))}
-        />
-      ) : null}
-    </View>
-  );
-}
-
-// The proposal: a spot, a time and a line — three sets of chips, nothing to type.
-function ProposalSheet({
-  view,
-  to,
-  busy,
-  refusal,
-  onClose,
-  onSend,
-}: {
-  view: SoloView;
-  to: SoloFace;
-  busy: boolean;
-  refusal: string | null;
-  onClose: () => void;
-  onSend: (spotId: string, meetAt: string, line: number) => void;
-}) {
-  const times = soloTimes(view.startsAt, view.endsAt);
-  const [spot, setSpot] = useState<string | null>(view.spots.length === 1 ? view.spots[0]!.id : null);
-  const [time, setTime] = useState<string | null>(null);
-  const [line, setLine] = useState<number | null>(null);
-  const at = (iso: string) => soloClock(iso, view.tz);
-  const lines = time ? soloLinesFor(time, view.startsAt) : [];
-  const spotName = view.spots.find((s) => s.id === spot)?.name ?? "…";
-  // A line worded for before stops fitting when the time moves after the start.
-  useEffect(() => {
-    if (line && !lines.some((l) => l.n === line)) setLine(null);
-  }, [time]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.scrim}>
-        <View style={[styles.sheet, { maxHeight: "88%" }]}>
-          <ScrollView contentContainerStyle={{ gap: spacing.sm }}>
-            <Text style={styles.sheetTitle}>{`Meet ${to.firstName}`}</Text>
-            {view.group ? (
-              <Text style={styles.meta}>{view.group.spot && view.group.meetAt ? SOLO_COPY.yourGroup(view.group.spot, at(view.group.meetAt)) : SOLO_COPY.yourGroupAtStart}</Text>
-            ) : null}
-            <Text style={styles.label}>{SOLO_COPY.sheetSpot}</Text>
-            <Chips options={view.spots.map((s) => ({ key: s.id, name: s.name }))} value={spot} onChange={setSpot} />
-            <Text style={styles.label}>{SOLO_COPY.sheetTime}</Text>
-            <Chips options={times.map((t) => ({ key: t, name: at(t) }))} value={time} onChange={setTime} />
-            {time ? (
-              <>
-                <Text style={styles.label}>{SOLO_COPY.sheetLinePick}</Text>
-                {lines.map((l) => {
-                  const on = l.n === line;
-                  return (
-                    <Tap key={l.n} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => setLine(l.n)} style={[styles.lineChoice, on && styles.lineOn]}>
-                      <Text style={styles.lineText}>{l.text(spotName, at(time))}</Text>
-                    </Tap>
-                  );
-                })}
-              </>
-            ) : null}
-            <Button label={SOLO_COPY.sheetSend} haptic="action" disabled={!spot || !time || !line} busy={busy} onPress={() => onSend(spot!, time!, line!)} />
-            {refusal ? <Text accessibilityRole="alert" style={styles.refusal}>{refusal}</Text> : null}
-            <Button kind="quiet" label="Cancel" onPress={onClose} />
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-function Chips({ options, value, onChange }: { options: { key: string; name: string }[]; value: string | null; onChange: (k: string) => void }) {
-  return (
-    <View style={styles.chips}>
-      {options.map((o) => {
-        const on = o.key === value;
-        return (
-          <Tap key={o.key} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => onChange(o.key)} style={[styles.chip, on && styles.chipOn]}>
-            <Text style={[styles.chipLabel, on && { color: palette.onAccent }]}>{o.name}</Text>
-          </Tap>
-        );
-      })}
     </View>
   );
 }

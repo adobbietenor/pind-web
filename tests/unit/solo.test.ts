@@ -65,17 +65,25 @@ describe("The 1-on-1 screens use the rules, not their own (M3.4)", () => {
   const section = readFileSync("app/src/components/SoloSection.tsx", "utf8");
   const lib = readFileSync("app/src/lib/solo.ts", "utf8");
 
-  it("SO06 there is nowhere to type: the section has no text input, and a proposal is a spot, a time and a line", () => {
+  // #17 (29 Oct 2026): "Let's meet up!" replaced the proposal sheet. An invite carries nothing
+  // at all; the spot is picked after, in the pair (components/PairSpot.tsx), from the venue's
+  // curated spots and the shared times — so still nowhere to type, and only curated spots.
+  const pairSpot = readFileSync("app/src/components/PairSpot.tsx", "utf8");
+
+  it("SO06 there is nowhere to type: an invite carries nothing, and a pair's spot is one of the venue's, at one of the shared times", () => {
     // The pattern must see the controls it does use first, or "no TextInput" proves nothing.
-    assert.match(section, /<Chips options=\{view\.spots/, "the sheet does not offer the venue's spots");
-    assert.doesNotMatch(section, /TextInput|<Field|multiline/, "the 1-on-1 section has a free-text field");
-    assert.match(section, /proposeSolo\(gatheringId, proposing\.id, spotId, meetAt, line\)/, "a proposal carries something other than a spot, a time and a line");
+    assert.match(section, /label=\{SOLO_COPY\.letsMeetUp\}/, "the section does not offer 'Let's meet up!'");
+    assert.match(section, /inviteSolo\(gatheringId, id\)/, "an invite carries something");
+    assert.match(lib, /rpc\("propose_solo", \{ p_gathering: gatheringId, p_to: to, p_spot: null as unknown as string, p_meet_at: null as unknown as string, p_line: null as unknown as number \}\)/, "an invite sends a spot, a time or a line");
+    assert.match(pairSpot, /options=\{o\.spots\.map\(/, "the pair's spot is not chosen from the venue's spots");
+    for (const [where, src] of [["the 1-on-1 section", section], ["the pair's spot step", pairSpot]] as const) {
+      assert.doesNotMatch(src, /TextInput|<Field|multiline/, `${where} has a free-text field`);
+    }
   });
 
-  it("SO07 the sheet offers the shared times and lines, never its own", () => {
-    assert.match(section, /const times = soloTimes\(view\.startsAt, view\.endsAt\)/, "the sheet makes its own list of times");
-    assert.match(section, /soloLinesFor\(time, view\.startsAt\)/, "the sheet offers lines without asking which fit the time");
-    assert.match(section, /disabled=\{view\.sent\.length >= SOLO_MAX_OPEN\}/, "the fourth proposal is not stopped where it is tapped");
+  it("SO07 the pair offers the shared times, never its own; the fourth invite is stopped where it is tapped", () => {
+    assert.match(pairSpot, /soloTimes\(o\.startsAt, o\.endsAt\)/, "the pair's spot step makes its own list of times");
+    assert.match(section, /disabled=\{view\.sent\.length >= SOLO_MAX_OPEN\}/, "the fourth invite is not stopped where it is tapped");
   });
 
   it("SO08 every write goes through the database's functions, and a refusal comes back in words, where the tap was", () => {

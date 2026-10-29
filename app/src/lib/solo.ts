@@ -16,9 +16,10 @@ export interface SoloProposal {
   id: string;
   personId: string;
   firstName: string;
-  spot: string;
-  meetAt: string;
-  line: number;
+  // Null for "Let's meet up!" (#17): an invite names no spot or time.
+  spot: string | null;
+  meetAt: string | null;
+  line: number | null;
 }
 
 export interface SoloView {
@@ -84,7 +85,7 @@ export async function loadSolo(gatheringId: string, meId: string): Promise<SoloV
     };
   }
   const group = groupRow && groupRow.crews?.meet_at ? { spot: groupRow.crews.meeting_spots?.name ?? null, meetAt: groupRow.crews.meet_at } : null;
-  const all = ((props.data ?? []) as { proposal_id: string; direction: string; person_id: string; first_name: string; spot_name: string; meet_at: string; line: number }[]).map((p) => ({
+  const all = ((props.data ?? []) as { proposal_id: string; direction: string; person_id: string; first_name: string; spot_name: string | null; meet_at: string | null; line: number | null }[]).map((p) => ({
     direction: p.direction,
     p: { id: p.proposal_id, personId: p.person_id, firstName: p.first_name, spot: p.spot_name, meetAt: p.meet_at, line: p.line },
   }));
@@ -111,6 +112,48 @@ export async function setSolo(pinId: string, choice: SoloChoice | null): Promise
 
 export async function proposeSolo(gatheringId: string, to: string, spotId: string, meetAt: string, line: number): Promise<void> {
   await said(supabase().rpc("propose_solo", { p_gathering: gatheringId, p_to: to, p_spot: spotId, p_meet_at: meetAt, p_line: line }));
+}
+
+// "Let's meet up!" (#17): an invite with no spot and no time. Said yes, it is a pair.
+export async function inviteSolo(gatheringId: string, to: string): Promise<void> {
+  await said(supabase().rpc("propose_solo", { p_gathering: gatheringId, p_to: to, p_spot: null as unknown as string, p_meet_at: null as unknown as string, p_line: null as unknown as number }));
+}
+
+// A pair's one pending spot (#17): suggested by either, a plan only on the other's yes.
+export interface PairSuggestion {
+  spotId: string;
+  spot: string;
+  meetAt: string;
+  mine: boolean;
+}
+
+export async function loadPairSuggestion(crewId: string, meId: string): Promise<PairSuggestion | null> {
+  const { data, error } = await supabase().from("solo_spot_suggestions").select("spot_id, meet_at, suggested_by, meeting_spots(name)").eq("crew_id", crewId).maybeSingle();
+  if (error) throw error;
+  if (!data) return null;
+  const d = data as unknown as { spot_id: string; meet_at: string; suggested_by: string; meeting_spots: { name: string } | null };
+  return { spotId: d.spot_id, spot: d.meeting_spots?.name ?? "", meetAt: d.meet_at, mine: d.suggested_by === meId };
+}
+
+// What a pair picks from: the venue's curated spots, and the gathering's times and zone.
+export async function loadPairOptions(gatheringId: string): Promise<{ spots: { id: string; name: string }[]; tz: string; startsAt: string; endsAt: string | null }> {
+  const db = supabase();
+  const { data: g, error } = await db.from("gatherings").select("starts_at, ends_at, venue_id, venues(cities(timezone))").eq("id", gatheringId).maybeSingle();
+  if (error) throw error;
+  if (!g) throw new Said("This gathering is not on Pin'd any more.");
+  const tz = (g as unknown as { venues: { cities: { timezone: string } | null } | null }).venues?.cities?.timezone ?? "America/Toronto";
+  const { data: spots } = g.venue_id
+    ? await db.from("meeting_spots").select("id, name").eq("venue_id", g.venue_id).eq("active", true).order("name")
+    : { data: [] as { id: string; name: string }[] };
+  return { spots: spots ?? [], tz, startsAt: g.starts_at, endsAt: g.ends_at };
+}
+
+export async function suggestSpot(crewId: string, spotId: string, meetAt: string): Promise<void> {
+  await said(supabase().rpc("suggest_solo_spot", { p_crew: crewId, p_spot: spotId, p_meet_at: meetAt }));
+}
+
+export async function confirmSpot(crewId: string): Promise<void> {
+  await said(supabase().rpc("confirm_solo_spot", { p_crew: crewId }));
 }
 
 export async function answerSolo(proposalId: string, accept: boolean): Promise<string | null> {
