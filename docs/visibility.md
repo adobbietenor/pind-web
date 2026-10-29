@@ -1132,7 +1132,7 @@ own cases (`review-m3.4`, `review-m3.7`) and P255–P263 (`m4-2-fixes`) hold the
   in words, on the party question.
 - **A block holds in every state, and costs the blocker nothing (V4, V23 — Alex, 29 Oct).**
   Blocking someone takes you out of every group you share with them — squads, 1-on-1 plans
-  and older groups, finished ones included — silently. Leaving a finished group this way
-  keeps your "Who did you meet?" with everyone else in it for its 7 days (they still see
+  and older groups, finished ones included — silently. Leaving a group this way during the
+  night or after it keeps your "Who did you meet?" with everyone else in it for its 7 days (they still see
   you), never with the person you blocked, and neither of you sees the other. A hide keeps
   its cost: the hidden person keeps nothing.

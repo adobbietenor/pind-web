@@ -17,6 +17,7 @@
 //   P263  one AI call per squad name: the first claim wins, a second within 10 minutes loses
 //   P264  a block in a finished squad: out of the chat, ticks kept with everyone but the blocked (V23)
 //   P265  a hide in a finished squad is unchanged: the hidden person keeps nothing
+//   P266  a block during the night keeps the ticks too; a block before it keeps nothing
 //
 // Run with the harness: npm run test:policies.
 import { test, before, after } from "node:test";
@@ -293,11 +294,11 @@ test("P263 one AI call per squad name: the first claim wins, a second within ten
 });
 
 // A finished squad, built directly: the night was four hours ago, so after_open holds.
-async function finishedSquad(G: string, members: string[]): Promise<string> {
+async function finishedSquad(G: string, members: string[], state: "done" | "live" | "spot_set" = "done"): Promise<string> {
   const past = Date.now() - 4 * 3_600_000;
   g[G] = (await must(service.from("gatherings").insert({ name: `${PREFIX} ${run} ${G}`, starts_at: new Date(past).toISOString(), venue_id: venue, published_at: new Date(past - 86_400_000).toISOString() }).select("id").single(), `gathering ${G}`)).id;
   for (const n of members) await must(service.from("pins").insert({ gathering_id: g[G], person_id: ppl[n]!.id, open_to_meeting: true, party_total: 1 }), `pin ${n}`);
-  const crew = (await must(service.from("crews").insert({ gathering_id: g[G], kind: "crew", state: "done", spot_id: spot, meet_at: new Date(past - 3_600_000).toISOString(), name: "After the show", name_status: "approved", created_by: ppl[members[0]!]!.id }).select("id").single(), "crew")).id as string;
+  const crew = (await must(service.from("crews").insert({ gathering_id: g[G], kind: "crew", state, spot_id: spot, meet_at: new Date(past - 3_600_000).toISOString(), name: "After the show", name_status: "approved", created_by: ppl[members[0]!]!.id }).select("id").single(), "crew")).id as string;
   await must(service.from("crew_members").insert(members.map((n) => ({ crew_id: crew, gathering_id: g[G], person_id: ppl[n]!.id, seats: 1 }))), "members");
   await must(service.from("crew_messages").insert({ crew_id: crew, author_id: ppl[members[2]!]!.id, kind: "user", body: "good to meet you all" }), "a message");
   return crew;
@@ -345,4 +346,23 @@ test("P265 a hide in a finished squad is unchanged: the hidden person keeps noth
   assert.deepEqual(await afterPeople("Oli", "H"), [], "a hidden person still sees people after the night");
   assert.ok(!(await afterPeople("Pia", "H")).includes("Oli"), "others still see a hidden person after the night");
   await must(service.from("people").update({ hidden_at: null }).eq("id", ppl.Oli!.id), "unhide Oli");
+});
+
+test("P266 a block during the night (the squad live) keeps the blocker's ticks once it finishes; a block before the night keeps nothing", async () => {
+  for (const [n, gen] of [["Rex", "man"], ["Sol", "man"], ["Tia", "woman"], ["Uma", "woman"], ["Vic", "man"], ["Wil", "man"]] as const) await mk(n, gen);
+  const finish = (crew: string) => must(service.from("crews").update({ state: "done" }).eq("id", crew), "the squad finishes");
+  // During the night: live, Rex blocks Sol; the squad then finishes.
+  const live = await finishedSquad("NL", ["Rex", "Sol", "Tia"], "live");
+  assert.equal((await block("Rex", "Sol")).error, null, "Rex could not block Sol");
+  assert.ok(!(await isMember("Rex", live)), "a block during the night left the blocker in the group");
+  await finish(live);
+  assert.deepEqual(await afterPeople("Rex", "NL"), ["Tia"], "a block during the night cost the blocker their ticks (or kept the blocked)");
+  assert.ok((await afterPeople("Tia", "NL")).includes("Rex"), "the others lost the blocker for ticks");
+  assert.equal((await tick("Rex", live, "Tia")).error, null, "the blocker could not tick someone else after the night");
+  // Before the night: set, Uma blocks Vic; nobody has met yet, so nothing is kept.
+  const before = await finishedSquad("NB", ["Uma", "Vic", "Wil"], "spot_set");
+  assert.equal((await block("Uma", "Vic")).error, null, "Uma could not block Vic");
+  await finish(before);
+  assert.deepEqual(await afterPeople("Uma", "NB"), [], "a block before the night kept ticks for a night the blocker left before");
+  assert.ok(!(await afterPeople("Wil", "NB")).includes("Uma"), "someone who left before the night is still listed after it");
 });

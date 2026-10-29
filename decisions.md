@@ -4644,8 +4644,9 @@ Migration `20261029143155`; P264, P265.
 Rule 9, confirmed: one squad per person per gathering at a time (the per-kind index); the cap
 of 3 counts sequential starts. No contradiction with M3.3's one-group rule.
 
-**Open:** a block during the night itself (the squad is live) still takes the blocker out
-before the squad finishes, so it keeps no ticks — the rule as approved covers finished groups.
+**Settled (Alex, 29 Oct):** a block during the night (the group live) keeps the blocker's ticks
+with everyone else too — "same principle: a block must never cost the person who uses it"
+(`20261029150502`, P266). A block before the night keeps nothing: nobody has met yet.
 - **Follow-up, same day:** the morning-after push (#5) now asks "Did you meet up?" of anyone
   who keeps "Who did you meet?", a blocker kept by V23 included (`20261029145956`). The full
   harness caught it (P174): Ann blocked Ben in a finished group (P172) and was then sent the
