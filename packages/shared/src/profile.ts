@@ -75,3 +75,11 @@ export const PROFILE_GAP_ACTION: Record<ProfileGap, string> = {
 // different address in the field, and nothing on the screen said which one it was).
 export const CODE_SENT_TO = (email: string) => `We've sent a code to ${email}. It can take a minute.`;
 export const WRONG_ADDRESS = "Not that address? Use a different one";
+
+// Who a women-only space is for: a woman, or a nonbinary person who chose to be included.
+// The database's `private.is_women_only_eligible` is the rule; this is its one copy on the
+// client side, for drawing only — the app offers "women only" to no one else (R1, M4.2,
+// 29 Oct 2026), and the database refuses it anyway. P262 compares the two on real rows.
+export function womenOnlyEligible(p: { gender?: string | null; include_in_women_only?: boolean | null } | null | undefined): boolean {
+  return p?.gender === "woman" || (p?.gender === "nonbinary" && !!p?.include_in_women_only);
+}

@@ -23,7 +23,8 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { colors as palette, fonts, NEIGHBOURHOODS, openersFor, radius, ROOM_COPY, spacing, SQUAD_COPY, type ThreadMessage } from "@pind/shared";
+import { colors as palette, fonts, NEIGHBOURHOODS, openersFor, radius, ROOM_COPY, spacing, SQUAD_COPY, WOMEN_ONLY_COPY, type ThreadMessage } from "@pind/shared";
+import { leaveWomenOnlyRoom } from "@/lib/after";
 import { AppScreen } from "@/components/AppScreen";
 import { Composer } from "@/components/Composer";
 import { MessageSheet } from "@/components/MessageSheet";
@@ -85,6 +86,9 @@ export default function Room() {
   // null until read: the card waits for the answer rather than flashing.
   const [goDismissed, setGoDismissed] = useState<boolean | null>(null);
   const [focused, setFocused] = useState(false);
+  // The women-only room's Leave: asked once, then done.
+  const [leavingWo, setLeavingWo] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
 
   const shell = useQuery({
     queryKey: ["room", id],
@@ -212,6 +216,40 @@ export default function Room() {
       <View style={{ marginTop: spacing.md }}>
         <PushAsk />
       </View>
+
+      {/* The women-only room's Leave (M4.2): you stay in the general room, and nobody is told. */}
+      {view.womenOnly && !closed ? (
+        leavingWo ? (
+          <View style={styles.go}>
+            <Body>{WOMEN_ONLY_COPY.leaveWhat}</Body>
+            <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
+              <View style={{ flex: 1 }}>
+                <Button
+                  label={WOMEN_ONLY_COPY.leaveConfirm}
+                  busy={busy === "leave-wo"}
+                  onPress={async () => {
+                    setBusy("leave-wo");
+                    try {
+                      await leaveWomenOnlyRoom(view.gathering.id);
+                      void queryClient.invalidateQueries({ queryKey: MY_CHATS_KEY });
+                      router.replace({ pathname: "/crowd/[slug]", params: { slug: view.gathering.slug } });
+                    } catch (err) {
+                      setTrouble(failed("leave the women-only room", err));
+                    } finally {
+                      setBusy(null);
+                    }
+                  }}
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button kind="quiet" label={WOMEN_ONLY_COPY.stay} onPress={() => setLeavingWo(false)} />
+              </View>
+            </View>
+          </View>
+        ) : (
+          <Button kind="quiet" label={WOMEN_ONLY_COPY.leave} onPress={() => setLeavingWo(true)} />
+        )
+      ) : null}
 
       {/* The arrivals: who is here, with what you share. At 5 in the room, you included, a strip. */}
       {count <= 4 ? (

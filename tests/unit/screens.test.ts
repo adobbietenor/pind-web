@@ -252,6 +252,7 @@ describe("The web app claims a handed-over session before any screen renders (M3
       "packages/shared/src/squad.ts": "squads' list, start sheet and card (A15/A11, M3.7) — the one copy pass (decisions, \"Copy deferred to one pass\")",
       "packages/shared/src/copy.ts": "#14 (29 Oct): the count's next step and W2's rule line, written for the room-and-squads design — Tatiana's to reword; CREWS_MEET is the App Review line",
       "src/public/pages.ts": "#14 (29 Oct): W1's 'people meeting up' and the About page's two paragraphs — Tatiana's to reword",
+      "packages/shared/src/quickpin.ts": "F5 (M4.2, 29 Oct): a full squad's refusal of a +1, on both A26s — Tatiana's to reword",
     };
     assert.ok(/\bPROPOSED\b/.test("// PROPOSED, for Alex") && !/\bPROPOSED\b/.test("UNPROPOSED"), "the marker test cannot see a marker");
     const marked = (function walk(dir: string): string[] {

@@ -79,6 +79,8 @@ export const QUICKPIN_COPY = {
   backToCrowd: "Back to the crowd",
   closedCanRemove: "This one has finished, so your pin can't be changed — but you can still remove it.",
   tryAgain: "That didn't go through. Try again in a moment.",
+  // F5 (M4.2, 29 Oct 2026): your +1s take seats in your squad, which has eight. PROPOSED.
+  squadFullPlusOne: "Your squad here is full, so there's no seat for a +1. Come on your own, or leave the squad first.",
 } as const;
 
 // The count and the threshold with progress (Alex, M3.2). **Not "You're #3 pinned"**:
@@ -166,6 +168,19 @@ export interface QuickPinDb {
   rpc(fn: "i_may_meet"): Result<unknown>;
 }
 
+// A refusal the database explained, for one field, in our words — shown where that field
+// is, like readQuickPin's own. Both A26s catch it (Q04 holds them to the shared copy).
+export class QuickPinRefused extends Error {
+  readonly field: QuickPinField;
+  readonly says: string;
+  constructor(field: QuickPinField, says: string) {
+    super(says);
+    this.name = "QuickPinRefused";
+    this.field = field;
+    this.says = says;
+  }
+}
+
 async function step<T>(q: PromiseLike<{ data: T; error: { message?: string } | null }>, what: string): Promise<T> {
   const { data, error } = await q;
   if (error) throw Object.assign(new Error(`${what}: ${error.message ?? "failed"}`), { cause: error });
@@ -208,7 +223,12 @@ export async function writeQuickPin(
     "read my pin",
   )) as { id: string } | null;
   if (existing) {
-    await step(db.from("pins").update(pin).eq("id", existing.id), "update my pin");
+    // A full squad refuses a +1 (F5, M4.2): said on the party question, on both A26s.
+    const updated = await db.from("pins").update(pin).eq("id", existing.id);
+    if ((updated.error as { hint?: string } | null)?.hint === "squad_full_plus_one") {
+      throw new QuickPinRefused(QUICKPIN_FIELDS.party, QUICKPIN_COPY.squadFullPlusOne);
+    }
+    if (updated.error) throw Object.assign(new Error(`update my pin: ${updated.error.message ?? "failed"}`), { cause: updated.error });
     return { personId, already: true, needsOptIn };
   }
   await step(db.from("pins").insert({ gathering_id: gatheringId, person_id: personId, ...pin }), "pin");

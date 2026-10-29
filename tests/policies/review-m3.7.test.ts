@@ -279,12 +279,15 @@ test("RV03-H the eighth seat is decided once: three people racing for it, exactl
   assert.equal((await activeMembers(sq.s1)).length, 8);
 });
 
-test("RV04-F eight seats with +1s: a member who raises their party size after joining takes a ninth person in", async () => {
-  // Seats are taken at join (least(party_total, 2)). Bob joined alone; now he brings a friend,
-  // through the ordinary pin edit the app offers.
+test("RV04-F eight seats with +1s: a member who raises their party size in a full squad is refused, with a sentence — never a ninth person", async () => {
+  // M4.2 (29 Oct): your party size is your seats. Bob joined alone into a full squad; raising
+  // his +1s there is refused, in words the app can show, and nothing changes.
   const up = await ppl.Bob!.c.from("pins").update({ party_total: 2 }).eq("gathering_id", g.T).eq("person_id", ppl.Bob!.id).select("party_total");
-  assert.equal(up.error, null, `control: Bob could not edit his own party size: ${up.error?.message}`);
-  assert.equal(up.data?.length, 1);
+  assert.ok(up.error, "Bob raised his +1s in a full squad");
+  assert.equal((up.error as { hint?: string }).hint, "squad_full_plus_one", `the refusal is not the seats rule: ${up.error?.message}`);
+  assert.match(up.error!.message, /no seat there for a \+1/, "the refusal is not the sentence the app shows");
+  const pin = await must(service.from("pins").select("party_total").eq("gathering_id", g.T).eq("person_id", ppl.Bob!.id).single(), "Bob's pin");
+  assert.equal(pin.party_total, 1, "the pin changed although the refusal said it did not");
   const outsider = (await listedTo("Xav", "T")).find((r) => r.crew_id === sq.s1);
   const rows = await must(service.from("crew_members").select("person_id, seats").eq("crew_id", sq.s1).is("left_at", null), "seats");
   const pins = await must(service.from("pins").select("person_id, party_total").eq("gathering_id", g.T).in("person_id", rows.map((r: any) => r.person_id)), "pins");
@@ -371,9 +374,10 @@ test("RV08-F a hidden person's words stay in a squad's thread: members read them
   );
 });
 
-test("RV09-F hidden after the night: a hidden person is not taken out of a done squad, and keeps reading and posting to its members for 24 h", async () => {
-  // Hid was hidden in RV08; sD was already done, so the 'leaves every squad' trigger skipped it.
-  assert.ok((await activeMembers(sq.sD)).includes("Hid"), "precondition: Hid is still a member of the done squad");
+test("RV09-F hidden after the night: a hidden person is taken out of a done squad too, and can neither read nor post", async () => {
+  // Hid was hidden in RV08 while sD was already done. M4.2 (29 Oct): a hide takes a person out
+  // of every group in any state but dissolved.
+  assert.ok(!(await activeMembers(sq.sD)).includes("Hid"), "a hidden person is still a member of a finished squad");
   const reads = await threadAs("Hid", sq.sD);
   const { error } = await ppl.Hid!.c.from("crew_messages").insert({ crew_id: sq.sD, author_id: ppl.Hid!.id, kind: "user", body: "still here, hidden" });
   const othersSee = (await threadAs("Xav", sq.sD)).includes("still here, hidden");
@@ -421,8 +425,12 @@ test("RV12-H a hidden person cannot get back in, and someone who left cannot rep
 
 test("RV13-F women-only rooms only: a race between the switch and a join leaves her in a mixed squad (20 attempts)", async () => {
   // s3 is mixed and listed to Rae. Each attempt fires the join and the switch together.
+  // M4.2 (29 Oct): the join and the switch take Rae's lock. Proved by counting the attempts
+  // where the join went through (the switch then had to take her out): the case fails
+  // unless at least one happened, so an attempt that never raced cannot pass for one that held.
   let raced = 0;
   let tries = 0;
+  let joined = 0;
   for (let i = 0; i < 20; i++) {
     tries++;
     const delay = i % 4; // 0–3 ms stagger, to move the overlap around
@@ -430,6 +438,7 @@ test("RV13-F women-only rooms only: a race between the switch and a join leaves 
       join("Rae", sq.s3),
       sleep(delay).then(() => ppl.Rae!.c.rpc("set_women_only_rooms", { p_on: true })),
     ]);
+    if (!jr.error) joined++;
     const priv = await must(service.from("people_private").select("women_only_rooms").eq("person_id", ppl.Rae!.id).single(), "Rae's setting");
     const inIt = (await activeMembers(sq.s3)).includes("Rae");
     if (inIt && priv.women_only_rooms) {
@@ -444,6 +453,7 @@ test("RV13-F women-only rooms only: a race between the switch and a join leaves 
   await ppl.Rae!.c.rpc("set_women_only_rooms", { p_on: false });
   console.log(`# RV13: ${raced ? `reproduced on attempt ${tries}` : `not reproduced in ${tries} attempts`}`);
   assert.equal(raced, 0, `"women-only rooms only" and still in a mixed squad, after ${tries} attempt(s)`);
+  assert.ok(joined >= 1, `in ${tries} attempts the join never went through — the race was not exercised, so this proves nothing`);
 });
 
 // ===========================================================================
@@ -496,17 +506,29 @@ test("RV16-H /squad-name-check on the deployed Worker: a non-member is refused b
 // Reports (H9)
 // ===========================================================================
 
-test("RV17-D H9 at its letter: one 'uncomfortable' report from anyone a squad is listed to hides it from the whole gathering", async () => {
+test("RV17 D3 as decided (Alex, 29 Oct): one report hides a squad for its reporter only; two from different people delist it; members cannot report their own", async () => {
   sq.e2 = sq.bad!;
   await must(service.rpc("admin_approve_squad_name", { p_crew: sq.e2, p_actor: `${PREFIX}@example.com` }), "approve");
+  await pin("Rae", "E"); // a second person it is listed to
   assert.ok((await listedTo("Xav", "E")).some((r) => r.crew_id === sq.e2), "precondition: listed to Xav");
+  assert.ok((await listedTo("Rae", "E")).some((r) => r.crew_id === sq.e2), "precondition: listed to Rae");
+  // One safety report: gone for the reporter, still listed for everyone else.
   const r = await ppl.Xav!.c.from("reports").insert({ reporter_id: ppl.Xav!.id, target_kind: "crew", target_crew_id: sq.e2, reason: "uncomfortable" });
   assert.equal(r.error, null, r.error?.message);
-  const hidden = (await must(service.from("crews").select("hidden_at").eq("id", sq.e2).single(), "hidden")).hidden_at;
-  console.log(`# RV17: one stranger's one report → squad hidden_at ${hidden}`);
-  assert.ok(hidden, "documents: one safety report hides a squad for everyone");
-  // A member can do the same to their own squad (reports_insert_on_visible_squad's in_group branch).
+  assert.equal((await must(service.from("crews").select("hidden_at").eq("id", sq.e2).single(), "hidden")).hidden_at, null, "one safety report delisted a squad for everyone");
+  assert.ok(!(await listedTo("Xav", "E")).some((x) => x.crew_id === sq.e2), "the reporter still sees the squad they reported");
+  assert.ok((await listedTo("Rae", "E")).some((x) => x.crew_id === sq.e2), "one report took the squad off someone else's list");
+  // A member cannot report their own squad (from inside, you report a person).
   const own = await ppl.Ann!.c.from("reports").insert({ reporter_id: ppl.Ann!.id, target_kind: "crew", target_crew_id: sq.s1, reason: "uncomfortable" });
-  assert.equal(own.error, null, `documents: a member can report their own squad: ${own.error?.message}`);
-  assert.ok(!(await listedTo("Rae", "T")).some((x) => x.crew_id === sq.s1), "documents: and that takes it off everyone's list");
+  assert.ok(own.error, "a member reported their own squad");
+  assert.ok((await listedTo("Rae", "T")).some((x) => x.crew_id === sq.s1), "a member's own report took their squad off the list");
+  // A second report, from a different person, of any kind: delisted for everyone.
+  const r2 = await ppl.Rae!.c.from("reports").insert({ reporter_id: ppl.Rae!.id, target_kind: "crew", target_crew_id: sq.e2, reason: "spam" });
+  assert.equal(r2.error, null, r2.error?.message);
+  assert.ok((await must(service.from("crews").select("hidden_at").eq("id", sq.e2).single(), "hidden")).hidden_at, "two reports from different people did not delist the squad");
+  // And the admin can list it again (the way back from two wrong reports), and delist it alone.
+  await must(service.rpc("admin_set_squad_listed", { p_crew: sq.e2, p_listed: true, p_actor: `${PREFIX}@example.com`, p_note: "review" }), "relist");
+  assert.equal((await must(service.from("crews").select("hidden_at").eq("id", sq.e2).single(), "hidden")).hidden_at, null, "the admin could not list it again");
+  await must(service.rpc("admin_set_squad_listed", { p_crew: sq.e2, p_listed: false, p_actor: `${PREFIX}@example.com`, p_note: "review" }), "delist");
+  assert.ok((await must(service.from("crews").select("hidden_at").eq("id", sq.e2).single(), "hidden")).hidden_at, "the admin could not delist it");
 });

@@ -5,6 +5,7 @@
 // back is what the database decided this person may know — "matched" is computed there,
 // only from a tick of theirs, so nothing here can reveal a tick that was not returned.
 
+import { womenOnlyEligible } from "@pind/shared";
 import { readProfile } from "./profile";
 import { supabase } from "./supabase";
 
@@ -133,8 +134,7 @@ export async function womenOnlyRooms(personId: string): Promise<{ eligible: bool
     .eq("person_id", personId)
     .maybeSingle();
   if (error) throw error;
-  const eligible = data?.gender === "woman" || (data?.gender === "nonbinary" && !!data?.include_in_women_only);
-  return { eligible, on: !!data?.women_only_rooms };
+  return { eligible: womenOnlyEligible(data), on: !!data?.women_only_rooms };
 }
 
 export async function switchWomenOnlyRooms(on: boolean): Promise<void> {
@@ -150,5 +150,11 @@ export async function waitingForWomenOnlyRoom(gatheringId: string): Promise<bool
 
 export async function joinGeneralRoom(gatheringId: string): Promise<void> {
   const { error } = await supabase().rpc("join_general_room", { p_gathering: gatheringId });
+  if (error) throw error;
+}
+
+// The women-only room's Leave (M4.2): out of it for this gathering, still in the general room.
+export async function leaveWomenOnlyRoom(gatheringId: string): Promise<void> {
+  const { error } = await supabase().rpc("leave_women_only_room", { p_gathering: gatheringId });
   if (error) throw error;
 }

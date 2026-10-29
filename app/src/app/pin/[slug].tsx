@@ -30,6 +30,7 @@ import {
   writeQuickPin,
   type QuickPinDb,
   type QuickPinInput,
+  QuickPinRefused,
 } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
@@ -195,7 +196,9 @@ export default function QuickPin() {
       setResult({ already: written.already, needsOptIn: written.needsOptIn, ...(await counts(gathering.id)) });
       setStage("done");
     } catch (err) {
-      setTrouble(failed("pin you in", err));
+      // A refusal with a reason (a full squad and a +1, F5): on its field, where the tap was.
+      if (err instanceof QuickPinRefused) setFieldError({ field: err.field, says: err.says });
+      else setTrouble(failed("pin you in", err));
     } finally {
       setBusy(false);
     }

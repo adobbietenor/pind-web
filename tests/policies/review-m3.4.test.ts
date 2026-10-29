@@ -410,7 +410,17 @@ describe("R5 a received-proposal push after the proposal closed", () => {
 
 describe("R6 a block racing an accept", () => {
   it("R6 LEAK (race): the sender blocks while the recipient accepts — the plan can be made across the block and stand", { timeout: 600_000 + SIGN_IN_WAIT_MS }, async () => {
-    const trials = 16;
+    // M4.2 (29 Oct): fixed by both sides taking the two people's locks. Proved the way a
+    // refusal must be: every trial runs, the trials where BOTH calls succeeded are counted
+    // (the accept won the lock, the block came after it — the overlap that used to leak),
+    // and the case fails unless at least one such overlap happened AND no plan stood. A run
+    // with no overlap proves nothing, so it fails rather than passing quietly.
+    // "Both succeeded" includes a block that simply landed after the accept finished, so
+    // the count shows the trials ran, not that each was a true race. The weight is in the
+    // number: before the fix this reproduced within 10 trials on every run; 32 clean trials
+    // is the evidence the lock holds.
+    const trials = 32;
+    let overlaps = 0;
     let found: { crew: string; offset: number; trial: number } | null = null;
     for (let t = 0; t < trials && !found; t++) {
       const { id: G, start } = await gathering(`R6 race ${t}`);
@@ -423,6 +433,7 @@ describe("R6 a block racing an accept", () => {
       const block = offset > 0 ? sleep(offset).then(() => P("Gus").c.from("blocks").insert({ blocker_id: P("Gus").id, blocked_id: P("Hal").id })) : P("Gus").c.from("blocks").insert({ blocker_id: P("Gus").id, blocked_id: P("Hal").id });
       const [a, b] = await Promise.all([accept, block]);
       if (!a.error && !b.error) {
+        overlaps++;
         const crew = a.data as string;
         const c = await ok(service.from("crews").select("state").eq("id", crew).single());
         const active = await rows(service.from("crew_members").select("person_id").eq("crew_id", crew).is("left_at", null));
@@ -431,7 +442,8 @@ describe("R6 a block racing an accept", () => {
       if (!found) await service.from("blocks").delete().eq("blocker_id", P("Gus").id);
     }
     if (!found) {
-      console.error(`R6: no interleaving reproduced in ${trials} trials — the race is argued from the SQL in the findings, not shown`);
+      assert.ok(overlaps >= 1, `R6: in ${trials} trials the accept and the block never both succeeded — the race was not exercised, so this proves nothing`);
+      console.error(`R6: ${overlaps} of ${trials} trials had both the accept and the block succeed, and no plan stood in any`);
       return;
     }
     try {

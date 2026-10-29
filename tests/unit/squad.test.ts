@@ -9,7 +9,8 @@ import { soloTimes } from "../../packages/shared/src/solo.ts";
 import { parseNameVerdict, SQUAD_NAME_SCHEMA, squadNameRequest } from "../../src/squad/ai.ts";
 
 const SQL = readdirSync("supabase/migrations")
-  .filter((f) => f.includes("m3_7_"))
+  // M3.7's own, and M4.2's squad fixes (the caps and the refused name, 29 Oct 2026).
+  .filter((f) => f.includes("m3_7_") || f.includes("m4_2_squad"))
   .map((f) => readFileSync(`supabase/migrations/${f}`, "utf8"))
   .join("\n");
 
@@ -116,5 +117,27 @@ describe("The name check is counted where the admin looks (M3.7)", () => {
     assert.match(page, /rpc\("admin_squad_name_states"\)/, "the page does not count names waiting on the check");
     assert.match(page, /ANTHROPIC_API_KEY is not set/, "a missing key would leave every name unlisted with nothing saying why");
     assert.match(page, /rpc\("admin_approve_squad_name"/);
+  });
+});
+
+describe("M4.2: the name check can't be re-rolled or run dry, and a +1 never overfills a squad (29 Oct 2026)", () => {
+  it("SQ10 each new refusal has its own sentence, by hint — not the generic one", () => {
+    const generic = squadRefusal("something else");
+    for (const hint of ["squad_name_refused_before", "squad_rename_limit", "squad_start_limit"]) {
+      assert.notEqual(squadRefusal({ hint, message: "x" }), generic, `${hint} falls through to the generic sentence`);
+    }
+  });
+
+  it("SQ11 both A26s say a full squad's +1 refusal on the party field, from the shared copy", async () => {
+    const { QUICKPIN_COPY, QUICKPIN_FIELDS, QuickPinRefused } = await import("../../packages/shared/src/quickpin.ts");
+    const e = new QuickPinRefused(QUICKPIN_FIELDS.party, QUICKPIN_COPY.squadFullPlusOne);
+    assert.ok(e instanceof Error && e.field === QUICKPIN_FIELDS.party && e.says === QUICKPIN_COPY.squadFullPlusOne);
+    const worker = readFileSync("src/public/quickpin.ts", "utf8");
+    const app = readFileSync("app/src/app/pin/[slug].tsx", "utf8");
+    assert.match(worker, /err instanceof QuickPinRefused\) return formPage\(env, door, \{ values, error: \{ field: err\.field, says: err\.says \} \}/, "the Worker's A26 does not show it on its field");
+    assert.match(app, /err instanceof QuickPinRefused\) setFieldError\(\{ field: err\.field, says: err\.says \}\)/, "the app's A26 does not show it on its field");
+    const shared = readFileSync("packages/shared/src/quickpin.ts", "utf8");
+    assert.match(shared, /hint === "squad_full_plus_one"/, "writeQuickPin no longer recognises the database's refusal");
+    assert.match(SQL, /hint = 'squad_full_plus_one'/, "the database no longer gives the hint writeQuickPin reads — the two sides parted");
   });
 });

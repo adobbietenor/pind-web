@@ -68,6 +68,12 @@ export const WOMEN_ONLY_COPY = {
   joinGeneral: "Join the general room instead",
   joinGeneralWhat: "Just for this one. Your setting stays as it is.",
   room: "Women-only room",
+  // M4.2 (Alex, 29 Oct): an ordinary Leave, so leaving the women-only room never points at
+  // one reason. Silent, as every departure is. PROPOSED copy (Tatiana's to reword).
+  leave: "Leave the women-only room",
+  leaveWhat: "You'll stay in the room for everyone going. Nobody is told.",
+  leaveConfirm: "Leave it",
+  stay: "Stay",
 } as const;
 
 // "Get the app" — once, when someone first joins a group: the first moment push is worth

@@ -1585,6 +1585,7 @@ export type Database = {
           person_id: string
           room_id: string | null
           sent_at: string | null
+          solo_proposal_id: string | null
           title: string
         }
         Insert: {
@@ -1601,6 +1602,7 @@ export type Database = {
           person_id: string
           room_id?: string | null
           sent_at?: string | null
+          solo_proposal_id?: string | null
           title: string
         }
         Update: {
@@ -1617,6 +1619,7 @@ export type Database = {
           person_id?: string
           room_id?: string | null
           sent_at?: string | null
+          solo_proposal_id?: string | null
           title?: string
         }
         Relationships: [
@@ -1646,6 +1649,13 @@ export type Database = {
             columns: ["room_id"]
             isOneToOne: false
             referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_solo_proposal_id_fkey"
+            columns: ["solo_proposal_id"]
+            isOneToOne: false
+            referencedRelation: "solo_proposals"
             referencedColumns: ["id"]
           },
         ]
@@ -2568,6 +2578,7 @@ export type Database = {
           created_at: string
           crew_id: string | null
           decided_at: string | null
+          declined_by_recipient: boolean
           from_person: string
           gathering_id: string
           id: string
@@ -2581,6 +2592,7 @@ export type Database = {
           created_at?: string
           crew_id?: string | null
           decided_at?: string | null
+          declined_by_recipient?: boolean
           from_person: string
           gathering_id: string
           id?: string
@@ -2594,6 +2606,7 @@ export type Database = {
           created_at?: string
           crew_id?: string | null
           decided_at?: string | null
+          declined_by_recipient?: boolean
           from_person?: string
           gathering_id?: string
           id?: string
@@ -3061,6 +3074,10 @@ export type Database = {
         Returns: undefined
       }
       admin_categorise_gatherings: { Args: never; Returns: number }
+      admin_claim_squad_name_check: {
+        Args: { p_crew: string; p_name: string }
+        Returns: boolean
+      }
       admin_clear_anonymous_tester: {
         Args: { p_user: string }
         Returns: undefined
@@ -3102,6 +3119,7 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_delete_expired_crew_messages: { Args: never; Returns: number }
       admin_delete_expired_room_messages: { Args: never; Returns: number }
       admin_delete_pin: {
         Args: { p_actor: string; p_note?: string; p_pin: string }
@@ -3379,6 +3397,15 @@ export type Database = {
         Args: { p_actor: string; p_pulled: boolean }
         Returns: number
       }
+      admin_set_squad_listed: {
+        Args: {
+          p_actor: string
+          p_crew: string
+          p_listed: boolean
+          p_note?: string
+        }
+        Returns: undefined
+      }
       admin_set_tester: {
         Args: {
           p_actor: string
@@ -3543,6 +3570,10 @@ export type Database = {
       join_general_room: { Args: { p_gathering: string }; Returns: undefined }
       join_squad: { Args: { p_crew: string }; Returns: string }
       leave_group: { Args: { p_crew: string }; Returns: undefined }
+      leave_women_only_room: {
+        Args: { p_gathering: string }
+        Returns: undefined
+      }
       my_chats: { Args: never; Returns: Json }
       my_connections: {
         Args: never

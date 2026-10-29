@@ -87,5 +87,9 @@ export function squadRefusal(refusal: unknown): string {
   if (has("squad_time", "time on offer")) return "Pick one of the times on the list.";
   if (has("squad_spot", "spot")) return "Pick one of the spots on the list.";
   if (has("squad_rename", "can no longer be changed")) return "The name can't be changed now.";
+  // M4.2 (29 Oct 2026): the name check can't be re-rolled, or run dry. PROPOSED copy.
+  if (has("squad_name_refused_before", "not accepted before")) return "That name wasn't accepted before. Try a different one.";
+  if (has("squad_rename_limit", "three renames today")) return "That's three renames today. Try again tomorrow.";
+  if (has("squad_start_limit", "three squads started here")) return "You've started three squads here. Join one instead.";
   return "That didn't work. Try again in a moment.";
 }

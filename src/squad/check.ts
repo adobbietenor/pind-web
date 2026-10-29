@@ -86,6 +86,11 @@ export async function checkSquadName(
     await record("failed", { error: `the daily AI cap of $${capUsd} is reached` });
     return { status: null, cost: 0, checked: true, error: `the daily AI cap of $${capUsd} is reached` };
   }
+  // One call per name (M4.2): the webhook and the app's own request arrive together, and
+  // only the one that claims it calls the model. Losing the claim is not a failure.
+  const { data: claimed, error: claimError } = await db.rpc("admin_claim_squad_name_check", { p_crew: crew.id, p_name: crew.name });
+  if (claimError) return { status: null, cost: 0, checked: false, error: claimError.message };
+  if (claimed !== true) return { status: null, cost: 0, checked: false };
   const result = await judgeName(apiKey, crew.name);
   const status = await record(result.verdict?.outcome ?? "failed", { ...result, reason: result.verdict?.reason });
   return { status, cost: result.cost, checked: true, error: result.error };

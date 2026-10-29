@@ -29,6 +29,7 @@ import {
   spacing,
 } from "@pind/shared";
 import { Body, Button, Choice } from "@/components/ui";
+import { womenOnlyRooms } from "@/lib/after";
 import { failed } from "@/lib/errors";
 import { answerSolo, loadSolo, proposeSolo, setSolo, soloClock, withdrawSolo, type SoloChoice, type SoloView } from "@/lib/solo";
 import { Tap } from "./Tap";
@@ -51,6 +52,19 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
   const [busy, setBusy] = useState<string | null>(null);
   // A refusal, keyed by where the tap was ("switch", "sheet", a person or a proposal id).
   const [said, setSaid] = useState<{ at: string; text: string } | null>(null);
+
+  // Whether "women only" is this person's to choose — false until read, so it is never
+  // offered on a guess.
+  const [eligible, setEligible] = useState(false);
+  useEffect(() => {
+    let on = true;
+    womenOnlyRooms(meId)
+      .then((w) => on && setEligible(w.eligible))
+      .catch(() => on && setEligible(false));
+    return () => {
+      on = false;
+    };
+  }, [meId]);
 
   const refresh = useCallback(() => {
     loadSolo(gatheringId, meId)
@@ -190,11 +204,14 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
           <View style={styles.sheet}>
             <Text style={styles.sheetTitle}>{SOLO_COPY.sheetTitle}</Text>
             <Body>{SOLO_COPY.sheetLine}</Body>
+            {/* "Women only" only for whom it is (R1, M4.2): offered to anyone else, the
+                difference in who they were shown read off everyone's gender. Still a forced
+                choice — nothing pre-selected — even when it is the one option. */}
             <Choice<SoloChoice>
               label=""
               options={[
                 { value: "everyone", name: SOLO_COPY.everyone },
-                { value: "women_only", name: SOLO_COPY.womenOnly },
+                ...(eligible ? [{ value: "women_only" as const, name: SOLO_COPY.womenOnly }] : []),
               ]}
               value={choice}
               onChange={setChoice}

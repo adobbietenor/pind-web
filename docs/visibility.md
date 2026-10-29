@@ -1087,3 +1087,46 @@ closed"; harness P194–P203; the review's Q07, Q17, Q37, Q39–Q43 pass).
   open-to-meeting off is never refused.
 - **H8 (not a V rule) — a birth year certainly under 19 is refused**, and the
   attestation time is the server's.
+
+## Since 29 Oct 2026 — the 1-on-1 and squads reviews' leaks, closed (M4.2)
+
+Approved by Alex as a batch on 29 Oct (decisions, "M4.2: the review fixes"); the reviewers'
+own cases (`review-m3.4`, `review-m3.7`) and P255–P263 (`m4-2-fixes`) hold them.
+
+- **Women only is for whom it says, in 1-on-1 too (V14, V5).** Only a woman, or a nonbinary
+  person who chose to be included, can choose "women only" for 1-on-1; the app offers it to
+  no one else and the database refuses it. A man who chose it used to be shown exactly the
+  eligible people — everyone's gender, read off the difference.
+- **Losing eligibility takes you out of women-only spaces (V5).** A gender change, or turning
+  "include me" off, takes you out of every women-only room and women-only squad at once: no
+  reading, no posting, not listed. Your earlier messages stay — you were eligible when you
+  wrote them. Where you had chosen "women only" for 1-on-1, 1-on-1 turns **off** — never
+  widened to "everyone".
+- **A departure is never announced, and never points at a reason.** No line, no
+  notification, no reason stored; those who stay simply stop seeing you, exactly as when
+  anyone leaves. The women-only room now has an ordinary **Leave** (you stay in the general
+  room), so "gone from the women-only room, still in the general one" no longer means only
+  one thing. Leaving is remembered where no one reads it, so you are not put back — until you
+  choose "women-only rooms only" again.
+- **A hidden person is gone from every group, and so are their words (V10, V20, V21).** In a
+  squad's or a 1-on-1's chat, a hidden person's messages are unreadable to everyone but their
+  author from the moment of the hide (and return if they are unhidden), as in the room; they
+  cannot post; and they leave every group in any state, a finished one included. My Events'
+  previews and unread counts follow, because they read through the same rules.
+- **A block always wins (V4).** A block landing at the same moment as an accept, or a join,
+  can no longer leave the two in one plan or one squad: whichever comes second sees the
+  first. The same holds for a hide, the "women-only rooms only" switch, or an eligibility
+  change racing a join.
+- **A decline is never readable, before the start or after (V14).** At the start a declined
+  request becomes "expired", exactly as an unanswered one does; nothing the sender does
+  afterwards tells them apart. The recipient's own export still says they declined.
+- **A request's notification stops when the request does (V22).** It goes out only while the
+  request is open, its sender is not hidden and there is no block either way — checked at
+  every delivery attempt. A safety removal no longer delivers the removed person's name.
+- **A squad is never delisted by one report (H9, as it applies to squads).** A report on a
+  squad itself hides it from the reporter at once and goes to the admin; it is delisted for
+  everyone at two reports from different people, or by the admin. Members cannot report
+  their own squad — from inside, you report a person, and one safety report still hides a
+  person everywhere.
+- **Eight seats, +1s counted, always (V21).** Raising your +1s in a full squad is refused,
+  in words, on the party question.

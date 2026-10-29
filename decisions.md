@@ -4580,3 +4580,45 @@ this product exists for."
 #16 (squads as request-to-join, sections) stays `ready` and untouched until Alex has talked
 to Tatiana: not built, not redesigned. The terms page's crew sentence is Alex's to rewrite
 (legal text); the #14 entry above holds a proposal.
+
+### M4.2: the review fixes — 1-on-1 and squads (Alex, 29 Oct 2026)
+
+The two independent reviews (`docs/m3.4-review-findings.md`, `docs/m3.7-review-findings.md`)
+found 14 faults; every one was re-run and reproduced before anything was changed, and a
+probe found two more (F3 in the women-only room; a block racing a squad join). Alex approved
+the rules as one batch. Migrations `20261029140204` – `20261029141837`; plain English in
+`docs/visibility.md`, "Since 29 Oct 2026"; cases in `review-m3.4`, `review-m3.7` and
+`m4-2-fixes` (P255–P263), all now in `test:policies`.
+
+- **R1** — "women only" in 1-on-1 only for the eligible; losing eligibility turns 1-on-1 off
+  there. "Silently making someone visible to more people than they chose must never happen by
+  default."
+- **R6, F4, the D1 race** — one person, one thing at a time: join, start, accept, block, hide,
+  the women-only switch and an eligibility change take that person's lock before reading.
+  Race cases count that the race was actually exercised, and fail if it was not.
+- **F1, F2** — a hidden person's words go from squad and 1-on-1 chats as from the room, and a
+  hide takes them out of every group in any state.
+- **F3** — losing eligibility leaves every women-only room and squad; earlier messages stay
+  ("they were eligible when they wrote them, and deleting them would punish someone
+  retroactively").
+- **Rule 5, silence** — no departure is announced anywhere, and none stores a reason. The
+  women-only room had no Leave, so leaving it while staying in the general room could only
+  mean an eligibility change; **Alex chose to add an ordinary Leave** (option a). Leaving is
+  remembered so placement does not undo it; choosing "women-only rooms only" again clears it.
+- **R2** — at the start a declined request expires as an unanswered one does; the recipient's
+  answer is kept for their export and the metrics only.
+- **R5** — a request's push is checked at delivery: request open, sender not hidden, no block.
+  "A hide that doesn't stop his last message" was the part that mattered.
+- **F5, F6** — a +1 takes a seat; a full squad refuses it in words, on both A26s.
+- **F7, F8** — a refused name cannot be resubmitted (case and spacing ignored); 3 renames per
+  squad a day; **one squad at a time (still the per-kind index), and 3 starts per person per
+  gathering** — the start, leave, start loop; one AI call per name (a 10-minute claim).
+- **D1, D2** — accepted as designed; D1 only because blocks and hides were proved to win
+  (D1-a/b/c held; the race was fixed).
+- **D3, option (b)** — a squad is never delisted by one report: hidden from the reporter, to
+  the admin queue, delisted at two reports from different people or by the admin
+  (`admin_set_squad_listed`, which can also list it again). Members cannot report their own
+  squad. H9 for people is unchanged.
+- **Found, not fixed (outside the batch):** a block takes the blocker out of a shared squad
+  only while it is forming, set or live — so after the night, blocker and blocked can share a
+  finished squad's chat for its last 24 hours. For Alex.

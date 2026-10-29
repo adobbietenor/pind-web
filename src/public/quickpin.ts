@@ -34,6 +34,7 @@ import {
   supabaseStorageKey,
   type QuickPinDb,
   type QuickPinInput,
+  QuickPinRefused,
   writeQuickPin,
 } from "@pind/shared";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
@@ -275,6 +276,8 @@ export async function quickPinSubmit(request: Request, env: Env, slug: string): 
     needsOptIn = written.needsOptIn;
   } catch (err) {
     if (err instanceof ConfigError) throw err;
+    // A refusal with a reason (a full squad and a +1, F5): said on its field, not "try again".
+    if (err instanceof QuickPinRefused) return formPage(env, door, { values, error: { field: err.field, says: err.says } }, 422);
     console.error("quick pin failed:", err);
     return formPage(env, door, { values, banner: QUICKPIN_COPY.tryAgain }, 503);
   }
