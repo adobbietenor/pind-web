@@ -1,7 +1,7 @@
 import { Image } from "expo-image";
 import { router } from "expo-router";
 import { StyleSheet } from "react-native";
-import { MARK, WORDMARK } from "@pind/shared";
+import { liveCity, MARK, WORDMARK } from "@pind/shared";
 import { Tap } from "./Tap";
 
 // **The mark at one end of the row and the wordmark at the other** — the same header
@@ -20,7 +20,8 @@ import { Tap } from "./Tap";
 //
 // **The header is the way home, on every screen that has one** (#1, Alex, 14 Oct 2026:
 // one rule, not a fix per screen). After a pin, after the night, anywhere: the logo opens
-// the app's home, Crowds. The Worker's header has always been this (`header()`: one
+// the list you were in — Toronto's (`homeList`, 29 Oct: the city picker was a dead end
+// that made you tap Toronto again). The Worker's header has always been this (`header()`: one
 // anchor spanning it, to W1), so the two halves now behave alike. One control for the
 // whole row, with one name, as on the public pages — not two links to the same place.
 // Two ways there, because there are two shapes underneath (both walked in check:home):
@@ -33,7 +34,12 @@ export function Brand() {
       style={styles.row}
       accessibilityRole="link"
       accessibilityLabel="Pin'd — home"
-      onPress={() => (router.canDismiss() ? router.dismissTo("/crowds") : router.navigate("/crowds"))}
+      onPress={() => {
+        // homeList()'s route, in the typed form the router takes.
+        const home = { pathname: "/city/[slug]", params: { slug: liveCity().slug } } as const;
+        if (router.canDismiss()) router.dismissTo(home);
+        else router.navigate(home);
+      }}
     >
       <Image
         source={require("../../assets/mark.png")}

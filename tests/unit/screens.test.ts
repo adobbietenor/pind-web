@@ -437,14 +437,21 @@ describe("'You're going' on the list (#3; A6/A7)", () => {
 });
 
 describe("The header is the way home, on every screen that has one (#1)", () => {
-  it("S37 the header is one link to Crowds, and both shells draw it — so every screen's logo goes home", () => {
+  it("S37 the header is one link to the live city's list, and both shells draw it — so every screen's logo goes home", () => {
     const brand = readFileSync("app/src/components/Brand.tsx", "utf8");
     assert.match(brand, /accessibilityRole="link"/, "the header is not a link");
+    // homeList() is `/city/${liveCity().slug}` (K05); the header writes it in the router's typed form.
     assert.match(
       brand,
-      /onPress=\{\(\) => \(router\.canDismiss\(\) \? router\.dismissTo\("\/crowds"\) : router\.navigate\("\/crowds"\)\)\}/,
-      "the header does not go to the app's home both ways — dismissTo alone does nothing from a tab",
+      /const home = \{ pathname: "\/city\/\[slug\]", params: \{ slug: liveCity\(\)\.slug \} \} as const;/,
+      "the header does not go to the live city's list (29 Oct: the city picker was a dead end)",
     );
+    assert.match(
+      brand,
+      /if \(router\.canDismiss\(\)\) router\.dismissTo\(home\);\s*else router\.navigate\(home\);/,
+      "the header does not go home both ways — dismissTo alone does nothing from a tab",
+    );
+    assert.doesNotMatch(brand, /"\/crowds"/, "the header still goes to the city picker");
     assert.doesNotMatch(brand, /accessibilityRole="header"/, "the header is back to being a label");
     for (const shell of ["AppScreen", "Screen"]) {
       const src = readFileSync(`app/src/components/${shell}.tsx`, "utf8");

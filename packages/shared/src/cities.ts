@@ -35,6 +35,15 @@ export function liveCity(): CityChoice {
   return live[0]!;
 }
 
+// Where the app's header goes: the live city's list, not the city picker (#1, Tatiana
+// and Alex, 29 Oct 2026). The picker sent her back to tap Toronto again — the one live
+// city beside three greyed out — every time. With a second live city this throws with
+// `liveCity`, and the header needs the same decision W1 does (most likely: the city
+// you were last in).
+export function homeList(): string {
+  return `/city/${liveCity().slug}`;
+}
+
 // A city can be opened only if it is live. A slug that is not in the list is never live.
 export function cityOpens(slug: string): boolean {
   return CITIES.some((c) => c.slug === slug && c.live);

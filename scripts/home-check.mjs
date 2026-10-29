@@ -12,7 +12,7 @@ import { spawn } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CITIES, HOME_COPY } from "../packages/shared/src/cities.ts";
+import { CITIES, HOME_COPY, homeList } from "../packages/shared/src/cities.ts";
 import { fixture, needChrome } from "./fixture.mjs";
 
 const SITE = process.env.PIND_SITE || "https://pind.social";
@@ -138,15 +138,18 @@ try {
 
   // #1: the header is the way home, on every Expo screen — here from A8, reached through
   // the list, and again from A8 opened cold from a link with nothing underneath it.
+  // Home is Toronto's list, not the city picker (29 Oct: the picker was a dead end).
   const goHome = () => evaluate(`(() => { const e=[...document.querySelectorAll('[role=link]')].find((x) => x.getAttribute('aria-label') === ${JSON.stringify("Pin'd — home")}); if(!e) return false; e.click(); return true; })()`);
+  const HOME = homeList();
+  const atHome = async () => (await path()) === HOME && (await until("This week's crowds")) && !(await body()).includes(HOME_COPY.comingSoon);
   await sleep(1500);
   step("A8 has the header link home (#1)", await goHome());
-  for (let t = 0; t < 30 && (await path()) !== "/crowds"; t++) await sleep(500);
-  step("…and it opens Crowds (#1)", (await path()) === "/crowds" && (await until(HOME_COPY.heading)));
+  for (let t = 0; t < 30 && (await path()) !== HOME; t++) await sleep(500);
+  step("…and it opens Toronto's list, not the city picker (#1)", await atHome());
   await send("Page.navigate", { url: `${SITE}${crowdPath}` });
   for (let t = 0; t < 30 && !(await goHome()); t++) await sleep(500);
-  for (let t = 0; t < 30 && (await path()) !== "/crowds"; t++) await sleep(500);
-  step("from A8 opened cold, the header still goes home (#1)", (await path()) === "/crowds" && (await until(HOME_COPY.heading)));
+  for (let t = 0; t < 30 && (await path()) !== HOME; t++) await sleep(500);
+  step("from A8 opened cold, the header still goes to Toronto's list (#1)", await atHome());
 
   // …and the bar works from the list: My Events is one tap away, not Back then a tab.
   await send("Page.navigate", { url: `${SITE}/city/toronto` });
@@ -157,8 +160,12 @@ try {
   // #1 from a tab: the tabs are already the current route, so stepping back to them does
   // nothing — the first version did exactly that, and every tab's logo was dead.
   await goHome();
+  for (let t = 0; t < 30 && (await path()) !== HOME; t++) await sleep(500);
+  step("from a tab (My Events), the header goes to Toronto's list (#1)", await atHome());
+  // The picker is still a tap away: the Crowds tab.
+  await click("Crowds");
   for (let t = 0; t < 30 && (await path()) !== "/crowds"; t++) await sleep(500);
-  step("from a tab (My Events), the header goes home (#1)", (await path()) === "/crowds" && (await until(HOME_COPY.heading)));
+  step("the Crowds tab still opens the city picker", (await path()) === "/crowds" && (await until(HOME_COPY.heading)));
 
   // Profile setup goes to sign-in, the same place Profile's own button goes.
   await send("Page.navigate", { url: `${SITE}/crowds` });

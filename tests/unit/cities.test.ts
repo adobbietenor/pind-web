@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { CITIES, cityOpens, liveCity } from "../../packages/shared/src/cities.ts";
+import { CITIES, cityOpens, homeList, liveCity } from "../../packages/shared/src/cities.ts";
 
 function files(dir: string, out: string[] = []): string[] {
   for (const name of readdirSync(dir)) {
@@ -50,5 +50,10 @@ describe("The cities, one list (M3.3c)", () => {
     const door = readFileSync("src/public/data.ts", "utf8");
     assert.match(door, /p_city: city/, "W1's door no longer passes the city");
     assert.match(door, /city: string = liveCity\(\)\.slug/, "W1's door no longer defaults to the live city");
+  });
+
+  it("K05 the header's home is the live city's list, and that route exists (#1)", () => {
+    assert.equal(homeList(), `/city/${liveCity().slug}`);
+    assert.ok(statSync(join(process.cwd(), "app", "src", "app", "(tabs)", "city", "[slug].tsx")).isFile(), "the city list route moved; the header would go nowhere");
   });
 });
