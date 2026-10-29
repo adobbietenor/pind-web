@@ -2582,9 +2582,9 @@ export type Database = {
           from_person: string
           gathering_id: string
           id: string
-          line: number
-          meet_at: string
-          spot_id: string
+          line: number | null
+          meet_at: string | null
+          spot_id: string | null
           status: Database["public"]["Enums"]["solo_proposal_status"]
           to_person: string
         }
@@ -2596,9 +2596,9 @@ export type Database = {
           from_person: string
           gathering_id: string
           id?: string
-          line: number
-          meet_at: string
-          spot_id: string
+          line?: number | null
+          meet_at?: string | null
+          spot_id?: string | null
           status?: Database["public"]["Enums"]["solo_proposal_status"]
           to_person: string
         }
@@ -2610,9 +2610,9 @@ export type Database = {
           from_person?: string
           gathering_id?: string
           id?: string
-          line?: number
-          meet_at?: string
-          spot_id?: string
+          line?: number | null
+          meet_at?: string | null
+          spot_id?: string | null
           status?: Database["public"]["Enums"]["solo_proposal_status"]
           to_person?: string
         }
@@ -2648,6 +2648,52 @@ export type Database = {
           {
             foreignKeyName: "solo_proposals_to_person_fkey"
             columns: ["to_person"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      solo_spot_suggestions: {
+        Row: {
+          created_at: string
+          crew_id: string
+          meet_at: string
+          spot_id: string
+          suggested_by: string
+        }
+        Insert: {
+          created_at?: string
+          crew_id: string
+          meet_at: string
+          spot_id: string
+          suggested_by: string
+        }
+        Update: {
+          created_at?: string
+          crew_id?: string
+          meet_at?: string
+          spot_id?: string
+          suggested_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "solo_spot_suggestions_crew_id_fkey"
+            columns: ["crew_id"]
+            isOneToOne: true
+            referencedRelation: "crews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solo_spot_suggestions_spot_id_fkey"
+            columns: ["spot_id"]
+            isOneToOne: false
+            referencedRelation: "meeting_spots"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "solo_spot_suggestions_suggested_by_fkey"
+            columns: ["suggested_by"]
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
@@ -3525,6 +3571,7 @@ export type Database = {
         Args: { p_classification: string }
         Returns: Database["public"]["Enums"]["gathering_category"]
       }
+      confirm_solo_spot: { Args: { p_crew: string }; Returns: undefined }
       convening_of: {
         Args: { p_gathering: string }
         Returns: Database["public"]["Enums"]["convening"]
@@ -3751,6 +3798,10 @@ export type Database = {
           p_women_only: boolean
         }
         Returns: string
+      }
+      suggest_solo_spot: {
+        Args: { p_crew: string; p_meet_at: string; p_spot: string }
+        Returns: undefined
       }
       venue_map_key: { Args: { p_lat: number; p_lng: number }; Returns: string }
       waiting_for_women_only_room: {
