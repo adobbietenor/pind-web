@@ -87,6 +87,10 @@ TestFlight, and the home list was already built on phase3/m3.3c-home.
     by the lifecycle job, then A17 → A16's ticks, match and keep in touch, the question,
     and A20's invite reaching the connection. Run it after anything that touches A16,
     A17, A20 or V23.
+  - `npm run check:pair` (#17, 29 Oct) walks "Let's meet up!" in real Chrome: one tap
+    sends an invite with no spot, a yes makes a pair, the pair picks a spot from the
+    chips, and only the other's confirmation makes it a plan (#3 tells the suggester).
+    Run it after anything that touches A28, A29, solo proposals or pairs.
   - `npm run check:orphan-photos` lists every photo file whose user no longer exists.
     Add `-- --delete` to remove them. Run it after anything that deletes users.
   - **Every browser check verifies its fixtures before it walks** (M3.3, `scripts/fixture.mjs`):
