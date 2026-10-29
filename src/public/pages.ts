@@ -31,7 +31,7 @@ import {
   type TabValue,
   type ListWindow,
 } from "./list";
-import { venueMap, walkMinutes } from "./map";
+import { venueDirections, venueMap, walkMinutes } from "./map";
 import { ensureVenueMap } from "./mapserve";
 import { chooseZoom, isReady, mapKey, mapUrl, place, uploadUrl, type Placed } from "./venuemap";
 
@@ -710,18 +710,6 @@ function walkMetres(v: Crowd2["venue"], spot: Spot): number | null {
 export function directions(spot: Spot): string {
   const to = `${spot.latitude},${spot.longitude}`;
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(to)}&travelmode=walking`;
-}
-
-// **The venue itself, in the phone's own map** (Alex, after the M2.3 walk: the cheapest
-// thing on the interactivity list and the one he would use). A real map app pans, zooms,
-// searches and routes, and it costs this page a link rather than 200 KB of JavaScript.
-// The name goes in the query so the destination reads as a place rather than a pair of
-// numbers; the coordinates decide where it actually is.
-export function venueDirections(v: { name: string; latitude: number | null; longitude: number | null }): string | null {
-  if (v.latitude === null || v.longitude === null) return null;
-  // The coordinates, not the name: a name search can land on the wrong branch of a
-  // chain, and this venue's coordinates are the thing the whole map is drawn from.
-  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${v.latitude},${v.longitude}`)}`;
 }
 
 // One card per spot, numbered to match the map, with the walking directions link

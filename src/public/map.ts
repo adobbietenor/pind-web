@@ -179,3 +179,20 @@ export function venueMap(venue: MapVenue, spots: MapSpot[]): string | null {
     `</svg>`
   );
 }
+
+// **The venue itself, in the phone's own map** (Alex, after the M2.3 walk: the cheapest
+// thing on the interactivity list and the one he would use). A real map app pans, zooms,
+// searches and routes, and it costs this page a link rather than 200 KB of JavaScript.
+//
+// **Google's pin is the venue, by name and street address** (#8; Tatiana and Alex, 19
+// Oct). It used to search the coordinates, which put the pin in the right place and
+// labelled it with a pair of numbers — "where is this taking me?". A name alone can land
+// on the wrong branch of a chain; the street address beside it cannot. Without an address
+// it falls back to the coordinates (none of the 37 upcoming venues lacked one, 29 Oct).
+// Apple's link (the page script) already pairs the coordinates with the name.
+export function venueDirections(v: { name: string; address?: string | null; latitude: number | null; longitude: number | null }): string | null {
+  if (v.latitude === null || v.longitude === null) return null;
+  const address = v.address?.trim();
+  const query = address ? `${v.name}, ${address}` : `${v.latitude},${v.longitude}`;
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+}
