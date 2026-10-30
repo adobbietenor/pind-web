@@ -82,10 +82,18 @@ describe("The squad screens use the rules, not their own (M3.7)", () => {
   const lib = readFileSync("app/src/lib/squads.ts", "utf8");
   const crowd = readFileSync("app/src/app/crowd/[slug].tsx", "utf8");
 
-  it("SQ06 the start sheet offers the shared times, checks the name with the shared rule, and labels seats the shared way", () => {
-    assert.match(section, /const times = squadTimes\(view\.startsAt, view\.endsAt\)/, "the sheet makes its own times");
-    assert.match(section, /const problem = squadNameProblem\(name\)/, "the sheet checks the name its own way");
-    assert.match(section, /disabled=\{!!problem \|\| !time \|\| !spotReady\}/, "Start is not stopped on a bad name where it is tapped");
+  it("SQ06 the squad form checks the name with the shared rule, offers only the venue's spots or the event itself as a place, and a full squad says so", () => {
+    // UI pass 1 (064/065): one form to start and to edit. The place is never typed (H5):
+    // the venue's curated spots, or "At the event itself" (null to the database).
+    const form = readFileSync("app/src/components/SquadForm.tsx", "utf8");
+    assert.match(form, /const problem = squadNameProblem\(name\)/, "the form checks the name its own way");
+    assert.match(form, /disabled=\{!!problem\}/, "Start is not stopped on a bad name where it is tapped");
+    assert.match(form, /\[\.\.\.spots\.map\(\(s\) => \(\{ key: s\.id, name: s\.name \}\)\), \{ key: "event", name: SQUAD_FORM_COPY\.atTheEvent \}\]/, "the place is offered as something other than the curated spots and the event");
+    const inputs = [...form.matchAll(/<TextInput[^>]*value=\{(\w+)\}/g)].map((m) => m[1]).sort();
+    assert.deepEqual(inputs, ["details", "name", "time"], "a place can be typed");
+    for (const call of ["startSquad(gatheringId, w.name, w.details, w.place && w.place !== \"event\" ? w.place : null, w.time, forWomen)", "editSquad(mine.crewId, w.name, w.details, w.place && w.place !== \"event\" ? w.place : null, w.time)"]) {
+      assert.ok(section.includes(call), `the section does not send the place as a spot or null: ${call}`);
+    }
     // UI pass 1 (069): no "N of 8" on a card; a full squad says so in words and offers no
     // Join. The cap itself is the database's (join_squad), unchanged.
     assert.match(section, /squad\.full \? SQUAD_COPY\.fullLine : SQUAD_COPY\.count\(/, "a full squad does not say it is full");
@@ -93,7 +101,7 @@ describe("The squad screens use the rules, not their own (M3.7)", () => {
   });
 
   it("SQ07 every write goes through the database's functions, and a refusal is said where the tap was", () => {
-    for (const fn of ["start_squad", "join_squad", "rename_squad"]) assert.ok(lib.includes(`rpc("${fn}"`), `${fn} is not how the app writes`);
+    for (const fn of ["start_squad", "join_squad", "rename_squad", "edit_squad"]) assert.ok(lib.includes(`rpc("${fn}"`), `${fn} is not how the app writes`);
     assert.match(lib, /throw new Said\(squadRefusal\(error\)\)/, "a refusal reaches the screen as the database's raw words");
     assert.doesNotMatch(section, /supabase\(\)/, "the section writes around lib/squads");
     assert.match(section, /refusal=\{saidAt\(s\.crewId\)\}/, "a join refusal is not said on the squad tapped");

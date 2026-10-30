@@ -17,6 +17,7 @@ const PATHS = {
   arrowRight: `<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>`,
   chevronLeft: `<path d="M15 18l-6-6 6-6"/>`,
   info: `<circle cx="12" cy="12" r="9"/><path d="M12 11v5"/><path d="M12 7.5h.01"/>`,
+  clock: `<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>`,
 } as const;
 
 export type IconName = keyof typeof PATHS;

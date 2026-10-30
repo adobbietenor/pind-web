@@ -2,6 +2,8 @@
 // both sides, CAN and CANNOT. One world per rule set, made here and removed after.
 //
 //   D  "I'm here" on the night (A9, 088): set_here / clear_here / here_now, arrivals.
+//   C  a squad's details, place and time (A15/A11): start_squad, edit_squad, squads.
+//   A  1-on-1 (A28/A29/A20): set_one_on_one, my_solo_requests, set_solo_place.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { randomBytes, randomUUID } from "node:crypto";
@@ -69,7 +71,8 @@ before(async () => {
 
 after(async () => {
   for (const id of Object.values(g)) await service.from("gatherings").delete().eq("id", id);
-  if (venue) await service.from("venues").delete().eq("id", venue);
+  // Every venue this run made (the arena, and P285's second venue).
+  await service.from("venues").delete().like("name", `${PREFIX} ${run}%`);
   for (const p of Object.values(ppl)) await removeUser(service, p.authId).catch(() => undefined);
 });
 
@@ -125,4 +128,146 @@ test("P283 D: only on the night: five hours early CANNOT; after the effective en
   const after = await now("Bob", "Tonight");
   assert.deepEqual([after.count, after.people.length], [0, 0], "arrivals outlived the effective end");
   await refused(here("Bob", "Tonight", "blue cap"), "42501", "here_window");
+});
+
+// ---------------------------------------------------------------------------
+// C  A squad's details, place and time (A15/A11, 064/065/071): start_squad / edit_squad,
+//    the contact filter, the whole-card check, and the place that is never typed (H5).
+// ---------------------------------------------------------------------------
+let squadId = "";
+let otherVenueSpot = "";
+const startC = (who: string, name: string, details: string | null, spot: string | null, time: string | null) =>
+  ppl[who]!.c.rpc("start_squad", { p_gathering: g.Later, p_name: name, p_details: details, p_spot: spot, p_time_note: time, p_women_only: false });
+const listedTo = async (who: string) =>
+  (await must(ppl[who]!.c.rpc("squads", { p_gathering: g.Later }), `${who}'s squads`)) as { crew_id: string; name: string; details: string | null; time_note: string | null; spot: string | null }[];
+// The check's verdict, as the Worker records it: for the exact card text it judged.
+const verdict = (crew: string, text: string, outcome: "approved" | "rejected" = "approved") =>
+  service.rpc("admin_record_squad_name_check", { p_crew: crew, p_name: text, p_outcome: outcome, p_source: "app", p_reason: "harness" });
+
+test("P284 C: Ann CAN start a squad with details, a curated place and a time in words; she sees it at once, Bob CANNOT until the whole card has passed the check, then CAN with every word", async () => {
+  for (const n of ["Bob", "Cal"]) await pin(n, "Later");
+  squadId = (await must(startC("Ann", "300 level pre-game", "  First time solo, happy to grab a drink before.  ", spot, " around 5:30 p.m. "), "Ann starts")) as string;
+  const mine = await must(ppl.Ann!.c.from("crews").select("details, time_note, spot_id, name_status").eq("id", squadId).single(), "Ann reads her squad");
+  assert.deepEqual(mine, { details: "First time solo, happy to grab a drink before.", time_note: "around 5:30 p.m.", spot_id: spot, name_status: "pending" });
+  assert.deepEqual((await listedTo("Bob")).map((s) => s.crew_id), [], "a card no check has passed was listed");
+  await must(verdict(squadId, "300 level pre-game\nFirst time solo, happy to grab a drink before.\naround 5:30 p.m."), "the check passes the card");
+  const seen = (await listedTo("Bob")).find((s) => s.crew_id === squadId);
+  assert.deepEqual(seen && [seen.details, seen.time_note, seen.spot], ["First time solo, happy to grab a drink before.", "around 5:30 p.m.", "North Gate"]);
+});
+
+test("P285 C: the place is never typed: a spot of another venue CANNOT be used, the event itself (no spot) CAN even where the venue has spots, and no one can write the squad row directly", async () => {
+  otherVenueSpot = (await must(service.from("meeting_spots").insert({ venue_id: (await must(service.from("venues").insert({ name: `${PREFIX} ${run} Elsewhere` }).select("id").single(), "venue 2")).id, name: "Someone's flat" }).select("id").single(), "a spot elsewhere")).id;
+  await refused(startC("Cal", "Elsewhere crew", null, otherVenueSpot, null), "22023", "squad_spot");
+  const atTheEvent = (await must(startC("Cal", "Meet in the lobby", null, null, null), "Cal starts one at the event")) as string;
+  assert.equal((await must(service.from("crews").select("spot_id").eq("id", atTheEvent).single(), "Cal's squad")).spot_id, null);
+  await refused(ppl.Cal!.c.from("crews").update({ details: "123 Fake St, apt 4" }).eq("id", atTheEvent).select("id").single());
+  await must(service.from("crews").delete().eq("id", atTheEvent), "tidy");
+});
+
+test("P286 C: no handle, link, email or phone number in the name, details or time CAN get through; the limits hold from both sides (200 and 40 CAN, 201 and 41 CANNOT)", async () => {
+  const contact = ["insta @rocketfan", "my insta is rocketfan", "text me 416 555 1234", "pind.social/rocket", "https://x.example", "www.example.com", "rocket@example.com"];
+  // The filter proves it can see each one before anything else is trusted.
+  for (const bad of contact) {
+    await refused(startC("Bob", "Clean name", bad, null, null), "22023", "squad_contact");
+    await refused(startC("Bob", "Clean name", null, null, bad.slice(0, 40)), "22023", "squad_contact");
+  }
+  await refused(startC("Bob", "insta @rocketfan", null, null, null), "22023", "squad_contact");
+  await refused(startC("Bob", "Long details", "d".repeat(201), null, null), "22023", "squad_details");
+  await refused(startC("Bob", "Long time", null, null, "t".repeat(41)), "22023", "squad_time_note");
+  // And the ordinary words of a plan pass: numbers that are times or levels, a place name.
+  const ok = (await must(startC("Bob", "Section 314", "d".repeat(200), null, "t".repeat(40)), "the limits themselves")) as string;
+  await must(ppl.Bob!.c.rpc("edit_squad", { p_crew: ok, p_name: "Section 314", p_details: "Meet by the 300 level bar at 5:30, gate 4", p_spot: null, p_time_note: "around 5:30 p.m." }), "a plan's own numbers pass");
+  await must(service.from("crews").delete().eq("id", ok), "tidy");
+});
+
+test("P287 C: any member CAN change the card (Cal, who joined); changed words go back to the check and off Bob's list; a non-member CANNOT; a verdict on the old words does not list the new ones", async () => {
+  await must(ppl.Cal!.c.rpc("join_squad", { p_crew: squadId }), "Cal joins Ann's squad");
+  await refused(ppl.Bob!.c.rpc("edit_squad", { p_crew: squadId, p_name: "Bob's now", p_details: null, p_spot: null, p_time_note: null }), "42501", "squad_not_member");
+  await must(ppl.Cal!.c.rpc("edit_squad", { p_crew: squadId, p_name: "300 level pre-game", p_details: "Doors at 6, drinks first.", p_spot: null, p_time_note: "around 5" }), "Cal edits");
+  assert.equal((await listedTo("Bob")).some((s) => s.crew_id === squadId), false, "an edited card stayed listed before its check");
+  // The verdict on the words it judged before the edit lands on nothing.
+  await must(verdict(squadId, "300 level pre-game\nFirst time solo, happy to grab a drink before.\naround 5:30 p.m."), "a stale verdict");
+  assert.equal((await must(service.from("crews").select("name_status").eq("id", squadId).single(), "status")).name_status, "pending", "a verdict on old words approved new ones");
+  await must(verdict(squadId, "300 level pre-game\nDoors at 6, drinks first.\naround 5"), "the check passes the new card");
+  const seen = (await listedTo("Bob")).find((s) => s.crew_id === squadId);
+  assert.deepEqual(seen && [seen.details, seen.time_note, seen.spot], ["Doors at 6, drinks first.", "around 5", null]);
+});
+
+// ---------------------------------------------------------------------------
+// A  1-on-1 since UI pass 1 (A28/A29/A20): one account switch with its audience, requests
+//    in Connections, a chat whose place and time either of the two sets (curated spot or
+//    the event itself, never typed), handles once a place is set.
+// ---------------------------------------------------------------------------
+const oneOnOne = (who: string, on: boolean, audience: "everyone" | "women_only" = "everyone") =>
+  must(ppl[who]!.c.rpc("set_one_on_one", { p_on: on, p_audience: audience }), `${who} 1-on-1 ${on ? "on" : "off"}`);
+const soloList = async (who: string) =>
+  ((await must(ppl[who]!.c.rpc("solo_people", { p_gathering: g.Later }), `${who}'s 1-on-1 list`)) as { person_id: string }[])
+    .map((r) => Object.keys(ppl).find((n) => ppl[n]!.id === r.person_id)).sort();
+const handleSeen = async (who: string, of: string) =>
+  ((await ppl[who]!.c.from("person_handles").select("instagram").eq("person_id", ppl[of]!.id)).data ?? []).length > 0;
+let pairId = "";
+
+test("P288 A: the switch is on the account: on, Ann is in Bob's 1-on-1 list wherever both are open to meeting; off, she CANNOT be; a person not switched on sees nobody", async () => {
+  await pin("Dee", "Later");
+  await oneOnOne("Bob", true);
+  assert.deepEqual(await soloList("Bob"), [], "control: nobody else is switched on");
+  await oneOnOne("Ann", true);
+  assert.deepEqual(await soloList("Bob"), ["Ann"]);
+  assert.deepEqual(await soloList("Cal"), [], "Cal, switched off, saw the 1-on-1 list");
+  await oneOnOne("Ann", false);
+  assert.deepEqual(await soloList("Bob"), [], "Ann switched off and still listed");
+  // Nobody reads another's switch.
+  assert.equal(((await ppl.Bob!.c.from("people_private").select("one_on_one").eq("person_id", ppl.Ann!.id)).data ?? []).length, 0);
+});
+
+test("P289 A: the audience is the switch's second line: women only, Ann CANNOT be seen by Bob and CAN by Dee", async () => {
+  await oneOnOne("Ann", true, "women_only");
+  await oneOnOne("Dee", true);
+  assert.deepEqual(await soloList("Bob"), ["Dee"], "Bob saw Ann after she chose women only");
+  assert.deepEqual(await soloList("Dee"), ["Ann", "Bob"]);
+  assert.deepEqual(await must(ppl.Ann!.c.rpc("my_one_on_one"), "Ann's switch"), { on: true, audience: "women_only" });
+});
+
+test("P290 A: a request is waiting in Dee's Requests and nobody else's; 'Not now' is silent: Bob still sees 'sent'", async () => {
+  await must(ppl.Bob!.c.rpc("propose_solo", { p_gathering: g.Later, p_to: ppl.Dee!.id, p_spot: null, p_meet_at: null, p_line: null }), "Bob asks Dee");
+  const waiting = (await must(ppl.Dee!.c.rpc("my_solo_requests"), "Dee's requests")) as { proposal_id: string; first_name: string }[];
+  assert.deepEqual(waiting.map((r) => r.first_name), ["Bob"]);
+  for (const who of ["Ann", "Cal", "Bob"]) assert.equal(((await must(ppl[who]!.c.rpc("my_solo_requests"), `${who}'s requests`)) as unknown[]).length, 0, `${who} saw a request not theirs`);
+  await must(ppl.Dee!.c.rpc("respond_to_solo", { p_proposal: waiting[0]!.proposal_id, p_accept: false }), "Dee: not now");
+  assert.equal(((await must(ppl.Dee!.c.rpc("my_solo_requests"), "Dee's requests")) as unknown[]).length, 0, "a 'Not now' stayed in Requests");
+  const bobs = (await must(ppl.Bob!.c.rpc("my_solo_proposals", { p_gathering: g.Later }), "Bob's requests")) as { direction: string }[];
+  assert.deepEqual(bobs.map((r) => r.direction), ["sent"], "Bob learned of the 'Not now'");
+});
+
+test("P291 A: accepted, it is a chat; either of the two CAN set a curated place, the event itself or a time, nobody confirms; a stranger and another venue's spot CANNOT; handles show once a place is set, and go when it's taken away", async () => {
+  await must(service.from("person_handles").upsert({ person_id: ppl.Ann!.id, instagram: `${run}ann` }), "Ann's handle");
+  await must(ppl.Ann!.c.rpc("propose_solo", { p_gathering: g.Later, p_to: ppl.Dee!.id, p_spot: null, p_meet_at: null, p_line: null }), "Ann asks Dee");
+  const req = ((await must(ppl.Dee!.c.rpc("my_solo_requests"), "Dee's requests")) as { proposal_id: string }[])[0]!;
+  pairId = (await must(ppl.Dee!.c.rpc("respond_to_solo", { p_proposal: req.proposal_id, p_accept: true }), "Dee says yes")) as string;
+  assert.equal(await handleSeen("Dee", "Ann"), false, "a handle showed before any place");
+  const place = (who: string, s: string | null, atEvent: boolean, time: string | null) =>
+    ppl[who]!.c.rpc("set_solo_place", { p_crew: pairId, p_spot: s, p_at_event: atEvent, p_time_note: time });
+  await refused(place("Cal", spot, false, null), "42501", "solo_not_member");
+  await refused(place("Dee", otherVenueSpot, false, null), "22023", "solo_spot");
+  await refused(place("Dee", null, false, "t".repeat(41)), "22023", "solo_time_note");
+  await must(place("Dee", spot, false, "around 5:30"), "Dee sets the place");
+  const c1 = await must(service.from("crews").select("state, spot_id, at_event, time_note").eq("id", pairId).single(), "the chat");
+  assert.deepEqual(c1, { state: "spot_set", spot_id: spot, at_event: false, time_note: "around 5:30" }, "the place needed a confirmation");
+  assert.equal(await handleSeen("Dee", "Ann"), true, "no handle once a place was set");
+  await must(place("Ann", null, true, "around 6"), "Ann changes it to the event itself");
+  const c2 = await must(service.from("crews").select("state, spot_id, at_event, time_note").eq("id", pairId).single(), "the chat");
+  assert.deepEqual(c2, { state: "spot_set", spot_id: null, at_event: true, time_note: "around 6" });
+  await must(place("Ann", null, false, null), "Ann takes the place away");
+  assert.equal(await handleSeen("Dee", "Ann"), false, "the handle stayed once the place was taken away");
+  assert.equal(await handleSeen("Bob", "Ann"), false, "someone outside the chat saw the handle");
+});
+
+test("P292 A: switching the account off closes every request still waiting, both ways", async () => {
+  await oneOnOne("Cal", true);
+  await must(ppl.Cal!.c.rpc("propose_solo", { p_gathering: g.Later, p_to: ppl.Bob!.id, p_spot: null, p_meet_at: null, p_line: null }), "Cal asks Bob");
+  assert.equal(((await must(ppl.Bob!.c.rpc("my_solo_requests"), "Bob's requests")) as unknown[]).length, 1, "control: the request is waiting");
+  await oneOnOne("Bob", false);
+  assert.equal(((await must(ppl.Bob!.c.rpc("my_solo_requests"), "Bob's requests")) as unknown[]).length, 0, "a request outlived the switch");
+  const cals = (await must(ppl.Cal!.c.rpc("my_solo_proposals", { p_gathering: g.Later }), "Cal's requests")) as unknown[];
+  assert.equal(cals.length, 0, "Cal's request stayed open to someone switched off");
 });

@@ -819,8 +819,10 @@ export type Database = {
       }
       crews: {
         Row: {
+          at_event: boolean
           created_at: string
           created_by: string | null
+          details: string | null
           dissolved_at: string | null
           gathering_id: string
           hidden_at: string | null
@@ -834,12 +836,15 @@ export type Database = {
           sibling_of: string | null
           spot_id: string | null
           state: Database["public"]["Enums"]["crew_state"]
+          time_note: string | null
           updated_at: string
           women_only: boolean
         }
         Insert: {
+          at_event?: boolean
           created_at?: string
           created_by?: string | null
+          details?: string | null
           dissolved_at?: string | null
           gathering_id: string
           hidden_at?: string | null
@@ -853,12 +858,15 @@ export type Database = {
           sibling_of?: string | null
           spot_id?: string | null
           state?: Database["public"]["Enums"]["crew_state"]
+          time_note?: string | null
           updated_at?: string
           women_only?: boolean
         }
         Update: {
+          at_event?: boolean
           created_at?: string
           created_by?: string | null
+          details?: string | null
           dissolved_at?: string | null
           gathering_id?: string
           hidden_at?: string | null
@@ -872,6 +880,7 @@ export type Database = {
           sibling_of?: string | null
           spot_id?: string | null
           state?: Database["public"]["Enums"]["crew_state"]
+          time_note?: string | null
           updated_at?: string
           women_only?: boolean
         }
@@ -1889,6 +1898,8 @@ export type Database = {
           created_at: string
           gender: Database["public"]["Enums"]["gender"]
           include_in_women_only: boolean
+          one_on_one: boolean
+          one_on_one_audience: Database["public"]["Enums"]["solo_visibility"]
           person_id: string
           updated_at: string
           women_only_rooms: boolean
@@ -1900,6 +1911,8 @@ export type Database = {
           created_at?: string
           gender: Database["public"]["Enums"]["gender"]
           include_in_women_only?: boolean
+          one_on_one?: boolean
+          one_on_one_audience?: Database["public"]["Enums"]["solo_visibility"]
           person_id: string
           updated_at?: string
           women_only_rooms?: boolean
@@ -1911,6 +1924,8 @@ export type Database = {
           created_at?: string
           gender?: Database["public"]["Enums"]["gender"]
           include_in_women_only?: boolean
+          one_on_one?: boolean
+          one_on_one_audience?: Database["public"]["Enums"]["solo_visibility"]
           person_id?: string
           updated_at?: string
           women_only_rooms?: boolean
@@ -3640,6 +3655,16 @@ export type Database = {
       }
       crew_seen: { Args: { p_crew: string }; Returns: undefined }
       delete_room_message: { Args: { p_message: string }; Returns: undefined }
+      edit_squad: {
+        Args: {
+          p_crew: string
+          p_details: string
+          p_name: string
+          p_spot: string
+          p_time_note: string
+        }
+        Returns: undefined
+      }
       effective_end: {
         Args: { g: Database["public"]["Tables"]["gatherings"]["Row"] }
         Returns: string
@@ -3705,6 +3730,7 @@ export type Database = {
           members: string[]
         }[]
       }
+      my_one_on_one: { Args: never; Returns: Json }
       my_photo_rejected: { Args: never; Returns: boolean }
       my_record_times: { Args: never; Returns: Json }
       my_rooms: {
@@ -3734,6 +3760,20 @@ export type Database = {
           proposal_id: string
           spot_id: string
           spot_name: string
+        }[]
+      }
+      my_solo_requests: {
+        Args: never
+        Returns: {
+          created_at: string
+          first_name: string
+          gathering_id: string
+          gathering_name: string
+          gathering_slug: string
+          person_id: string
+          photo_path: string
+          proposal_id: string
+          starts_at: string
         }[]
       }
       propose_solo: {
@@ -3822,6 +3862,22 @@ export type Database = {
         Args: { p_gathering: string; p_note: string }
         Returns: undefined
       }
+      set_one_on_one: {
+        Args: {
+          p_audience: Database["public"]["Enums"]["solo_visibility"]
+          p_on: boolean
+        }
+        Returns: undefined
+      }
+      set_solo_place: {
+        Args: {
+          p_at_event: boolean
+          p_crew: string
+          p_spot: string
+          p_time_note: string
+        }
+        Returns: undefined
+      }
       set_women_only_rooms: { Args: { p_on: boolean }; Returns: undefined }
       showed_up: { Args: { p_person: string }; Returns: boolean }
       solo_available: { Args: never; Returns: boolean }
@@ -3843,6 +3899,7 @@ export type Database = {
         Args: { p_gathering: string }
         Returns: {
           crew_id: string
+          details: string
           is_full: boolean
           meet_at: string
           members: Json
@@ -3850,6 +3907,7 @@ export type Database = {
           seats: number
           spot: string
           spot_id: string
+          time_note: string
           women_only: boolean
         }[]
       }
@@ -3857,16 +3915,28 @@ export type Database = {
         Args: { p_invitees: string[]; p_room: string }
         Returns: string
       }
-      start_squad: {
-        Args: {
-          p_gathering: string
-          p_meet_at: string
-          p_name: string
-          p_spot: string
-          p_women_only: boolean
-        }
-        Returns: string
-      }
+      start_squad:
+        | {
+            Args: {
+              p_details: string
+              p_gathering: string
+              p_name: string
+              p_spot: string
+              p_time_note: string
+              p_women_only: boolean
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_gathering: string
+              p_meet_at: string
+              p_name: string
+              p_spot: string
+              p_women_only: boolean
+            }
+            Returns: string
+          }
       suggest_solo_spot: {
         Args: { p_crew: string; p_meet_at: string; p_spot: string }
         Returns: undefined

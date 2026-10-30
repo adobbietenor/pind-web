@@ -16,6 +16,8 @@ const WORKER = Platform.OS === "web" ? "" : SITE;
 export interface SquadCard {
   crewId: string;
   name: string;
+  details: string | null;
+  timeNote: string | null;
   womenOnly: boolean;
   spot: string | null;
   meetAt: string;
@@ -27,6 +29,9 @@ export interface SquadCard {
 export interface MySquad {
   crewId: string;
   name: string;
+  details: string | null;
+  timeNote: string | null;
+  spotId: string | null;
   nameStatus: "pending" | "approved" | "rejected";
   state: string;
   spot: string | null;
@@ -60,7 +65,7 @@ export async function loadSquads(gatheringId: string, meId: string): Promise<Squ
     db.rpc("squads", { p_gathering: gatheringId }),
     db
       .from("crew_members")
-      .select("crew_id, crews(name, name_status, state, meet_at, women_only, created_by, legacy, meeting_spots(name))")
+      .select("crew_id, crews(name, details, time_note, spot_id, name_status, state, meet_at, women_only, created_by, legacy, meeting_spots(name))")
       .eq("person_id", meId)
       .eq("gathering_id", gatheringId)
       .eq("kind", "crew")
@@ -75,8 +80,8 @@ export async function loadSquads(gatheringId: string, meId: string): Promise<Squ
   const { data: spots } = g.data.venue_id
     ? await db.from("meeting_spots").select("id, name").eq("venue_id", g.data.venue_id).eq("active", true).order("name")
     : { data: [] as { id: string; name: string }[] };
-  type Row = { crew_id: string; name: string; women_only: boolean; spot: string | null; meet_at: string; seats: number; is_full: boolean; members: { person_id: string; first_name: string }[] };
-  type Mem = { crew_id: string; crews: { name: string | null; name_status: MySquad["nameStatus"] | null; state: string; meet_at: string | null; women_only: boolean; created_by: string | null; legacy: boolean; meeting_spots: { name: string } | null } | null };
+  type Row = { crew_id: string; name: string; details: string | null; time_note: string | null; women_only: boolean; spot: string | null; meet_at: string; seats: number; is_full: boolean; members: { person_id: string; first_name: string }[] };
+  type Mem = { crew_id: string; crews: { name: string | null; details: string | null; time_note: string | null; spot_id: string | null; name_status: MySquad["nameStatus"] | null; state: string; meet_at: string | null; women_only: boolean; created_by: string | null; legacy: boolean; meeting_spots: { name: string } | null } | null };
   const m = mem.data as unknown as Mem | null;
   return {
     tz,
@@ -87,6 +92,8 @@ export async function loadSquads(gatheringId: string, meId: string): Promise<Squ
     squads: ((list.data ?? []) as unknown as Row[]).map((r) => ({
       crewId: r.crew_id,
       name: r.name,
+      details: r.details,
+      timeNote: r.time_note,
       womenOnly: r.women_only,
       spot: r.spot,
       meetAt: r.meet_at,
@@ -99,6 +106,9 @@ export async function loadSquads(gatheringId: string, meId: string): Promise<Squ
         ? {
             crewId: m.crew_id,
             name: m.crews.name ?? "",
+            details: m.crews.details,
+            timeNote: m.crews.time_note,
+            spotId: m.crews.spot_id,
             nameStatus: m.crews.name_status ?? "approved",
             state: m.crews.state,
             spot: m.crews.meeting_spots?.name ?? null,
@@ -129,12 +139,27 @@ async function checkNameSoon(crewId: string): Promise<void> {
   }
 }
 
-export async function startSquad(gatheringId: string, name: string, spotId: string | null, meetAt: string, womenOnly: boolean): Promise<string> {
+// UI pass 1 (064/065): a name, optional details, a curated spot or none (the event
+// itself), a time in words. The database decides what is allowed (start_squad).
+export async function startSquad(gatheringId: string, name: string, details: string, spotId: string | null, timeNote: string, womenOnly: boolean): Promise<string> {
   const id = (await said(
-    supabase().rpc("start_squad", { p_gathering: gatheringId, p_name: name, p_spot: spotId as string, p_meet_at: meetAt, p_women_only: womenOnly }),
+    supabase().rpc("start_squad", {
+      p_gathering: gatheringId,
+      p_name: name,
+      p_details: details,
+      p_spot: spotId as string,
+      p_time_note: timeNote,
+      p_women_only: womenOnly,
+    }),
   )) as string;
   void checkNameSoon(id);
   return id;
+}
+
+// Any member changes the words or the place (call f); changed words are checked again.
+export async function editSquad(crewId: string, name: string, details: string, spotId: string | null, timeNote: string): Promise<void> {
+  await said(supabase().rpc("edit_squad", { p_crew: crewId, p_name: name, p_details: details, p_spot: spotId as string, p_time_note: timeNote }));
+  void checkNameSoon(crewId);
 }
 
 export async function joinSquad(crewId: string): Promise<void> {

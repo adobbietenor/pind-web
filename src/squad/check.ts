@@ -7,7 +7,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { canSpend } from "../import/ai.ts";
 import { CITY, photoCost, US_GEO_MULTIPLIER } from "../photo/check.ts";
-import { ESTIMATE_PER_NAME, parseNameVerdict, SQUAD_NAME_CALL_MS, SQUAD_NAME_MODEL, squadNameRequest, type NameVerdict } from "./ai.ts";
+import { ESTIMATE_PER_NAME, parseNameVerdict, SQUAD_NAME_CALL_MS, SQUAD_NAME_MODEL, squadCardText, squadNameRequest, type NameVerdict } from "./ai.ts";
 
 export type NameSource = "webhook" | "app" | "sweep";
 
@@ -54,18 +54,21 @@ export async function checkSquadName(
 ): Promise<{ status: string | null; cost: number; checked: boolean; error?: string }> {
   const { data: crew, error } = await db
     .from("crews")
-    .select("id, name, name_status, kind, legacy")
+    .select("id, name, details, time_note, name_status, kind, legacy")
     .eq("id", crewId)
     .maybeSingle();
   if (error) return { status: null, cost: 0, checked: false, error: error.message };
   // Nothing to do is not a failure and leaves no failure record.
   if (!crew || crew.kind !== "crew" || crew.legacy || !crew.name) return { status: null, cost: 0, checked: false, error: "not a squad" };
   if (crew.name_status !== "pending") return { status: crew.name_status, cost: 0, checked: false };
+  // The whole card is judged (UI pass 1): its name, details and time, joined as the
+  // database joins them (private.squad_card_text), so the verdict lands only on this text.
+  const card = squadCardText(crew);
 
   const record = async (outcome: string, r: Partial<NameResult> & { reason?: string }) => {
     const { data } = await db.rpc("admin_record_squad_name_check", {
       p_crew: crew.id,
-      p_name: crew.name,
+      p_name: card,
       p_outcome: outcome,
       p_source: source,
       p_reason: r.reason ?? null,
@@ -88,10 +91,10 @@ export async function checkSquadName(
   }
   // One call per name (M4.2): the webhook and the app's own request arrive together, and
   // only the one that claims it calls the model. Losing the claim is not a failure.
-  const { data: claimed, error: claimError } = await db.rpc("admin_claim_squad_name_check", { p_crew: crew.id, p_name: crew.name });
+  const { data: claimed, error: claimError } = await db.rpc("admin_claim_squad_name_check", { p_crew: crew.id, p_name: card });
   if (claimError) return { status: null, cost: 0, checked: false, error: claimError.message };
   if (claimed !== true) return { status: null, cost: 0, checked: false };
-  const result = await judgeName(apiKey, crew.name);
+  const result = await judgeName(apiKey, card);
   const status = await record(result.verdict?.outcome ?? "failed", { ...result, reason: result.verdict?.reason });
   return { status, cost: result.cost, checked: true, error: result.error };
 }

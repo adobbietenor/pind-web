@@ -87,6 +87,12 @@ export function squadRefusal(refusal: unknown): string {
   const hint = typeof r.hint === "string" ? r.hint : "";
   const m = typeof refusal === "string" ? refusal : String(r.message ?? "");
   const has = (code: string, words: string) => hint === code || m.includes(words);
+  // UI pass 1's form (start_squad / edit_squad with details, place and time).
+  if (has("squad_contact", "no handles, links or numbers")) return "Leave out handles, links and phone numbers. Plans happen in the chat.";
+  if (has("squad_details", "details of up to")) return `Keep the details to ${SQUAD_DETAILS_MAX} characters.`;
+  if (has("squad_time_note", "a time of up to")) return `Keep the time to ${SQUAD_TIME_MAX} characters.`;
+  if (has("squad_not_member", "not your squad")) return "Only the squad's members can change it.";
+  if (m.includes("close at the start")) return "Squads can't be started once it has begun.";
   if (has("squad_closed", "not open any more") || hint === "squad_full") return "That squad isn't open any more.";
   if (has("squad_in_group", "already in a group") || r.code === "23505") return "You're already in a squad here. Leave it to join another.";
   if (has("squad_not_open_to_meeting", "open to meeting first")) return "Turn on meeting people here first.";
@@ -101,3 +107,30 @@ export function squadRefusal(refusal: unknown): string {
   if (has("squad_start_limit", "three squads started here")) return "You've started three squads here. Join one instead.";
   return "That didn't work. Try again in a moment.";
 }
+
+// The squad form since UI pass 1 (064/065; Alex, 30 Oct 2026, calls 1 and f): a name, and
+// optional details, place and time. The place is never typed (H5): one of the venue's
+// curated spots, or the event itself. The time is words.
+export const SQUAD_FORM_COPY = {
+  startTitle: "Start a squad",
+  editTitle: "Your squad",
+  line: "A small group from this crowd. Plans happen in the chat.",
+  name: "Name",
+  namePlaceholder: "e.g. 300 level pre-game",
+  details: "Details",
+  optional: "(optional)",
+  detailsPlaceholder: "Anything people should know (optional)",
+  meetingPoint: "Meeting point",
+  addPlace: "Add a place",
+  addTime: "Add a time",
+  atTheEvent: "At the event itself",
+  timePlaceholder: "e.g. around 5:30 p.m.",
+  remove: "Remove",
+  start: "Start squad",
+  save: "Save",
+  noPlan: "No plan yet · add a place or time",
+  edit: "Edit",
+  checking: "Changes are being checked. They'll show to others in a moment.",
+} as const;
+export const SQUAD_DETAILS_MAX = 200;
+export const SQUAD_TIME_MAX = 40;

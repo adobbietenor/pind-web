@@ -15,11 +15,12 @@
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Image, Modal, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { colors as palette, fonts, radius, spacing, SQUAD_COPY, SQUAD_NAME_MAX, squadNameProblem, squadSeatsLabel, squadTimes } from "@pind/shared";
+import { colors as palette, fonts, radius, spacing, SQUAD_COPY, SQUAD_FORM_COPY, SQUAD_NAME_MAX, squadNameProblem, squadSeatsLabel, squadTimes } from "@pind/shared";
 import { Body, Button } from "@/components/ui";
 import { failed } from "@/lib/errors";
 import { soloClock } from "@/lib/solo";
-import { joinSquad, loadSquads, renameSquad, startSquad, type SquadCard, type SquadsView } from "@/lib/squads";
+import { editSquad, joinSquad, loadSquads, renameSquad, startSquad, type SquadCard, type SquadsView } from "@/lib/squads";
+import { SquadForm } from "./SquadForm";
 import { AvatarStack } from "./Avatar";
 import { Icon } from "./Icon";
 import { Tap } from "./Tap";
@@ -36,6 +37,7 @@ export function SquadSection({ gatheringId, meId, faces, ended }: { gatheringId:
   const [view, setView] = useState<SquadsView | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sheet, setSheet] = useState(false);
+  const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [said, setSaid] = useState<{ at: string; text: string } | null>(null);
   const [rename, setRename] = useState("");
@@ -115,13 +117,31 @@ export function SquadSection({ gatheringId, meId, faces, ended }: { gatheringId:
             ) : null}
           </>
         ) : null}
-        {mine.meetAt ? <PlaceLine text={`${mine.spot ?? SQUAD_COPY.atTheGathering} · ${at(mine.meetAt)}`} /> : null}
+        {mine.details ? <Text style={styles.details}>{mine.details}</Text> : null}
+        {planLine(mine.spot, mine.timeNote) ? <PlaceLine text={planLine(mine.spot, mine.timeNote)!} /> : null}
         <View style={styles.cardFoot}>
+          {!mine.legacy ? (
+            <Tap accessibilityRole="button" onPress={() => { setSaid(null); setEditing(true); }} style={styles.editButton}>
+              <Text style={styles.editLabel}>{SQUAD_FORM_COPY.edit}</Text>
+            </Tap>
+          ) : null}
           <View style={{ flex: 1 }} />
           <Tap accessibilityRole="button" onPress={() => router.push({ pathname: "/group/[id]", params: { id: mine.crewId } })} style={styles.openChat}>
             <Text style={styles.openChatLabel}>{mine.legacy ? "Open your group" : SQUAD_COPY.openChat}</Text>
           </Tap>
         </View>
+        {saidAt("edit")}
+        {editing ? (
+          <SquadForm
+            title={SQUAD_FORM_COPY.editTitle}
+            start={{ name: mine.name, details: mine.details ?? "", place: mine.spotId, time: mine.timeNote ?? "" }}
+            spots={view.spots}
+            busy={busy === "edit"}
+            refusal={said?.at === "edit" ? said.text : null}
+            onClose={() => setEditing(false)}
+            onSave={(w) => void act("edit", () => editSquad(mine.crewId, w.name, w.details, w.place && w.place !== "event" ? w.place : null, w.time), () => setEditing(false))}
+          />
+        ) : null}
       </View>
     );
   }
@@ -142,23 +162,32 @@ export function SquadSection({ gatheringId, meId, faces, ended }: { gatheringId:
       {view.squads.length === 0 ? <Body muted>{SQUAD_COPY.none}</Body> : null}
       {view.squads.map((s, i) => (
         <Rise key={s.crewId} index={i}>
-        <Squad squad={s} faces={faces} time={at(s.meetAt)} busy={busy === s.crewId} onJoin={() => void act(s.crewId, () => joinSquad(s.crewId))} refusal={saidAt(s.crewId)} />
+        <Squad squad={s} faces={faces} busy={busy === s.crewId} onJoin={() => void act(s.crewId, () => joinSquad(s.crewId))} refusal={saidAt(s.crewId)} />
         </Rise>
       ))}
       {sheet ? (
-        <StartSheet
-          view={view}
+        <SquadForm
+          title={SQUAD_FORM_COPY.startTitle}
+          spots={view.spots}
+          womenOnly={view.womenOnly}
           busy={busy === "start"}
           refusal={said?.at === "start" ? said.text : null}
           onClose={() => setSheet(false)}
-          onStart={(name, spot, meetAt, womenOnly) => void act("start", () => startSquad(gatheringId, name, spot, meetAt, womenOnly), () => setSheet(false))}
+          onSave={(w, forWomen) =>
+            void act("start", () => startSquad(gatheringId, w.name, w.details, w.place && w.place !== "event" ? w.place : null, w.time, forWomen), () => setSheet(false))
+          }
         />
       ) : null}
     </View>
   );
 }
 
-function Squad({ squad, faces, time, busy, onJoin, refusal }: { squad: SquadCard; faces: SquadFace[]; time: string; busy: boolean; onJoin: () => void; refusal: ReactNode }) {
+// The card's one grey line (069): the place and the time, only what is set.
+function planLine(spot: string | null, timeNote: string | null): string | null {
+  return [spot, timeNote].filter(Boolean).join(" · ") || null;
+}
+
+function Squad({ squad, faces, busy, onJoin, refusal }: { squad: SquadCard; faces: SquadFace[]; busy: boolean; onJoin: () => void; refusal: ReactNode }) {
   // Faces only for members the people list already shows you; the rest are counted.
   const shown = squad.members.map((m) => faces.find((f) => f.id === m.personId)).filter((f): f is SquadFace => !!f);
   return (
@@ -167,7 +196,8 @@ function Squad({ squad, faces, time, busy, onJoin, refusal }: { squad: SquadCard
         <Text style={styles.squadName}>{squad.name}</Text>
         {squad.womenOnly ? <Text style={styles.tag}>{SQUAD_COPY.womenOnly}</Text> : null}
       </View>
-      <PlaceLine text={`${squad.spot ?? SQUAD_COPY.atTheGathering} · ${time}`} />
+      {squad.details ? <Text style={styles.details}>{squad.details}</Text> : null}
+      {planLine(squad.spot, squad.timeNote) ? <PlaceLine text={planLine(squad.spot, squad.timeNote)!} /> : null}
       <View style={styles.cardFoot}>
         <AvatarStack size={26} max={4} people={shown.map((f) => ({ id: f.id, name: f.firstName, source: f.photoUrl }))} />
         <Text style={[styles.meta, { flex: 1 }]}>{squad.full ? SQUAD_COPY.fullLine : SQUAD_COPY.count(squad.members.length, squad.members[0]?.firstName)}</Text>
@@ -193,100 +223,6 @@ function PlaceLine({ text }: { text: string }) {
   );
 }
 
-function StartSheet({
-  view,
-  busy,
-  refusal,
-  onClose,
-  onStart,
-}: {
-  view: SquadsView;
-  busy: boolean;
-  refusal: string | null;
-  onClose: () => void;
-  onStart: (name: string, spot: string | null, meetAt: string, womenOnly: boolean) => void;
-}) {
-  const times = squadTimes(view.startsAt, view.endsAt);
-  const [name, setName] = useState("");
-  const [spot, setSpot] = useState<string | null>(view.spots.length === 1 ? view.spots[0]!.id : null);
-  const [time, setTime] = useState<string | null>(null);
-  const [forWomen, setForWomen] = useState(view.womenOnly.only);
-  const at = (iso: string) => soloClock(iso, view.tz);
-  const problem = squadNameProblem(name);
-  const spotReady = view.hasSpots ? !!spot : true;
-
-  return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.scrim}>
-        <View style={[styles.sheet, { maxHeight: "90%" }]}>
-          <ScrollView contentContainerStyle={{ gap: spacing.sm }} keyboardShouldPersistTaps="handled">
-            <Text style={styles.sheetTitle}>{SQUAD_COPY.sheetTitle}</Text>
-            <Text style={styles.label}>{SQUAD_COPY.nameLabel}</Text>
-            <TextInput
-              value={name}
-              onChangeText={setName}
-              maxLength={SQUAD_NAME_MAX + 10}
-              placeholder={SQUAD_COPY.namePlaceholder}
-              placeholderTextColor={palette.tabInactive}
-              style={styles.input}
-              autoFocus
-            />
-            <Text style={styles.meta}>{name && problem ? problem : `${SQUAD_COPY.nameHint}  ${[...name.trim()].length}/${SQUAD_NAME_MAX}`}</Text>
-            <Text style={styles.label}>{SQUAD_COPY.spot}</Text>
-            {view.hasSpots ? (
-              <Chips options={view.spots.map((s) => ({ key: s.id, name: s.name }))} value={spot} onChange={setSpot} />
-            ) : (
-              <Chips options={[{ key: "here", name: SQUAD_COPY.atTheGathering }]} value="here" onChange={() => undefined} />
-            )}
-            <Text style={styles.label}>{SQUAD_COPY.time}</Text>
-            <Chips options={times.map((t) => ({ key: t, name: at(t) }))} value={time} onChange={setTime} />
-            {view.womenOnly.eligible ? (
-              <>
-                <Text style={styles.label}>{SQUAD_COPY.who}</Text>
-                {view.womenOnly.only ? (
-                  <Text style={styles.meta}>{SQUAD_COPY.womenOnlyForced}</Text>
-                ) : (
-                  <Chips
-                    options={[
-                      { key: "everyone", name: SQUAD_COPY.whoEveryone },
-                      { key: "women", name: SQUAD_COPY.whoWomenOnly },
-                    ]}
-                    value={forWomen ? "women" : "everyone"}
-                    onChange={(k) => setForWomen(k === "women")}
-                  />
-                )}
-              </>
-            ) : null}
-            <Button
-              label={SQUAD_COPY.create}
-              disabled={!!problem || !time || !spotReady}
-              busy={busy}
-              onPress={() => onStart(name.trim(), view.hasSpots ? spot : null, time!, forWomen)}
-            />
-            {refusal ? <Text accessibilityRole="alert" style={styles.refusal}>{refusal}</Text> : null}
-            <Button kind="quiet" label="Cancel" onPress={onClose} />
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-function Chips({ options, value, onChange }: { options: { key: string; name: string }[]; value: string | null; onChange: (k: string) => void }) {
-  return (
-    <View style={styles.chips}>
-      {options.map((o) => {
-        const on = o.key === value;
-        return (
-          <Tap key={o.key} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => onChange(o.key)} style={[styles.chip, on && styles.chipOn]}>
-            <Text style={[styles.chipLabel, on && { color: palette.onAccent }]}>{o.name}</Text>
-          </Tap>
-        );
-      })}
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
   card: { marginTop: spacing.md, padding: spacing.lg, borderWidth: 1, borderColor: palette.border, borderRadius: radius.lg, backgroundColor: palette.surface, gap: spacing.sm },
   // Your squad: the same box, outlined in purple (069).
@@ -300,6 +236,9 @@ const styles = StyleSheet.create({
   cardFoot: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
   join: { minHeight: 44, minWidth: 72, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: palette.accent },
   joinLabel: { fontFamily: fonts.headline, fontSize: 15, color: palette.onAccent },
+  details: { fontSize: 14, lineHeight: 20, color: palette.textMuted },
+  editButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md },
+  editLabel: { fontSize: 15, color: palette.accentText, textDecorationLine: "underline" },
   openChat: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: palette.accent },
   openChatLabel: { fontFamily: fonts.headline, fontSize: 15, color: palette.text },
   kicker: { fontFamily: fonts.headline, fontSize: 14, color: palette.textMuted },

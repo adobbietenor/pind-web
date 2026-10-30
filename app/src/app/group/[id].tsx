@@ -31,10 +31,12 @@ import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Share, StyleSheet, Text, View } from "react-native";
-import { AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, SQUAD_COPY, type Convening, type ThreadMessage } from "@pind/shared";
+import { AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, SQUAD_COPY, SQUAD_FORM_COPY, type Convening, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { AvatarStack } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
+import { SquadForm } from "@/components/SquadForm";
+import { editSquad } from "@/lib/squads";
 import { Composer } from "@/components/Composer";
 import { GetTheApp } from "@/components/GetTheApp";
 import { PairSpot } from "@/components/PairSpot";
@@ -81,7 +83,8 @@ interface GroupView {
   state: "forming" | "spot_set" | "live" | "done" | "dissolved";
   solo: boolean;
   // A squad's name and where its check stands (M3.7); null for a 1-on-1 plan or an old group.
-  squad: { name: string; nameStatus: "pending" | "approved" | "rejected"; womenOnly: boolean } | null;
+  squad: { name: string; nameStatus: "pending" | "approved" | "rejected"; womenOnly: boolean; details: string | null; timeNote: string | null; spotId: string | null } | null;
+  spots: { id: string; name: string }[];
   gathering: { id: string; name: string; slug: string; startsAt: string; endsAt: string | null };
   convening: Convening;
   roomId: string | null;
@@ -94,11 +97,20 @@ interface GroupView {
 }
 
 // The card: everything on this screen except the thread.
+// A squad's venue spots, for the form's "Add a place".
+async function venueSpots(gatheringId: string): Promise<{ id: string; name: string }[]> {
+  const db = supabase();
+  const g = await db.from("gatherings").select("venue_id").eq("id", gatheringId).maybeSingle();
+  if (!g.data?.venue_id) return [];
+  const { data } = await db.from("meeting_spots").select("id, name").eq("venue_id", g.data.venue_id).eq("active", true).order("name");
+  return data ?? [];
+}
+
 async function loadGroupShell(id: string): Promise<GroupView | null> {
   const db = supabase();
   const meId = await myPersonId();
   if (!meId) return null;
-  const { data: c, error } = await db.from("crews").select("id, kind, state, gathering_id, room_id, spot_id, meet_at, name, name_status, women_only, legacy").eq("id", id).maybeSingle();
+  const { data: c, error } = await db.from("crews").select("id, kind, state, gathering_id, room_id, spot_id, meet_at, name, details, time_note, name_status, women_only, legacy").eq("id", id).maybeSingle();
   if (error) throw error;
   if (!c) return null;
   const [g, conv, mem, props, votes, closes, spot] = await Promise.all([
@@ -121,7 +133,12 @@ async function loadGroupShell(id: string): Promise<GroupView | null> {
     id,
     state: c.state as GroupView["state"],
     solo: c.kind === "solo",
-    squad: c.kind === "crew" && !c.legacy && c.name ? { name: c.name, nameStatus: (c.name_status ?? "approved") as "pending" | "approved" | "rejected", womenOnly: c.women_only } : null,
+    squad:
+      c.kind === "crew" && !c.legacy && c.name
+        ? { name: c.name, nameStatus: (c.name_status ?? "approved") as "pending" | "approved" | "rejected", womenOnly: c.women_only, details: c.details, timeNote: c.time_note, spotId: c.spot_id }
+        : null,
+    // The venue's curated spots, for "Add a place" (H5: never typed).
+    spots: c.kind === "crew" ? await venueSpots(c.gathering_id) : [],
     gathering: { id: g.data.id, name: g.data.name, slug: g.data.slug ?? g.data.id, startsAt: g.data.starts_at, endsAt: g.data.ends_at },
     convening: (conv.data as Convening) ?? "a_spot_first",
     roomId: c.room_id,
@@ -158,6 +175,8 @@ export default function Group() {
   const [note, setNote] = useState("");
   const [shared, setShared] = useState<"shared" | "copied" | "failed" | null>(null);
   const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editRefusal, setEditRefusal] = useState<string | null>(null);
   const [held, setHeld] = useState<ThreadMessage | null>(null);
   const [focused, setFocused] = useState(false);
 
@@ -331,11 +350,45 @@ export default function Group() {
             </>
           ) : view.meetAt ? (
             <>
-              {/* The plan as one line (UI pass 1, 071), never the lead. */}
-              <View style={styles.planLine}>
-                <Icon name="pin" size={16} color={palette.textMuted} />
-                <Text style={styles.meta}>{`${view.spot ?? SQUAD_COPY.atTheGathering} · ${dayClock(view.meetAt)}`}</Text>
-              </View>
+              {/* The plan as one line (UI pass 1, 071), never the lead: what is set, or
+                  "No plan yet · add a place or time", which opens the form (any member). */}
+              {view.squad?.details ? <Body muted>{view.squad.details}</Body> : null}
+              {view.squad ? (
+                <Tap accessibilityRole="button" onPress={() => setEditing(true)} style={styles.planLine}>
+                  <Icon name="pin" size={16} color={palette.textMuted} />
+                  <Text style={[styles.meta, { flex: 1 }]}>{[view.spot, view.squad.timeNote].filter(Boolean).join(" · ") || SQUAD_FORM_COPY.noPlan}</Text>
+                  <Text style={styles.editLink}>{SQUAD_FORM_COPY.edit}</Text>
+                </Tap>
+              ) : (
+                <View style={styles.planLine}>
+                  <Icon name="pin" size={16} color={palette.textMuted} />
+                  <Text style={styles.meta}>{`${view.spot ?? SQUAD_COPY.atTheGathering} · ${dayClock(view.meetAt)}`}</Text>
+                </View>
+              )}
+              {view.squad?.nameStatus === "pending" ? <Body muted>{SQUAD_FORM_COPY.checking}</Body> : null}
+              {editing && view.squad ? (
+                <SquadForm
+                  title={SQUAD_FORM_COPY.editTitle}
+                  start={{ name: view.squad.name, details: view.squad.details ?? "", place: view.squad.spotId, time: view.squad.timeNote ?? "" }}
+                  spots={view.spots}
+                  busy={busy}
+                  refusal={editRefusal}
+                  onClose={() => setEditing(false)}
+                  onSave={async (w) => {
+                    setBusy(true);
+                    setEditRefusal(null);
+                    try {
+                      await editSquad(view.id, w.name, w.details, w.place && w.place !== "event" ? w.place : null, w.time);
+                      setEditing(false);
+                      refresh();
+                    } catch (err) {
+                      setEditRefusal(failed("change your squad", err).says);
+                    } finally {
+                      setBusy(false);
+                    }
+                  }}
+                />
+              ) : null}
               <Button
                 kind="quiet"
                 label={shared === "copied" ? "Link copied" : shared === "failed" ? "Couldn't share. Try again" : SHARE_COPY.button}
@@ -461,7 +514,8 @@ export default function Group() {
 const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4, paddingBottom: spacing.sm, marginBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: palette.border },
   headTitle: { fontFamily: fonts.headline, fontSize: 18, color: palette.text },
-  planLine: { flexDirection: "row", alignItems: "center", gap: 6 },
+  planLine: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44 },
+  editLink: { fontSize: 14, color: palette.accentText, textDecorationLine: "underline" },
   faces: { flexDirection: "row", gap: 6, marginVertical: spacing.md },
   face: { width: 44, height: 44, borderRadius: 22 },
   faceEmpty: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },
