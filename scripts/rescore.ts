@@ -54,14 +54,22 @@ const db = createClient(process.env.SUPABASE_URL!.trim(), process.env.SUPABASE_S
 const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY!.trim(), maxRetries: 1, timeout: 300_000 });
 
 const now = new Date();
-const { data, error } = await db
-  .from("gatherings")
-  .select("id, name, starts_at, source, slug, dismissed_at, is_seed, venues(name), gathering_triage(score, reason), gathering_sources(external_id, snapshot)")
-  .gte("starts_at", now.toISOString())
-  .lt("starts_at", new Date(now.getTime() + weeks * 7 * 86_400_000).toISOString())
-  .order("starts_at")
-  .limit(3000);
-if (error) throw new Error(error.message);
+// Paged: PostgREST answers at most 1,000 rows whatever the limit says, and a read cut
+// short re-scored only the first three weeks of the City feed (30 Oct 2026), leaving
+// one event with two scores.
+const data: any[] = [];
+for (let from = 0; ; from += 1000) {
+  let q = db
+    .from("gatherings")
+    .select("id, name, starts_at, source, slug, dismissed_at, is_seed, venues(name), gathering_triage(score, reason), gathering_sources(external_id, snapshot)")
+    .gte("starts_at", now.toISOString())
+    .lt("starts_at", new Date(now.getTime() + weeks * 7 * 86_400_000).toISOString());
+  if (source) q = q.eq("source", source);
+  const { data: page, error } = await q.order("starts_at").order("id").range(from, from + 999);
+  if (error) throw new Error(error.message);
+  data.push(...(page ?? []));
+  if (!page || page.length < 1000) break;
+}
 
 const classification = (r: any): string => (r.gathering_sources ?? []).map((s: any) => s?.snapshot?.category).find(Boolean) ?? "";
 
