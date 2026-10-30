@@ -13,7 +13,7 @@
 //   node --env-file=.dev.vars scripts/city-preview.ts
 
 import { createClient } from "@supabase/supabase-js";
-import { planPublishing } from "../src/publish/plan.ts";
+import { addWeeks, planPublishing } from "../src/publish/plan.ts";
 import { readPublishInput } from "../src/publish/run.ts";
 import { adjustedScore, distanceAdjustment, venueDistanceKm } from "../src/import/ticketmaster.ts";
 
@@ -53,7 +53,12 @@ for (const d of mine.filter((x) => x.outcome !== "published" && x.reasonCode !==
 
 // Further out: drafts over the floor after the lead window, by the same final score
 // (the AI score plus the distance adjustment) the plan uses.
-const lastPlanned = new Date(Date.parse(input.now) + input.settings.leadDaysMax * 86_400_000).toISOString();
+// The plan fills whole calendar weeks (Monday to Sunday), so "later" starts where its
+// last week ends — not at the lead window's day count, which left a gap between them.
+const lastWeek = plan.weeks[plan.weeks.length - 1]!.weekStart;
+const lastPlanned = new Date(Date.parse(`${addWeeks(lastWeek, 1)}T00:00:00Z`) - 86_400_000 + 1).toISOString();
+const weekEnd = new Intl.DateTimeFormat("en-CA", { timeZone: city.timezone, year: "numeric", month: "2-digit", day: "2-digit" });
+const afterPlan = (iso: string) => weekEnd.format(new Date(iso)) >= addWeeks(lastWeek, 1);
 const later: any[] = [];
 for (let from = 0; ; from += 1000) {
   const { data, error: e2 } = await db
@@ -74,6 +79,6 @@ const finalOf = (g: any): number | null => {
   const km = g.venues ? venueDistanceKm({ lat: g.venues.latitude, lng: g.venues.longitude }, city) : null;
   return adjustedScore(ai, distanceAdjustment(km, city));
 };
-const over = later.filter((g) => (finalOf(g) ?? -1) >= input.settings.cityScoreFloor);
-console.log(`\nAfter ${day(lastPlanned)}, over the floor (publish as they come within three weeks, caps permitting): ${over.length} dates`);
+const over = later.filter((g) => afterPlan(g.starts_at) && (finalOf(g) ?? -1) >= input.settings.cityScoreFloor);
+console.log(`\nFrom Monday ${addWeeks(lastWeek, 1)}, over the floor (publish as they come within three weeks, caps permitting): ${over.length} dates`);
 for (const g of over) console.log(`LATER\t${day(g.starts_at)}\t${finalOf(g)}\t${g.name}\t${g.venues?.name ?? "?"}`);
