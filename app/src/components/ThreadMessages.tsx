@@ -14,7 +14,7 @@
 import { memo, useCallback, useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import type { ImageSource } from "expo-image";
-import { colors as palette, fonts, radius, spacing, THREAD_COPY, type ThreadMessage } from "@pind/shared";
+import { colors as palette, fonts, houseClock, radius, spacing, THREAD_COPY, type ThreadMessage } from "@pind/shared";
 import { Avatar } from "./Avatar";
 import { Button } from "./ui";
 import { Arrive } from "./Motion";
@@ -22,8 +22,7 @@ import { Tap } from "./Tap";
 
 // One formatter for the whole thread: building an Intl.DateTimeFormat per message per render
 // was measurable on a slow phone (measure:thread, the "feel alive" pass).
-const CLOCK = new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit" });
-const clock = (iso: string) => CLOCK.format(new Date(iso));
+const clock = (iso: string) => houseClock(iso);
 
 // The day a run of messages belongs to, as a pill between them (UI pass 1, 057): "Today",
 // "Yesterday", or the date.

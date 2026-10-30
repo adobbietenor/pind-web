@@ -175,6 +175,15 @@ import { GO_TOGETHER_AT, ROOM_OPENS_AT } from "./constants.ts";
 
 export const SEE_WHOS_GOING = "See who's going";
 
+// The line under "Pin in · I'm going" on W2 and on the app's A8 alike (UI pass 1, 005): what
+// it costs, then why to say you'd like to meet.
+export function pinNote(cost: string | null | undefined): string {
+  return `${cost ? `${cost}. ` : ""}Say you'd like to meet and you'll see everyone else who did.`;
+}
+
+// The question over the counters, W2 and A8/A9 alike.
+export const WHO_ELSE = "Who else is going?";
+
 // The two counters, stacked, each with its icon (UI pass 1, rule 5, Alex 30 Oct 2026):
 // person "37 going", handshake "14 open to meeting" or "Nobody open to meeting yet", on
 // every crowd page state, W2 and A9 alike. Nobody pinned at all is one invitation
@@ -214,3 +223,12 @@ export const EFFECTIVE_END_MINUTES = 180;
 export function effectiveEnd(startsAt: string, endsAt: string | null): string {
   return endsAt ?? new Date(Date.parse(startsAt) + EFFECTIVE_END_MINUTES * 60_000).toISOString();
 }
+
+// W2's layout words (UI pass 1, 005), drawn by W2 and by the app's A8/A9 alike.
+export const CROWD_PAGE_COPY = {
+  details: "Details",
+  hideDetails: "Hide details",
+  spotsNearby: "Spots nearby",
+  nothingNearby: "Nothing listed near here yet.",
+  openInMaps: "Open in Maps",
+} as const;

@@ -5,7 +5,7 @@
 // /me are app routes on the same host. One domain, one deploy, one universal-link
 // file, no CORS, and the shared link is always the crowd page.
 
-import { ONE_LINER } from "@pind/shared";
+import { longWhenLocal, ONE_LINER } from "@pind/shared";
 import type { Env } from "../env";
 import { crowd } from "./data";
 import { appSiteAssociation, ogImage } from "./og";
@@ -82,14 +82,7 @@ async function ogFor(env: Env, slug: string): Promise<Response> {
   const door = await crowd(env, slug);
   if (door.status !== "ok") return new Response("Not found", { status: 404 });
   const tz = door.venue.timezone;
-  const when = new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(door.gathering.starts_at));
+  const when = longWhenLocal(door.gathering.starts_at, tz);
   const svg = ogImage({ name: door.gathering.name, when, venue: door.venue.name, oneLiner: ONE_LINER });
   return pngResponse(rasterise(svg));
 }

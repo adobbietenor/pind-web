@@ -31,7 +31,7 @@ import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Share, StyleSheet, Text, View } from "react-native";
-import { AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, ONE_ON_ONE_COPY, SOLO_COPY, spacing, SQUAD_COPY, SQUAD_FORM_COPY, type Convening, type ThreadMessage } from "@pind/shared";
+import { AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, houseClock, radius, shareCardUrl, SHARE_COPY, ONE_ON_ONE_COPY, SOLO_COPY, spacing, SQUAD_COPY, SQUAD_FORM_COPY, type Convening, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { AvatarStack } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
@@ -75,8 +75,8 @@ ${url}` });
   return nav?.clipboard ? nav.clipboard.writeText(url).then(() => "copied" as const, () => "failed" as const) : "failed";
 }
 
-const clock = (iso: string) => new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit" }).format(new Date(iso));
-const dayClock = (iso: string) => new Intl.DateTimeFormat("en-CA", { weekday: "short", hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+const clock = (iso: string) => houseClock(iso);
+const dayClock = (iso: string) => `${new Intl.DateTimeFormat("en-GB", { weekday: "short" }).format(new Date(iso))} ${houseClock(iso)}`;
 
 interface GroupView {
   id: string;

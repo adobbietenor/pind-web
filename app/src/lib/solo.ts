@@ -7,7 +7,7 @@
 // sees whom (H11). Every write is a function that checks again; a refusal comes back in
 // words from packages/shared (soloRefusal), never "not allowed".
 import { Platform } from "react-native";
-import { Said, soloRefusal, type Database } from "@pind/shared";
+import { houseClock, Said, soloRefusal, type Database } from "@pind/shared";
 import { supabase } from "./supabase";
 
 export type SoloChoice = Database["public"]["Enums"]["solo_visibility"];
@@ -166,7 +166,7 @@ export async function withdrawSolo(proposalId: string): Promise<void> {
 
 // A time in the gathering's own zone: "7:30 pm".
 export function soloClock(iso: string, tz: string): string {
-  return new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit", timeZone: tz }).format(new Date(iso));
+  return houseClock(iso, tz);
 }
 
 // A23: where 1-on-1 is on, and who can see you there — a summary only; it is switched on

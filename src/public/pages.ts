@@ -3,7 +3,7 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { categoryLabel, CITY_ATTRIBUTION, clockLocal, COUNTERS, countNext, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, SEARCH_COPY, SEARCH_DAYS, SEARCH_MAX, searchQuery, SAFETY_TODAY, SEE_WHO, SUGGEST_TO, suggestSubject, THRESHOLD_EXPLANATION } from "@pind/shared";
+import { categoryLabel, CITY_ATTRIBUTION, clockLocal, COUNTERS, countNext, entryLine, longWhenLocal, pinNote, WHO_ELSE, CROWD_PAGE_COPY, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, SEARCH_COPY, SEARCH_DAYS, SEARCH_MAX, searchQuery, SAFETY_TODAY, SEE_WHO, SUGGEST_TO, suggestSubject, THRESHOLD_EXPLANATION } from "@pind/shared";
 import type { Env } from "../env";
 import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
 import { faviconSvg } from "./favicon";
@@ -51,15 +51,8 @@ function fmt(iso: string, tz: string, opts: Intl.DateTimeFormatOptions): string 
 // The card's clock is the shared one, so the app's list says the same time (M3.3c).
 const clock = clockLocal;
 
-// The date in this product's own voice — "Saturday 26 September", not en-CA's
-// "Saturday, September 26" — with the time still on a 12-hour clock, which is what
-// Toronto reads. Two locales because each is right for its half.
-const dateLong = (iso: string, tz: string) =>
-  new Intl.DateTimeFormat("en-GB", { timeZone: tz, weekday: "long", day: "numeric", month: "long" }).format(
-    new Date(iso),
-  );
-
-const longWhen = (iso: string, tz: string) => `${dateLong(iso, tz)}, ${clock(iso, tz)}`;
+// The house date and clock, shared with the app's A8/A9 (packages/shared, longWhenLocal).
+const longWhen = longWhenLocal;
 
 // ---------------------------------------------------------------------------
 // Counts, said honestly (H6). Zero is a number and it is shown.
@@ -442,7 +435,7 @@ ${
     ? `<a class="cta ghost" href="/">See what&#39;s on this week</a>`
     : `${signupNotice(g)}
 <a class="cta" id="cta" href="/g/${escape(g.slug)}/pin">${escape(PIN_IN)}</a>
-<p class="note">${cost ? `${escape(cost)}. ` : ""}Say you&#39;d like to meet and you&#39;ll see everyone else who did.</p>`
+<p class="note">${escape(pinNote(cost))}</p>`
 }
 ${spotsNearby()}
 ${map.html}`,
@@ -504,12 +497,17 @@ const APPLE_MAPS =
 // says which it is rather than pretending they are the same thing, because one of them
 // is going to ask for money. W2 only — a card is already a link, and an anchor inside
 // an anchor is invalid HTML.
-function blurbBlock(g: Crowd2["gathering"]): string {
-  const out = g.event_url
+// The way out to whoever is putting it on: one rule, for W2's Details and the app's (w2Facts).
+function outLink(g: Crowd2["gathering"]): { href: string; label: string } | null {
+  return g.event_url
     ? { href: g.event_url, label: g.entry === "ticketed" ? "Tickets" : "Learn more" }
     : g.signup_url
       ? { href: g.signup_url, label: "Learn more" }
       : null;
+}
+
+function blurbBlock(g: Crowd2["gathering"]): string {
+  const out = outLink(g);
   if (!g.blurb && !out) return "";
   return (
     `<div class="what-it-is">` +
@@ -528,10 +526,10 @@ function tallies(c: Counts): string {
   const crews = crewLine(c);
   const next = countNext(c.open_to_meeting);
   if (c.pinned === 0) {
-    return `<div class="asks-block"><p class="asks">Who else is going?</p>
+    return `<div class="asks-block"><p class="asks">${escape(WHO_ELSE)}</p>
 <p class="count-line">${escape(COUNTERS.nobody)}</p></div>`;
   }
-  return `<div class="asks-block"><p class="asks">Who else is going?</p>
+  return `<div class="asks-block"><p class="asks">${escape(WHO_ELSE)}</p>
 <p class="counter">${icon("person", 22)}${escape(COUNTERS.going(c.pinned))}</p>
 <p class="counter">${icon("handshake", 22)}${escape(COUNTERS.open(c.open_to_meeting))}</p>
 ${next ? `<p class="mix">${escape(next)}</p>` : ""}
@@ -541,7 +539,7 @@ ${crews ? `<p class="mix">${escape(crews)}</p>` : ""}</div>`;
 
 // An ended gathering (006): what happened, honestly, with the count it reached (H6).
 function endedTallies(c: Counts): string {
-  return `<div class="asks-block"><p class="asks">Who else is going?</p>
+  return `<div class="asks-block"><p class="asks">${escape(WHO_ELSE)}</p>
 <p class="count-line">This gathering has finished.</p>
 <p class="mix">${escape(COUNTERS.pinnedIn(c.pinned))}</p></div>`;
 }
@@ -551,7 +549,7 @@ function endedTallies(c: Counts): string {
 // The house rules live in here, which is how they are "one collapsed row" on W2.
 function detailsBlock(door: Crowd2): string {
   const v = door.venue;
-  return `<details class="more"><summary><span class="closed-label">Details</span><span class="open-label">Hide details</span>${icon("chevronDown", 16)}</summary>
+  return `<details class="more"><summary><span class="closed-label">${CROWD_PAGE_COPY.details}</span><span class="open-label">${CROWD_PAGE_COPY.hideDetails}</span>${icon("chevronDown", 16)}</summary>
 <div class="more-body">
 ${v.address ? `<p class="addr">${escape(v.address)}</p>` : ""}
 ${blurbBlock(door.gathering)}
@@ -564,7 +562,7 @@ ${blurbBlock(door.gathering)}
 // **Spots nearby** replaces "Where crews meet" (UI pass 1, rule 3: we don't engineer
 // meeting places). A quiet empty state until there is something to list here.
 function spotsNearby(): string {
-  return `<section class="nearby"><p class="kicker">Spots nearby</p><p class="nearby-empty">Nothing listed near here yet.</p></section>`;
+  return `<section class="nearby"><p class="kicker">${CROWD_PAGE_COPY.spotsNearby}</p><p class="nearby-empty">${CROWD_PAGE_COPY.nothingNearby}</p></section>`;
 }
 
 // The venue and its meeting spots, never people (H1), and never the viewer (H4).
@@ -880,6 +878,9 @@ export function w2Facts(door: Crowd2, origin: string) {
     blurb: g.blurb,
     why: g.blurb_why,
     cost: entryLine(g) || null,
+    // UI pass 1: the line under the Pin in button, and the Details link, as W2 draws them.
+    note: pinNote(entryLine(g)),
+    link: outLink(g),
     signupRequired: g.signup_required,
     map: real
       ? {

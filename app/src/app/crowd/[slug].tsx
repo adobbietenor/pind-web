@@ -27,6 +27,11 @@ import {
   clockLocal,
   countNext,
   CROWD_COPY,
+  CROWD_PAGE_COPY,
+  longWhenLocal,
+  PIN_IN,
+  pinNote,
+  WHO_ELSE,
   ENDED_COPY,
   HERE_COPY,
   ONE_ON_ONE_COPY,
@@ -43,6 +48,7 @@ import {
 import { AppScreen } from "@/components/AppScreen";
 import { Avatar, AvatarStack } from "@/components/Avatar";
 import { Counters } from "@/components/Counters";
+import { CrowdDetails } from "@/components/CrowdDetails";
 import { ImHere } from "@/components/ImHere";
 import { hereNow, type HereNow } from "@/lib/here";
 import { Icon } from "@/components/Icon";
@@ -75,6 +81,9 @@ interface Facts {
   blurb: string | null;
   why: string | null;
   cost: string | null;
+  // W2's own line under the button, and its Details link (UI pass 1: one rule, w2Facts).
+  note?: string;
+  link?: { href: string; label: string } | null;
   map: { src: string; width: number; height: number; openInMaps: string | null; markers: { n: number; left: number; top: number }[] } | null;
   spots: { n: number | null; name: string; description: string | null; meet: string; walk: number | null; offMap: boolean; directions: string | null }[];
 }
@@ -125,16 +134,6 @@ interface View9 {
 
 // The venue's own clock: the one live city's (Toronto); every gathering today is there.
 const TZ = liveCity().timezone;
-
-function when(iso: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(iso));
-}
 
 async function load(slug: string): Promise<View9 | null> {
   const db = supabase();
@@ -322,16 +321,14 @@ export default function CrowdPage() {
           line under it says when in those words. */}
       {ended || tonight ? <Text style={[styles.dayTag, ended && styles.dayTagEnded]}>{ended ? ENDED_COPY.endedTag : ENDED_COPY.tonightTag}</Text> : null}
       <Heading>{g.name}</Heading>
-      <Body muted>{`${ended && lastNight ? ENDED_COPY.lastNight : tonight && !ended ? ENDED_COPY.startsAt(clockLocal(g.startsAt, TZ)) : view.facts?.when ?? when(g.startsAt)} · ${g.venue}`}</Body>
-      {view.facts?.address ? <Body muted>{view.facts.address}</Body> : null}
-      {view.facts?.blurb ? (
-        <View style={{ marginTop: spacing.sm }}>
-          <Body>{view.facts.blurb}</Body>
-          {view.facts.why ? <Body muted>{view.facts.why}</Body> : null}
-        </View>
-      ) : null}
+      {/* W2's layout (UI pass 1, 005): the title, the one line always shown, then Details
+          (closed) with the address, what it is and the link; then the question and the
+          counters. The house date and clock (longWhenLocal), the same as W2's. */}
+      <Body muted>{`${ended && lastNight ? ENDED_COPY.lastNight : tonight && !ended ? ENDED_COPY.startsAt(clockLocal(g.startsAt, TZ)) : longWhenLocal(g.startsAt, TZ)} · ${g.venue}`}</Body>
+      <CrowdDetails address={view.facts?.address ?? null} blurb={view.facts?.blurb ?? null} why={view.facts?.why ?? null} link={view.facts?.link ?? null} />
 
       <View style={styles.counts}>
+        <Text style={styles.asks}>{WHO_ELSE}</Text>
         {ended && view.mine ? (
           // After the night, one number: how many went (089). No going/open counters.
           <View style={styles.wentRow}>
@@ -358,8 +355,9 @@ export default function CrowdPage() {
         // A8 — not pinned here.
         !ended ? (
           <>
-            <Button label={CROWD_COPY.pinIn} onPress={() => router.push(`/pin/${slug}`)} />
-            {view.facts?.cost ? <Text style={styles.cost}>{view.facts.cost}</Text> : null}
+            {/* W2's button and the line under it (pinNote), word for word. */}
+            <Button label={PIN_IN} onPress={() => router.push(`/pin/${slug}`)} />
+            <Text style={styles.cost}>{view.facts?.note ?? pinNote(view.facts?.cost)}</Text>
           </>
         ) : (
           // Finished: pinning is closed (P37b), and the page says so — a button that
@@ -572,8 +570,14 @@ export default function CrowdPage() {
         <Button label={ONE_ON_ONE_COPY.done} onPress={() => setMeetSheet(false)} />
       </Sheet>
 
+      {/* Spots nearby (W2's placeholder, UI pass 1 rule 3), then the map last. */}
+      <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
+        <Text style={styles.kicker}>{CROWD_PAGE_COPY.spotsNearby}</Text>
+        <Text style={styles.nearbyEmpty}>{CROWD_PAGE_COPY.nothingNearby}</Text>
+      </View>
+
       {view.facts?.map ? (
-        <View style={{ marginTop: spacing.xl }}>
+        <View style={{ marginTop: spacing.lg }}>
           <View style={[styles.mapBox, { aspectRatio: view.facts.map.width / view.facts.map.height }]}>
             <Image
               source={{ uri: view.facts.map.src }}
@@ -582,11 +586,12 @@ export default function CrowdPage() {
               accessibilityLabel="Map of the venue. No people are shown."
             />
             <View style={styles.venuePin} />
+            <Text style={styles.venueName}>{g.venue}</Text>
           </View>
           <Text style={styles.caption}>
             {view.facts.map.openInMaps ? (
               <Text style={styles.link} onPress={() => void Linking.openURL(view.facts!.map!.openInMaps!)}>
-                {"Open in Maps"}
+                {CROWD_PAGE_COPY.openInMaps}
               </Text>
             ) : null}
           </Text>
@@ -616,7 +621,11 @@ const styles = StyleSheet.create({
   spot: { paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: palette.border, gap: 3 },
   spotName: { fontFamily: fonts.headline, fontSize: 16, color: palette.text },
   meta: { fontSize: 13, color: palette.textMuted },
-  counts: { marginTop: spacing.md, marginBottom: spacing.lg, gap: 4 },
+  counts: { marginTop: spacing.lg, marginBottom: spacing.lg, gap: 4 },
+  asks: { fontSize: 15, color: palette.textMuted, marginBottom: 2 },
+  kicker: { fontFamily: fonts.headline, fontSize: 13, letterSpacing: 1.2, textTransform: "uppercase", color: palette.textMuted },
+  nearbyEmpty: { fontSize: 15, color: "#8D8996", padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderStyle: "dashed", borderColor: "#34303D" },
+  venueName: { position: "absolute", left: 0, right: 0, top: "50%", marginTop: 12, textAlign: "center", fontFamily: fonts.headline, fontSize: 13, color: "#fff", textShadowColor: "#0B0A0D", textShadowRadius: 4 },
   small: { fontSize: 13, lineHeight: 18, color: palette.textMuted },
   oneStep: {
     padding: spacing.lg,

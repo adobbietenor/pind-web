@@ -50,6 +50,7 @@ describe("Admin times — the venue's timezone, daylight saving included", () =>
 
   it("T04 the local day, and a readable label", () => {
     assert.equal(localDate("2026-09-27T02:00:00.000Z", TO), "2026-09-26");
-    assert.match(formatLocal("2026-09-26T23:00:00.000Z", TO), /Sat.*Sep.*26.*7:00/);
+    // The house style since UI pass 1: "Sat 26 Sep, 7:00 p.m.", never "7:00 PM".
+    assert.equal(formatLocal("2026-09-26T23:00:00.000Z", TO), "Sat 26 Sep, 7:00 p.m.");
   });
 });

@@ -89,3 +89,21 @@ describe("UI pass 1, rules that apply everywhere", () => {
     assert.doesNotMatch(worker, /class="rules"|class="crews-meet"|<details class="rules-row" open/);
   });
 });
+
+describe("The house style for times (UI pass 1)", () => {
+  it("U05 every clock is '6:00 p.m.', never '6:00 PM', and only time.ts formats one", async () => {
+    const { houseClock, longWhenLocal, formatLocal, clockLocal } = await import("../../packages/shared/src/time.ts");
+    const at = "2026-10-30T22:00:00Z"; // 6:00 p.m. in Toronto
+    assert.equal(houseClock(at, "America/Toronto"), "6:00 p.m.");
+    assert.equal(clockLocal("2026-10-30T13:05:00Z", "America/Toronto"), "9:05 a.m.");
+    assert.equal(houseClock("2026-10-30T16:00:00Z", "America/Toronto"), "12:00 p.m.");
+    assert.equal(houseClock("2026-10-31T04:30:00Z", "America/Toronto"), "12:30 a.m.");
+    assert.equal(longWhenLocal(at, "America/Toronto"), "Friday 30 October, 6:00 p.m.");
+    assert.equal(formatLocal(at, "America/Toronto"), "Fri 30 Oct, 6:00 p.m.");
+    // The scanner sees a clock format when there is one, then finds none outside time.ts.
+    const CLOCK = /hour:\s*"(numeric|2-digit)"/;
+    assert.ok(CLOCK.test('new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit" })'));
+    const own = FILES.filter((f) => !f.split(String.fromCharCode(92)).join("/").endsWith("packages/shared/src/time.ts") && CLOCK.test(code(f)));
+    assert.deepEqual(own, [], "these format a clock of their own instead of houseClock");
+  });
+});

@@ -64,20 +64,47 @@ export function localDate(iso: string, tz: string): string {
   return toLocalInput(iso, tz).slice(0, 10);
 }
 
-// "Sat 27 Sep, 7:00 PM".
-export function formatLocal(iso: string | null | undefined, tz: string): string {
-  if (!iso) return "";
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: tz,
-    weekday: "short",
-    day: "numeric",
-    month: "short",
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(new Date(iso));
+// ---------------------------------------------------------------------------
+// The house style for times (Alex, UI pass 1): "6:00 p.m.", never "6:00 PM", everywhere.
+// Built from the date's parts rather than a locale's whole string, because engines disagree:
+// the same en-CA format prints "6:00 p.m." in Chrome and can print "6:00 PM" under Hermes
+// on an iPhone. Every clock in the product goes through these (U05 fails on one that
+// formats its own).
+// ---------------------------------------------------------------------------
+
+function parts(iso: string, tz: string | undefined, opts: Intl.DateTimeFormatOptions, locale = "en-GB"): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const p of new Intl.DateTimeFormat(locale, { ...(tz ? { timeZone: tz } : {}), ...opts }).formatToParts(new Date(iso))) out[p.type] = p.value;
+  return out;
 }
 
-// "7:30 p.m." in the venue's zone — the time on a list card, W1's and the app's alike.
+// "7:30 p.m.", in the venue's zone (or the device's when none is given).
+export function houseClock(iso: string, tz?: string): string {
+  const p = parts(iso, tz, { hour: "numeric", minute: "2-digit", hourCycle: "h23" });
+  const h = Number(p.hour) % 24;
+  return `${h % 12 === 0 ? 12 : h % 12}:${p.minute} ${h < 12 ? "a.m." : "p.m."}`;
+}
+
+// "Friday 30 October": the product's own date (W2's, A8's and A9's).
+export function houseDay(iso: string, tz?: string): string {
+  const p = parts(iso, tz, { weekday: "long", day: "numeric", month: "long" });
+  return `${p.weekday} ${p.day} ${p.month}`;
+}
+
+// "Friday 30 October, 4:00 p.m.": the crowd page's one line, W2 and the app alike.
+export function longWhenLocal(iso: string, tz?: string): string {
+  return `${houseDay(iso, tz)}, ${houseClock(iso, tz)}`;
+}
+
+// "Sat 27 Sep, 7:00 p.m.".
+export function formatLocal(iso: string | null | undefined, tz: string): string {
+  if (!iso) return "";
+  // en-US for the short names ("Sep", where en-GB now says "Sept"); the order is ours.
+  const p = parts(iso, tz, { weekday: "short", day: "numeric", month: "short" }, "en-US");
+  return `${p.weekday} ${p.day} ${p.month}, ${houseClock(iso, tz)}`;
+}
+
+// "7:30 p.m." in the venue's zone: the time on a list card, W1's and the app's alike.
 export function clockLocal(iso: string, tz: string): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+  return houseClock(iso, tz);
 }

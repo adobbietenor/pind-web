@@ -7,7 +7,7 @@
 // Settings (#4). The line each row says is decided here, where tests reach it.
 
 import { effectiveEnd } from "./copy.ts";
-import { localDate } from "./time.ts";
+import { houseClock, localDate } from "./time.ts";
 import { SQUAD_COPY } from "./squad.ts";
 
 export interface MyEventInput {
@@ -324,7 +324,7 @@ export function orderMyChats<T extends Pick<MyChatsEvent, "startsAt" | "endsAt" 
 // What a chat row's time says: the clock today, the weekday this week, else the date.
 export function chatWhen(iso: string, tz: string, now: Date): string {
   if (localDate(iso, tz) === localDate(now.toISOString(), tz)) {
-    return new Intl.DateTimeFormat("en-CA", { timeZone: tz, hour: "numeric", minute: "2-digit" }).format(new Date(iso));
+    return houseClock(iso, tz);
   }
   if (now.getTime() - Date.parse(iso) < 6 * DAY) return new Intl.DateTimeFormat("en-CA", { timeZone: tz, weekday: "short" }).format(new Date(iso));
   return new Intl.DateTimeFormat("en-CA", { timeZone: tz, day: "numeric", month: "short" }).format(new Date(iso));
