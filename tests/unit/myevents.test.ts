@@ -145,14 +145,15 @@ describe("A19 as the home for your chats (Alex, 16 Oct 2026)", () => {
     assert.match(tabs, /unreadTotal\(chats\.data\)/);
   });
 
-  it("M16 the order under an event is the one asked for: Everyone going, my squad, my 1-on-1, then open squads — which offer to join, never open a thread", () => {
-    const screen = readFileSync("app/src/app/(tabs)/my-events.tsx", "utf8");
+  it("M16 the inbox's order under an event: the event's own row (the room), then my squad, then my 1-on-1; no join from here; pinned-only leads to A27", () => {
+    // UI pass 1 (107): one row per chat. The open squads to join left My Events for the
+    // crowd page (A15); a join here would be a second way to do one thing.
+    const screen = readFileSync("app/src/app/(tabs)/my-events.tsx", "utf8").replace(/^\s*\/\/.*$/gm, "");
     const at = (s: string) => screen.indexOf(s);
-    const order = ["{e.rooms.map(", "{[squad, plan].map(", "{e.openSquads.length ?"].map(at);
-    assert.ok(order.every((i) => i > 0) && order[0] < order[1] && order[1] < order[2], "the rows under an event are out of order");
-    const open = screen.slice(at("{e.openSquads.length ?"), at("function ChatRow"));
-    assert.match(open, /joinSquad|join\(s\)/, "an open squad does not offer to join");
-    assert.doesNotMatch(open.slice(0, open.indexOf("joining === s.crewId ?")), /group\/\[id\]/, "tapping an open squad opens its thread");
-    assert.match(screen, /pathname: "\/opt-in\/\[slug\]"/, "pinned but not open to meeting has no way to opt in");
+    const order = ['kind: "event"', "for (const c of [squad, plan])"].map(at);
+    assert.ok(order.every((i) => i > 0) && order[0] < order[1], "the rows under an event are out of order");
+    assert.match(screen, /const squad = e\.crews\.find\(\(c\) => c\.kind === "crew"\);\s*const plan = e\.crews\.find\(\(c\) => c\.kind === "solo"\);/);
+    assert.doesNotMatch(screen, /joinSquad|openSquads/, "My Events offers a join again");
+    assert.match(screen, /!e\.openToMeeting\s*\?\s*\{ pathname: "\/opt-in\/\[slug\]"/, "pinned but not open to meeting has no way to opt in");
   });
 });

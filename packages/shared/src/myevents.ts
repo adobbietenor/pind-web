@@ -348,3 +348,38 @@ export const MY_CHATS_COPY = {
   pastToggle: (n: number, open: boolean) => (open ? "Hide past events" : `Past events (${n})`),
   unreadLabel: (n: number) => (n === 1 ? "1 unread message" : `${n} unread messages`),
 } as const;
+
+// A19 as a chat inbox (UI pass 1, 107/108): the date badge on each row, in the venue's own
+// day ("NOV" over "2"), and the quiet lines a row says when it has no message to preview.
+export function dateBadge(iso: string, tz: string): { month: string; day: string } {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: tz, month: "short", day: "numeric" }).formatToParts(new Date(iso));
+  return {
+    month: (parts.find((p) => p.type === "month")?.value ?? "").replace(".", "").toUpperCase(),
+    day: parts.find((p) => p.type === "day")?.value ?? "",
+  };
+}
+
+export const INBOX_COPY = {
+  tonight: "Tonight",
+  comingUp: "Coming up",
+  past: "Past",
+  live: "Live",
+  filters: [
+    { value: "all", name: "All" },
+    { value: "unread", name: "Unread" },
+    { value: "squads", name: "Squads" },
+  ],
+  pinnedOnly: "You pinned in · not open to meeting yet",
+  quiet: "You're in · nobody chatting yet",
+  waiting: "Just you so far",
+  ended: "Meeting has ended",
+  endedMet: (n: number) => (n === 1 ? "Meeting has ended · you met 1 person" : `Meeting has ended · you met ${n} people`),
+  tick: "Did you meet anyone? Say who",
+  withdrawn: "This one was withdrawn",
+  showAllPast: "Show all past events",
+  hidePast: "Show fewer",
+  womenOnlyRoom: "Women-only room",
+  nothingUnread: "Nothing unread.",
+  noSquads: "No squads yet.",
+} as const;
+export type InboxFilter = (typeof INBOX_COPY.filters)[number]["value"];
