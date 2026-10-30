@@ -99,7 +99,7 @@ try {
   // her profile sheet, one tap, nothing asked first.
   await send("Page.navigate", { url: `${SITE}/crowd/${slug}` });
   step("Bea is on Ari's list with 'Open to 1-on-1'", await until(ONE_ON_ONE_COPY.tag, 25000));
-  const tapped = await evaluate(`(() => { const r=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.trim().startsWith("Bea")); if(!r) return false; r.click(); return true; })()`);
+  const tapped = await evaluate(`(() => { const r=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.includes("Bea") && e.innerText.includes(${JSON.stringify(ONE_ON_ONE_COPY.tag)})); if(!r) return false; r.click(); return true; })()`);
   step("tapping Bea opens her profile sheet", tapped && (await until(ONE_ON_ONE_COPY.ask)));
   await click(ONE_ON_ONE_COPY.ask);
   step("one tap sends it: 'Request sent'", await until(ONE_ON_ONE_COPY.sent("Bea")));
