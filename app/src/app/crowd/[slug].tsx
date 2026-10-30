@@ -612,7 +612,8 @@ const styles = StyleSheet.create({
   rules: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, padding: spacing.md, gap: spacing.sm, marginBottom: spacing.sm },
   rule: { fontSize: 15, lineHeight: 21, color: palette.text },
   mapBox: { width: "100%", borderRadius: radius.md, overflow: "hidden", backgroundColor: palette.surface },
-  venuePin: { position: "absolute", left: "50%", top: "50%", width: 16, height: 16, marginLeft: -8, marginTop: -8, borderRadius: 8, backgroundColor: palette.accent, borderWidth: 3, borderColor: "#fff" },
+  // W2's venue dot: white, ringed in the page's near-black, the name under it.
+  venuePin: { position: "absolute", left: "50%", top: "50%", width: 20, height: 20, marginLeft: -10, marginTop: -10, borderRadius: 10, backgroundColor: "#fff", borderWidth: 3, borderColor: "rgba(11,10,13,0.85)" },
   marker: { position: "absolute", width: 26, height: 26, marginLeft: -13, marginTop: -13, borderRadius: 13, backgroundColor: palette.accent, borderWidth: 2, borderColor: "#fff", alignItems: "center", justifyContent: "center" },
   markerNum: { color: "#fff", fontSize: 13, fontWeight: "700" },
   badge: { width: 24, height: 24, borderRadius: 12, backgroundColor: palette.accent, alignItems: "center", justifyContent: "center" },
@@ -625,7 +626,7 @@ const styles = StyleSheet.create({
   asks: { fontSize: 15, color: palette.textMuted, marginBottom: 2 },
   kicker: { fontFamily: fonts.headline, fontSize: 13, letterSpacing: 1.2, textTransform: "uppercase", color: palette.textMuted },
   nearbyEmpty: { fontSize: 15, color: "#8D8996", padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderStyle: "dashed", borderColor: "#34303D" },
-  venueName: { position: "absolute", left: 0, right: 0, top: "50%", marginTop: 12, textAlign: "center", fontFamily: fonts.headline, fontSize: 13, color: "#fff", textShadowColor: "#0B0A0D", textShadowRadius: 4 },
+  venueName: { position: "absolute", left: 0, right: 0, top: "50%", marginTop: 16, textAlign: "center", fontFamily: fonts.headline, fontSize: 13, color: "#fff", textShadowColor: "#0B0A0D", textShadowRadius: 4 },
   small: { fontSize: 13, lineHeight: 18, color: palette.textMuted },
   oneStep: {
     padding: spacing.lg,
