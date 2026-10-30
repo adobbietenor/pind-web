@@ -391,7 +391,18 @@ export default function CrowdPage() {
               </View>
                 {/* No count on it: next to the public mix, one would tell how many nonbinary
                     people opted in (decisions Q9, "never a number"). */}
-                {wo ? <Button kind="quiet" label={WOMEN_ONLY_COPY.room} onPress={() => router.push({ pathname: "/room/[id]", params: { id: wo.roomId } })} /> : null}
+                {/* The women-only room beside the main one, in the soft pink accent (UI pass 1,
+                    105). No count on it (Q9, "never a number"). */}
+                {wo ? (
+                  <Tap accessibilityRole="button" onPress={() => router.push({ pathname: "/room/[id]", params: { id: wo.roomId } })} style={styles.woCard}>
+                    <Icon name="chat" size={20} color="#F7C6DE" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.woTitle}>{WOMEN_ONLY_COPY.room}</Text>
+                      <Text style={styles.woLine}>{WOMEN_ONLY_COPY.roomCardLine}</Text>
+                    </View>
+                    <Text style={styles.rowChevron}>›</Text>
+                  </Tap>
+                ) : null}
               </View>
             );
           })()}
@@ -541,6 +552,9 @@ const styles = StyleSheet.create({
   roomButton: { minHeight: 52, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: "#FFFFFF" },
   roomButtonLabel: { fontFamily: fonts.headline, fontSize: 18, color: palette.accent },
   listHeading: { fontFamily: fonts.headline, fontSize: 17, color: palette.text, marginBottom: spacing.sm },
+  woCard: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4, minHeight: 60, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: "#8A3E66", backgroundColor: "#22141C" },
+  woTitle: { fontFamily: fonts.headline, fontSize: 16, color: palette.text },
+  woLine: { fontSize: 13, color: "#E7B9CF", marginTop: 1 },
   rowChevron: { fontSize: 22, color: palette.textMuted },
   seeAll: { color: palette.accentText, fontSize: 15, textDecorationLine: "underline", marginTop: spacing.sm, paddingVertical: spacing.sm },
   sectionName: { fontFamily: fonts.headline, fontSize: 14, color: palette.textMuted, marginBottom: spacing.sm },

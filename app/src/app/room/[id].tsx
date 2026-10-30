@@ -235,6 +235,7 @@ export default function Room() {
         <AvatarStack size={30} max={3} people={people.map((p) => ({ id: p.personId, name: p.firstName, source: faceOf(p) }))} />
         <View style={{ flex: 1 }}>
           <Text style={styles.title} numberOfLines={1}>{view.womenOnly ? WOMEN_ONLY_COPY.room : ROOM_COPY.title}</Text>
+          {view.womenOnly ? <Text style={styles.woTag}>{WOMEN_ONLY_COPY.tag}</Text> : null}
           <Text style={styles.meta} numberOfLines={1}>{`${view.gathering.name} · ${ROOM_COPY.here(count)}`}</Text>
         </View>
         <Tap accessibilityRole="button" accessibilityLabel={ROOM_COPY.about} onPress={() => setInfo(true)} style={styles.infoButton}>
@@ -400,6 +401,7 @@ const styles = StyleSheet.create({
   opener: { minHeight: 40, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderColor: palette.accent, borderRadius: 999 },
   header: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4, paddingBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: palette.border },
   title: { fontFamily: fonts.headline, fontSize: 18, color: palette.text },
+  woTag: { alignSelf: "flex-start", fontSize: 11, fontFamily: fonts.headline, color: "#F7C6DE", backgroundColor: "#3A1F2E", paddingHorizontal: 7, paddingVertical: 1, borderRadius: 999, overflow: "hidden", marginVertical: 2 },
   infoButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   faceCell: { alignItems: "center", gap: 4, width: 60 },
   faceName: { fontSize: 13, color: palette.textMuted },

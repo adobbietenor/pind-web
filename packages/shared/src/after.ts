@@ -80,6 +80,12 @@ export const WOMEN_ONLY_COPY = {
   joinGeneral: "Join the general room instead",
   joinGeneralWhat: "Just for this one. Your setting stays as it is.",
   room: "Women-only room",
+  // The crowd page's second card (UI pass 1, 105). Never a count on it (Q9): beside the
+  // public mix, a number would say how many nonbinary people opted in.
+  roomCardLine: "Only women who turn this on can see it",
+  // A23 (106): the heading the meeting switches sit under.
+  howYouMeet: "How you meet",
+  tag: "Women only",
   // M4.2 (Alex, 29 Oct): an ordinary Leave, so leaving the women-only room never points at
   // one reason. Silent, as every departure is. PROPOSED copy (Tatiana's to reword).
   leave: "Leave the women-only room",

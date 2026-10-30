@@ -3,7 +3,10 @@
 // pass/fail check. It makes its own gathering at the test crowd's venue (testers only),
 // four harness people who opt in, a short conversation, then shoots and removes it all.
 //
-//   node --env-file=.dev.vars scripts/ui-shots-room.mjs <out-dir> [count=4]
+//   node --env-file=.dev.vars scripts/ui-shots-room.mjs <out-dir> [count=4] [women]
+//
+// "women" makes everyone a woman, so the women-only room opens beside the main one, and
+// shoots the crowd page's second card, that room and Settings (105, 103, 106).
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -20,6 +23,7 @@ const out = process.argv[2];
 if (!out) throw new Error("usage: ui-shots-room.mjs <out-dir> [count]");
 mkdirSync(out, { recursive: true });
 const COUNT = Number(process.argv[3] || 4);
+const WOMEN = process.argv[4] === "women";
 const base = process.env.SUPABASE_URL.replace(/\/rest\/v1\/?$/, "").replace(/\/$/, "");
 const ref = new URL(base).hostname.split(".")[0];
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -49,7 +53,7 @@ async function person(label, i) {
   const photo = `${u.id}/face-${Date.now()}.png`;
   await must(await fetch(`${base}/storage/v1/object/photos/${photo}`, { method: "POST", headers: { ...S, "content-type": "image/png" }, body: PNG }), `photo ${label}`);
   const [p] = await must(await rest("/rest/v1/people", { method: "POST", body: JSON.stringify({ auth_user_id: u.id, first_name: label, photo_path: photo, neighbourhood: HOODS[i % HOODS.length] }) }), `person ${label}`);
-  await must(await rest("/rest/v1/people_private", { method: "POST", body: JSON.stringify({ person_id: p.id, gender: i % 2 ? "woman" : "man", birth_year: 1994 }) }), "private");
+  await must(await rest("/rest/v1/people_private", { method: "POST", body: JSON.stringify({ person_id: p.id, gender: WOMEN || i % 2 ? "woman" : "man", birth_year: 1994 }) }), "private");
   await must(await rest("/rest/v1/age_attestations?on_conflict=person_id", { method: "POST", headers: { prefer: "resolution=ignore-duplicates" }, body: JSON.stringify({ person_id: p.id, source: "a26" }) }), "19+");
   await rest("/rest/v1/person_tags", { method: "POST", body: JSON.stringify(TAGS.map((tag) => ({ person_id: p.id, tag }))) });
   await must(await rest("/rest/v1/rpc/admin_set_tester", { method: "POST", body: JSON.stringify({ p_auth_user: u.id, p_on: true, p_actor: "ui-shots", p_note: "ui-shots" }) }), "tester");
@@ -137,6 +141,22 @@ try {
   await send("Page.navigate", { url: `${SITE}/my-events` });
   await until("My Events");
   await snap("a19");
+  if (WOMEN) {
+    const wo = (await must(await rest(`/rest/v1/room_members?person_id=eq.${people.Ari.personId}&gathering_id=eq.${gathering.id}&women_only=eq.true&select=room_id`), "women-only room"))[0]?.room_id;
+    await send("Page.navigate", { url: `${SITE}/crowd/${g.slug}` });
+    await until("Open to meeting");
+    await scrollTo("Women-only room");
+    await snap("a9-women", false);
+    if (wo) {
+      await send("Page.navigate", { url: `${SITE}/room/${wo}` });
+      await until("Women only");
+      await snap("a10-women", false);
+    }
+    await send("Page.navigate", { url: `${SITE}/settings` });
+    await until("How you meet");
+    await scrollTo("How you meet");
+    await snap("a23", false);
+  }
   ws.close();
 } catch (err) {
   console.log(String(err.stack ?? err));

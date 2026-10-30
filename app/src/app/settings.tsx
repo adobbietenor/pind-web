@@ -29,6 +29,7 @@ import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice, Tick } from "@/components/ui";
 import { switchWomenOnlyRooms, womenOnlyRooms } from "@/lib/after";
+import { SwitchRow } from "@/components/SwitchRow";
 import { failed, type Described } from "@/lib/errors";
 import { signOutHere } from "@/lib/auth";
 import { deleteAccount, exportMyData, readProfile } from "@/lib/profile";
@@ -171,12 +172,18 @@ export default function Settings() {
 
         {womenOnly?.eligible ? (
           <>
-            <Text style={styles.sectionName}>Safety</Text>
-            <View style={styles.card}>
-              <Tick label={WOMEN_ONLY_COPY.setting} value={womenOnly.on} onChange={(v) => void flipWomenOnly(v)} />
-              <Body muted>{WOMEN_ONLY_COPY.settingWhat}</Body>
-              {roomsTrouble ? <Trouble what={roomsTrouble} /> : null}
-            </View>
+            {/* "How you meet" (UI pass 1, 106): the meeting switches together, in the
+                1-on-1 sheet's style. "Open to 1-on-1 chats" joins it with the 1-on-1 change. */}
+            <Text style={styles.sectionName}>{WOMEN_ONLY_COPY.howYouMeet}</Text>
+            <SwitchRow
+              icon="chat"
+              label={WOMEN_ONLY_COPY.setting}
+              line={WOMEN_ONLY_COPY.settingWhat}
+              value={womenOnly.on}
+              disabled={busy === "women-only"}
+              onChange={(v) => void flipWomenOnly(v)}
+            />
+            {roomsTrouble ? <Trouble what={roomsTrouble} /> : null}
           </>
         ) : null}
 

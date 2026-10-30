@@ -254,7 +254,7 @@ function InboxRow({ row, now, onPress }: { row: Row; now: Date; onPress: () => v
           {row.live ? <Text style={styles.live}>{INBOX_COPY.live}</Text> : null}
           {row.kind === "women" ? <Text style={styles.women}>Women only</Text> : null}
           <View style={{ flex: 1 }} />
-          {row.last ? <Text style={[styles.when, unread && styles.whenUnread]}>{chatWhen(row.last.at, row.tz, now)}</Text> : null}
+          {row.last ? <Text numberOfLines={1} style={[styles.when, unread && styles.whenUnread]}>{chatWhen(row.last.at, row.tz, now)}</Text> : null}
         </View>
         <View style={styles.top}>
           <Text numberOfLines={1} style={[styles.preview, unread && styles.previewUnread]}>
@@ -290,7 +290,7 @@ const styles = StyleSheet.create({
   title: { flexShrink: 1, fontFamily: fonts.headline, fontSize: 16, color: palette.text },
   live: { fontFamily: fonts.headline, fontSize: 11, color: "#9BE3A5", backgroundColor: "#1E3A24", paddingHorizontal: 6, paddingVertical: 1, borderRadius: 6, overflow: "hidden" },
   women: { fontSize: 11, color: "#F7C6DE", backgroundColor: "#3A1F2E", paddingHorizontal: 6, paddingVertical: 1, borderRadius: 999, overflow: "hidden" },
-  when: { fontSize: 12, color: palette.textMuted },
+  when: { fontSize: 12, color: palette.textMuted, flexShrink: 0 },
   whenUnread: { color: palette.accentText },
   preview: { flex: 1, fontSize: 14, color: palette.textMuted, marginTop: 2 },
   previewUnread: { color: palette.text },
