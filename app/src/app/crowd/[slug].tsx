@@ -333,7 +333,7 @@ export default function CrowdPage() {
       {/* One "I'm here" for the room and your squad, on the night, if you're open (088). */}
       {here && view.mine?.open && !ended ? (
         <View style={{ marginBottom: spacing.md }}>
-          <ImHere gatheringId={g.id} note={here.me} onChanged={readHere} />
+          <ImHere gatheringId={g.id} note={here.me} people={here.people} onChanged={readHere} />
         </View>
       ) : null}
 

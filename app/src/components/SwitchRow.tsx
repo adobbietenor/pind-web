@@ -40,6 +40,8 @@ export function SwitchRow({
         onValueChange={onChange}
         trackColor={{ false: "#2E2B35", true: palette.accent }}
         thumbColor="#FFFFFF"
+        // The web's Switch colours its thumb with this one (react-native-web).
+        {...({ activeThumbColor: "#FFFFFF" } as object)}
         accessibilityElementsHidden
         importantForAccessibility="no"
       />

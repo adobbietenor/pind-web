@@ -9,7 +9,18 @@ import { SwitchRow } from "./SwitchRow";
 import { clearHere, HereRefused, setHere } from "@/lib/here";
 import { failed } from "@/lib/errors";
 
-export function ImHere({ gatheringId, note, onChanged }: { gatheringId: string; note: string | null; onChanged: () => void }) {
+export function ImHere({
+  gatheringId,
+  note,
+  people,
+  onChanged,
+}: {
+  gatheringId: string;
+  note: string | null;
+  // Who else is here, with their lines: only what here_now let this person see.
+  people: { personId: string; firstName: string; note: string }[];
+  onChanged: () => void;
+}) {
   const [asking, setAsking] = useState(false);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -64,6 +75,9 @@ export function ImHere({ gatheringId, note, onChanged }: { gatheringId: string; 
         </View>
       ) : null}
       {said && !asking ? <Text accessibilityRole="alert" style={styles.refusal}>{said}</Text> : null}
+      {people.map((p) => (
+        <Text key={p.personId} style={styles.other}>{HERE_COPY.theirs(p.firstName, p.note)}</Text>
+      ))}
     </View>
   );
 }
@@ -73,4 +87,5 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, color: palette.textMuted },
   input: { minHeight: 48, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, paddingHorizontal: spacing.md, fontSize: 16, color: palette.text, backgroundColor: palette.background },
   refusal: { fontSize: 14, color: "#F3B4B4" },
+  other: { fontSize: 14, color: palette.textMuted, paddingHorizontal: spacing.xs },
 });

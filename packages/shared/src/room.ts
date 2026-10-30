@@ -112,6 +112,7 @@ export const HERE_COPY = {
   save: "Tell them",
   cancel: "Not yet",
   yours: (note: string) => `You're here: "${note}"`,
+  theirs: (name: string, note: string) => `${name} is here: "${note}"`,
   count: (n: number) => `${n} here now`,
   refusal: (hint: string | undefined): string =>
     hint === "here_note"

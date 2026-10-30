@@ -121,6 +121,22 @@ try {
   await send("Page.navigate", { url: `${SITE}/crowd/${g.slug}` });
   await until("Open to meeting");
   await snap("a9-open");
+  if (process.env.TONIGHT) {
+    // The night's switch (088): Priya says she's here through her own session, then Ari
+    // turns it on in the browser, which asks for the line first.
+    await as("Priya", "set_here", { p_gathering: gathering.id, p_note: "yellow raincoat" });
+    await send("Page.reload");
+    await until("I'm here");
+    await evaluate(`(() => { const s=[...document.querySelectorAll('[role=switch]')].find(e=>e.innerText.includes("I'm here")); s && s.click(); return !!s; })()`);
+    await until("What are you wearing");
+    await snap("a9-here-ask", false);
+    await evaluate(`(() => { const i=[...document.querySelectorAll('input')].find(x=>x.placeholder==="green Matthews jersey"); i && i.focus(); return !!i; })()`);
+    await send("Input.insertText", { text: "green Matthews jersey" });
+    await sleep(300);
+    await evaluate(`(() => { const b=[...document.querySelectorAll('[role=button]')].filter(e=>e.innerText.trim()==="Tell them").pop(); b && b.click(); return !!b; })()`);
+    await until("You're here");
+    await snap("a9-here", false);
+  }
   await scrollTo("Squads");
   await snap("a9-squads", false);
   if (squadId) {
