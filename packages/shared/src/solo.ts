@@ -23,8 +23,8 @@ export const SOLO_AFTER_END_MINUTES = 120; // …to 2 h after the effective end 
 export const SOLO_LINES: { n: 1 | 2 | 3 | 4 | 5; fits: "before" | "any"; text: (spot: string, time: string) => string }[] = [
   { n: 1, fits: "before", text: (s, t) => `Meet at ${s} at ${t} and walk in together?` },
   { n: 2, fits: "before", text: (s, t) => `Grab a drink at ${s} at ${t} before it starts?` },
-  { n: 3, fits: "any", text: (s, t) => `I'll be at ${s} at ${t} — want to meet there?` },
-  { n: 4, fits: "any", text: (s, t) => `Going alone too — meet at ${s} at ${t}?` },
+  { n: 3, fits: "any", text: (s, t) => `I'll be at ${s} at ${t}. Want to meet there?` },
+  { n: 4, fits: "any", text: (s, t) => `Going alone too. Meet at ${s} at ${t}?` },
   { n: 5, fits: "before", text: (s, t) => `Quick hello at ${s} at ${t}, then head in?` },
 ];
 
@@ -60,9 +60,9 @@ export const SOLO_COPY = {
   label: "Meet 1-on-1",
   sheetTitle: "Meet 1-on-1",
   sheetLine:
-    "Meet 1-on-1 is optional. You'll only see — and be seen by — people who also turned it on for this gathering. Meetings happen only at this venue's public spots. Choose who can see you:",
+    "Meet 1-on-1 is optional. You'll only see, and be seen by, people who also turned it on for this gathering. Meetings happen only at this venue's public spots. Choose who can see you:",
   groupsVsSolo:
-    "Squads are small groups anyone here can join. 1-on-1 is one person you choose, at a spot and a time — and they choose you back.",
+    "Squads are small groups anyone here can join. 1-on-1 is one person you choose, at a spot and a time, and they choose you back.",
   everyone: "Everyone who opted in",
   womenOnly: "Women only",
   womenOnlyNote: "Women and nonbinary people who chose to be included in women-only spaces. They see you, and you see only them.",
@@ -95,7 +95,7 @@ export const SOLO_COPY = {
   openPlan: "Open",
   planOff: "This 1-on-1 is off.",
   callOff: "Call off this 1-on-1",
-  callOffNote: "They'll be told it's off — not why. You can't send each other another proposal here.",
+  callOffNote: "They'll be told it's off, not why. You can't send each other another proposal here.",
   threadPlaceholder: (name: string) => `Say something to ${name}`,
   // #17 (Tatiana's "Let's meet up!", Alex, 29 Oct 2026): connect first, pick the spot after.
   // A pair is not a plan until one of you suggests a spot and the other says yes. PROPOSED.
@@ -103,7 +103,7 @@ export const SOLO_COPY = {
   invited: "wants to meet up",
   inviteNote: "If they say yes, you can say hi and pick a spot together.",
   pairHeading: (name: string) => `You and ${name} are meeting up`,
-  pairLine: "Say hi, then pick a spot together — it's a plan once you both agree on one.",
+  pairLine: "Say hi, then pick a spot together. It's a plan once you both agree on one.",
   pairPick: "Pick a spot",
   pairSuggest: "Suggest a spot",
   pairSuggestAnother: "Suggest another",
@@ -115,7 +115,7 @@ export const SOLO_COPY = {
   // A23: a summary only; it is switched at each gathering (spec A23).
   settingsHeading: "Meet 1-on-1",
   settingsNone: "Off everywhere. You turn it on at a gathering, on its crowd page.",
-  settingsAt: (name: string, womenOnly: boolean) => `On at ${name} — ${womenOnly ? "women only" : "everyone who opted in"}`,
+  settingsAt: (name: string, womenOnly: boolean) => `On at ${name}: ${womenOnly ? "women only" : "everyone who opted in"}`,
   noSpots: "1-on-1 isn't offered here: this venue has no meeting spots yet.",
 } as const;
 
@@ -125,11 +125,11 @@ export const SOLO_COPY = {
 export function soloRefusal(refusal: unknown): string {
   const m = typeof refusal === "string" ? refusal : String((refusal as { message?: unknown } | null)?.message ?? "");
   if (m.includes("three open")) return `You have ${SOLO_MAX_OPEN} proposals open. Withdraw one to send another.`;
-  if (m.includes("already asked")) return "You've already asked each other here — one proposal per person per gathering.";
+  if (m.includes("already asked")) return "You've already asked each other here. One proposal per person per gathering.";
   if (m.includes("closed at the start")) return SOLO_COPY.closedAtStart;
   // #17's pair (29 Oct 2026), above "spot": its stale-spot refusal names a spot too.
   if (m.includes("pair is not open")) return SOLO_COPY.pairClosed;
-  if (m.includes("the other person confirms")) return "That one's theirs to say yes to — or suggest another.";
+  if (m.includes("the other person confirms")) return "That one's theirs to say yes to, or suggest another.";
   if (m.includes("no longer on offer")) return "That spot or time isn't on offer any more. Suggest another.";
   if (m.includes("a spot and a time together")) return "Pick a spot and a time together, or neither.";
   if (m.includes("not available")) return "They're not available for 1-on-1 now.";

@@ -128,7 +128,7 @@ export default function You() {
         <Heading>That sign-in did not come back</Heading>
           <View style={{ marginBottom: spacing.lg }}>
             <Body muted>
-              Nothing was saved, and nothing went wrong on your side. Try again — the email code is the quickest way in.
+              Nothing was saved, and nothing went wrong on your side. Try again. The email code is the quickest way in.
             </Body>
           </View>
           <Button label="Back to sign in" onPress={() => router.replace("/sign-in")} />

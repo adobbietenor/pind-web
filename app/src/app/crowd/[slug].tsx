@@ -464,10 +464,9 @@ export default function CrowdPage() {
             ))}
           </View>
           <Text style={styles.caption}>
-            The venue, and the spots groups meet at — never where anyone is.
             {view.facts.map.openInMaps ? (
               <Text style={styles.link} onPress={() => void Linking.openURL(view.facts!.map!.openInMaps!)}>
-                {"  Open in Maps"}
+                {"Open in Maps"}
               </Text>
             ) : null}
           </Text>

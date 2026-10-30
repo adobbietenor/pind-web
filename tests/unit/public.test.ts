@@ -204,7 +204,7 @@ describe("what it costs to walk in", () => {
   it("keeps the note on a free or ticketed gathering too", () => {
     assert.equal(
       entryLine({ entry: "free", door_price_cents: null, entry_note: "optional $30/yr membership" }),
-      "Free — optional $30/yr membership",
+      "Free · optional $30/yr membership",
     );
     assert.equal(entryLine({ entry: "ticketed", door_price_cents: null, entry_note: "tickets by table" }), "tickets by table");
   });
@@ -219,7 +219,7 @@ describe("what it costs to walk in", () => {
   it("keeps the note, because cash-only is a different promise from a price", () => {
     assert.equal(
       entryLine({ entry: "door", door_price_cents: 1000, entry_note: "cash only" }),
-      "$10 at the door — cash only",
+      "$10 at the door · cash only",
     );
   });
 
@@ -227,7 +227,7 @@ describe("what it costs to walk in", () => {
     const unknown = entryLine({ entry: "door", door_price_cents: null, entry_note: null });
     assert.equal(unknown, "Pay at the door");
     assert.doesNotMatch(unknown, /free/i);
-    assert.equal(entryLine({ entry: "door", door_price_cents: null, entry_note: "cash only" }), "Pay at the door — cash only");
+    assert.equal(entryLine({ entry: "door", door_price_cents: null, entry_note: "cash only" }), "Pay at the door · cash only");
   });
 });
 

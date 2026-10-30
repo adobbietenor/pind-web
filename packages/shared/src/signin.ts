@@ -47,7 +47,7 @@ export function identityModeFor(session: { user: { is_anonymous?: boolean } } | 
 export type SignInStep = "send" | "verify" | "oauth";
 
 export const SIGNIN_CODE_BAD = "That code has expired or isn't right. Ask for a new one.";
-export const SIGNIN_STALE = "Your last sign-in had lapsed on this device. Try again — it should work now.";
+export const SIGNIN_STALE = "Your last sign-in had lapsed on this device. Try again. It should work now.";
 export const SIGNIN_BAD_EMAIL = "That email address doesn't look right.";
 export const SIGNIN_TOO_MANY = "Too many tries. Give it a minute.";
 export const SIGNIN_NOT_ON = "That way in is not switched on yet. Try the email code.";

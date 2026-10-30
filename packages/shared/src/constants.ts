@@ -109,5 +109,5 @@ export const EMAIL_CODE_LENGTH = 6;
 // both numbers is the point: "that code is 8 digits, we expected 6" tells whoever
 // reads it — the person, or us during a walk — exactly which setting disagrees.
 export function codeLengthMismatch(given: number, expected = EMAIL_CODE_LENGTH): string {
-  return `That code is ${given} digits and we expected ${expected}. Paste the whole thing — if it really is ${given} digits, tell us, because the setting is wrong at our end.`;
+  return `That code is ${given} digits and we expected ${expected}. Paste the whole thing. If it really is ${given} digits, tell us, because the setting is wrong at our end.`;
 }

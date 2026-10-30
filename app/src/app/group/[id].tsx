@@ -215,7 +215,7 @@ export default function Group() {
     return (
       <AppScreen>
         <Heading>{GROUP_COPY.heading}</Heading>
-        {shellTrouble ? <Trouble what={shellTrouble} onRetry={refresh} /> : <Body muted>This plan isn't yours to see — or it's off.</Body>}
+        {shellTrouble ? <Trouble what={shellTrouble} onRetry={refresh} /> : <Body muted>This plan isn't yours to see, or it's off.</Body>}
       </AppScreen>
     );
   }
@@ -328,7 +328,7 @@ export default function Group() {
               <Body>{view.spot ? GROUP_COPY.meets(view.spot, dayClock(view.meetAt)) : GROUP_COPY.atTheStart}</Body>
               <Button
                 kind="quiet"
-                label={shared === "copied" ? "Link copied" : shared === "failed" ? "Couldn't share — try again" : SHARE_COPY.button}
+                label={shared === "copied" ? "Link copied" : shared === "failed" ? "Couldn't share. Try again" : SHARE_COPY.button}
                 onPress={async () => {
                   const url = shareCardUrl(SITE, view.gathering.slug, view.spot, view.meetAt);
                   setShared(await shareCard(SHARE_COPY.message(view.gathering.name, view.spot, view.meetAt ? dayClock(view.meetAt) : null), url).catch(() => "failed" as const));
@@ -343,7 +343,7 @@ export default function Group() {
       {view.state === "live" && me ? (
         <View style={styles.card}>
           {me.arrivedAt ? (
-            <Body>{`You're here — "${me.arrivalNote}"`}</Body>
+            <Body>{`You're here: "${me.arrivalNote}"`}</Body>
           ) : (
             <>
               <Field label={GROUP_COPY.here} hint={GROUP_COPY.hereHint} value={note} onChangeText={setNote} maxLength={80} />
@@ -360,7 +360,7 @@ export default function Group() {
             </>
           )}
           {others.filter((m) => m.arrivedAt).map((m) => (
-            <Body key={m.personId} muted>{`${m.firstName} is here — "${m.arrivalNote}"`}</Body>
+            <Body key={m.personId} muted>{`${m.firstName} is here: "${m.arrivalNote}"`}</Body>
           ))}
         </View>
       ) : null}

@@ -58,7 +58,7 @@ export default function EditNeighbourhood() {
     <AppScreen>
       <Heading>Your neighbourhood</Heading>
       <View style={{ marginBottom: spacing.lg }}>
-        <Body muted>Pin&#39;d never asks where you are. The part of town you would say you are from — it gives a crew something to start with.</Body>
+        <Body muted>Pin&#39;d never asks where you are. The part of town you would say you are from.</Body>
       </View>
       {trouble ? (
         <Trouble what={trouble} onRetry={() => setAttempt((n) => n + 1)} />

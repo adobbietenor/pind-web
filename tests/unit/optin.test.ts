@@ -23,8 +23,8 @@ describe("A27: the existing-account branch", () => {
   });
 
   it("M03 the branch's sentence says the pin is safe (Alex: never silence about whether it survived)", () => {
-    assert.match(OPTIN_COPY.emailHasAccount, /enter it to bring this pin into that account/);
-    assert.match(OPTIN_COPY.nothingLost, /Nothing was lost — your pin is still there/);
+    assert.match(OPTIN_COPY.emailHasAccount, /Enter it to bring this pin into that account/);
+    assert.match(OPTIN_COPY.nothingLost, /Nothing was lost. Your pin is still there/);
   });
 });
 
@@ -130,8 +130,8 @@ describe("A27's order, and the gaps Profile names", () => {
     assert.equal(profileGapLine([], 3), null);
     const all = profileGaps({ hasPhoto: false, neighbourhood: null, tagCount: 0 });
     assert.deepEqual(all, ["photo", "neighbourhood", "tags"]);
-    assert.equal(profileGapLine(all, 0), "Your profile is still missing a photo, a neighbourhood and 3 tags — it's what the people you meet go on.");
-    assert.equal(profileGapLine(profileGaps({ hasPhoto: true, neighbourhood: "x", tagCount: 2 }), 2), "Your profile is still missing 1 more tag — it's what the people you meet go on.");
+    assert.equal(profileGapLine(all, 0), "Your profile is still missing a photo, a neighbourhood and 3 tags. It's what the people you meet go on.");
+    assert.equal(profileGapLine(profileGaps({ hasPhoto: true, neighbourhood: "x", tagCount: 2 }), 2), "Your profile is still missing 1 more tag. It's what the people you meet go on.");
   });
 });
 

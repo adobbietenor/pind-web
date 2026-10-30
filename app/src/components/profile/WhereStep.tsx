@@ -67,7 +67,7 @@ export function WhereStep({ personId, neighbourhood, tags, onDone }: WhereStepPr
     <>
       <Heading>Where in the city?</Heading>
       <View style={{ marginBottom: spacing.lg }}>
-        <Body muted>Pin&#39;d never asks where you are. Pick the part of town you would say you are from — it gives a crew something to start with.</Body>
+        <Body muted>Pin&#39;d never asks where you are. Pick the part of town you would say you are from.</Body>
       </View>
       <NeighbourhoodPicker value={hood} onChange={setHood} />
 
@@ -75,7 +75,7 @@ export function WhereStep({ personId, neighbourhood, tags, onDone }: WhereStepPr
         <Heading>A few things to say</Heading>
       </View>
       <View style={{ marginBottom: spacing.md }}>
-        <Body muted>Conversation starters, not a filter — nothing here sorts anyone. Pick at least {TAGS_MINIMUM}.</Body>
+        <Body muted>Conversation starters, not a filter. Nothing here sorts anyone. Pick at least {TAGS_MINIMUM}.</Body>
       </View>
       <TagPicker picked={picked} onChange={setPicked} />
 

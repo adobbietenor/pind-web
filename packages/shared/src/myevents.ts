@@ -290,7 +290,7 @@ export function endedChats(e: Pick<MyChatsEvent, "rooms" | "crews" | "startsAt" 
 // PROPOSED copy (Tatiana's to reword).
 export const ENDED_COPY = {
   heading: "This event has ended",
-  lastDay: (closes: string) => `The chats stay open until ${closes} — time to say it was good to meet.`,
+  lastDay: (closes: string) => `The chats stay open until ${closes}. Time to say it was good to meet.`,
   readOnly: "The chats are read-only now. They're cleared 30 days after that.",
   cleared: "The chats from this one were cleared 30 days after it ended.",
   none: "No chats from this one.",
@@ -329,7 +329,7 @@ export function chatPreview(l: ChatLast | null, empty: string): string {
 export const MY_CHATS_COPY = {
   everyoneGoing: "Everyone going",
   everyoneGoingWomen: "Everyone going · women only",
-  firstHere: "Just you so far — we'll tell you when someone else says yes",
+  firstHere: "Just you so far. We'll tell you when someone else says yes",
   noMessages: "Nobody's said anything yet",
   yourGroup: "Your group",
   plan: (partner: string | null) => (partner ? `1-on-1 with ${partner}` : "Your 1-on-1"),
@@ -339,7 +339,7 @@ export const MY_CHATS_COPY = {
   join: "Join this squad",
   joinCancel: "Not now",
   tonight: "Tonight",
-  pinnedOnly: "You're pinned. Say you're open to meeting and the people going — and their squads — show up here.",
+  pinnedOnly: "You're pinned. Say you're open to meeting and the people going, and their squads, show up here.",
   pinnedOnlyAction: "Open to meeting",
   readOnly: "Read-only",
   noChatsKept: "The chats from this one have been cleared.",

@@ -46,7 +46,7 @@ export const suggestSubject = (q: string): string => `A gathering for Pin'd: ${q
 
 // Interests that could not be remembered: the filter still works on this screen, and
 // the person is told it will not be kept (never a tap that silently does nothing).
-export const INTERESTS_NOT_SAVED = "We couldn’t remember that for next time — it still applies here.";
+export const INTERESTS_NOT_SAVED = "We couldn’t remember that for next time. It still applies here.";
 
 // ---------------------------------------------------------------------------
 // Interests, remembered (Alex, M3.1; decided 10 Oct 2026)

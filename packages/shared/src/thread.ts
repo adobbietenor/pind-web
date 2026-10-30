@@ -26,7 +26,7 @@ export const THREAD_PAGE = 50;
 export const THREAD_COPY = {
   send: "Send",
   sending: "Sending…",
-  notSent: "Not sent — tap to put it back in the box",
+  notSent: "Not sent. Tap to put it back in the box",
   earlier: "Earlier messages",
 } as const;
 

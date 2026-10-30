@@ -106,13 +106,13 @@ export const TAGS_ON_LIST = 3;
 export const TAGS_AT_MAXIMUM = `That's ${TAGS_MAXIMUM}, which is as many as a profile carries. Take one off to add another.`;
 // Said on the tap that reaches ten, before anybody hits the wall (Alex, M3.1: "a cap
 // that stops responding without saying so reads as broken").
-export const TAGS_REACHED_MAXIMUM = `That's ${TAGS_MAXIMUM} — the most you can pick.`;
+export const TAGS_REACHED_MAXIMUM = `That's ${TAGS_MAXIMUM}, the most you can pick.`;
 // Under the Continue button whenever it is not available, so a greyed button is never
 // the only answer.
 export const TAGS_NEED_MORE = (have: number, canSkip = true) =>
   (have === 0 ? `Pick ${TAGS_MINIMUM} to continue` : `${TAGS_MINIMUM - have} more to continue`) +
-  (canSkip ? " — or skip for now." : ".");
-export const TAGS_LIST_FULL = `Three is what fits on the list. Take one off to feature a different one — the rest still show on your profile.`;
+  (canSkip ? ", or skip for now." : ".");
+export const TAGS_LIST_FULL = `Three is what fits on the list. Take one off to feature a different one. The rest still show on your profile.`;
 
 // ---------------------------------------------------------------------------
 // The picker's rules, here rather than in the component (M3.1).

@@ -191,7 +191,7 @@ export default function Profile() {
           </View>
         ) : (
           <View style={{ marginBottom: spacing.sm }}>
-            <Body muted>No tags yet — a few of them give a crew something to start with.</Body>
+            <Body muted>No tags yet. A few of them give people something to start with.</Body>
           </View>
         )}
         <View style={{ marginBottom: spacing.lg, gap: spacing.xs }}>
@@ -205,7 +205,7 @@ export default function Profile() {
               was not). The crews count has no list of its own, so it stays a count. */}
           <Tap
             accessibilityRole="button"
-            accessibilityLabel={`${me.gatherings} gatherings — open My Events`}
+            accessibilityLabel={`${me.gatherings} gatherings, open My Events`}
             onPress={() => router.push("/my-events")}
             style={({ pressed }) => [styles.count, pressed && styles.countPressed]}
           >
@@ -214,7 +214,7 @@ export default function Profile() {
           </Tap>
           <View style={styles.count}>
             <Text style={styles.countNumber}>{me.crewsMet}</Text>
-            <Text style={styles.countLabel}>crews</Text>
+            <Text style={styles.countLabel}>squads</Text>
           </View>
           {/* The only badge in Pin'd, and it is earned by a mutual "we met" (A16,
               M3.3). Absent rather than greyed out: a badge nobody can have yet is
@@ -296,7 +296,7 @@ export default function Profile() {
             <View style={{ marginTop: spacing.sm }}>
               <Body muted>
                 {me.instagram
-                  ? "Your handle is not on this list. It appears once you share a crew or a 1-on-1 plan, or become connections."
+                  ? "Your handle is not on this list. It appears once you share a squad or a 1-on-1 plan, or become connections."
                   : "No handle to show."}
               </Body>
             </View>

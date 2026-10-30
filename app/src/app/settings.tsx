@@ -148,7 +148,7 @@ export default function Settings() {
 
         <Text style={styles.sectionName}>Who can see you</Text>
         <View style={styles.card}>
-          <Body>Visible only after you pin in and say you would like to meet — always on.</Body>
+          <Body>Visible only after you pin in and say you would like to meet. Always on.</Body>
           <View style={{ marginTop: spacing.sm }}>
             <Body muted>
               Not a setting, because there is no other way to be. Nobody sees your name or your photo until you have both pinned
@@ -192,7 +192,7 @@ export default function Settings() {
         <View style={styles.card}>
           <Body muted>
             A JSON file of everything we hold about you, read with your own account so it shows exactly what you can see. The
-            reports are the ones you filed — your reason and the date, not the moderation decision, which is not yours.
+            reports are the ones you filed: your reason and the date, not the moderation decision, which is not yours.
           </Body>
           <View style={{ marginTop: spacing.md }}>
             <Button kind="quiet" label="Export my data" busy={busy === "export"} onPress={runExport} />
@@ -248,7 +248,7 @@ export default function Settings() {
               <Body>What goes</Body>
               <View style={{ marginTop: spacing.xs }}>
                 <Body muted>
-                  Your sign-in, your profile, your photo, your pins, your tags, your crews, your connections and the blocks you
+                  Your sign-in, your profile, your photo, your pins, your tags, your squads, your connections and the blocks you
                   made.
                 </Body>
               </View>
@@ -257,13 +257,13 @@ export default function Settings() {
               </View>
               <View style={{ marginTop: spacing.xs }}>
                 <Body muted>
-                  Reports about you or by you, for twelve months, with your name removed — so a safety record does not disappear
+                  Reports about you or by you, for twelve months, with your name removed, so a safety record does not disappear
                   when someone deletes an account.
                 </Body>
               </View>
               <View style={{ marginTop: spacing.sm }}>
                 <Body muted>
-                  Anything you wrote in a crew stays in that crew&#39;s conversation, shown as &ldquo;someone who left&rdquo;.
+                  Anything you wrote in a chat stays in that conversation, shown as &ldquo;someone who left&rdquo;.
                   Removing your lines would rewrite a conversation other people are still reading.
                 </Body>
               </View>

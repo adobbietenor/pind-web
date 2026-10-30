@@ -53,7 +53,7 @@ function publishableKey(env: Env): string {
 
 function sessionSecret(env: Env): string {
   const secret = env.SESSION_SECRET?.trim();
-  if (!secret) throw new ConfigError("SESSION_SECRET is not set — the quick pin cannot keep a visitor's session");
+  if (!secret) throw new ConfigError("SESSION_SECRET is not set: the quick pin cannot keep a visitor's session");
   return secret;
 }
 

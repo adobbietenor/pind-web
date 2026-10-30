@@ -62,7 +62,7 @@ export function failed(what: string, err: unknown): Described {
   if (err instanceof Said) return { says: err.message };
   const d = describe(err, what);
   if (d.wayOut) return d;
-  return { says: `We could not ${what} — ${d.says}.` };
+  return { says: `We could not ${what}: ${d.says}.` };
 }
 
 // One line, for a place that has room for only one.

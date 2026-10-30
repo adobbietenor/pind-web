@@ -19,7 +19,7 @@ export type A2Photo<P = unknown> =
 export type PhotoAction = "choose" | "choose-another" | "remove";
 
 export const PHOTO_UPLOAD_FAILED = (reason: string) =>
-  `We could not upload your photo — ${reason}. You can choose another, or remove it and continue without one; you can add a photo later.`;
+  `We could not upload your photo: ${reason}. You can choose another, or remove it and continue without one; you can add a photo later.`;
 
 export function photoActions(photo: A2Photo): PhotoAction[] {
   return photo.state === "none" ? ["choose"] : ["choose-another", "remove"];

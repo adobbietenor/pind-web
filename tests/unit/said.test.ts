@@ -41,7 +41,7 @@ describe("The leak check fires on every raw shape (both sides of the guard)", ()
 
   it("L02 a plain sentence we wrote is not flagged", () => {
     for (const ok of [
-      "We could not upload your photo — Pin'd could not be reached.",
+      "We could not upload your photo: Pin'd could not be reached.",
       "That already exists.",
       "You are signed out on this device. Sign in again to carry on.",
       "Write to privacy@pind.social, or see pind.social/privacy.",

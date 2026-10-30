@@ -57,7 +57,7 @@ type Step = "loading" | OptInStep | "removed" | "lost";
 type Lost = "crowd" | "person" | "failed";
 const LOST_SAYS: Record<Lost, string> = {
   crowd: "This crowd isn't open to the account you're signed in as.",
-  person: "Pin in first — this page follows the pin.",
+  person: "Pin in first. This page follows the pin.",
   failed: "We couldn't open this step. Check your connection and try again.",
 };
 

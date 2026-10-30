@@ -12,7 +12,7 @@ export const ROOM_COPY = {
   // 1 — just you. It has to read as a good place to be, not an empty room (Alex).
   firstHeading: "You're the first here",
   firstLine: "You're the first here to say you'd like to meet. We'll tell you the moment someone else does.",
-  firstWhy: "Whoever says yes next will see you straight away — being first means you're the one they meet.",
+  firstWhy: "Whoever says yes next will see you straight away. Being first means you're the one they meet.",
   firstByEmail: (email: string) => `We'll email ${email} the moment it happens.`,
   firstShare: "Know someone else going? Send them this crowd.",
   // 2+ — the room.
@@ -23,13 +23,13 @@ export const ROOM_COPY = {
   sharedTag: (tag: string) => `You both picked ${tag}`,
   morePeople: (n: number) => `${n} here`,
   // 3 — once.
-  enoughToGo: "There are three of you — enough to go together.",
+  enoughToGo: "There are three of you, enough to go together.",
   goTogether: "Go together",
-  sayHiFirst: "Say hi first — you can invite people you've talked with.",
+  sayHiFirst: "Say hi first. You can invite people you've talked with.",
   // The box.
   placeholder: "Say something to the room",
   send: "Send",
-  tooFast: "One message every few seconds — try again in a moment.",
+  tooFast: "One message every few seconds. Try again in a moment.",
   tooMany: "That's today's messages from you in this room.",
   deleteOwn: "Delete this message? It's removed for everyone.",
   // Long-press someone else's message: a report on THEM, never on the message (Alex,
@@ -43,15 +43,15 @@ export const GROUP_COPY = {
   heading: "Your group",
   // Progress without attribution (Alex): who is in, never who hasn't answered or said no.
   soFar: (names: string[]) =>
-    names.length === 0 ? "Just you so far — a group needs 3." : `You and ${listNames(names)} so far — a group needs 3.`,
-  on: (names: string[]) => `You're on — you and ${listNames(names)}.`,
+    names.length === 0 ? "Just you so far. A group needs 3." : `You and ${listNames(names)} so far. A group needs 3.`,
+  on: (names: string[]) => `You're on: you and ${listNames(names)}.`,
   deadline: (time: string) => `If there aren't 3 of you by ${time}, the group closes and you're all back in the room.`,
   inviteMore: "Invite someone else you've talked with",
   pickPeople: "Who's going together?",
   pickHint: "People you've talked with in the room. Pick 2 or 3.",
   start: "Send the invites",
   invited: (from: string, others: string[]) =>
-    others.length ? `${from} wants to go together — with ${listNames(others)}.` : `${from} wants to go together.`,
+    others.length ? `${from} wants to go together, with ${listNames(others)}.` : `${from} wants to go together.`,
   accept: "Go together",
   decline: "Not this time",
   closed: "Not enough people joined your group, so it's closed. You're all still in the room.",
@@ -62,7 +62,7 @@ export const GROUP_COPY = {
   atTheStart: "You'll find each other at the start.",
   meets: (spot: string, time: string) => `You meet at ${spot}, ${time}.`,
   here: "I'm here",
-  hereHint: "Say what you're wearing so they can find you — \"green Matthews jersey\".",
+  hereHint: "Say what you're wearing so they can find you, like \"green Matthews jersey\".",
   leave: "Leave this group",
   threadPlaceholder: "Say something to your group",
   // Q11, as the room says it: writable until 24 h after the night, then read-only.
@@ -79,14 +79,14 @@ export type Convening = "at_the_gathering" | "a_spot_first" | "after";
 // Three first lines for a new room: one from a tag both people picked (when there is
 // one), one about this gathering, one plain hello. Short enough to read at a glance.
 export function openersFor(o: { convening: Convening; sharedTag: string | null }): string[] {
-  const shared = o.sharedTag ? [`You picked ${o.sharedTag} too — same here`] : [];
+  const shared = o.sharedTag ? [`You picked ${o.sharedTag} too. Same here`] : [];
   const about: Record<Convening, string> = {
     a_spot_first: "Anyone planning to get there early?",
     at_the_gathering: "First time at this one?",
     after: "Anyone staying after?",
   };
-  const hello = "Hi — who else is going?";
-  return [...shared, about[o.convening], hello, "Hey — first time using this"].slice(0, 3);
+  const hello = "Hi, who else is going?";
+  return [...shared, about[o.convening], hello, "Hey, first time using this"].slice(0, 3);
 }
 
 // The four report reasons (H9), in the words the person reads. Severity comes from the

@@ -3,12 +3,12 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { categoryLabel, CITY_ATTRIBUTION, clockLocal, countLine, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, readShareCard, SEARCH_COPY, SEARCH_DAYS, SEARCH_MAX, searchQuery, SAFETY_TODAY, SEE_WHO, SHARE_COPY, SUGGEST_TO, suggestSubject, THRESHOLD_EXPLANATION } from "@pind/shared";
+import { categoryLabel, CITY_ATTRIBUTION, clockLocal, COUNTERS, countNext, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, SEARCH_COPY, SEARCH_DAYS, SEARCH_MAX, searchQuery, SAFETY_TODAY, SEE_WHO, SUGGEST_TO, suggestSubject, THRESHOLD_EXPLANATION } from "@pind/shared";
 import type { Env } from "../env";
 import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
 import { faviconSvg } from "./favicon";
 import { city, crowd, crowds, type Counts, type Crowd, type Crowd2, type Spot } from "./data";
-import { DOT, escape, header, notice, page } from "./layout";
+import { DOT, escape, header, houseRulesRow, icon, notice, page } from "./layout";
 import {
   addDays,
   crowdLine,
@@ -322,7 +322,7 @@ function emptyWeek(tab: TabValue, other: (typeof TABS)[number], otherCount: numb
     ? ` <a data-replace href="${escape(tabHref(other.value, win.asked))}">${other.label} has ${otherCount} that week.</a>`
     : "";
   const thisWeek = win.asked ? ` <a href="${escape(tabHref(tab, null))}">Back to this week.</a>` : "";
-  return `<div class="empty">No ${mineName} up for these days yet — new ones go up through the week.${elsewhere}${thisWeek}</div>`;
+  return `<div class="empty">No ${mineName} up for these days yet. New ones go up through the week.${elsewhere}${thisWeek}</div>`;
 }
 
 // One week at a time, forwards and back. "Later" only appears when there is something
@@ -376,10 +376,15 @@ ${g.blurb ? `<div class="what">${escape(g.blurb)}</div>` : ""}
 // W2 — the crowd page, before you pin
 // ---------------------------------------------------------------------------
 
-const W2_FOOTER = (slug: string) =>
+// Sharing and the calendar sit with the small links at the foot (UI pass 1). An ended
+// gathering has nothing to share or add, and nothing to leave.
+const W2_FOOTER = (slug: string, url: string, ended: boolean) =>
+  (ended
+    ? ""
+    : `<p class="foot-share"><a id="share" href="${escape(url)}">Share this crowd</a>${DOT}<a href="/g/${escape(slug)}.ics">add to calendar</a></p>`) +
   `<a href="/about#safety">block</a>${DOT}` +
   `<a href="mailto:${REPORT_TO}?subject=Report%3A%20${encodeURIComponent(slug)}">report</a>${DOT}` +
-  `leave any time${DOT}19+`;
+  (ended ? "19+" : `leave any time${DOT}19+`);
 
 export async function w2(request: Request, env: Env, slug: string, ctx?: ExecutionContext): Promise<Response> {
   const door = await crowd(env, slug);
@@ -393,7 +398,7 @@ export async function w2(request: Request, env: Env, slug: string, ctx?: Executi
     return notice("No longer on Pin'd", "This gathering is no longer on Pin'd.", 410);
   }
   if (door.status === "gone") {
-    return notice("Nothing here", "There's no crowd page at this link — it may have moved.", 404);
+    return notice("Nothing here", "There's no crowd page at this link. It may have moved.", 404);
   }
 
   const g = door.gathering;
@@ -414,36 +419,33 @@ export async function w2(request: Request, env: Env, slug: string, ctx?: Executi
   }
   const url = `${origin}/g/${g.slug}`;
   const when = longWhen(g.starts_at, tz);
-  const button = PIN_IN;
-  // Beside the button, never inside it.
+  // Beside the button, never inside it: "Free. Say you'd like to meet…" (UI pass 1).
   const cost = entryLine(g);
   const map = mapFigure(door, zoom);
+  // **An ended gathering offers no pin** (UI pass 1, 006; #18): the same page, with what
+  // happened and a way on. Pinning has closed in the database too (A26 says so); this is
+  // the page not offering a door that is shut.
+  const ended = Date.now() >= Date.parse(g.effective_end);
 
+  // UI pass 1 (Alex, 30 Oct 2026; docs/design/ui-pass-1, S1): the title and one line are
+  // all that show before the question. Everything else is behind one Details toggle,
+  // closed by default, then "Who else is going?", the button right under it, spots
+  // nearby, and the map last.
   return page(
     `${header()}
 <h1>${escape(g.name)}</h1>
 <p class="lede">${escape(when)}${DOT}${escape(door.venue.name)}</p>
-${door.venue.address ? `<p class="lede" style="margin-bottom:0">${escape(door.venue.address)}</p>` : ""}
-
-${blurbBlock(g)}
-${tallies(door.counts)}
-${map.html}
-
-${signupNotice(g)}
-<a class="cta" id="cta" href="/g/${escape(g.slug)}/pin">${escape(button)}</a>
-${cost ? `<p class="cost">${escape(cost)}</p>` : ""}
-<p class="note">Pin in and say you&#39;d like to meet, and you&#39;ll see everyone else who did.</p>
-
-<h2>House rules</h2>
-<ol class="rules">${HOUSE_RULES.map((r) => `<li>${escape(r)}</li>`).join("")}</ol>
-<p class="crews-meet">${escape(CREWS_MEET)}</p>
-
-${spotList(door, tz, map.kind, zoom)}
-
-<h2>Pass it on</h2>
-<p class="quiet" style="font-size:.9rem">
-<a href="${escape(url)}">${escape(url)}</a>${DOT}<a href="/g/${escape(g.slug)}.ics">add to calendar</a>
-</p>`,
+${detailsBlock(door)}
+${ended ? endedTallies(door.counts) : tallies(door.counts)}
+${
+  ended
+    ? `<a class="cta ghost" href="/">See what&#39;s on this week</a>`
+    : `${signupNotice(g)}
+<a class="cta" id="cta" href="/g/${escape(g.slug)}/pin">${escape(PIN_IN)}</a>
+<p class="note">${cost ? `${escape(cost)}. ` : ""}Say you&#39;d like to meet and you&#39;ll see everyone else who did.</p>`
+}
+${spotsNearby()}
+${map.html}`,
     {
       title: `${g.name} · Pin'd`,
       // No counts in the preview: it is cached at post time and a stale number
@@ -452,7 +454,7 @@ ${spotList(door, tz, map.kind, zoom)}
       canonical: url,
       image: `${origin}/og/${g.slug}.png`,
       head: `<link rel="alternate" type="text/calendar" href="/g/${escape(g.slug)}.ics">`,
-      footer: withCityLine(W2_FOOTER(g.slug), [g]),
+      footer: withCityLine(W2_FOOTER(g.slug, url, ended), [g]),
       // One small thing the page does not need: on an iPhone the walking-directions
       // links point at Apple Maps instead of Google. With JavaScript off the links
       // still open Google Maps on every platform.
@@ -475,26 +477,22 @@ ${spotList(door, tz, map.kind, zoom)}
       script:
         `try{if(localStorage.getItem(${JSON.stringify(pinnedMarker(g.slug))})){var c=document.getElementById("cta");` +
         `c.textContent=${JSON.stringify(SEE_WHO)};c.href=${JSON.stringify(`/crowd/${g.slug}`)}}}catch(e){}` +
-        // A map dot opens its card without leaving a history entry behind. Tapping
-        // three dots used to leave three, so "back" appeared to do nothing — it was
-        // undoing a hash change on the same page. With JavaScript off the anchor still
-        // works and :target still lights the card; it simply also pushes an entry.
-        `try{var p=document.querySelectorAll("a.pin");` +
-        `for(var i=0;i<p.length;i++)p[i].addEventListener("click",function(e){` +
-        `if(e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;` +
-        `var t=document.getElementById(this.getAttribute("href").slice(1));if(!t)return;` +
-        `e.preventDefault();var l=document.querySelector(".spot.lit");if(l)l.className="spot";` +
-        `t.className="spot lit";t.scrollIntoView({behavior:"smooth",block:"center"})});}catch(e){}` +
-        `try{if(/iPad|iPhone|iPod/.test(navigator.platform)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)){` +
-        `var a=document.querySelectorAll('a[href*="google.com/maps/dir"]');` +
-        `for(var j=0;j<a.length;j++){var d=new URL(a[j].href).searchParams.get("destination");` +
-        `if(d)a[j].href="https://maps.apple.com/?daddr="+encodeURIComponent(d)+"&dirflg=w"}` +
-        `var m=document.querySelectorAll("a.openmap");` +
-        `for(var k=0;k<m.length;k++)m[k].href="https://maps.apple.com/?ll="+encodeURIComponent(m[k].getAttribute("data-ll"))+"&q="+encodeURIComponent(m[k].getAttribute("data-q"));` +
-        `}}catch(e){}`,
+        // "Share this crowd" opens the phone's share sheet where there is one; anywhere
+        // else it is the plain link to this page, which is what gets copied.
+        `try{var s=document.getElementById("share");if(s&&navigator.share)s.addEventListener("click",function(e){` +
+        `e.preventDefault();navigator.share({title:document.title,url:s.href}).catch(function(){})})}catch(e){}` +
+        APPLE_MAPS,
     },
   );
 }
+
+// "Open in Maps" opens Apple Maps on an iPhone; with JavaScript off, or anywhere else,
+// it stays the Google link, which works on every platform.
+const APPLE_MAPS =
+  `try{if(/iPad|iPhone|iPod/.test(navigator.platform)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1)){` +
+  `var m=document.querySelectorAll("a.openmap");` +
+  `for(var k=0;k<m.length;k++)m[k].href="https://maps.apple.com/?ll="+encodeURIComponent(m[k].getAttribute("data-ll"))+"&q="+encodeURIComponent(m[k].getAttribute("data-q"));` +
+  `}}catch(e){}`;
 
 // "Who else is going?" rather than "See who's going", for two reasons: the page's own
 // description already says "See who's going, meet them there.", so the heading would
@@ -522,20 +520,51 @@ function blurbBlock(g: Crowd2["gathering"]): string {
   );
 }
 
+// The two counters, stacked, each with its icon (UI pass 1, rule 5: every crowd page
+// state). The words come from COUNTERS in packages/shared, which A9 draws too; nobody
+// pinned at all is the one invitation instead of two zeros (M2.3).
 function tallies(c: Counts): string {
   const mix = mixLine(c);
   const crews = crewLine(c);
-  // One wording for the two numbers on W2, A26's confirmation and A9 (countLine, Alex
-  // M3.2): "23 going · nobody open to meeting yet" / "· 3 open to meeting" / and the
-  // crews line only at 3–4. It replaced the two tally boxes, whose "0 open to meeting"
-  // said nothing about the state where someone could be first.
-  const count = countLine(c.pinned, c.open_to_meeting);
-  return `<h2 class="asks">Who else is going?</h2>
-<p class="count-line">${escape(count.line)}</p>
-${count.next ? `<p class="mix">${escape(count.next)}</p>` : ""}
+  const next = countNext(c.open_to_meeting);
+  if (c.pinned === 0) {
+    return `<div class="asks-block"><p class="asks">Who else is going?</p>
+<p class="count-line">${escape(COUNTERS.nobody)}</p></div>`;
+  }
+  return `<div class="asks-block"><p class="asks">Who else is going?</p>
+<p class="counter">${icon("person", 22)}${escape(COUNTERS.going(c.pinned))}</p>
+<p class="counter">${icon("handshake", 22)}${escape(COUNTERS.open(c.open_to_meeting))}</p>
+${next ? `<p class="mix">${escape(next)}</p>` : ""}
 ${mix ? `<p class="mix">${escape(mix)}</p>` : ""}
-${crews ? `<p class="mix">${escape(crews)}</p>` : ""}
-<p class="rule">${escape(THRESHOLD_EXPLANATION)}</p>`;
+${crews ? `<p class="mix">${escape(crews)}</p>` : ""}</div>`;
+}
+
+// An ended gathering (006): what happened, honestly, with the count it reached (H6).
+function endedTallies(c: Counts): string {
+  return `<div class="asks-block"><p class="asks">Who else is going?</p>
+<p class="count-line">This gathering has finished.</p>
+<p class="mix">${escape(COUNTERS.pinnedIn(c.pinned))}</p></div>`;
+}
+
+// Everything but the title and its one line, behind one toggle, closed by default
+// (UI pass 1, 005). A <details>, so it opens with JavaScript off and costs no script.
+// The house rules live in here, which is how they are "one collapsed row" on W2.
+function detailsBlock(door: Crowd2): string {
+  const v = door.venue;
+  return `<details class="more"><summary><span class="closed-label">Details</span><span class="open-label">Hide details</span>${icon("chevronDown", 16)}</summary>
+<div class="more-body">
+${v.address ? `<p class="addr">${escape(v.address)}</p>` : ""}
+${blurbBlock(door.gathering)}
+<div class="rules-block"><p class="kicker">House rules</p>
+<ol class="rules-plain">${HOUSE_RULES.map((r) => `<li>${escape(r)}</li>`).join("")}</ol></div>
+<p class="how">${escape(THRESHOLD_EXPLANATION)}</p>
+</div></details>`;
+}
+
+// **Spots nearby** replaces "Where crews meet" (UI pass 1, rule 3: we don't engineer
+// meeting places). A quiet empty state until there is something to list here.
+function spotsNearby(): string {
+  return `<section class="nearby"><p class="kicker">Spots nearby</p><p class="nearby-empty">Nothing listed near here yet.</p></section>`;
 }
 
 // The venue and its meeting spots, never people (H1), and never the viewer (H4).
@@ -582,7 +611,7 @@ function signupNotice(g: Crowd2["gathering"]): string {
   const where = g.signup_url
     ? `<a href="${escape(g.signup_url)}" rel="noreferrer noopener" target="_blank">Register with the organiser first</a>`
     : `Register with the organiser first`;
-  return `<p class="signup">${where} — then pin in here so you can see who else is going.</p>`;
+  return `<p class="signup">${where}, then pin in here so you can see who else is going.</p>`;
 }
 
 function mapFigure(door: Crowd2, zoom: number): { html: string; kind: MapKind } {
@@ -594,18 +623,10 @@ function mapFigure(door: Crowd2, zoom: number): { html: string; kind: MapKind } 
   if (v.map_image_path) {
     return { html: `<figure>${plainFrame(uploadUrl(v.id, v.map_image_path), v)}${caption(v, false)}</figure>`, kind: "none" };
   }
+  // The venue alone (UI pass 1, rule 3): no numbered meeting spots on it any more, and
+  // no schematic, which existed only to draw them.
   const real = readyMapUrl(v, zoom);
-  if (real) return { html: `<figure>${frame(real, door, zoom)}${caption(v, true)}</figure>`, kind: "real" };
-
-  const svg = venueMap(v, door.spots);
-  if (svg) {
-    // The schematic fits itself to the spots, so everything it has is on it — the
-    // "not shown on the map" line below must not appear under this one.
-    return {
-      html: `<figure>${svg}${caption(v, false)}</figure>`,
-      kind: "schematic",
-    };
-  }
+  if (real) return { html: `<figure>${venueFrame(real, v)}${caption(v, true)}</figure>`, kind: "real" };
   return { html: "", kind: "none" };
 }
 
@@ -625,7 +646,7 @@ function readyMapUrl(v: Crowd2["venue"], zoom: number): string | null {
 function caption(v: Crowd2["venue"], attribution: boolean): string {
   const open = venueDirections(v);
   const link = open
-    ? ` <a class="openmap" href="${escape(open)}" target="_blank" rel="noopener" data-ll="${escape(
+    ? `<a class="openmap" href="${escape(open)}" target="_blank" rel="noopener" data-ll="${escape(
         `${v.latitude},${v.longitude}`,
       )}" data-q="${escape(v.name)}">Open in Maps</a>`
     : "";
@@ -633,7 +654,7 @@ function caption(v: Crowd2["venue"], attribution: boolean): string {
     ? `<br><span class="credit">© <a href="https://www.mapbox.com/about/maps/" rel="nofollow noopener">Mapbox</a> ` +
       `© <a href="https://www.openstreetmap.org/copyright" rel="nofollow noopener">OpenStreetMap</a> contributors</span>`
     : "";
-  return `<figcaption>The venue, and the spots crews meet at — never where anyone is.${link}${mapbox}</figcaption>`;
+  return `<figcaption>${link}${mapbox}</figcaption>`;
 }
 
 // Where each spot sits on the picture. A spot outside the frame gets no marker and is
@@ -668,27 +689,13 @@ function numbered(door: Crowd2, zoom: number): { spot: Spot; at: Placed | null; 
   }));
 }
 
-function frame(src: string, door: Crowd2, zoom: number): string {
-  const v = door.venue;
-  const markers = numbered(door, zoom)
-    .filter((p) => p.n !== null)
-    .map(({ spot, at, id, n }) => {
-      const walk = spot.walk_minutes ?? walkMetres(v, spot);
-      // The dot is a link to its own card, so tapping the map explains the place
-      // rather than leaving the site. It is a plain anchor: no JavaScript, and it
-      // works with the keyboard.
-      return `<a class="pin" style="left:${at!.left.toFixed(2)}%;top:${at!.top.toFixed(2)}%" href="#${id}" aria-label="${escape(
-        `${spot.name}${walk ? `, ${walk} ${walk === 1 ? "minute" : "minutes"}' walk` : ""} — see the details`,
-      )}"><span class="num">${n}</span></a>`;
-    })
-    .join("");
-
+// The rendered picture with the venue's dot and name on it, and nothing else.
+function venueFrame(src: string, v: Crowd2["venue"]): string {
   return `<div class="mapbox">
-<img src="${escape(src)}" width="768" height="480" alt="Map of ${escape(v.name)} and the numbered spots crews meet at. No people are shown." decoding="async">
+<img src="${escape(src)}" width="768" height="480" alt="Map of ${escape(v.name)}. No people are shown." decoding="async">
 <span class="venue-pin" aria-hidden="true"></span>
 <span class="venue-name">${escape(v.name)}</span>
 <span class="north" aria-hidden="true">N</span>
-${markers}
 </div>`;
 }
 
@@ -720,53 +727,11 @@ export function directions(spot: Spot): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(to)}&travelmode=walking`;
 }
 
-// One card per spot, numbered to match the map, with the walking directions link
-// inside it. The card is the interaction; the dot on the map is a way into it.
-//
-// What a card holds today is what we honestly know: the name, what it is (where
-// somebody has written that), how far the walk is, when the crew meets there, and the
-// link out. **The rest of the card — what the place is like, whether six can get a
-// table without booking, how loud it is — is the manual spot pass, and it is not
-// invented here** (decisions Part 5, "Spot content starts as a manual pass"). An
-// empty field says nothing rather than saying something we guessed.
-function spotList(door: Crowd2, tz: string, kind: MapKind, zoom: number): string {
-  const placed = numbered(door, zoom);
-  if (placed.length === 0) return "";
-  // Only the real map has a fixed frame that a spot can fall outside of. The
-  // schematic fits itself to whatever it is given, and when there is no map at all
-  // there is nothing for a spot to be missing from.
-  const framed = kind === "real";
-
-  const items = placed
-    .map(({ spot, at, id, n }) => {
-      const walk = spot.walk_minutes ?? walkMetres(door.venue, spot);
-      const bits = [`meet ${clock(spot.meet_at, tz)}`];
-      if (walk) bits.push(`${walk} min walk`);
-      // Not on the map, and said out loud: someone comparing the cards to the picture
-      // should never have to wonder whether the marker is missing or the spot is.
-      if (framed && !at?.onMap) bits.push("a bit further out, so not on the map above");
-      // The badge appears only where the map is showing that number.
-      const badge = framed && n !== null ? `<span class="num">${n}</span>` : "";
-      const link =
-        spot.latitude !== null
-          ? `<a class="dirs" href="${escape(directions(spot))}" target="_blank" rel="noopener">Walking directions</a>`
-          : "";
-      return `<li id="${id}" class="spot">
-<div class="spot-top">${badge}<b>${escape(spot.name)}</b></div>
-${spot.description ? `<p class="spot-what">${escape(spot.description)}</p>` : ""}
-<div class="meta">${escape(bits.join(" · "))}</div>
-${link}</li>`;
-    })
-    .join("");
-  return `<h2>Where crews meet</h2><ul class="spots">${items}</ul>`;
-}
-
 // ---------------------------------------------------------------------------
-// W3 — the share card: gathering, spot, time. No names, no join link.
-//
-// A group's "Share spot & time" link names its spot and time (?at=&t=, M3.3); the card
-// then leads with them. Only a spot of this gathering and a time on its day are shown
-// (readShareCard), so the link can point, never invent.
+// W3 — the share card, now a venue card (UI pass 1, 009): the gathering, its date and
+// venue, the address, the map and a way into the phone's own maps. No meeting spot or
+// time (rule 3), no names, no join link. A group's older `?at=&t=` link still lands
+// here; it is simply not read.
 // ---------------------------------------------------------------------------
 
 export async function w3(request: Request, env: Env, slug: string): Promise<Response> {
@@ -775,36 +740,26 @@ export async function w3(request: Request, env: Env, slug: string): Promise<Resp
 
   if (door.status === "redirect") return Response.redirect(`${origin}/g/${door.slug}/spot`, 301);
   if (door.status === "withdrawn") return notice("No longer on Pin'd", "This gathering is no longer on Pin'd.", 410);
-  if (door.status === "gone") return notice("Nothing here", "There's no crowd page at this link — it may have moved.", 404);
+  if (door.status === "gone") return notice("Nothing here", "There's no crowd page at this link. It may have moved.", 404);
 
-  const tz = door.venue.timezone;
-  const shared = readShareCard(door.spots, new URL(request.url).searchParams, door.gathering);
-  const hero = shared.spot
-    ? `<section class="shared"><div class="meta">${SHARE_COPY.meeting}</div><h2>${escape(shared.spot.name)}</h2>
-<div class="when">${escape(clock(shared.meetAt ?? shared.spot.meet_at, tz))}</div>
-${shared.spot.description ? `<p class="spot-what">${escape(shared.spot.description)}</p>` : ""}
-${shared.spot.latitude !== null ? `<a class="dirs" href="${escape(directions(shared.spot))}" target="_blank" rel="noopener">Walking directions</a>` : ""}</section>`
-    : "";
-  const spots = door.spots
-    .filter((s) => s !== shared.spot)
-    .map(
-      (s) =>
-        `<li><b>${escape(s.name)}</b><div class="meta">${escape(clock(s.meet_at, tz))}</div></li>`,
-    )
-    .join("");
+  const v = door.venue;
+  const tz = v.timezone;
+  const zoom = chooseZoom(v, v.map_spots);
+  const real = v.map_image_path ? uploadUrl(v.id, v.map_image_path) : readyMapUrl(v, zoom);
+  const open = venueDirections(v);
 
   return page(
     `${header()}
 <h1>${escape(door.gathering.name)}</h1>
-<p class="lede">${escape(longWhen(door.gathering.starts_at, tz))}${DOT}${escape(door.venue.name)}</p>
-${hero}
-${spots ? `<h2>${shared.spot ? SHARE_COPY.others : "Where crews meet"}</h2><ul class="spots">${spots}</ul>` : hero ? "" : `<p class="quiet">Spots for this one aren&#39;t set yet.</p>`}`,
+<p class="lede">${escape(longWhen(door.gathering.starts_at, tz))}${DOT}${escape(v.name)}</p>
+${v.address ? `<p class="addr">${escape(v.address)}</p>` : ""}
+${real ? `<figure>${venueFrame(real, v)}</figure>` : ""}
+${open ? `<a class="cta openmap" href="${escape(open)}" target="_blank" rel="noopener" data-ll="${escape(`${v.latitude},${v.longitude}`)}" data-q="${escape(v.name)}">Open in Maps</a>` : ""}`,
     {
-      title: shared.spot
-        ? `${door.gathering.name} · ${shared.spot.name}, ${clock(shared.meetAt ?? shared.spot.meet_at, tz)} · Pin'd`
-        : `${door.gathering.name} · meeting spots · Pin'd`,
+      title: `${door.gathering.name} · ${v.name} · Pin'd`,
       canonical: `${origin}/g/${door.gathering.slug}/spot`,
       footer: `19+${DOT}leave any time`,
+      script: APPLE_MAPS,
     },
   );
 }
@@ -863,18 +818,16 @@ export function about(): Response {
     `${header()}
 <h1>About Pin&#39;d</h1>
 <p>You&#39;re already going. So are other people. Pin&#39;d is how you find each other beforehand and walk in together, instead of arriving alone because nobody knew who else was coming.</p>
-<p>Pin in to something you have a ticket for, or are just going to. If you fancy company, say so — that part is optional, and you can change your mind at any point. Once two people have said so, a room opens for everyone there who would like to meet, so you can say hi first. From there you can start or join a squad — a small group of up to eight — or meet one person 1-on-1, at the event or at a public spot near it.</p>
+<p>Pin in to something you have a ticket for, or are just going to. If you fancy company, say so. That part is optional, and you can change your mind at any point. Once two people have said so, a room opens for everyone there who would like to meet, so you can say hi first. From there you can start or join a squad, a small group going together, or meet one person 1-on-1.</p>
 <p>No messaging strangers, no swiping, no feed. Just the people who are going to the same thing as you.</p>
 
-<h2>House rules</h2>
-<ol class="rules">${HOUSE_RULES.map((r) => `<li>${escape(r)}</li>`).join("")}</ol>
-<p class="crews-meet">${escape(CREWS_MEET)}</p>
+${houseRulesRow()}
 
 <h2 id="safety">Safety</h2>
-<p>Nobody sees your name or your photo until you have both pinned in and said you&#39;d like to meet at the same gathering. Until then there is nothing to browse — which is the point.</p>
-<p>Squads and 1-on-1s meet at the event or at a named public place near it, and Pin&#39;d is never there. The only conversations are about the event: its room, for everyone there who would like to meet, and the chat inside a squad or a 1-on-1.</p>
+<p>Nobody sees your name or your photo until you have both pinned in and said you&#39;d like to meet at the same gathering. Until then there is nothing to browse, which is the point.</p>
+<p>Pin&#39;d is never at the event. The only conversations are about it: its room, for everyone there who would like to meet, and the chat inside a squad or a 1-on-1.</p>
 <p>${escape(SAFETY_TODAY.app)} Some reasons hide the person the moment they are used.</p>
-<p>Pin&#39;d never asks where you are. The only coordinates we hold belong to venues and the spots crews meet at.</p>
+<p>Pin&#39;d never asks where you are. The only coordinates we hold belong to venues and public places near them.</p>
 <p>19+.</p>
 
 <h2>Say hello</h2>

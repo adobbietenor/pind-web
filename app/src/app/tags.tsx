@@ -81,7 +81,7 @@ export default function EditTags() {
         <Heading>Your tags</Heading>
         <View style={{ marginBottom: spacing.md }}>
           <Body muted>
-            Conversation starters, not a filter. Pick at least {TAGS_MINIMUM} — and choose which three people see beside your
+            Conversation starters, not a filter. Pick at least {TAGS_MINIMUM}, and choose which three people see beside your
             name.
           </Body>
         </View>

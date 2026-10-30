@@ -62,7 +62,7 @@ export function readSession(session: { user: { id: string } } | null | undefined
 
 export const SESSION_OUT = "You are signed out on this device. Sign in again to carry on.";
 export const SESSION_UNREACHABLE =
-  "Pin'd could not be reached. Check your connection and try again — you have not been signed out, and nothing here was lost.";
+  "Pin'd could not be reached. Check your connection and try again. You have not been signed out, and nothing here was lost.";
 // The message stays on the read for Sentry, never in the sentence (said.ts).
 export const SESSION_UNSURE = "We could not check your sign-in just now. Try again in a moment.";
 
@@ -71,7 +71,7 @@ export const SESSION_UNSURE = "We could not check your sign-in just now. Try aga
 // Delete, which says what goes. PROPOSED copy (Tatiana's to reword).
 export const SIGN_OUT = {
   heading: "Sign out",
-  line: "Signs you out here only. Your account, your pins and your connections stay as they are — sign in again to pick up where you left off.",
+  line: "Signs you out here only. Your account, your pins and your connections stay as they are. Sign in again to pick up where you left off.",
   start: "Sign out",
   phone: "This phone stops getting your notifications until you sign in again.",
   yes: "Yes, sign out",

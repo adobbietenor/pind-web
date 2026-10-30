@@ -14,16 +14,16 @@
 export const CROWD_COPY = {
   // Pinned, not open — PROPOSED, for Alex.
   notOpenHeading: "You're going",
-  notOpenLine: "Say you'd like to meet, and you'll be in the room with everyone else here who has — first names and photos, and they see yours only then too.",
+  notOpenLine: "Say you'd like to meet, and you'll be in the room with everyone else here who has. You see their first names and photos, and they see yours, only then.",
   notOpenOthers: (open: number) =>
-    open === 0 ? "Nobody has yet — you could be the first." : `${open} ${open === 1 ? "person has" : "people have"} said yes so far.`,
+    open === 0 ? "Nobody has yet. You could be the first." : `${open} ${open === 1 ? "person has" : "people have"} said yes so far.`,
   openToMeeting: "I'd like to meet people here",
   // What it's for, not what it asks (Alex, M3.2 walk, on A26's confirmation — the same
   // principle here).
   openToMeetingHint: "The first time, you'll set up a quick profile so others can see who you are. You can turn it off any time.",
   // Pinned and open.
   listHeading: "Going & open to meeting",
-  listEmpty: "Nobody else has said yes yet. You're the first — they'll appear here as they do.",
+  listEmpty: "Nobody else has said yes yet. You're the first. They'll appear here as they do.",
   turnOff: "Stop being open to meeting here",
   turnedOff: "You're still going, just not on the list.",
   // Not pinned (A8).

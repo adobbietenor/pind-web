@@ -62,7 +62,7 @@ export function profileGapLine(gaps: ProfileGap[], tagCount: number): string | n
   if (!gaps.length) return null;
   const words = gaps.map((g) => GAP_WORDS[g](tagCount));
   const list = words.length === 1 ? words[0] : `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
-  return `Your profile is still missing ${list} — it's what the people you meet go on.`;
+  return `Your profile is still missing ${list}. It's what the people you meet go on.`;
 }
 
 export const PROFILE_GAP_ACTION: Record<ProfileGap, string> = {

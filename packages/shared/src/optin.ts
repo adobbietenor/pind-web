@@ -17,7 +17,7 @@ export const OPTIN_COPY = {
   under19Removed: "Pin'd is 19+. Your pin has been removed, and nothing about you is kept.",
   // The way to sign in, so the same account comes back on another phone.
   contactHeading: "A way to sign in",
-  contactWhy: "So you can come back to this on any phone. No password — we send you a code.",
+  contactWhy: "So you can come back to this on any phone. No password. We send you a code.",
   email: "Your email",
   sendCode: "Email me a code",
   code: "The six-digit code",
@@ -26,25 +26,25 @@ export const OPTIN_COPY = {
   // The address already has an account: the merge (decisions, M3.2). Until it is
   // proved, nothing moves, and the screen says the pin is safe (Alex).
   emailHasAccount:
-    "That email already has a Pin'd account. We've sent a code to it — enter it to bring this pin into that account.",
-  nothingLost: "Nothing was lost — your pin is still there. Try again in a moment.",
+    "That email already has a Pin'd account. We've sent a code to it. Enter it to bring this pin into that account.",
+  nothingLost: "Nothing was lost. Your pin is still there. Try again in a moment.",
   // The link path's one safety sheet (spec A27), verbatim.
   safetyHeading: "Before you meet anyone",
   safety: [
-    "Crews are 3–8 people at a public spot before the event.",
+    "Squads are small groups. 1-on-1 is always your choice.",
     "Leave any time.",
     // "Block and report are two taps away." until A24 ships (Alex, 10 Oct 2026: no
     // promise the product does not keep) — SAFETY_TODAY in policy.ts; SC01.
     SAFETY_TODAY.sheet,
-    "Women-only crews on every gathering.",
+    "Women-only rooms on every gathering.",
   ],
   accept: "I've read the privacy policy and terms",
-  finish: "I'm in — show me who's going",
+  finish: "I'm in. Show me who's going",
   // At the top of A27, before the first field (Alex, M3.2: the fix that matters most —
   // Safari deletes a site's data after 7 days, so a returning person arrives as a
   // stranger). Straight to the sign-in step; the merge finds their account.
   alreadyOnPind: "Already on Pin'd?",
-  alreadyOnPindLine: "Sign in and you'll go straight to the room — nothing asked again.",
+  alreadyOnPindLine: "Sign in and you'll go straight to the room. Nothing asked again.",
   signIn: "Sign in",
 } as const;
 
@@ -97,7 +97,7 @@ export function optInMissing(f: OptInFacts): {
   const words = missing.map((m) => NEED_WORDS[m]);
   const list = words.length === 1 ? words[0] : `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
   const fix =
-    missing.length > 1 ? "Start below — it takes a minute." : step === "you" ? "Add it below, then you're in." : "Set it up below, then you're in.";
+    missing.length > 1 ? "Start below. It takes a minute." : step === "you" ? "Add it below, then you're in." : "Set it up below, then you're in.";
   return {
     missing,
     step,

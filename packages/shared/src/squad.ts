@@ -38,7 +38,7 @@ export function squadSeatsLabel(seats: number): string {
 export const SQUAD_COPY = {
   // A15 — the list on A9.
   sectionHeading: "Squads",
-  sectionHint: "Small groups going together. Tap one to join — up to 8 in each.",
+  sectionHint: "Small groups going together. Tap one to join.",
   none: "No squads here yet. Start one and anyone open to meeting can join.",
   start: "Start a squad",
   join: "Join",
@@ -62,7 +62,7 @@ export const SQUAD_COPY = {
   nameOneLine: "Keep the name on one line.",
   // A11 — your squad.
   heading: "Your squad",
-  checking: "Checking the name — it'll be listed in a moment.",
+  checking: "Checking the name. It'll be listed in a moment.",
   rejected: "That name can't be listed here. Pick another and we'll put it up.",
   rename: "Use this name",
   meets: (spot: string, time: string) => `You meet at ${spot}, ${time}.`,

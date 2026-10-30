@@ -14,7 +14,7 @@ export const ONE_LINER = "See who's going, meet them there.";
 // harder to recognise down a list and put a transaction where a decision belongs.
 // The price sits beneath it and the registration line above it: those are facts, and
 // the button is the commitment.
-export const PIN_IN = "Pin in — I'm going";
+export const PIN_IN = "Pin in · I'm going";
 
 // The other half of the same button (Alex, M3.1, after "Open" appeared on every crowd
 // page). **The button follows what you have done at THIS gathering, never what your
@@ -42,17 +42,17 @@ export function entryLine(g: {
   // The note is about the cost whatever the cost is: Frontrunners is a free drop-in
   // with an optional $30/yr membership, and dropping that made the page say less than
   // the truth. Found entering the community list.
-  if (g.entry === "free") return note ? `Free — ${note}` : "Free";
+  if (g.entry === "free") return note ? `Free · ${note}` : "Free";
   // "Ticketed" rather than silence. Every other state says what it costs, and a blank
   // where "Free" sits on the next card reads as free to anyone scanning — the same
   // trap as an unknown door price saying nothing (Alex asked; this is the call).
   if (g.entry === "ticketed") return note ?? "Ticketed";
   if (g.door_price_cents === null || g.door_price_cents === undefined) {
-    return note ? `Pay at the door — ${note}` : "Pay at the door";
+    return note ? `Pay at the door · ${note}` : "Pay at the door";
   }
   const cents = g.door_price_cents % 100;
   const amount = `$${Math.floor(g.door_price_cents / 100)}${cents ? `.${String(cents).padStart(2, "0")}` : ""}`;
-  return note ? `${amount} at the door — ${note}` : `${amount} at the door`;
+  return note ? `${amount} at the door · ${note}` : `${amount} at the door`;
 }
 
 // Still the fixed §5 sentence, and **no longer the headline anywhere** (Alex, closing
@@ -72,7 +72,7 @@ export const THRESHOLD_EXPLANATION = "When two people are open to meeting, a roo
 // on-device walk: the safety property each line describes is unchanged, only how it
 // is said. The old set read as a safety notice on a product about making friends.
 export const HOUSE_RULES = [
-  "Make friends how you used to — in person.",
+  "Make friends how you used to: in person.",
   "You see each other, or neither of you does.",
   "Come as you are. No pressure, no commitment.",
 ] as const;
@@ -87,7 +87,7 @@ export const HOUSE_RULES = [
 // curated public spot or at the gathering itself; 1-on-1 always at a curated spot; never a
 // private address). It used to add "before doors", which nothing enforces — a squad or a
 // 1-on-1 may meet from 3 h before the start to 2 h after the end (`solo_time_ok`).
-export const CREWS_MEET = "Squads and 1-on-1s meet at the event itself or at a public spot near it, chosen from a short list — never at a private address.";
+export const CREWS_MEET = "Squads and 1-on-1s meet at the event itself or at a public spot near it, chosen from a short list, never at a private address.";
 
 // ---------------------------------------------------------------------------
 // Onboarding, store path (A1–A2). Final lines are marked; the rest is in the new
@@ -118,7 +118,7 @@ export const PHOTO_WHY = "A photo of you makes it easier to find each other.";
 // and saying so would tell anyone gaming the check exactly what trips it (the same
 // family as H9 keeping an auto-hide quiet from a reporter).
 export const PHOTO_REJECTED =
-  "That photo is not one we can use. You are still on the list without one — add a different photo any time.";
+  "That photo is not one we can use. You are still on the list without one. Add a different photo any time.";
 
 // The owner's mirror of `private.can_see_photo` (V6): whether others who can see you
 // get your photo. **The database decides**; this exists so A21's preview says the
@@ -129,7 +129,7 @@ export function photoShowsToOthers(status: string): boolean {
 
 // Gender, asked once, shown to nobody — not even to you (D1, spec A2). The line
 // exists because a protected attribute asked for without a reason reads as nosy.
-export const GENDER_WHY = "Asked once, for women-only crews. It never appears on your profile.";
+export const GENDER_WHY = "Asked once, for women-only rooms. It never appears on your profile.";
 
 // The 19+ stop is hard and has no soft fail (H8). The line is plain rather than
 // apologetic: there is nothing to negotiate and nothing to try again.
@@ -149,7 +149,7 @@ export const PHOTO_LABEL = "A photo";
 
 // When it is actually needed. Said plainly, because "optional" on its own invites
 // somebody to skip it and then hit a wall nobody warned them about.
-export const PHOTO_WHEN = "Add one now or later — you’ll need one before you can meet up with anyone.";
+export const PHOTO_WHEN = "Add one now or later. You’ll need one before you can meet up with anyone.";
 
 // A1's own header, on the screen where the first name is asked.
 export const A2_HEADING = "A bit about you";
@@ -175,10 +175,26 @@ import { GO_TOGETHER_AT, ROOM_OPENS_AT } from "./constants.ts";
 
 export const SEE_WHOS_GOING = "See who's going";
 
+// The two counters, stacked, each with its icon (UI pass 1, rule 5, Alex 30 Oct 2026):
+// person "37 going", handshake "14 open to meeting" or "Nobody open to meeting yet", on
+// every crowd page state, W2 and A9 alike. Nobody pinned at all is one invitation
+// instead of two zeros. An ended gathering says how many pinned in, honestly (H6).
+export const COUNTERS = {
+  nobody: "Nobody’s pinned yet. Be the first.",
+  going: (n: number) => `${n} going`,
+  open: (n: number) => (n === 0 ? "Nobody open to meeting yet" : `${n} open to meeting`),
+  pinnedIn: (n: number) => (n === 1 ? "1 person pinned in." : `${n} people pinned in.`),
+} as const;
+
+// The next step under the counters, said only when it is one person away (#14).
+export function countNext(open: number): string | null {
+  return countLine(1, open).next;
+}
+
 export function countLine(going: number, open: number): { line: string; next: string | null } {
   // Nobody at all: a bare zero reads as dead rather than early (M2.3), so it invites
   // (Alex, M3.2).
-  if (going === 0) return { line: "Nobody’s pinned yet — be the first", next: null };
+  if (going === 0) return { line: "Nobody’s pinned yet. Be the first.", next: null };
   const line = open === 0 ? `${going} going · nobody open to meeting yet` : `${going} going · ${open} open to meeting`;
   const next =
     open > 0 && open === ROOM_OPENS_AT - 1

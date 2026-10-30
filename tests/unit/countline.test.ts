@@ -8,7 +8,7 @@ import { GO_TOGETHER_AT, ROOM_OPENS_AT } from "../../packages/shared/src/constan
 
 describe("countLine — one wording for the counts everywhere", () => {
   it("C09 nobody going at all: an invitation, never a bare zero (M2.3)", () => {
-    assert.deepEqual(countLine(0, 0), { line: "Nobody’s pinned yet — be the first", next: null });
+    assert.deepEqual(countLine(0, 0), { line: "Nobody’s pinned yet. Be the first.", next: null });
   });
   it("C10 nobody open: says so, because that is where someone could be first", () => {
     assert.deepEqual(countLine(23, 0), { line: "23 going · nobody open to meeting yet", next: null });

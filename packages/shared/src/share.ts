@@ -44,5 +44,5 @@ export const SHARE_COPY = {
   others: "The other spots",
   // PROPOSED — Tatiana's to rewrite.
   message: (gathering: string, spot: string | null, when: string | null) =>
-    [gathering, spot && when ? `meeting at ${spot}, ${when}` : spot ? `meeting at ${spot}` : null].filter(Boolean).join(" — "),
+    [gathering, spot && when ? `meeting at ${spot}, ${when}` : spot ? `meeting at ${spot}` : null].filter(Boolean).join(" · "),
 } as const;

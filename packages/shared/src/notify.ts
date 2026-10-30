@@ -7,7 +7,7 @@ export type NotificationKind = "digest" | "room_open" | "plan_status" | "day_of"
 
 export const NOTIFICATIONS: { kind: NotificationKind; label: string; what: string }[] = [
   { kind: "room_open", label: "Someone else wants to meet", what: "The first time someone else at a gathering you pinned says they'd like to meet." },
-  { kind: "room_activity", label: "Room activity", what: "New messages in a room since you last looked — at most once an hour." },
+  { kind: "room_activity", label: "Room activity", what: "New messages in a room since you last looked, at most once an hour." },
   { kind: "solo_proposal", label: "1-on-1 proposals", what: "Someone at a gathering you pinned asks to meet you 1-on-1, at a spot and a time." },
   { kind: "plan_status", label: "Groups and plans", what: "An invite, a group's plan, a yes to your 1-on-1, or a group or 1-on-1 that's off." },
   { kind: "day_of", label: "On the day", what: "About three hours before, where and when your group meets." },
@@ -25,7 +25,7 @@ export const NOTIFICATION_NAME: Record<NotificationKind, string> = Object.fromEn
 // only once someone is in a room and push has something to say (Tatiana's to reword).
 export const PUSH_ASK = {
   title: "Get told when someone says hi",
-  line: "We'll let you know when someone else wants to meet, and when your room is talking — never more than once an hour.",
+  line: "We'll let you know when someone else wants to meet, and when your room is talking, never more than once an hour.",
   yes: "Turn on",
   no: "Not now",
 } as const;

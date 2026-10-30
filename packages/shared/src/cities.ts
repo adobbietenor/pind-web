@@ -31,7 +31,7 @@ export const CITIES: readonly CityChoice[] = [
 // has one rather than quietly picking.
 export function liveCity(): CityChoice {
   const live = CITIES.filter((c) => c.live);
-  if (live.length !== 1) throw new Error(`exactly one live city expected, found ${live.length} — W1 needs a decision`);
+  if (live.length !== 1) throw new Error(`exactly one live city expected, found ${live.length}: W1 needs a decision`);
   return live[0]!;
 }
 
@@ -54,7 +54,7 @@ export const HOME_COPY = {
   line: "Pick a city to see who's going to what this week.",
   comingSoon: "Coming soon",
   profileHeading: "Set up your profile now?",
-  profileLine: "Optional. You can do it later — Pin'd asks when you first pin in.",
+  profileLine: "Optional. You can do it later. Pin'd asks when you first pin in.",
   profileButton: "Set up my profile",
   listEmpty: "Nothing listed in the next seven days yet.",
   // On a card the signed-in person has pinned (#3, Alex's words). The count stays.

@@ -48,7 +48,7 @@ export const QUICKPIN_COPY = {
   submit: PIN_IN,
   // The answers that do not pass, each said beside the field it is about.
   needName: "Your first name, please.",
-  nameTooLong: "That's longer than a first name — 40 characters at most.",
+  nameTooLong: "That's longer than a first name: 40 characters at most.",
   needParty: "Say who's coming.",
   needGroupSize: `How many of you? A number from 2 to ${PARTY_MAX}.`,
   needNineteen: "Pin'd is 19+. Tick the box if you're 19 or older.",
@@ -57,7 +57,7 @@ export const QUICKPIN_COPY = {
   // "You're in", not "You're pinned": plain English for someone who has never used
   // this (Alex, M3.2).
   pinned: "You're in",
-  alreadyPinned: "You were already in — we've updated it",
+  alreadyPinned: "You were already in. We've updated it",
   share: "Share this crowd",
   addToCalendar: "Add to calendar",
   editOrRemove: "Change or remove my pin",
@@ -70,14 +70,14 @@ export const QUICKPIN_COPY = {
   optInNext: "If you'd like to meet people here, set up a quick profile so others can see who you are.",
   // The no-JavaScript case (Alex, M3.2): never a silent dead end.
   noScript:
-    "You're in. To change or remove it later, open this page again in this browser with JavaScript switched on — your pin is kept for you here.",
-  closed: "Pinning has closed — this one has finished.",
+    "You're in. To change or remove it later, open this page again in this browser with JavaScript switched on. Your pin is kept for you here.",
+  closed: "Pinning has closed. This one has finished.",
   // Editing a pin already there (the app's A26; the Worker's page links to it).
   save: "Save my pin",
   remove: "Remove my pin",
   removed: "Your pin is removed. The count has gone down by your party.",
   backToCrowd: "Back to the crowd",
-  closedCanRemove: "This one has finished, so your pin can't be changed — but you can still remove it.",
+  closedCanRemove: "This one has finished, so your pin can't be changed, but you can still remove it.",
   tryAgain: "That didn't go through. Try again in a moment.",
   // F5 (M4.2, 29 Oct 2026): your +1s take seats in your squad, which has eight. PROPOSED.
   squadFullPlusOne: "Your squad here is full, so there's no seat for a +1. Come on your own, or leave the squad first.",

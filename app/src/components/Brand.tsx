@@ -33,7 +33,7 @@ export function Brand() {
     <Tap
       style={styles.row}
       accessibilityRole="link"
-      accessibilityLabel="Pin'd — home"
+      accessibilityLabel="Pin'd, home"
       onPress={() => {
         // homeList()'s route, in the typed form the router takes.
         const home = { pathname: "/city/[slug]", params: { slug: liveCity().slug } } as const;

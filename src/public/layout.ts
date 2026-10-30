@@ -12,7 +12,7 @@
 //
 // The palette is the one in packages/shared, never retyped.
 
-import { colors } from "@pind/shared";
+import { colors, HOUSE_RULES, iconSvg, type IconName } from "@pind/shared";
 import { markSvg, wordmarkSvg } from "./brand";
 import type { City } from "./data";
 import { escape } from "./escape.ts";
@@ -265,6 +265,44 @@ a.dirs{display:inline-block;margin-top:8px;font-size:.88rem}
 .quiet{color:var(--muted)}
 .empty{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;color:var(--muted)}
 
+/* UI pass 1 (docs/design/ui-pass-1, S1). The crowd page reads top to bottom: title and
+   one line, Details (closed), the question and its counters, the button, spots nearby,
+   the map. Every tap target here is at least 44px tall (rule 8). */
+details.more{margin:18px 0 0}
+details.more>summary,details.rules-row>summary{
+  list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 16px;
+  background:#1A1820;color:#fff;border:1px solid #34303D;border-radius:22px;font-size:.9rem;
+}
+details.more>summary::-webkit-details-marker,details.rules-row>summary::-webkit-details-marker{display:none}
+details.more>summary svg,details.rules-row>summary svg{transition:transform .15s ease}
+details[open]>summary svg{transform:rotate(180deg)}
+details.more .open-label{display:none}
+details.more[open] .open-label{display:inline}
+details.more[open] .closed-label{display:none}
+details.more[open]{background:#141318;border:1px solid #2A2830;border-radius:14px;padding:16px}
+.more-body{margin-top:14px;display:flex;flex-direction:column;gap:14px}
+.more-body .what-it-is{margin:0}
+.addr{margin:0;color:var(--muted);font-size:.92rem}
+.kicker{margin:0 0 8px;font-size:.78rem;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.rules-block{border-top:1px solid #2A2830;padding-top:14px}
+.rules-plain{margin:0;padding-left:20px;font-size:.95rem}
+.rules-plain li{margin:4px 0}
+.rules-plain li::marker{color:var(--muted)}
+.how{margin:0;font-size:.86rem;color:var(--muted)}
+details.rules-row{margin:26px 0 0}
+details.rules-row[open]>summary{margin-bottom:12px}
+.asks-block{margin:24px 0 0}
+p.asks{margin:0 0 6px;font-size:.92rem;color:var(--muted)}
+.count-line{font-size:1.32rem;font-weight:700;letter-spacing:-.01em;line-height:1.25;margin:0}
+.counter{display:flex;align-items:center;gap:12px;margin:8px 0 0;font-size:1.2rem;font-weight:700;letter-spacing:-.01em}
+.counter svg{color:#C9A8F0;flex:0 0 auto}
+.cta.ghost{background:#1A1820;border:1px solid var(--accent)}
+.cta.ghost:hover{background:#221e2b}
+.nearby{margin:26px 0 0}
+.nearby-empty{margin:0;border:1px dashed #34303D;border-radius:12px;padding:16px;font-size:.94rem;color:#8D8996}
+figcaption .openmap{font-size:.88rem}
+.foot-share{margin:0 0 12px}
+
 footer{margin-top:40px;padding-top:18px;border-top:1px solid var(--border);font-size:.84rem;color:var(--muted)}
 footer a{color:var(--muted)}
 footer a:hover{color:#fff}
@@ -363,6 +401,18 @@ ${o.head ?? ""}
       "x-content-type-options": "nosniff",
     },
   });
+}
+
+// One of the shared line icons, inline, coloured by the CSS around it.
+export function icon(name: IconName, size: number): string {
+  return iconSvg(name, size);
+}
+
+// **House rules is one collapsed row, closed by default, everywhere it appears** (UI
+// pass 1, rule 2), and nothing sits under it.
+export function houseRulesRow(): string {
+  return `<details class="rules-row"><summary>House rules${icon("chevronDown", 16)}</summary>
+<ol class="rules-plain">${HOUSE_RULES.map((r) => `<li>${escape(r)}</li>`).join("")}</ol></details>`;
 }
 
 // A page that says one thing. Used for 404s and for a withdrawn gathering.

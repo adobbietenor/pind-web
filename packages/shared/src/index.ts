@@ -8,6 +8,7 @@ export * from "./cities";
 export * from "./constants";
 export * from "./copy";
 export * from "./crowd";
+export * from "./icons";
 export * from "./image";
 export * from "./list";
 export * from "./time";

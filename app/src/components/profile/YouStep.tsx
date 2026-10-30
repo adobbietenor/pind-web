@@ -160,7 +160,7 @@ export function YouStep({ firstName: initialName, hasPrivate, hasPhoto, photoReq
           {gender === "nonbinary" ? (
             <View style={{ marginBottom: spacing.md }}>
               <Choice
-                label="Women-only crews"
+                label="Women-only rooms"
                 options={[
                   { value: "yes", name: "Include me" },
                   { value: "no", name: "Leave me out" },

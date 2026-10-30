@@ -19,6 +19,6 @@ export const PRIVACY_CONTACT = "privacy@pind.social";
 // any person, group or message") — SC01 fails until it does, and fails if anything claims
 // the taps before then.
 export const SAFETY_TODAY = {
-  app: "Hold anyone's message in a room, a squad or a 1-on-1 plan to report the person who wrote it. Blocking, and reporting from a profile or a squad, are coming to the app — until then, write to safety@pind.social and a person reads it.",
-  sheet: "Hold anyone's message to report the person who wrote it — and safety@pind.social reaches a person.",
+  app: "Hold anyone's message in a room, a squad or a 1-on-1 plan to report the person who wrote it. Blocking, and reporting from a profile or a squad, are coming to the app. Until then, write to safety@pind.social and a person reads it.",
+  sheet: "Hold anyone's message to report the person who wrote it, and safety@pind.social reaches a person.",
 } as const;

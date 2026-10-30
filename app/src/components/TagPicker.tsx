@@ -120,7 +120,7 @@ export function TagPicker({
       <View style={{ marginTop: spacing.sm }}>
         <Body muted>
           {picked.length < TAGS_MINIMUM
-            ? `${picked.length} of ${TAGS_MINIMUM} — pick a few more.`
+            ? `${picked.length} of ${TAGS_MINIMUM}. Pick a few more.`
             : `${picked.length} picked, ${countOnList(picked)} on the list.`}
         </Body>
       </View>
