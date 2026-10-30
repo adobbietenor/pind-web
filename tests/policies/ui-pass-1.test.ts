@@ -16,6 +16,7 @@ const env = loadEnv();
 const service = newClient(env, env.secretKey);
 const anon = newClient(env, env.publishableKey);
 const run = `up${randomBytes(3).toString("hex")}`;
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 interface P { name: string; id: string; authId: string; c: SupabaseClient }
 const ppl: Record<string, P> = {};
@@ -285,22 +286,32 @@ const ask = (who: string, to: string) => ppl[who]!.c.rpc("ask_keep", { p_gatheri
 const connected = async (who: string, to: string) =>
   ((await must(ppl[who]!.c.rpc("my_connections"), `${who}'s connections`)) as { person_id: string }[]).some((c) => c.person_id === ppl[to]!.id);
 
-test("P293 B: setup, the night is over: Ann and Bob shared a squad; Ann and Dee both spoke in the room; Cal was in the room and never spoke", async () => {
+// Everyone here is placed in the general room (Dee switches "women-only rooms only" off
+// first); a women-only room opens only at three, so it is not where anyone speaks here.
+const roomOf = async (who: string, womenOnly: boolean) =>
+  (await must(service.from("room_members").select("room_id").eq("gathering_id", g.Past).eq("person_id", ppl[who]!.id).eq("women_only", womenOnly).single(), `${who}'s room`)).room_id as string;
+const speak = async (who: string, womenOnly = false) =>
+  must(ppl[who]!.c.from("room_messages").insert({ room_id: await roomOf(who, womenOnly), author_id: ppl[who]!.id, body: `hi from ${who}` }), `${who} speaks`);
+
+test("P293 B: setup, the night is over: Ann and Bob shared a squad; Ann, Dee, Bob and Gus spoke in the room; Cal was in it and never spoke", async () => {
   // Ended two hours ago (no end time: the effective end is the start plus three hours).
   await gathering("Past", Date.now() - 5 * 3_600_000);
+  await must(service.from("people_private").update({ women_only_rooms: false }).eq("person_id", ppl.Dee!.id), "Dee: the general room too");
   for (const n of ["Ann", "Bob", "Cal", "Dee", "Gus"]) await pin(n, "Past");
   const crew = (await must(service.from("crews").insert({ gathering_id: g.Past, kind: "crew", state: "done", name: "Pre-game", name_status: "approved", spot_id: spot, meet_at: new Date(Date.now() - 6 * 3_600_000).toISOString() }).select("id").single(), "a done squad")).id as string;
   for (const n of ["Ann", "Bob"]) await must(service.from("crew_members").insert({ crew_id: crew, gathering_id: g.Past, person_id: ppl[n]!.id }), `${n} in the squad`);
-  const room = (await must(service.from("room_members").select("room_id").eq("gathering_id", g.Past).eq("person_id", ppl.Ann!.id).eq("women_only", false).single(), "the room")).room_id as string;
-  for (const n of ["Ann", "Dee", "Gus"]) {
-    await must(ppl[n]!.c.from("room_messages").insert({ room_id: room, author_id: ppl[n]!.id, body: `hi from ${n}` }), `${n} speaks`);
-  }
+  await speak("Ann");
+  await speak("Dee");
+  await speak("Bob");
+  await speak("Gus");
   assert.equal((await keepState("Ann", "Bob"))?.met_as, "squad");
   assert.equal((await keepState("Ann", "Dee"))?.met_as, "room");
+  assert.equal((await keepState("Bob", "Gus"))?.met_as, "room");
   assert.equal(await keepState("Ann", "Cal"), null, "someone who never spoke is a card");
+  assert.equal(await keepState("Cal", "Ann"), null, "a card for someone who never spoke");
 });
 
-test("P294 B: Ann CAN ask Bob (squad) and Dee (both spoke); she CANNOT ask Cal (never spoke) or Fox (not there); only Bob sees Ann's request, in Requests", async () => {
+test("P294 B: Ann CAN ask Bob (squad) and Dee (both spoke in the room); nobody CAN ask Cal (never spoke) or Fox (not there), and Cal CANNOT ask; only Bob sees Ann's request", async () => {
   assert.equal(await must(ask("Ann", "Bob"), "Ann asks Bob"), "sent");
   assert.equal(await must(ask("Ann", "Dee"), "Ann asks Dee"), "sent");
   await refused(ask("Ann", "Cal"), "42501", "keep_not_met");
@@ -331,36 +342,35 @@ test("P296 B: Bob accepts: a connection on both sides, and the 'showed up' badge
   for (const [who, of] of [["Ann", "Ann"], ["Bob", "Ann"], ["Ann", "Bob"]] as const) {
     assert.equal(await must(ppl[who]!.c.rpc("showed_up", { p_person: ppl[of]!.id }), "badge"), true, `${who} does not see ${of}'s badge`);
   }
+  assert.equal(await must(ppl.Cal!.c.rpc("showed_up", { p_person: ppl.Cal!.id }), "Cal's badge"), false, "a badge nobody earned");
   assert.equal((await keepState("Ann", "Bob"))?.state, "connected");
-  // Dee and Gus both spoke: each asks the other, and the second ask connects them.
-  assert.equal(await must(ask("Gus", "Dee"), "Gus asks Dee"), "sent");
-  assert.equal(await must(ask("Dee", "Gus"), "Dee asks Gus"), "connected");
-  assert.equal(await connected("Gus", "Dee"), true);
+  assert.equal(await must(ask("Gus", "Bob"), "Gus asks Bob"), "sent");
+  assert.equal(await must(ask("Bob", "Gus"), "Bob asks Gus"), "connected");
+  assert.equal(await connected("Gus", "Bob"), true);
 });
 
 test("P297 B: a request CAN be taken back while it waits; a block CANNOT be crossed and cancels what is waiting; nothing before the end or after 7 days", async () => {
-  // Bob and Gus share no squad and Bob never spoke: Bob speaks, then Gus asks him.
-  const room = (await must(service.from("room_members").select("room_id").eq("gathering_id", g.Past).eq("person_id", ppl.Bob!.id).eq("women_only", false).single(), "the room")).room_id as string;
-  await must(ppl.Bob!.c.from("room_messages").insert({ room_id: room, author_id: ppl.Bob!.id, body: "hi from Bob" }), "Bob speaks");
-  await must(ask("Gus", "Bob"), "Gus asks Bob");
-  await must(ppl.Gus!.c.rpc("take_back_keep", { p_gathering: g.Past, p_to: ppl.Bob!.id }), "Gus takes it back");
-  assert.equal((await keepReqs("Bob")).length, 0, "a taken-back request stayed in Requests");
+  // Dee asks Ann (Ann's own request was "Not now"-ed, so this is Dee's first), then takes it back.
+  assert.equal(await must(ask("Dee", "Ann"), "Dee asks Ann"), "sent");
+  assert.equal((await keepReqs("Ann")).length, 1, "control: Dee's request is waiting");
+  await must(ppl.Dee!.c.rpc("take_back_keep", { p_gathering: g.Past, p_to: ppl.Ann!.id }), "Dee takes it back");
+  assert.equal((await keepReqs("Ann")).length, 0, "a taken-back request stayed in Requests");
   // Ann blocked Gus at the start: neither can ask the other.
   await refused(ask("Gus", "Ann"), "42501");
   await refused(ask("Ann", "Gus"), "42501");
-  // A block made while a request waits cancels it: Bob (who has spoken now) asks Dee, Dee
-  // blocks Bob, and the request is gone; lifting the block does not bring it back.
-  assert.equal(await must(ask("Bob", "Dee"), "Bob asks Dee"), "sent");
-  assert.equal((await keepReqs("Dee")).length, 1, "control: Bob's request is waiting");
-  await must(service.from("blocks").insert({ blocker_id: ppl.Dee!.id, blocked_id: ppl.Bob!.id }), "Dee blocks Bob");
-  assert.equal((await keepReqs("Dee")).length, 0, "a block left the request waiting");
-  await refused(ask("Bob", "Dee"), "42501", "keep_unavailable");
-  await must(service.from("blocks").delete().eq("blocker_id", ppl.Dee!.id).eq("blocked_id", ppl.Bob!.id), "unblock");
-  await must(ask("Bob", "Dee"), "Bob asks again after the unblock");
-  assert.equal((await keepReqs("Dee")).length, 0, "a cancelled request came back after the unblock");
-  // Before the end: Later has not ended.
+  // A block made while a request waits cancels it; lifting the block does not bring it back.
+  await speak("Cal");
+  assert.equal(await must(ask("Cal", "Gus"), "Cal asks Gus"), "sent");
+  assert.equal((await keepReqs("Gus")).length, 1, "control: Cal's request is waiting");
+  await must(service.from("blocks").insert({ blocker_id: ppl.Gus!.id, blocked_id: ppl.Cal!.id }), "Gus blocks Cal");
+  assert.equal((await keepReqs("Gus")).length, 0, "a block left the request waiting");
+  await refused(ask("Cal", "Gus"), "42501", "keep_unavailable");
+  await must(service.from("blocks").delete().eq("blocker_id", ppl.Gus!.id).eq("blocked_id", ppl.Cal!.id), "unblock");
+  await must(ask("Cal", "Gus"), "Cal asks again after the unblock");
+  assert.equal((await keepReqs("Gus")).length, 0, "a cancelled request came back after the unblock");
+  // Before the end: Later has not ended. After 7 days: closed, both ways.
   await refused(ppl.Ann!.c.rpc("ask_keep", { p_gathering: g.Later, p_to: ppl.Bob!.id }), "42501", "keep_window");
   await must(service.from("gatherings").update({ starts_at: new Date(Date.now() - 9 * 86_400_000).toISOString() }).eq("id", g.Past), "eight days on");
-  await refused(ask("Bob", "Gus"), "42501", "keep_window");
+  await refused(ask("Cal", "Bob"), "42501", "keep_window");
   assert.equal(((await must(ppl.Ann!.c.rpc("keep_people", { p_gathering: g.Past }), "cards")) as { open: boolean }).open, false);
 });
