@@ -139,6 +139,26 @@ try {
   }
   await scrollTo("Squads");
   await snap("a9-squads", false);
+  // The squad form (064/065): empty, then named with a curated place and a time in words.
+  await evaluate(`(() => { const b=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.trim()==="+ Start a squad"); b && b.click(); return !!b; })()`);
+  await until("Meeting point");
+  await snap("a15-form", false);
+  await evaluate(`(() => { const i=[...document.querySelectorAll('input')].find(x=>x.placeholder==="e.g. 300 level pre-game"); i && i.focus(); return !!i; })()`);
+  await send("Input.insertText", { text: "Section 314 pre-game" });
+  await evaluate(`(() => { const i=[...document.querySelectorAll('textarea')].find(x=>x.placeholder&&x.placeholder.startsWith("Anything people")); i && i.focus(); return !!i; })()`);
+  await send("Input.insertText", { text: "First time solo, happy to grab a drink before." });
+  await evaluate(`(() => { const b=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.trim()==="Add a place"); b && b.click(); return !!b; })()`);
+  await sleep(400);
+  await snap("a15-form-places", false);
+  await evaluate(`(() => { const b=[...document.querySelectorAll('[role=radio]')].find(e=>e.innerText.trim()==="At the event itself"); b && b.click(); return !!b; })()`);
+  await evaluate(`(() => { const b=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.trim()==="Add a time"); b && b.click(); return !!b; })()`);
+  await sleep(300);
+  await evaluate(`(() => { const i=[...document.querySelectorAll('input')].find(x=>x.placeholder==="e.g. around 5:30 p.m."); i && i.focus(); return !!i; })()`);
+  await send("Input.insertText", { text: "around 5:30" });
+  await sleep(300);
+  await snap("a15-form-filled", false);
+  await evaluate(`(() => { const b=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.trim()==="Close"||e.getAttribute("aria-label")==="Close"); b && b.click(); return !!b; })()`);
+  await sleep(500);
   if (squadId) {
     await as("Ari", "join_squad", { p_crew: squadId });
     await sleep(3200);

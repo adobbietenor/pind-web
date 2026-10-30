@@ -9,7 +9,14 @@
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
-import { colors as palette, CONNECTIONS_COPY, fonts, radius, spacing } from "@pind/shared";
+import { useQuery } from "@tanstack/react-query";
+import { chatPreview, colors as palette, CONNECTIONS_COPY, fonts, MY_CHATS_COPY, ONE_ON_ONE_COPY, radius, spacing } from "@pind/shared";
+import { RequestCard } from "@/components/RequestCard";
+import { Tap } from "@/components/Tap";
+import { loadMyChats, MY_CHATS_KEY } from "@/lib/myevents";
+import { queryClient } from "@/lib/query";
+import { loadRequests, REQUESTS_KEY } from "@/lib/requests";
+import { answerSolo } from "@/lib/solo";
 import { AppScreen } from "@/components/AppScreen";
 import { EmptyCard } from "@/components/EmptyCard";
 import { Trouble } from "@/components/Trouble";
@@ -27,6 +34,28 @@ export default function Connections() {
   const [busy, setBusy] = useState<string | null>(null);
   const [said, setSaid] = useState<{ personId: string; line: string } | null>(null);
   const [refused, setRefused] = useState<{ personId: string; what: Described } | null>(null);
+  // UI pass 1 (077): Requests first, then 1-on-1 chats, then kept connections.
+  const requests = useQuery({ queryKey: REQUESTS_KEY, queryFn: loadRequests, staleTime: 5_000 });
+  const chats = useQuery({ queryKey: MY_CHATS_KEY, queryFn: loadMyChats, staleTime: 15_000 });
+  const [answering, setAnswering] = useState<string | null>(null);
+  const [answerRefusal, setAnswerRefusal] = useState<{ id: string; says: string } | null>(null);
+  const soloChats = (chats.data ?? []).flatMap((e) =>
+    e.crews.filter((c) => c.kind === "solo").map((c) => ({ ...c, event: e.name })),
+  );
+  const answer = async (proposalId: string, accept: boolean) => {
+    setAnswering(proposalId);
+    setAnswerRefusal(null);
+    try {
+      const crew = await answerSolo(proposalId, accept);
+      void queryClient.invalidateQueries({ queryKey: REQUESTS_KEY });
+      void queryClient.invalidateQueries({ queryKey: MY_CHATS_KEY });
+      if (accept && crew) router.push({ pathname: "/group/[id]", params: { id: crew } });
+    } catch (err) {
+      setAnswerRefusal({ id: proposalId, says: failed("answer that", err).says });
+    } finally {
+      setAnswering(null);
+    }
+  };
 
   const refresh = useCallback(() => {
     setTrouble(null);
@@ -37,7 +66,13 @@ export default function Connections() {
         setList((l) => l ?? []);
       });
   }, []);
-  useFocusEffect(refresh);
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+      void requests.refetch();
+    }, [refresh, requests.refetch]),
+  );
+  const waiting = requests.data?.solo ?? [];
 
   const pick = async (c: Connection) => {
     setSaid(null);
@@ -70,9 +105,39 @@ export default function Connections() {
     <AppScreen>
       <Heading>{CONNECTIONS_COPY.heading}</Heading>
       {trouble ? <Trouble what={trouble} onRetry={refresh} /> : null}
+      {waiting.length ? (
+        <>
+          <Text style={styles.section}>{ONE_ON_ONE_COPY.requests}</Text>
+          {waiting.map((r) => (
+            <RequestCard
+              key={r.proposalId}
+              name={r.firstName}
+              photoPath={r.photoPath}
+              title={ONE_ON_ONE_COPY.wantsToMeet(r.firstName)}
+              line={ONE_ON_ONE_COPY.at(r.gatheringName)}
+              busy={answering === r.proposalId}
+              refusal={answerRefusal?.id === r.proposalId ? answerRefusal.says : null}
+              onAccept={() => void answer(r.proposalId, true)}
+              onNotNow={() => void answer(r.proposalId, false)}
+            />
+          ))}
+        </>
+      ) : null}
+      {soloChats.length ? (
+        <>
+          <Text style={styles.section}>{ONE_ON_ONE_COPY.chats}</Text>
+          {soloChats.map((c) => (
+            <Tap key={c.crewId} feel="card" accessibilityRole="button" onPress={() => router.push({ pathname: "/group/[id]", params: { id: c.crewId } })} style={styles.chat}>
+              <Text style={styles.name}>{MY_CHATS_COPY.plan(c.partner)}</Text>
+              <Text numberOfLines={1} style={styles.chatLine}>{c.last ? chatPreview(c.last, ONE_ON_ONE_COPY.firstLine) : `${c.event} · ${ONE_ON_ONE_COPY.firstLine}`}</Text>
+            </Tap>
+          ))}
+        </>
+      ) : null}
+      {list?.length && (waiting.length || soloChats.length) ? <Text style={styles.section}>{CONNECTIONS_COPY.kept}</Text> : null}
       {list === undefined ? (
         <ActivityIndicator color={palette.text} />
-      ) : list.length === 0 ? (
+      ) : list.length === 0 && !waiting.length && !soloChats.length ? (
         <EmptyCard
           icon="handshake"
           heading={CONNECTIONS_COPY.emptyHeading}
@@ -82,7 +147,7 @@ export default function Connections() {
           buttonInside={false}
           onPress={() => router.push("/crowds")}
         />
-      ) : (
+      ) : list.length === 0 ? null : (
         list.map((c, i) => (
           <Rise key={c.personId} index={i} style={styles.card}>
             <View style={styles.row}>
@@ -127,6 +192,9 @@ export default function Connections() {
 }
 
 const styles = StyleSheet.create({
+  section: { fontFamily: fonts.headline, fontSize: 16, color: palette.text, marginTop: spacing.lg },
+  chat: { padding: spacing.md, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, backgroundColor: palette.surface, marginTop: spacing.sm, gap: 2 },
+  chatLine: { fontSize: 14, color: palette.textMuted },
   card: { padding: spacing.md, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, backgroundColor: palette.surface, gap: spacing.sm, marginTop: spacing.md },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   face: { width: 52, height: 52, borderRadius: 26 },

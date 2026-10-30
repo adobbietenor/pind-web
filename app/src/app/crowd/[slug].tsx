@@ -29,6 +29,7 @@ import {
   CROWD_COPY,
   ENDED_COPY,
   HERE_COPY,
+  ONE_ON_ONE_COPY,
   liveCity,
   ROOM_COPY,
   effectiveEnd,
@@ -51,7 +52,10 @@ import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
 import { PushAsk } from "@/components/PushAsk";
-import { SoloSection } from "@/components/SoloSection";
+import { OneOnOneSwitch } from "@/components/OneOnOneSwitch";
+import { Sheet } from "@/components/Sheet";
+import { SwitchRow } from "@/components/SwitchRow";
+import { inviteSolo, soloHere } from "@/lib/solo";
 import { SquadSection } from "@/components/SquadSection";
 import { EndedEvent } from "@/components/EndedEvent";
 import { myRooms, type RoomSummary } from "@/lib/room";
@@ -246,6 +250,17 @@ export default function CrowdPage() {
 
   // The night's "I'm here" (UI pass 1, 088): read for anyone pinned, from 3 hours before
   // the start to the effective end; here_now decides what each person may see.
+  // 1-on-1 here (UI pass 1): who the database lets me ask, and whom I have asked.
+  const [solo, setSolo] = useState<{ open: string[]; asked: string[] } | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [askRefusal, setAskRefusal] = useState<string | null>(null);
+  const [meetSheet, setMeetSheet] = useState(false);
+  const readSolo = useCallback(() => {
+    const g = view?.gathering;
+    if (!g || !view?.mine?.open || Date.now() >= Date.parse(g.effectiveEnd)) return setSolo(null);
+    soloHere(g.id).then(setSolo, () => setSolo(null));
+  }, [view]);
+  useEffect(readSolo, [readSolo]);
   const [here, setHereNow] = useState<HereNow | null>(null);
   const readHere = useCallback(() => {
     const g = view?.gathering;
@@ -267,6 +282,8 @@ export default function CrowdPage() {
       const { error } = await supabase().from("pins").update({ open_to_meeting: open }).eq("id", view.mine.pinId);
       if (error) throw error;
       refresh();
+      // "How do you want to meet?" (073): the room and squads, and 1-on-1 as a switch.
+      if (open) setMeetSheet(true);
     } catch (err) {
       setTrouble(failed(open ? "open you to meeting" : "take you off the list", err));
     } finally {
@@ -453,15 +470,8 @@ export default function CrowdPage() {
           {view.meId ? (
             <SquadSection gatheringId={g.id} meId={view.meId} ended={ended} faces={view.faces.map((f) => ({ id: f.id, firstName: f.firstName, photoUrl: f.photoUrl }))} />
           ) : null}
-          {view.meId ? (
-            <SoloSection
-              gatheringId={g.id}
-              pinId={view.mine.pinId}
-              meId={view.meId}
-              ended={ended}
-              faces={view.faces.map((f) => ({ id: f.id, firstName: f.firstName, photoUrl: f.photoUrl, tags: f.tags.map(tagName).join(" · ") }))}
-            />
-          ) : null}
+          {/* No separate 1-on-1 box (UI pass 1, 055): who is open to it wears a tag below,
+              and the request lives on their profile sheet. */}
           {/* The open-to-meeting list: people you can tap (UI pass 1, 055), the profile
               sheet rather than leaving the page. Three, then "See all". */}
           <Text style={[styles.listHeading, { marginTop: spacing.lg }]}>{CROWD_COPY.listHeading}</Text>
@@ -481,6 +491,7 @@ export default function CrowdPage() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.name}>
                     {f.firstName}
+                    {solo?.open.includes(f.id) ? <Text style={styles.soloTag}>{`  ${ONE_ON_ONE_COPY.tag}`}</Text> : null}
                     {f.party > 1 ? <Text style={styles.plus}>{`  +${f.party - 1} friend${f.party > 2 ? "s" : ""}`}</Text> : null}
                   </Text>
                   {hoodName(f.neighbourhood) ? <Text style={styles.hood}>{hoodName(f.neighbourhood)}</Text> : null}
@@ -511,6 +522,27 @@ export default function CrowdPage() {
               setSheet(null);
               if (id) router.push(`/person/${id}`);
             }}
+            oneOnOne={
+              sheet && solo?.open.includes(sheet.id) && !ended
+                ? {
+                    asked: solo.asked.includes(sheet.id),
+                    busy: asking,
+                    refusal: askRefusal,
+                    onAsk: async () => {
+                      setAsking(true);
+                      setAskRefusal(null);
+                      try {
+                        await inviteSolo(g.id, sheet.id);
+                        readSolo();
+                      } catch (err) {
+                        setAskRefusal(failed("send that", err).says);
+                      } finally {
+                        setAsking(false);
+                      }
+                    },
+                  }
+                : undefined
+            }
           />
           {!ended ? (
             <View style={{ marginTop: spacing.lg }}>
@@ -531,6 +563,14 @@ export default function CrowdPage() {
       <View style={{ marginTop: spacing.md }}>
         <HouseRules />
       </View>
+
+      <Sheet visible={meetSheet} onClose={() => setMeetSheet(false)}>
+        <Text style={styles.oneStepHeading}>{ONE_ON_ONE_COPY.sheetTitle}</Text>
+        <SwitchRow icon="chat" label={ONE_ON_ONE_COPY.roomAndSquads} line={ONE_ON_ONE_COPY.roomAndSquadsLine} value disabled onChange={() => undefined} />
+        <OneOnOneSwitch onChanged={readSolo} />
+        <Body muted>{ONE_ON_ONE_COPY.sheetFoot}</Body>
+        <Button label={ONE_ON_ONE_COPY.done} onPress={() => setMeetSheet(false)} />
+      </Sheet>
 
       {view.facts?.map ? (
         <View style={{ marginTop: spacing.xl }}>
@@ -604,6 +644,7 @@ const styles = StyleSheet.create({
   woTitle: { fontFamily: fonts.headline, fontSize: 16, color: palette.text },
   woLine: { fontSize: 13, color: "#E7B9CF", marginTop: 1 },
   rowChevron: { fontSize: 22, color: palette.textMuted },
+  soloTag: { fontFamily: fonts.headline, fontSize: 12, color: palette.accentText },
   seeAll: { color: palette.accentText, fontSize: 15, textDecorationLine: "underline", marginTop: spacing.sm, paddingVertical: spacing.sm },
   sectionName: { fontFamily: fonts.headline, fontSize: 14, color: palette.textMuted, marginBottom: spacing.sm },
   row: {

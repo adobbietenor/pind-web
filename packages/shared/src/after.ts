@@ -60,6 +60,7 @@ export const CONNECTIONS_COPY = {
     ],
   },
   emptyButton: "Find an event",
+  kept: "Kept connections",
   metAt: (where: string) => `Met at ${where}`,
   invite: "Invite",
   pickHeading: (name: string) => `Invite ${name} to…`,

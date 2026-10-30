@@ -3,12 +3,13 @@
 // that was tapped already holds, read through RLS by the screen that drew the row, so it
 // adds no visibility (H3, H11).
 //
-// **Not here yet, and why:** "Let's meet up 1-on-1" waits on the 1-on-1 change (UI pass 1,
-// behaviour A); Report and Block wait on A24, as on A22 (A24_EXISTS there). Until then the
-// sheet links to the full profile, where A24's ⋯ will be.
+// "Let's meet up 1-on-1" (076) shows only for someone the database lets you ask
+// (solo_people: can_see_solo), and becomes "Request sent ✓" once you have. Report and Block
+// wait on A24, as on A22 (A24_EXISTS there); until then the sheet links to the full profile,
+// where A24's ⋯ will be.
 import { Modal, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { ImageSource } from "expo-image";
-import { colors as palette, fonts, radius, spacing } from "@pind/shared";
+import { colors as palette, fonts, ONE_ON_ONE_COPY, radius, spacing } from "@pind/shared";
 import { Avatar } from "./Avatar";
 import { Tap } from "./Tap";
 
@@ -25,11 +26,14 @@ export function PersonSheet({
   onClose,
   onSayHi,
   onProfile,
+  oneOnOne,
 }: {
   person: SheetPerson | null;
   onClose: () => void;
   onSayHi?: () => void;
   onProfile: () => void;
+  // Present only when this person is open to 1-on-1 with you.
+  oneOnOne?: { asked: boolean; busy: boolean; refusal: string | null; onAsk: () => void };
 }) {
   return (
     <Modal visible={!!person} transparent animationType="fade" onRequestClose={onClose}>
@@ -52,9 +56,19 @@ export function PersonSheet({
               </View>
             ) : null}
             <View style={{ alignSelf: "stretch", gap: spacing.sm, marginTop: spacing.sm }}>
+              {oneOnOne ? (
+                oneOnOne.asked ? (
+                  <Text style={styles.sent}>{ONE_ON_ONE_COPY.sent(person.firstName)}</Text>
+                ) : (
+                  <Tap accessibilityRole="button" disabled={oneOnOne.busy} onPress={oneOnOne.onAsk} style={styles.primary}>
+                    <Text style={styles.primaryLabel}>{ONE_ON_ONE_COPY.ask}</Text>
+                  </Tap>
+                )
+              ) : null}
+              {oneOnOne?.refusal ? <Text accessibilityRole="alert" style={styles.refusal}>{oneOnOne.refusal}</Text> : null}
               {onSayHi ? (
-                <Tap accessibilityRole="button" onPress={onSayHi} style={styles.primary}>
-                  <Text style={styles.primaryLabel}>Say hi in the room</Text>
+                <Tap accessibilityRole="button" onPress={onSayHi} style={oneOnOne ? styles.quiet : styles.primary}>
+                  <Text style={oneOnOne ? styles.quietLabel : styles.primaryLabel}>Say hi in the room</Text>
                 </Tap>
               ) : null}
               <Tap accessibilityRole="button" onPress={onProfile} style={styles.quiet}>
@@ -93,4 +107,6 @@ const styles = StyleSheet.create({
   primaryLabel: { fontFamily: fonts.headline, fontSize: 16, color: palette.onAccent },
   quiet: { minHeight: 48, alignItems: "center", justifyContent: "center", borderRadius: radius.md, borderWidth: 1, borderColor: palette.border },
   quietLabel: { fontFamily: fonts.headline, fontSize: 15, color: palette.text },
+  sent: { fontSize: 15, lineHeight: 21, color: palette.accentText, textAlign: "center", paddingVertical: spacing.sm },
+  refusal: { fontSize: 14, color: "#F3B4B4", textAlign: "center" },
 });

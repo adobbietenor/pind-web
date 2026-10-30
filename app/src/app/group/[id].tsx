@@ -31,7 +31,7 @@ import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Share, StyleSheet, Text, View } from "react-native";
-import { AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, SQUAD_COPY, SQUAD_FORM_COPY, type Convening, type ThreadMessage } from "@pind/shared";
+import { AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, ONE_ON_ONE_COPY, SOLO_COPY, spacing, SQUAD_COPY, SQUAD_FORM_COPY, type Convening, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { AvatarStack } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
@@ -39,7 +39,7 @@ import { SquadForm } from "@/components/SquadForm";
 import { editSquad } from "@/lib/squads";
 import { Composer } from "@/components/Composer";
 import { GetTheApp } from "@/components/GetTheApp";
-import { PairSpot } from "@/components/PairSpot";
+import { SoloPlace } from "@/components/SoloPlace";
 import { MessageSheet } from "@/components/MessageSheet";
 import { ThreadMessages } from "@/components/ThreadMessages";
 import { Trouble } from "@/components/Trouble";
@@ -85,6 +85,8 @@ interface GroupView {
   // A squad's name and where its check stands (M3.7); null for a 1-on-1 plan or an old group.
   squad: { name: string; nameStatus: "pending" | "approved" | "rejected"; womenOnly: boolean; details: string | null; timeNote: string | null; spotId: string | null } | null;
   spots: { id: string; name: string }[];
+  // A 1-on-1's place and time (UI pass 1, 079).
+  plan: { spotId: string | null; atEvent: boolean; timeNote: string | null };
   gathering: { id: string; name: string; slug: string; startsAt: string; endsAt: string | null };
   convening: Convening;
   roomId: string | null;
@@ -110,7 +112,7 @@ async function loadGroupShell(id: string): Promise<GroupView | null> {
   const db = supabase();
   const meId = await myPersonId();
   if (!meId) return null;
-  const { data: c, error } = await db.from("crews").select("id, kind, state, gathering_id, room_id, spot_id, meet_at, name, details, time_note, name_status, women_only, legacy").eq("id", id).maybeSingle();
+  const { data: c, error } = await db.from("crews").select("id, kind, state, gathering_id, room_id, spot_id, meet_at, name, details, time_note, at_event, name_status, women_only, legacy").eq("id", id).maybeSingle();
   if (error) throw error;
   if (!c) return null;
   const [g, conv, mem, props, votes, closes, spot] = await Promise.all([
@@ -138,7 +140,8 @@ async function loadGroupShell(id: string): Promise<GroupView | null> {
         ? { name: c.name, nameStatus: (c.name_status ?? "approved") as "pending" | "approved" | "rejected", womenOnly: c.women_only, details: c.details, timeNote: c.time_note, spotId: c.spot_id }
         : null,
     // The venue's curated spots, for "Add a place" (H5: never typed).
-    spots: c.kind === "crew" ? await venueSpots(c.gathering_id) : [],
+    spots: await venueSpots(c.gathering_id),
+    plan: { spotId: c.spot_id, atEvent: c.at_event, timeNote: c.time_note },
     gathering: { id: g.data.id, name: g.data.name, slug: g.data.slug ?? g.data.id, startsAt: g.data.starts_at, endsAt: g.data.ends_at },
     convening: (conv.data as Convening) ?? "a_spot_first",
     roomId: c.room_id,
@@ -320,9 +323,13 @@ export default function Group() {
         </View>
       ) : (
         <View style={styles.card}>
-          {/* #17: a pair picks its spot here; it is a plan only once both agree. */}
-          {view.solo && view.state === "forming" ? (
-            <PairSpot crewId={view.id} gatheringId={view.gathering.id} meId={view.meId} partner={names[0] ?? ""} onChanged={refresh} />
+          {/* 1-on-1 since UI pass 1 (079): a plain chat. Its place and time are one optional
+              row either of you sets; nobody confirms. */}
+          {view.solo && ["forming", "spot_set", "live"].includes(view.state) ? (
+            <>
+              <Body>{ONE_ON_ONE_COPY.firstLine}</Body>
+              <SoloPlace crewId={view.id} spots={view.spots} spotId={view.plan.spotId} atEvent={view.plan.atEvent} timeNote={view.plan.timeNote} onChanged={refresh} />
+            </>
           ) : null}
           {view.solo || view.squad ? null : (
             <Body>{GROUP_COPY.on(names)}</Body>
@@ -348,7 +355,7 @@ export default function Group() {
                 </Tap>
               ))}
             </>
-          ) : view.meetAt ? (
+          ) : view.meetAt && !view.solo ? (
             <>
               {/* The plan as one line (UI pass 1, 071), never the lead: what is set, or
                   "No plan yet · add a place or time", which opens the form (any member). */}

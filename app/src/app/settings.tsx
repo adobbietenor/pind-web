@@ -24,7 +24,7 @@ import { useCallback, useState } from "react";
 import { Platform, Share, StyleSheet, Text, View } from "react-native";
 import { colors as palette, fonts, radius, SIGN_OUT, SOLO_COPY, spacing, WOMEN_ONLY_COPY } from "@pind/shared";
 import { NotificationSwitches } from "@/components/NotificationSwitches";
-import { mySoloSummary } from "@/lib/solo";
+import { OneOnOneSwitch } from "@/components/OneOnOneSwitch";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice, Tick } from "@/components/ui";
@@ -47,7 +47,6 @@ export default function Settings() {
   const [permanent, setPermanent] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const [signOutTrouble, setSignOutTrouble] = useState<Described | null>(null);
-  const [solo, setSolo] = useState<{ name: string; womenOnly: boolean }[] | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -58,8 +57,6 @@ export default function Settings() {
           return me.personId ? womenOnlyRooms(me.personId) : null;
         })
         .then((w) => live && setRoomsOnly(w))
-        .then(() => mySoloSummary())
-        .then((s) => live && setSolo(s))
         .catch(() => {
           if (!live) return;
           setRoomsOnly(null);
@@ -161,20 +158,18 @@ export default function Settings() {
           </View>
         </View>
 
-        {solo ? (
-          <>
-            <Text style={styles.sectionName}>{SOLO_COPY.settingsHeading}</Text>
-            <View style={styles.card}>
-              {solo.length === 0 ? <Body muted>{SOLO_COPY.settingsNone}</Body> : solo.map((s) => <Body key={s.name}>{SOLO_COPY.settingsAt(s.name, s.womenOnly)}</Body>)}
-            </View>
-          </>
+        {/* "How you meet" (UI pass 1, 106): the meeting switches together, in the 1-on-1
+            sheet's style. "Open to 1-on-1 chats" is on the account (call a); women-only
+            rooms only for those it applies to. */}
+        {womenOnly && permanent ? <Text style={styles.sectionName}>{WOMEN_ONLY_COPY.howYouMeet}</Text> : null}
+        {womenOnly && permanent ? (
+          <View style={{ marginBottom: spacing.sm }}>
+            <OneOnOneSwitch />
+          </View>
         ) : null}
 
         {womenOnly?.eligible ? (
           <>
-            {/* "How you meet" (UI pass 1, 106): the meeting switches together, in the
-                1-on-1 sheet's style. "Open to 1-on-1 chats" joins it with the 1-on-1 change. */}
-            <Text style={styles.sectionName}>{WOMEN_ONLY_COPY.howYouMeet}</Text>
             <SwitchRow
               icon="chat"
               label={WOMEN_ONLY_COPY.setting}

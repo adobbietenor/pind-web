@@ -107,11 +107,12 @@ describe("The squad screens use the rules, not their own (M3.7)", () => {
     assert.match(section, /refusal=\{saidAt\(s\.crewId\)\}/, "a join refusal is not said on the squad tapped");
   });
 
-  it("SQ08 squads sit below the room and above 1-on-1, and the invite-only way in is gone from the app", () => {
+  it("SQ08 squads sit below the room and above the people; no separate 1-on-1 box (UI pass 1); the invite-only way in is gone from the app", () => {
     const squadAt = crowd.indexOf("<SquadSection");
-    const soloAt = crowd.indexOf("<SoloSection");
+    const listAt = crowd.indexOf("CROWD_COPY.listHeading");
     const roomAt = crowd.indexOf("ROOM_COPY.openRoom");
-    assert.ok(roomAt > 0 && squadAt > roomAt && soloAt > squadAt, "squads are not between the room and 1-on-1");
+    assert.ok(roomAt > 0 && squadAt > roomAt && listAt > squadAt, "squads are not between the room and the people");
+    assert.ok(!crowd.includes("<SoloSection"), "the separate 1-on-1 box is back on the crowd page");
     const app = ["app/src/app/crowd/[slug].tsx", "app/src/app/group/[id].tsx", "app/src/app/room/[id].tsx", "app/src/lib/room.ts"].map((f) => readFileSync(f, "utf8")).join("\n");
     for (const fn of ["start_group", "invite_more", "respond_to_invite", "my_invites"]) assert.ok(!app.includes(`"${fn}"`), `the app still calls ${fn}`);
   });

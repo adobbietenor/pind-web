@@ -176,7 +176,8 @@ const styles = StyleSheet.create({
   set: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 52, paddingLeft: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
   setLabel: { flex: 1, fontSize: 16, color: palette.text },
   timeRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 52, paddingLeft: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
-  timeInput: { flex: 1, minHeight: 48, fontSize: 16, color: palette.text },
+  // No browser focus ring inside the row: the row is the field (web).
+  timeInput: { flex: 1, minHeight: 48, fontSize: 16, color: palette.text, ...({ outlineStyle: "none" } as object) },
   remove: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   refusal: { fontSize: 14, color: "#E06B6B" },
 });

@@ -140,3 +140,37 @@ export function soloRefusal(refusal: unknown): string {
   if (m.includes("solo_no_spots") || m.includes("no meeting spots")) return SOLO_COPY.noSpots;
   return "That didn't work. Try again in a moment.";
 }
+
+// 1-on-1 since UI pass 1 (Alex, 30 Oct 2026; 073, 075/076, 077, 079): one account switch,
+// requests from the profile sheet, requests in Connections, a plain chat whose place and
+// time either of you adds. Copy as drawn.
+export const ONE_ON_ONE_COPY = {
+  switchLabel: "Open to 1-on-1 chats",
+  switchLine: "Others can send you a Let's meet up request.",
+  audienceLabel: "Who can see you for 1-on-1",
+  everyone: "Everyone open to meeting",
+  womenOnly: "Women only",
+  sheetTitle: "How do you want to meet?",
+  roomAndSquads: "The room and squads",
+  roomAndSquadsLine: "Always on: everyone here who wants to meet.",
+  sheetLine: "One person at a time, only if you both say yes.",
+  sheetFoot: "You can change this any time from your profile.",
+  done: "Done",
+  tag: "Open to 1-on-1",
+  ask: "Let's meet up 1-on-1",
+  sent: (name: string) => `Request sent ✓ You'll see ${name}'s reply in Connections.`,
+  requests: "Requests",
+  wantsToMeet: (name: string) => `${name} wants to meet up 1-on-1`,
+  at: (event: string) => `At ${event}`,
+  accept: "Accept",
+  notNow: "Not now",
+  chats: "1-on-1 chats",
+  firstLine: "You're both pinned in and open to chatting. Say hi!",
+  addPlace: "Add a place or time",
+  place: "A place",
+  time: "A time",
+  atTheEvent: "At the event itself",
+  timePlaceholder: "e.g. around 7",
+  save: "Save",
+  clear: "Take the place away",
+} as const;

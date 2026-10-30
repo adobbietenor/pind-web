@@ -180,3 +180,63 @@ export async function mySoloSummary(): Promise<{ name: string; womenOnly: boolea
   const { data: gs } = await db.from("gatherings").select("id, name, starts_at").in("id", on.map((s) => s.gathering_id)).order("starts_at");
   return (gs ?? []).map((g) => ({ name: g.name, womenOnly: on.find((s) => s.gathering_id === g.id)?.who_can_see_you === "women_only" }));
 }
+
+// ---------------------------------------------------------------------------
+// UI pass 1 (A28/A29/A20): the account switch, Requests, the chat's place and time.
+// Every rule is the database's (set_one_on_one, can_see_solo, set_solo_place); these
+// only ask.
+// ---------------------------------------------------------------------------
+
+export async function myOneOnOne(): Promise<{ on: boolean; audience: SoloChoice }> {
+  const { data, error } = await supabase().rpc("my_one_on_one");
+  if (error) throw error;
+  const d = (data ?? {}) as { on?: boolean; audience?: SoloChoice };
+  return { on: d.on === true, audience: d.audience ?? "everyone" };
+}
+
+export async function setOneOnOne(on: boolean, audience: SoloChoice): Promise<void> {
+  await said(supabase().rpc("set_one_on_one", { p_on: on, p_audience: audience }));
+}
+
+// Who at this gathering is open to 1-on-1 with me (can_see_solo), and whom I've asked.
+export async function soloHere(gatheringId: string): Promise<{ open: string[]; asked: string[] }> {
+  const db = supabase();
+  const [people, mine] = await Promise.all([
+    db.rpc("solo_people", { p_gathering: gatheringId }),
+    db.rpc("my_solo_proposals", { p_gathering: gatheringId }),
+  ]);
+  return {
+    open: ((people.data ?? []) as { person_id: string }[]).map((r) => r.person_id),
+    asked: ((mine.data ?? []) as { direction: string; person_id: string }[]).filter((r) => r.direction === "sent").map((r) => r.person_id),
+  };
+}
+
+export interface SoloRequest {
+  proposalId: string;
+  gatheringName: string;
+  slug: string;
+  startsAt: string;
+  personId: string;
+  firstName: string;
+  photoPath: string | null;
+}
+
+export async function soloRequests(): Promise<SoloRequest[]> {
+  const { data, error } = await supabase().rpc("my_solo_requests");
+  if (error) throw error;
+  return ((data ?? []) as { proposal_id: string; gathering_name: string; gathering_slug: string; starts_at: string; person_id: string; first_name: string; photo_path: string | null }[]).map((r) => ({
+    proposalId: r.proposal_id,
+    gatheringName: r.gathering_name,
+    slug: r.gathering_slug,
+    startsAt: r.starts_at,
+    personId: r.person_id,
+    firstName: r.first_name,
+    photoPath: r.photo_path,
+  }));
+}
+
+// Either of the two, no confirmation (UI pass 1): a curated spot, the event itself, or
+// neither; a time in words.
+export async function setSoloPlace(crewId: string, spotId: string | null, atEvent: boolean, timeNote: string): Promise<void> {
+  await said(supabase().rpc("set_solo_place", { p_crew: crewId, p_spot: spotId as string, p_at_event: atEvent, p_time_note: timeNote }));
+}

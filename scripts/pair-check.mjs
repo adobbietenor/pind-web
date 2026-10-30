@@ -1,10 +1,11 @@
-// #17 — "Let's meet up!", walked in real headless Chrome (A28, A29; Alex, 29 Oct 2026).
+// 1-on-1, walked in real headless Chrome (A28, A29, A20; UI pass 1, Alex, 30 Oct 2026).
 //
-//   Ari (the browser, signed in through the sealed hand-off as the app is) sees Bea in
-//   1-on-1 and taps "Let's meet up!" — nothing asked first. Bea says yes (her own session).
-//   Ari's crowd page shows the pair; the pair's screen asks them to pick a spot. Ari suggests
-//   one from the chips; the page says it is Bea's to say yes to, and offers Ari no "Sounds
-//   good". Bea confirms (her own session): Ari's screen is the plan, and Ari is told (#3).
+//   Ari (the browser, signed in through the sealed hand-off as the app is) sees Bea wear
+//   "Open to 1-on-1", taps her, and sends "Let's meet up 1-on-1" from her profile sheet:
+//   one tap, nothing asked first. Bea, in her own session, finds it in Connections →
+//   Requests and accepts: the chat opens. She adds a place (a curated spot; nothing can be
+//   typed) and a time, and it holds with no confirmation. Cal's request, answered "Not
+//   now", leaves Bea's Requests and still reads as sent to Cal.
 //
 //   npm run check:pair
 //
@@ -17,7 +18,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { seal } from "../src/public/sealed.ts";
-import { SOLO_COPY } from "../packages/shared/src/solo.ts";
+import { ONE_ON_ONE_COPY } from "../packages/shared/src/solo.ts";
 import { fixture, needChrome, needEnv, sessionSecretMatches, testCrowd } from "./fixture.mjs";
 
 needEnv("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_PUBLISHABLE_KEY", "SESSION_SECRET");
@@ -30,6 +31,7 @@ const base = process.env.SUPABASE_URL.replace(/\/rest\/v1\/?$/, "").replace(/\/$
 const service = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const pub = process.env.SUPABASE_PUBLISHABLE_KEY;
 const S = { apikey: service, authorization: `Bearer ${service}` };
+const ref = new URL(base).hostname.split(".")[0];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const rest = (path, init = {}) => fetch(`${base}${path}`, { ...init, headers: { ...S, "content-type": "application/json", prefer: "return=representation", ...(init.headers ?? {}) } });
 const must = async (res, what) => {
@@ -43,6 +45,7 @@ const spots = await must(await rest(`/rest/v1/meeting_spots?venue_id=eq.${crowd.
 if (!spots.length) fixture("the test crowd's venue has no active meeting spots, so 1-on-1 is not offered there — approve one on /admin/venues.");
 
 const people = {};
+const extra = [];
 let gathering = null;
 let chrome;
 let ok = true;
@@ -57,7 +60,7 @@ async function person(label, gender) {
   await must(await rest("/rest/v1/age_attestations?on_conflict=person_id", { method: "POST", headers: { prefer: "resolution=ignore-duplicates" }, body: JSON.stringify({ person_id: p.id, source: "a26" }) }), "19+");
   await must(await rest("/rest/v1/rpc/admin_set_tester", { method: "POST", body: JSON.stringify({ p_auth_user: u.id, p_on: true, p_actor: "pair-check", p_note: "pair-check" }) }), "tester");
   const t = await must(await fetch(`${base}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: pub, "content-type": "application/json" }, body: JSON.stringify({ email, password }) }), "sign in");
-  people[label] = { authId: u.id, personId: p.id, refresh: t.refresh_token, access: t.access_token };
+  people[label] = { authId: u.id, personId: p.id, refresh: t.refresh_token, access: t.access_token, session: t };
 }
 // As the person themselves, with their own token — never the service key for a product act.
 const as = (label, fn, args) =>
@@ -70,7 +73,8 @@ try {
   await person("Bea", "woman");
   for (const n of ["Ari", "Bea"]) {
     await must(await rest("/rest/v1/pins", { method: "POST", body: JSON.stringify({ gathering_id: gathering.id, person_id: people[n].personId, party_total: 1, open_to_meeting: true }) }), `pin ${n}`);
-    await must(await rest(`/rest/v1/pins?gathering_id=eq.${gathering.id}&person_id=eq.${people[n].personId}`, { method: "PATCH", body: JSON.stringify({ solo_opt_in: true, solo_visibility: "everyone" }) }), `${n} 1-on-1 on`);
+    // The account switch (UI pass 1), as the person.
+    await must(await as(n, "set_one_on_one", { p_on: true, p_audience: "everyone" }), `${n} 1-on-1 on`);
   }
 
   const cookie = await seal(process.env.SESSION_SECRET, { userId: people.Ari.authId, refreshToken: people.Ari.refresh, issuedAt: Date.now() });
@@ -91,51 +95,66 @@ try {
   await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 1800, deviceScaleFactor: 2, mobile: true });
   await send("Network.setCookie", { name: "pind_pin", value: cookie, domain: new URL(SITE).hostname, path: "/", secure: true, httpOnly: true, sameSite: "Lax" });
 
-  // A28: "Let's meet up!" — one tap, nothing asked first.
+  // A28/A29 since UI pass 1: Bea wears "Open to 1-on-1" on Ari's list; the request lives on
+  // her profile sheet, one tap, nothing asked first.
   await send("Page.navigate", { url: `${SITE}/crowd/${slug}` });
-  step("A28 offers Bea with 'Let's meet up!'", (await until(SOLO_COPY.letsMeetUp, 25000)) && (await body()).includes("Bea"));
-  step("…and no proposal sheet: no spot or time asked first", !(await body()).includes(SOLO_COPY.propose));
-  await click(SOLO_COPY.letsMeetUp);
-  step("one tap sends it: 'Sent'", await until(SOLO_COPY.sent));
-  const [inv] = await must(await rest(`/rest/v1/solo_proposals?gathering_id=eq.${gathering.id}&from_person=eq.${people.Ari.personId}&select=id,spot_id,meet_at,status`), "the invite");
-  step("…an invite with no spot and no time", inv && inv.spot_id === null && inv.meet_at === null && inv.status === "open");
+  step("Bea is on Ari's list with 'Open to 1-on-1'", await until(ONE_ON_ONE_COPY.tag, 25000));
+  const tapped = await evaluate(`(() => { const r=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.trim().startsWith("Bea")); if(!r) return false; r.click(); return true; })()`);
+  step("tapping Bea opens her profile sheet", tapped && (await until(ONE_ON_ONE_COPY.ask)));
+  await click(ONE_ON_ONE_COPY.ask);
+  step("one tap sends it: 'Request sent'", await until(ONE_ON_ONE_COPY.sent("Bea")));
+  const [inv] = await must(await rest(`/rest/v1/solo_proposals?gathering_id=eq.${gathering.id}&from_person=eq.${people.Ari.personId}&select=id,spot_id,meet_at,status`), "the request");
+  step("…a request with no spot and no time", inv && inv.spot_id === null && inv.meet_at === null && inv.status === "open");
 
-  // Bea says yes, as herself: a pair.
-  const crew = await must(await as("Bea", "respond_to_solo", { p_proposal: inv.id, p_accept: true }), "Bea says yes");
-  await send("Page.reload");
-  step("Ari's crowd page shows the pair", await until(SOLO_COPY.pairHeading("Bea"), 25000));
-  await click(SOLO_COPY.openPlan);
-  for (let t = 0; t < 30 && (await path()) !== `/group/${crew}`; t++) await sleep(500);
-  step("…which opens the pair's own screen", (await path()) === `/group/${crew}`);
-  step("the pair's screen asks them to pick a spot", (await until(SOLO_COPY.pairPick)) && (await body()).includes(SOLO_COPY.pairSuggest));
+  // A20: Bea, in her own session, finds it in Connections → Requests and accepts.
+  await evaluate(`(() => { localStorage.clear(); localStorage.setItem(${JSON.stringify(`sb-${ref}-auth-token`)}, ${JSON.stringify(JSON.stringify(people.Bea.session))}); return true; })()`);
+  await send("Network.deleteCookies", { name: "pind_pin", domain: new URL(SITE).hostname });
+  await send("Page.navigate", { url: `${SITE}/connections` });
+  step("Bea's Connections has the request under Requests", (await until(ONE_ON_ONE_COPY.wantsToMeet("Ari"), 25000)) && (await body()).includes(ONE_ON_ONE_COPY.requests));
+  await click(ONE_ON_ONE_COPY.accept);
+  let at = "";
+  for (let t = 0; t < 30 && !at.startsWith("/group/"); t++) { await sleep(500); at = await path(); }
+  const crew = at.replace("/group/", "");
+  step("Accept opens the chat", at.startsWith("/group/") && (await until(ONE_ON_ONE_COPY.firstLine)));
 
-  // A29: Ari suggests a spot and a time — chips, nothing to type.
-  await click(SOLO_COPY.pairSuggest);
-  step("suggesting offers the venue's spots and the times as chips", await until(SOLO_COPY.pairSend));
-  const picked = await evaluate(`(() => { const r=[...document.querySelectorAll('[role=radio]')]; if (r.length < ${spots.length + 1}) return false; r[0].click(); r[${spots.length}].click(); return true; })()`);
-  step("a spot and a time can be picked", picked === true);
-  await sleep(400);
-  await click(SOLO_COPY.pairSend);
-  let sug = [];
-  for (let t = 0; t < 20 && !sug.length; t++) { await sleep(500); sug = await must(await rest(`/rest/v1/solo_spot_suggestions?crew_id=eq.${crew}&select=spot_id,suggested_by`), "suggestion"); }
-  step("the suggestion is Ari's, one of the venue's spots", sug.length === 1 && sug[0].suggested_by === people.Ari.personId && spots.some((s) => s.id === sug[0].spot_id));
-  step("the page says it is Bea's to say yes to", await until("It's Bea's to say yes to"));
-  step("…and offers Ari no 'Sounds good' for her own", !(await body()).includes(SOLO_COPY.pairConfirm));
+  // A29: either of them adds a place and a time; nobody confirms.
+  await click(ONE_ON_ONE_COPY.addPlace);
+  step("'Add a place or time' offers the venue's spots and the event itself, no address", (await until(ONE_ON_ONE_COPY.atTheEvent)) && (await evaluate("document.querySelectorAll('input').length")) === 1);
+  await click(spots[0].name);
+  await evaluate(`(() => { const i=[...document.querySelectorAll('input')].find(x=>x.placeholder===${JSON.stringify(ONE_ON_ONE_COPY.timePlaceholder)}); i && i.focus(); return !!i; })()`);
+  await send("Input.insertText", { text: "around 7" });
+  await click(ONE_ON_ONE_COPY.save);
+  step("the row shows the place and the time", await until(`${spots[0].name} · around 7`));
+  const [c] = await must(await rest(`/rest/v1/crews?id=eq.${crew}&select=state,spot_id,time_note`), "the chat");
+  step("…held at once, with no confirmation step", c.state === "spot_set" && c.spot_id === spots[0].id && c.time_note === "around 7");
 
-  // Bea confirms, as herself: a plan.
-  await must(await as("Bea", "confirm_solo_spot", { p_crew: crew }), "Bea confirms");
-  await send("Page.reload");
-  step("Ari's screen is the plan now", await until(SOLO_COPY.planHeading("Bea"), 25000));
-  const [c] = await must(await rest(`/rest/v1/crews?id=eq.${crew}&select=state,spot_id`), "the plan");
-  step("…spot set, at the suggested spot", c.state === "spot_set" && c.spot_id === sug[0].spot_id);
-  const told = await must(await rest(`/rest/v1/notifications?person_id=eq.${people.Ari.personId}&crew_id=eq.${crew}&select=body`), "Ari's #3");
-  step("Ari, who suggested it, is told it is a plan (#3)", told.some((x) => /^Bea said yes: you're meeting at /.test(x.body)));
+  // "Not now" is silent: Cal's request goes from Bea's Requests, and Cal still sees it sent.
+  await person("Cal", "man");
+  await must(await rest("/rest/v1/pins", { method: "POST", body: JSON.stringify({ gathering_id: gathering.id, person_id: people.Cal.personId, party_total: 1, open_to_meeting: true }) }), "pin Cal");
+  await must(await as("Cal", "set_one_on_one", { p_on: true, p_audience: "everyone" }), "Cal 1-on-1 on");
+  // Bea is in a 1-on-1 here now, so Cal asks her at a second gathering.
+  const [second] = await must(await rest("/rest/v1/gatherings", { method: "POST", body: JSON.stringify({ name: `Pair check 2 ${Date.now()}`, starts_at: new Date(Date.now() + 4 * 86_400_000).toISOString(), venue_id: crowd.venue_id, published_at: new Date().toISOString(), source: "manual" }) }), "second gathering");
+  extra.push(second.id);
+  for (const nm of ["Bea", "Cal"]) await must(await rest("/rest/v1/pins", { method: "POST", body: JSON.stringify({ gathering_id: second.id, person_id: people[nm].personId, party_total: 1, open_to_meeting: true }) }), `pin ${nm} 2`);
+  await must(await as("Cal", "propose_solo", { p_gathering: second.id, p_to: people.Bea.personId, p_spot: null, p_meet_at: null, p_line: null }), "Cal asks Bea");
+  await send("Page.navigate", { url: `${SITE}/connections` });
+  step("Cal's request reaches Bea's Requests", await until(ONE_ON_ONE_COPY.wantsToMeet("Cal"), 25000));
+  await click(ONE_ON_ONE_COPY.notNow);
+  let gone = false;
+  for (let t = 0; t < 20 && !gone; t++) { await sleep(500); gone = !(await body()).includes(ONE_ON_ONE_COPY.wantsToMeet("Cal")); }
+  step("'Not now' takes it off Bea's Requests", gone);
+  const cals = await must(await as("Cal", "my_solo_proposals", { p_gathering: second.id }), "Cal's requests");
+  step("…and Cal is not told: his request still reads as sent", cals.length === 1 && cals[0].direction === "sent");
   ws.close();
 } catch (err) {
   console.log(String(err.message ?? err));
   ok = false;
 } finally {
   chrome?.kill();
+  for (const id of extra) {
+    await rest(`/rest/v1/solo_proposals?gathering_id=eq.${id}`, { method: "DELETE" });
+    await rest(`/rest/v1/gatherings?id=eq.${id}`, { method: "DELETE" });
+  }
   if (gathering) {
     const crews = await (await rest(`/rest/v1/crews?gathering_id=eq.${gathering.id}&select=id`)).json().catch(() => []);
     for (const c of Array.isArray(crews) ? crews : []) await rest(`/rest/v1/notifications?crew_id=eq.${c.id}`, { method: "DELETE" });

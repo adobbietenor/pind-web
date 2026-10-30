@@ -4,6 +4,7 @@ import { Easing, StyleSheet, Text, View } from "react-native";
 import { colors as palette, fonts, MY_CHATS_COPY, unreadTotal } from "@pind/shared";
 import { useReduceMotion } from "@/lib/motion";
 import { loadMyChats, MY_CHATS_KEY } from "@/lib/myevents";
+import { loadRequests, REQUESTS_KEY, requestCount } from "@/lib/requests";
 
 // The four tabs (spec §3): Crowds · My Events · Connections · Profile.
 //
@@ -23,6 +24,9 @@ export default function TabsLayout() {
   const reduce = useReduceMotion();
   const chats = useQuery({ queryKey: MY_CHATS_KEY, queryFn: loadMyChats, refetchInterval: 60_000, staleTime: 15_000 });
   const unread = chats.data ? unreadTotal(chats.data) : 0;
+  // A dot on Connections when a request is waiting (UI pass 1, 077), the same way.
+  const requests = useQuery({ queryKey: REQUESTS_KEY, queryFn: loadRequests, refetchInterval: 60_000, staleTime: 15_000 });
+  const waiting = requestCount(requests.data);
   return (
     <Tabs
       backBehavior="history"
@@ -53,7 +57,19 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen name="connections" options={{ title: "Connections" }} />
+      <Tabs.Screen
+        name="connections"
+        options={{
+          title: "Connections",
+          tabBarAccessibilityLabel: waiting ? `Connections, ${waiting} waiting` : "Connections",
+          tabBarLabel: ({ color }) => (
+            <View style={styles.label}>
+              <Text style={[styles.labelText, { color }]}>Connections</Text>
+              {waiting ? <View style={styles.dot} /> : null}
+            </View>
+          ),
+        }}
+      />
       <Tabs.Screen name="me" options={{ title: "Profile" }} />
       <Tabs.Screen name="city/[slug]" options={{ href: null }} />
     </Tabs>
