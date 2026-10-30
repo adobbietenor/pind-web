@@ -9,14 +9,16 @@ import { womenOnlyEligible } from "@pind/shared";
 import { readProfile } from "./profile";
 import { supabase } from "./supabase";
 
+// A16's card since UI pass 1 (092): someone you crossed paths with, where, and where things
+// stand ('sent' is also a silent "Not now": the same to you).
+export type KeepState = "none" | "sent" | "asked_me" | "connected";
+export type MetAs = "squad" | "1-on-1" | "room";
 export interface AfterPerson {
   personId: string;
   firstName: string;
   photoUrl: string | null;
-  weMet: boolean;
-  weMetMatched: boolean;
-  keep: boolean;
-  keepMatched: boolean;
+  metAs: MetAs;
+  state: KeepState;
 }
 
 export interface AfterView {
@@ -40,35 +42,67 @@ export async function loadAfter(slug: string): Promise<AfterView | null> {
   const { data: g, error } = await db.from("gatherings").select("id, name, slug").eq("slug", slug).maybeSingle();
   if (error) throw error;
   if (!g) return null;
-  const { data, error: e2 } = await db.rpc("after_state", { p_gathering: g.id });
-  if (e2) throw e2;
-  const s = data as {
-    ended: boolean; asked: boolean; answered: boolean; crew_id: string | null; open: boolean;
-    people: { person_id: string; first_name: string; photo_path: string | null; we_met: boolean; we_met_matched: boolean; keep: boolean; keep_matched: boolean }[];
-  } | null;
-  if (!s) return null;
-  const urls = await signed(s.people.map((p) => p.photo_path).filter((x): x is string => !!x));
+  const [state, keep] = await Promise.all([db.rpc("after_state", { p_gathering: g.id }), db.rpc("keep_people", { p_gathering: g.id })]);
+  if (state.error) throw state.error;
+  if (keep.error) throw keep.error;
+  const s = state.data as { ended: boolean; asked: boolean; answered: boolean; crew_id: string | null } | null;
+  const k = keep.data as { open: boolean; people: { person_id: string; first_name: string; photo_path: string | null; met_as: MetAs; state: KeepState }[] } | null;
+  if (!s || !k) return null;
+  const urls = await signed(k.people.map((p) => p.photo_path).filter((x): x is string => !!x));
   return {
     gathering: { id: g.id, name: g.name, slug: g.slug ?? g.id },
     ended: s.ended,
     asked: s.asked,
     answered: s.answered,
     crewId: s.crew_id,
-    open: s.open,
-    people: s.people.map((p) => ({
+    open: k.open,
+    people: k.people.map((p) => ({
       personId: p.person_id,
       firstName: p.first_name,
       photoUrl: p.photo_path ? urls.get(p.photo_path) ?? null : null,
-      weMet: p.we_met,
-      weMetMatched: p.we_met_matched,
-      keep: p.keep,
-      keepMatched: p.keep_matched,
+      metAs: p.met_as,
+      state: p.state,
     })),
   };
 }
 
-export async function tick(crewId: string, to: string, kind: "we_met" | "keep_in_touch", on: boolean): Promise<void> {
-  const { error } = await supabase().rpc("after_tick", { p_crew: crewId, p_to: to, p_kind: kind, p_on: on });
+// Keep in touch (UI pass 1, B): a request, an accept. The rules are the database's
+// (ask_keep: crossed paths, 7 days, no block; answer_keep: "Not now" is silent).
+export async function askKeep(gatheringId: string, to: string): Promise<"sent" | "connected"> {
+  const { data, error } = await supabase().rpc("ask_keep", { p_gathering: gatheringId, p_to: to });
+  if (error) throw error;
+  return data as "sent" | "connected";
+}
+
+export async function takeBackKeep(gatheringId: string, to: string): Promise<void> {
+  const { error } = await supabase().rpc("take_back_keep", { p_gathering: gatheringId, p_to: to });
+  if (error) throw error;
+}
+
+export interface KeepRequest {
+  requestId: string;
+  gatheringName: string;
+  personId: string;
+  firstName: string;
+  photoPath: string | null;
+  metAs: MetAs;
+}
+
+export async function keepRequests(): Promise<KeepRequest[]> {
+  const { data, error } = await supabase().rpc("my_keep_requests");
+  if (error) throw error;
+  return ((data ?? []) as { request_id: string; gathering_name: string; person_id: string; first_name: string; photo_path: string | null; met_as: MetAs }[]).map((r) => ({
+    requestId: r.request_id,
+    gatheringName: r.gathering_name,
+    personId: r.person_id,
+    firstName: r.first_name,
+    photoPath: r.photo_path,
+    metAs: r.met_as,
+  }));
+}
+
+export async function answerKeep(requestId: string, accept: boolean): Promise<void> {
+  const { error } = await supabase().rpc("answer_keep", { p_request: requestId, p_accept: accept });
   if (error) throw error;
 }
 

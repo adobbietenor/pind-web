@@ -487,6 +487,7 @@ export type Database = {
           person_a: string
           person_b: string
           source_crew_id: string | null
+          source_gathering_id: string | null
         }
         Insert: {
           created_at?: string
@@ -494,6 +495,7 @@ export type Database = {
           person_a: string
           person_b: string
           source_crew_id?: string | null
+          source_gathering_id?: string | null
         }
         Update: {
           created_at?: string
@@ -501,6 +503,7 @@ export type Database = {
           person_a?: string
           person_b?: string
           source_crew_id?: string | null
+          source_gathering_id?: string | null
         }
         Relationships: [
           {
@@ -522,6 +525,13 @@ export type Database = {
             columns: ["source_crew_id"]
             isOneToOne: false
             referencedRelation: "crews"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connections_source_gathering_id_fkey"
+            columns: ["source_gathering_id"]
+            isOneToOne: false
+            referencedRelation: "gatherings"
             referencedColumns: ["id"]
           },
         ]
@@ -1430,6 +1440,58 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "cities"
             referencedColumns: ["slug"]
+          },
+        ]
+      }
+      keep_requests: {
+        Row: {
+          created_at: string
+          decided_at: string | null
+          from_person: string
+          gathering_id: string
+          id: string
+          status: Database["public"]["Enums"]["keep_status"]
+          to_person: string
+        }
+        Insert: {
+          created_at?: string
+          decided_at?: string | null
+          from_person: string
+          gathering_id: string
+          id?: string
+          status?: Database["public"]["Enums"]["keep_status"]
+          to_person: string
+        }
+        Update: {
+          created_at?: string
+          decided_at?: string | null
+          from_person?: string
+          gathering_id?: string
+          id?: string
+          status?: Database["public"]["Enums"]["keep_status"]
+          to_person?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "keep_requests_from_person_fkey"
+            columns: ["from_person"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "keep_requests_gathering_id_fkey"
+            columns: ["gathering_id"]
+            isOneToOne: false
+            referencedRelation: "gatherings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "keep_requests_to_person_fkey"
+            columns: ["to_person"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
           },
         ]
       }
@@ -3643,6 +3705,11 @@ export type Database = {
         }
         Returns: undefined
       }
+      answer_keep: {
+        Args: { p_accept: boolean; p_request: string }
+        Returns: undefined
+      }
+      ask_keep: { Args: { p_gathering: string; p_to: string }; Returns: string }
       chip_category: {
         Args: { p_classification: string }
         Returns: Database["public"]["Enums"]["gathering_category"]
@@ -3704,6 +3771,7 @@ export type Database = {
       }
       join_general_room: { Args: { p_gathering: string }; Returns: undefined }
       join_squad: { Args: { p_crew: string }; Returns: string }
+      keep_people: { Args: { p_gathering: string }; Returns: Json }
       leave_group: { Args: { p_crew: string }; Returns: undefined }
       leave_women_only_room: {
         Args: { p_gathering: string }
@@ -3728,6 +3796,19 @@ export type Database = {
           from_name: string
           invite_id: string
           members: string[]
+        }[]
+      }
+      my_keep_requests: {
+        Args: never
+        Returns: {
+          created_at: string
+          first_name: string
+          gathering_id: string
+          gathering_name: string
+          met_as: string
+          person_id: string
+          photo_path: string
+          request_id: string
         }[]
       }
       my_one_on_one: { Args: never; Returns: Json }
@@ -3945,6 +4026,10 @@ export type Database = {
         Args: { p_classification: string }
         Returns: Database["public"]["Enums"]["list_tab"]
       }
+      take_back_keep: {
+        Args: { p_gathering: string; p_to: string }
+        Returns: undefined
+      }
       venue_map_key: { Args: { p_lat: number; p_lng: number }; Returns: string }
       waiting_for_women_only_room: {
         Args: { p_gathering: string }
@@ -3979,6 +4064,7 @@ export type Database = {
       gender: "woman" | "man" | "nonbinary" | "undisclosed"
       group_link_kind: "everyone" | "women_only"
       invite_status: "sent" | "accepted" | "declined" | "expired" | "withdrawn"
+      keep_status: "open" | "accepted" | "declined" | "withdrawn"
       list_tab: "events" | "community"
       message_kind: "system" | "user" | "arrival"
       notification_kind:
@@ -4166,6 +4252,7 @@ export const Constants = {
       gender: ["woman", "man", "nonbinary", "undisclosed"],
       group_link_kind: ["everyone", "women_only"],
       invite_status: ["sent", "accepted", "declined", "expired", "withdrawn"],
+      keep_status: ["open", "accepted", "declined", "withdrawn"],
       list_tab: ["events", "community"],
       message_kind: ["system", "user", "arrival"],
       notification_kind: [

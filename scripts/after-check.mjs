@@ -1,8 +1,8 @@
 // After the night, walked in real headless Chrome (M3.3) — before Alex walks it.
 //
-//   A16  "We met" → the database has the tick, the screen says only you know → Bea ticks
-//        back → "You met" and "Keep in touch" → both ways → a connection; the question,
-//        answered once
+//   A16  a card per person Ari met; "Keep in touch" sends a request ("✓ Sent"); the other
+//        accepts it as themselves → "Connected" (UI pass 1: a request and an accept, not
+//        Q6's mutual ticks); "How was it?", answered once
 //   A20  Bea is in Connections, "Met at …"; Invite lists what Ari is pinned to; Invite
 //        sends #7 to Bea
 //   A17  the finished group points at A16
@@ -18,7 +18,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { seal } from "../src/public/sealed.ts";
-import { AFTER_COPY, CONNECTIONS_COPY } from "../packages/shared/src/after.ts";
+import { AFTER_COPY, CONNECTIONS_COPY, KEEP_COPY } from "../packages/shared/src/after.ts";
 import { ENDED_COPY, MY_CHATS_COPY } from "../packages/shared/src/myevents.ts";
 import { ROOM_COPY } from "../packages/shared/src/room.ts";
 import { needChrome, needEnv, sessionSecretMatches, testCrowd } from "./fixture.mjs";
@@ -121,21 +121,19 @@ try {
   await click(AFTER_COPY.howDidItGo);
   step("…and its one action opens A16", await until(AFTER_COPY.whoDidYouMeet));
 
-  // A16 — the ticks.
+  // A16 — keep in touch as a request and an accept (UI pass 1, 092/095).
   step("A16 asks the question too", (await body()).includes(AFTER_COPY.question));
-  await click(AFTER_COPY.weMet);
-  step("'We met' writes the tick", await poll(`/rest/v1/confirmations?crew_id=eq.${crew}&from_person=eq.${people.Ari.personId}&select=kind`, 1));
-  step("…and says only Ari knows", await until(AFTER_COPY.ticked));
-  const tickedWho = (await must(await rest(`/rest/v1/confirmations?crew_id=eq.${crew}&from_person=eq.${people.Ari.personId}&select=to_person`), "who"))[0].to_person;
-  const other = tickedWho === people.Bea.personId ? "Bea" : "Cal";
-  await must(await as(other, "after_tick", { p_crew: crew, p_to: people.Ari.personId, p_kind: "we_met", p_on: true }), "tick back");
+  step("a card for each person met, 'In your squad'", (await body()).includes(KEEP_COPY.metAs("squad")));
+  await click(KEEP_COPY.keep);
+  step("'Keep in touch' sends a request", await poll(`/rest/v1/keep_requests?gathering_id=eq.${X.id}&from_person=eq.${people.Ari.personId}&status=eq.open&select=id`, 1));
+  step("…and the card says '✓ Sent'", await until(KEEP_COPY.sent));
+  const [req] = await must(await rest(`/rest/v1/keep_requests?gathering_id=eq.${X.id}&from_person=eq.${people.Ari.personId}&select=id,to_person`), "the request");
+  const other = req.to_person === people.Bea.personId ? "Bea" : "Cal";
+  const waiting = await must(await as(other, "my_keep_requests", {}), `${other}'s requests`);
+  step(`${other} finds it in Requests`, waiting.some((r) => r.request_id === req.id));
+  await must(await as(other, "answer_keep", { p_request: req.id, p_accept: true }), `${other} accepts`);
   await send("Page.reload");
-  step(`${other} ticks back: 'You met'`, await until(AFTER_COPY.matched));
-  await click(AFTER_COPY.keepInTouch);
-  step("'Keep in touch' writes the ask", await poll(`/rest/v1/confirmations?crew_id=eq.${crew}&from_person=eq.${people.Ari.personId}&kind=eq.keep_in_touch&select=kind`, 1));
-  await must(await as(other, "after_tick", { p_crew: crew, p_to: people.Ari.personId, p_kind: "keep_in_touch", p_on: true }), "keep back");
-  await send("Page.reload");
-  step("both ways: connected", await until(AFTER_COPY.connected));
+  step("accepted: Connected", await until(KEEP_COPY.connected));
 
   // "How was it?" (UI pass 1): optional, three taps, no box. Picking is not sending (#10);
   // Done sends the one picked.

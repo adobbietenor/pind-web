@@ -21,7 +21,7 @@ import { AppScreen } from "@/components/AppScreen";
 import { EmptyCard } from "@/components/EmptyCard";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice } from "@/components/ui";
-import { invite, inviteOptions, isFiveADay, myConnections, type Connection, type InviteOption } from "@/lib/after";
+import { answerKeep, invite, inviteOptions, isFiveADay, myConnections, type Connection, type InviteOption } from "@/lib/after";
 import { failed, type Described } from "@/lib/errors";
 import { Rise } from "@/components/Motion";
 
@@ -73,6 +73,20 @@ export default function Connections() {
     }, [refresh, requests.refetch]),
   );
   const waiting = requests.data?.solo ?? [];
+  const keepWaiting = requests.data?.keep ?? [];
+  const answerKeeping = async (requestId: string, accept: boolean) => {
+    setAnswering(requestId);
+    setAnswerRefusal(null);
+    try {
+      await answerKeep(requestId, accept);
+      void queryClient.invalidateQueries({ queryKey: REQUESTS_KEY });
+      refresh();
+    } catch (err) {
+      setAnswerRefusal({ id: requestId, says: failed("answer that", err).says });
+    } finally {
+      setAnswering(null);
+    }
+  };
 
   const pick = async (c: Connection) => {
     setSaid(null);
@@ -105,9 +119,22 @@ export default function Connections() {
     <AppScreen>
       <Heading>{CONNECTIONS_COPY.heading}</Heading>
       {trouble ? <Trouble what={trouble} onRetry={refresh} /> : null}
-      {waiting.length ? (
+      {waiting.length || keepWaiting.length ? (
         <>
           <Text style={styles.section}>{ONE_ON_ONE_COPY.requests}</Text>
+          {keepWaiting.map((r) => (
+            <RequestCard
+              key={r.requestId}
+              name={r.firstName}
+              photoPath={r.photoPath}
+              title={CONNECTIONS_COPY.wantsToKeep(r.firstName)}
+              line={CONNECTIONS_COPY.youMetAt(r.gatheringName)}
+              busy={answering === r.requestId}
+              refusal={answerRefusal?.id === r.requestId ? answerRefusal.says : null}
+              onAccept={() => void answerKeeping(r.requestId, true)}
+              onNotNow={() => void answerKeeping(r.requestId, false)}
+            />
+          ))}
           {waiting.map((r) => (
             <RequestCard
               key={r.proposalId}
@@ -134,10 +161,10 @@ export default function Connections() {
           ))}
         </>
       ) : null}
-      {list?.length && (waiting.length || soloChats.length) ? <Text style={styles.section}>{CONNECTIONS_COPY.kept}</Text> : null}
+      {list?.length && (waiting.length || keepWaiting.length || soloChats.length) ? <Text style={styles.section}>{CONNECTIONS_COPY.kept}</Text> : null}
       {list === undefined ? (
         <ActivityIndicator color={palette.text} />
-      ) : list.length === 0 && !waiting.length && !soloChats.length ? (
+      ) : list.length === 0 && !waiting.length && !keepWaiting.length && !soloChats.length ? (
         <EmptyCard
           icon="handshake"
           heading={CONNECTIONS_COPY.emptyHeading}

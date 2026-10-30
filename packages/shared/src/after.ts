@@ -44,6 +44,18 @@ export const AFTER_COPY = {
   howDidItGo: "Who did you meet?",
 } as const;
 
+// A16 since UI pass 1 (092): who you met, and Keep in touch as a request (decision 2).
+export const KEEP_COPY = {
+  heading: "Who did you meet?",
+  line: "Want to see someone again? Tap Keep in touch and they'll get a request in their Connections.",
+  closed: "Keep in touch was open for 7 days after the event.",
+  keep: "Keep in touch",
+  sent: "✓ Sent",
+  takeBackLabel: (name: string) => `Sent to ${name}. Tap to take it back.`,
+  connected: "Connected",
+  metAs: (m: "squad" | "1-on-1" | "room") => (m === "squad" ? "In your squad" : m === "1-on-1" ? "1-on-1 chat" : "Meeting room"),
+} as const;
+
 export const CONNECTIONS_COPY = {
   heading: "Connections",
   // UI pass 1 (050). The drawn copy said "you can message them": A20 has no messages
@@ -61,6 +73,9 @@ export const CONNECTIONS_COPY = {
   },
   emptyButton: "Find an event",
   kept: "Kept connections",
+  // Keep-in-touch requests in Requests (UI pass 1, 095), the same card as 1-on-1.
+  wantsToKeep: (name: string) => `${name} wants to keep in touch`,
+  youMetAt: (event: string) => `You met at ${event}`,
   metAt: (where: string) => `Met at ${where}`,
   invite: "Invite",
   pickHeading: (name: string) => `Invite ${name} to…`,

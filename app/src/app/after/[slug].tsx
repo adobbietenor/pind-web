@@ -20,11 +20,15 @@
 import { useFocusEffect, useLocalSearchParams } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
-import { AFTER_COPY, colors as palette, COMMENT_MAX, commentToSend, fonts, radius, spacing } from "@pind/shared";
+import { AFTER_COPY, KEEP_COPY, colors as palette, COMMENT_MAX, commentToSend, fonts, radius, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Choice, Field, Heading, Notice } from "@/components/ui";
-import { answer, loadAfter, tick, type AfterPerson, type AfterView } from "@/lib/after";
+import { answer, askKeep, loadAfter, takeBackKeep, type AfterPerson, type AfterView } from "@/lib/after";
+import { Avatar } from "@/components/Avatar";
+import { Tap } from "@/components/Tap";
+import { queryClient } from "@/lib/query";
+import { REQUESTS_KEY } from "@/lib/requests";
 import { failed, type Described } from "@/lib/errors";
 
 export default function After() {
@@ -76,47 +80,56 @@ export default function After() {
     );
   }
 
+  // A16 since UI pass 1 (092): a soft card per person you crossed paths with, where, and
+  // its own Keep in touch, which sends a request to their Connections ("✓ Sent"; tap again
+  // to take it back while it waits). Already connected says so.
   const person = (p: AfterPerson) => {
-    const k = (kind: string) => `${kind}:${p.personId}`;
+    const k = `keep:${p.personId}`;
+    const right =
+      p.state === "connected" ? (
+        <Text style={styles.connected}>{KEEP_COPY.connected}</Text>
+      ) : p.state === "sent" ? (
+        <Tap
+          accessibilityRole="button"
+          accessibilityLabel={KEEP_COPY.takeBackLabel(p.firstName)}
+          disabled={!view.open || busy === k}
+          onPress={() => void act(k, "take that back", () => takeBackKeep(view.gathering.id, p.personId))}
+          style={styles.sent}
+        >
+          <Text style={styles.sentLabel}>{KEEP_COPY.sent}</Text>
+        </Tap>
+      ) : view.open ? (
+        <Tap
+          accessibilityRole="button"
+          disabled={busy === k}
+          onPress={() =>
+            void act(k, "send that", async () => {
+              await askKeep(view.gathering.id, p.personId);
+              void queryClient.invalidateQueries({ queryKey: REQUESTS_KEY });
+            })
+          }
+          style={styles.keep}
+        >
+          <Text style={styles.keepLabel}>{KEEP_COPY.keep}</Text>
+        </Tap>
+      ) : null;
     return (
-      <View key={p.personId} style={styles.person}>
-        <View style={styles.personTop}>
-          {p.photoUrl ? <Image source={{ uri: p.photoUrl }} style={styles.face} /> : <View style={[styles.face, styles.faceEmpty]} />}
+      <View key={p.personId} style={[styles.keepCard, p.state === "sent" && styles.keepCardSent]}>
+        <Avatar name={p.firstName} source={p.photoUrl} size={44} />
+        <View style={{ flex: 1 }}>
           <Text style={styles.name}>{p.firstName}</Text>
+          <Text style={styles.metAs}>{KEEP_COPY.metAs(p.metAs)}</Text>
         </View>
-        {!p.weMet ? (
-          view.open ? (
-            <Button kind="quiet" label={AFTER_COPY.weMet} busy={busy === k("we")} onPress={() => void act(k("we"), "save that", () => tick(view.crewId!, p.personId, "we_met", true))} />
-          ) : null
-        ) : !p.weMetMatched ? (
-          <>
-            <Body muted>{AFTER_COPY.ticked}</Body>
-            {view.open ? <Button kind="quiet" label={AFTER_COPY.takeBack} busy={busy === k("we")} onPress={() => void act(k("we"), "take that back", () => tick(view.crewId!, p.personId, "we_met", false))} /> : null}
-          </>
-        ) : (
-          <>
-            <Body>{AFTER_COPY.matched}</Body>
-            {p.keepMatched ? (
-              <Body muted>{AFTER_COPY.connected}</Body>
-            ) : p.keep ? (
-              <>
-                <Body muted>{AFTER_COPY.keepTicked}</Body>
-                {view.open ? <Button kind="quiet" label={AFTER_COPY.takeBack} busy={busy === k("keep")} onPress={() => void act(k("keep"), "take that back", () => tick(view.crewId!, p.personId, "keep_in_touch", false))} /> : null}
-              </>
-            ) : view.open ? (
-              <Button label={AFTER_COPY.keepInTouch} busy={busy === k("keep")} onPress={() => void act(k("keep"), "save that", () => tick(view.crewId!, p.personId, "keep_in_touch", true))} />
-            ) : null}
-          </>
-        )}
-        {refusedFor && refusedFor.key.endsWith(p.personId) ? <Trouble what={refusedFor.what} /> : null}
+        {right}
+        {refusedFor?.key === k ? <Trouble what={refusedFor.what} /> : null}
       </View>
     );
   };
-
   return (
     <AppScreen>
-      <Heading>{AFTER_COPY.heading}</Heading>
-      <Body muted>{view.gathering.name}</Body>
+      <Text style={styles.kicker}>{view.gathering.name}</Text>
+      <Heading>{KEEP_COPY.heading}</Heading>
+      {view.ended && view.people.length ? <Body muted>{view.open ? KEEP_COPY.line : KEEP_COPY.closed}</Body> : null}
       {trouble ? <Trouble what={trouble} onRetry={refresh} /> : null}
 
       {!view.ended ? (
@@ -125,13 +138,7 @@ export default function After() {
         </View>
       ) : null}
 
-      {view.crewId ? (
-        <View style={styles.card}>
-          <Text style={styles.section}>{AFTER_COPY.whoDidYouMeet}</Text>
-          <Body muted>{view.open ? AFTER_COPY.tickHint : AFTER_COPY.closed}</Body>
-          {view.people.map(person)}
-        </View>
-      ) : null}
+      {view.ended && view.people.length ? <View style={{ gap: spacing.sm, marginTop: spacing.md }}>{view.people.map(person)}</View> : null}
 
       {view.asked ? (
         <View style={styles.card}>
@@ -164,7 +171,7 @@ export default function After() {
         </View>
       ) : null}
 
-      {view.ended && !view.crewId && !view.asked ? <Notice>{AFTER_COPY.nothing}</Notice> : null}
+      {view.ended && !view.people.length && !view.asked ? <Notice>{AFTER_COPY.nothing}</Notice> : null}
     </AppScreen>
   );
 }
@@ -172,6 +179,15 @@ export default function After() {
 const styles = StyleSheet.create({
   card: { padding: spacing.md, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, backgroundColor: palette.surface, gap: spacing.sm, marginTop: spacing.md },
   section: { fontFamily: fonts.headline, fontSize: 17, color: palette.text },
+  kicker: { fontFamily: fonts.headline, fontSize: 14, color: palette.accentText, marginBottom: 2 },
+  keepCard: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm + 4, padding: spacing.md, borderRadius: radius.lg, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
+  keepCardSent: { borderColor: palette.accent },
+  metAs: { fontSize: 13, color: palette.textMuted, marginTop: 1 },
+  keep: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: palette.accent },
+  keepLabel: { fontFamily: fonts.headline, fontSize: 14, color: palette.onAccent },
+  sent: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: palette.accent },
+  sentLabel: { fontFamily: fonts.headline, fontSize: 14, color: palette.accentText },
+  connected: { fontFamily: fonts.headline, fontSize: 14, color: "#9BE3A5" },
   qTop: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
   optional: { fontSize: 13, color: palette.textMuted },
   person: { borderTopWidth: 1, borderTopColor: palette.border, paddingTop: spacing.md, marginTop: spacing.sm, gap: spacing.sm },
