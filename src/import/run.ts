@@ -22,7 +22,7 @@ import { importFailedAlert, sendAlert } from "../ops/alert";
 import { ensureMapsForUpcoming } from "../public/mapserve";
 import { PUBLISHER, runPublishing } from "../publish/run";
 import { serviceClient } from "../supabase";
-import { canSpend, ESTIMATE, MODEL, type ScoreInput } from "./ai";
+import { canSpend, ESTIMATE, MODEL, rubricFor, type Rubric, type ScoreInput } from "./ai";
 import { claudeClient, scoreBatch, SPOTS_CALL_MS, suggestSpots } from "./claude";
 import { topUpSeries } from "../community/topup.ts";
 import { describeEvents } from "./describe.ts";
@@ -438,12 +438,14 @@ interface Spending {
 // Every upcoming draft without a score, soonest first, 25 per call, 4 calls at a time.
 // Not hand-entered drafts (M4.4, Alex): a series someone typed in is held by the
 // Community tab's caps only, never by the AI's score, so it is not scored at all.
+// A batch is one rubric: City drafts by the Community rubric, the rest by Events'
+// (rubricFor, Alex 30 Oct 2026).
 async function scoreDrafts(db: SupabaseClient, city: City, claude: ReturnType<typeof claudeClient>, s: Spending) {
   const drafts = (
     await all<any>((a, b) =>
       db
         .from("gatherings")
-        .select("id, name, starts_at, venue_id, venue_name_raw, gathering_triage(gathering_id), gathering_sources(snapshot)")
+        .select("id, name, starts_at, source, venue_id, venue_name_raw, gathering_triage(gathering_id), gathering_sources(snapshot)")
         .eq("status", "draft")
         .neq("source", "manual")
         .gt("starts_at", new Date().toISOString())
@@ -456,21 +458,33 @@ async function scoreDrafts(db: SupabaseClient, city: City, claude: ReturnType<ty
   const venues = new Map<string, any>(
     (await byIds<any>(venueIds, (ids) => db.from("venues").select("id, name, latitude, longitude").in("id", ids))).map((v) => [v.id, v]),
   );
-  const inputs: ScoreInput[] = drafts.map((g) => {
+  const inputs: (ScoreInput & { rubric: Rubric })[] = drafts.map((g) => {
     const v = g.venue_id ? venues.get(g.venue_id) : null;
-    const category = (g.gathering_sources ?? []).map((x: any) => x.snapshot?.category).find(Boolean) ?? "unknown";
+    const snap = (g.gathering_sources ?? []).map((x: any) => x.snapshot).find(Boolean) ?? {};
+    const rubric = rubricFor(g.source);
     return {
       id: g.id,
       name: g.name,
       when: formatLocal(g.starts_at, city.timezone),
       venue: v?.name ?? g.venue_name_raw ?? "unknown",
-      category,
+      category: snap.category ?? "unknown",
       distanceKm: v ? venueDistanceKm({ lat: v.latitude, lng: v.longitude }, city) : null,
+      rubric,
+      ...(rubric === "community" ? { frequency: snap.frequency ?? null, free: snap.free ?? null, organiser: snap.organiser ?? null } : {}),
     };
   });
 
-  const batches: ScoreInput[][] = [];
-  for (let i = 0; i < inputs.length; i += SCORE_BATCH) batches.push(inputs.slice(i, i + SCORE_BATCH));
+  // Soonest first across both rubrics (inputs are in start order), so a cap or a
+  // deadline cuts the furthest-out drafts, whichever rubric they need.
+  const batches: { rubric: Rubric; items: ScoreInput[]; first: number }[] = [];
+  for (const rubric of ["events", "community"] as const) {
+    const mine = inputs.map((x, i) => ({ x, i })).filter(({ x }) => x.rubric === rubric);
+    for (let i = 0; i < mine.length; i += SCORE_BATCH) {
+      const slice = mine.slice(i, i + SCORE_BATCH);
+      batches.push({ rubric, first: slice[0]!.i, items: slice.map(({ x: { rubric: _, ...rest } }) => rest) });
+    }
+  }
+  batches.sort((a, b) => a.first - b.first);
   let scored = 0;
   let failures = 0;
   let capped = false;
@@ -483,9 +497,9 @@ async function scoreDrafts(db: SupabaseClient, city: City, claude: ReturnType<ty
         capped = true;
         return;
       }
-      const batch = batches[next++]!;
+      const { rubric, items: batch } = batches[next++]!;
       try {
-        const { scores, cost } = await scoreBatch(claude, batch);
+        const { scores, cost } = await scoreBatch(claude, batch, rubric);
         await s.spend(cost);
         const rows = [...scores].map(([id, v]) => ({ gathering_id: id, score: v.score, reason: v.reason, model: MODEL, scored_at: new Date().toISOString() }));
         if (rows.length) await must(db.from("gathering_triage").upsert(rows, { onConflict: "gathering_id" }));

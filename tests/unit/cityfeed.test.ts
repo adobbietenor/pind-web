@@ -74,6 +74,7 @@ describe("the rules (Alex, 29 Oct 2026)", () => {
     name: "A thing",
     categories: ["Food/Culinary"],
     frequency: "Single Date",
+    weekdays: 0,
     firstDate: "2026-11-07",
     lastDate: "2026-11-07",
     place: { name: "Somewhere", address: "1 Front St", lat: 43.65, lng: -79.38 },
@@ -98,11 +99,25 @@ describe("the rules (Alex, 29 Oct 2026)", () => {
     assert.equal(citySkipReason(byName("2026 Hockey Hall of Fame Induction")), null);
   });
 
-  it("CY08 except a weekly repeat, which takes each listed day however long the season", () => {
-    const market = byName("Downsview Park Merchants Market");
-    assert.ok(runDays(market.firstDate, market.lastDate) > MAX_RUN_DAYS);
-    assert.equal(citySkipReason(market), null);
+  it("CY08 except a weekly repeat on one day of the week, which takes each listed day however long the season", () => {
+    const season = { ...base, frequency: "Weekly", lastDate: "2027-05-01" };
+    assert.ok(runDays(season.firstDate, season.lastDate) > MAX_RUN_DAYS);
+    assert.equal(citySkipReason({ ...season, weekdays: 1 }), null, "a Saturday market was dropped");
     assert.equal(citySkipReason({ ...base, frequency: "Daily", lastDate: "2026-12-07" }), "long_run", "a daily exhibition got in");
+  });
+
+  it("CY16 a weekly repeat ticked for several weekdays is an exhibition, not a series (Alex, 30 Oct 2026)", () => {
+    // A real one: Downsview's market is ticked for Saturday and Sunday.
+    const market = byName("Downsview Park Merchants Market");
+    assert.equal(market.frequency, "Weekly");
+    assert.equal(market.weekdays, 2);
+    assert.equal(citySkipReason(market), "weekly_several_days");
+    const season = { ...base, frequency: "Weekly", lastDate: "2027-05-01" };
+    assert.equal(citySkipReason({ ...season, weekdays: 6 }), "weekly_several_days", "a six-day exhibition got in");
+    assert.equal(citySkipReason({ ...season, weekdays: 0 }), "weekly_several_days", "unreadable weekdays were guessed");
+    assert.equal(citySkipReason({ ...season, weekdays: 1 }), null);
+    // Inside four days the run rule already allows one a day, whatever the weekdays.
+    assert.equal(citySkipReason({ ...base, frequency: "Weekly", weekdays: 3, lastDate: "2026-11-09" }), null);
   });
 
   it("CY09 a midnight start is no time at all; any other time is a time", () => {
@@ -142,6 +157,7 @@ describe("the plan", () => {
     name: "Harvest Fair",
     categories: ["Food/Culinary"],
     frequency: "Single Date",
+    weekdays: 0,
     firstDate: "2026-11-07",
     lastDate: "2026-11-07",
     place: { name: "Wychwood Barns", address: "601 Christie St", lat: 43.68, lng: -79.424 },

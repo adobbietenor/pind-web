@@ -14,14 +14,19 @@
 // Usage, from the repo root:
 //   node --env-file=.dev.vars scripts/rescore.ts --like "Comedy"        # dry run
 //   node --env-file=.dev.vars scripts/rescore.ts --like "Comedy" --write
+//   node --env-file=.dev.vars scripts/rescore.ts --source city            # M4.4
 //
 // --like matches the source's own classification ("Arts & Theatre / Comedy"), because
 // that is the thing a rubric clause is written about. Dry run is the default on
 // purpose: the score is what decides whether a stranger ever sees a gathering.
+//
+// --source picks drafts by where they came from instead (M4.4: the City feed, after its
+// own rubric arrived). Either way each draft is judged by the rubric rubricFor gives
+// its source, the same one the nightly run uses.
 
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
-import { costUsd, MODEL, parseScores, SCORE_SCHEMA, SCORING_SYSTEM, scoringUserMessage, type ScoreInput } from "../src/import/ai.ts";
+import { costUsd, MODEL, parseScores, rubricFor, SCORE_SCHEMA, scoringUserMessage, systemFor, type ScoreInput } from "../src/import/ai.ts";
 import { formatLocal } from "../src/admin/time.ts";
 
 const args = process.argv.slice(2);
@@ -31,12 +36,13 @@ const flag = (name: string): string | null => {
 };
 const write = args.includes("--write");
 const like = flag("like") ?? "";
+const source = flag("source") ?? "";
 const weeks = Number(flag("weeks") ?? 8);
 const BATCH = 25;
 const TZ = "America/Toronto";
 
-if (!like) {
-  console.error('Give --like "<part of the classification>", e.g. --like "Comedy".');
+if (!like === !source) {
+  console.error('Give one of --like "<part of the classification>" (e.g. --like "Comedy") or --source <source> (e.g. --source city).');
   process.exit(1);
 }
 
@@ -48,7 +54,7 @@ const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY!.trim(), ma
 const now = new Date();
 const { data, error } = await db
   .from("gatherings")
-  .select("id, name, starts_at, slug, dismissed_at, is_seed, venues(name), gathering_triage(score, reason), gathering_sources(snapshot)")
+  .select("id, name, starts_at, source, slug, dismissed_at, is_seed, venues(name), gathering_triage(score, reason), gathering_sources(snapshot)")
   .gte("starts_at", now.toISOString())
   .lt("starts_at", new Date(now.getTime() + weeks * 7 * 86_400_000).toISOString())
   .limit(3000);
@@ -60,11 +66,23 @@ const classification = (r: any): string => (r.gathering_sources ?? []).map((s: a
 // re-scoring it would change a number nothing acts on while making the audit trail
 // harder to read.
 const rows = (data as any[]).filter(
-  (r) => !r.is_seed && !r.dismissed_at && !r.slug && classification(r).toLowerCase().includes(like.toLowerCase()),
+  (r) =>
+    !r.is_seed &&
+    !r.dismissed_at &&
+    !r.slug &&
+    (source ? r.source === source : classification(r).toLowerCase().includes(like.toLowerCase())),
 );
-console.log(`${rows.length} drafts whose classification contains "${like}", starting in the next ${weeks} weeks.`);
+const rubric = rubricFor(source || "ticketmaster");
+if (like && rows.some((r) => rubricFor(r.source) !== rubric)) {
+  console.error("Those drafts need two different rubrics; re-score them with --source, one source at a time.");
+  process.exit(1);
+}
+console.log(
+  `${rows.length} drafts ${source ? `from ${source}` : `whose classification contains "${like}"`}, starting in the next ${weeks} weeks; the ${rubric} rubric.`,
+);
 if (rows.length === 0) process.exit(0);
 
+const snapshot = (r: any): any => (r.gathering_sources ?? []).map((s: any) => s?.snapshot).find(Boolean) ?? {};
 const inputs: ScoreInput[] = rows.map((r) => ({
   id: r.id,
   name: r.name,
@@ -72,6 +90,9 @@ const inputs: ScoreInput[] = rows.map((r) => ({
   venue: r.venues?.name ?? "unknown",
   category: classification(r),
   distanceKm: null,
+  ...(rubric === "community"
+    ? { frequency: snapshot(r).frequency ?? null, free: snapshot(r).free ?? null, organiser: snapshot(r).organiser ?? null }
+    : {}),
 }));
 
 const scores = new Map<string, { score: number; reason: string }>();
@@ -82,7 +103,7 @@ for (let i = 0; i < inputs.length; i += BATCH) {
     .stream({
       model: MODEL,
       max_tokens: 8000,
-      system: SCORING_SYSTEM,
+      system: systemFor(rubric),
       output_config: { effort: "low", format: { type: "json_schema", schema: SCORE_SCHEMA as unknown as Record<string, unknown> } },
       messages: [{ role: "user", content: scoringUserMessage(batch) }],
     })

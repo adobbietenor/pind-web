@@ -772,7 +772,9 @@ Festivals & Events open data feed, imported nightly and published through the sa
 (held until Alex has seen its scores); confirmed series topped up nightly; Ticketmaster fairs,
 expos and food & drink on the Community tab; and the Community tab filled by its own rules —
 2 per venue and 2 per organiser a week, hand-entered series by the caps only. The community
-slot below is gone. Toronto Public Library, Meetup and Eventbrite are not now (the library
+slot below is gone. **30 Oct:** City listings are scored by their own Community rubric (the
+Events one passed none of them); Ticketmaster multi-day listings stay skipped; a weekly repeat
+past four days only on one weekday (decisions.md, "M4.4, after the first score spread"). Toronto Public Library, Meetup and Eventbrite are not now (the library
 needs its permission). What follows is the plan as it stood.
 
 **Settled: the first community gatherings were entered by hand (M2.3); the automated run stays here.** As it was asked: **Open: should this move earlier?** (Alex asked in M2.2; **not decided, nothing reordered.**) The prompt was a measurement, not enthusiasm: Ticketmaster classifies everything as Music, Sports or Arts & Theatre, so "bars" and "community" have no source at all, and the breadth a 50-a-week target exists to show is three categories wearing five labels. The variety problem is a *sourcing* problem, and no publishing setting fixes it.

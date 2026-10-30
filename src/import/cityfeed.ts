@@ -15,7 +15,9 @@
 //     out — but only when *every* category a listing has is one of them, so a food
 //     festival that also has music stays;
 //   - one gathering per day for anything that runs four days or fewer; longer runs are
-//     skipped, except a weekly repeat (a Saturday market), which takes each listed day;
+//     skipped, except a weekly repeat on one day of the week (a Saturday market), which
+//     takes each listed day; a weekly repeat ticked for several weekdays is an exhibition
+//     and skipped as `weekly_several_days` (Alex, 30 Oct 2026);
 //   - five chips map cleanly (markets, running, games, outdoors ×2); everything else
 //     has no chip and is still listed;
 //   - the organiser is the listing's own "presented by", or failing that its contact
@@ -114,6 +116,7 @@ export interface CityRow {
   name: string;
   categories: string[];
   frequency: string; // "Single Date" | "Multiple" | "Weekly" | "Daily"
+  weekdays: number; // how many weekdays a weekly repeat is ticked for; 0 when unreadable
   firstDate: string; // the event's whole run, YYYY-MM-DD
   lastDate: string;
   place: CityPlace | null; // null unless exactly one address with coordinates
@@ -152,17 +155,23 @@ function placeOf(locations: RawLocation[]): CityPlace | null {
   return { name, address: text(l.location_address), lat, lng };
 }
 
-function frequencyOf(locations: RawLocation[]): string {
+// How often, and for a weekly repeat, on how many days of the week: the listing ticks
+// them in repeat_weekdays. Nothing readable is 0 days, which the one-weekday rule
+// refuses rather than guesses.
+function scheduleOf(locations: RawLocation[]): { frequency: string; weekdays: number } {
   for (const l of locations) {
     try {
-      const d = JSON.parse(l.location_dates ?? "[]") as { event_frequency?: string }[];
-      const f = d.find((x) => x.event_frequency)?.event_frequency;
-      if (f) return f;
+      const d = JSON.parse(l.location_dates ?? "[]") as { event_frequency?: string; repeat_weekdays?: { checked?: boolean }[] }[];
+      const entry = d.find((x) => x.event_frequency);
+      if (entry) {
+        const days = Array.isArray(entry.repeat_weekdays) ? entry.repeat_weekdays.filter((w) => w?.checked === true).length : 0;
+        return { frequency: entry.event_frequency!, weekdays: days };
+      }
     } catch {
       // unreadable dates say nothing about how often; fall through
     }
   }
-  return "Single Date";
+  return { frequency: "Single Date", weekdays: 0 };
 }
 
 // "presented by" where the listing names one; otherwise the address people write to,
@@ -189,6 +198,7 @@ export function toCityRow(raw: Record<string, unknown>): CityRow | null {
   const categories = (Array.isArray(raw.event_category) ? raw.event_category : [])
     .map((c) => text(typeof c === "string" ? c : (c as { name?: string })?.name))
     .filter((c): c is string => c !== null);
+  const schedule = scheduleOf(locations);
   return {
     eventKey,
     startsAt: new Date(t).toISOString(),
@@ -196,7 +206,8 @@ export function toCityRow(raw: Record<string, unknown>): CityRow | null {
     localTime: when.slice(11, 16),
     name,
     categories,
-    frequency: frequencyOf(locations),
+    frequency: schedule.frequency,
+    weekdays: schedule.weekdays,
     firstDate: (text(raw.event_startdate) ?? when).slice(0, 10),
     lastDate: (text(raw.event_enddate) ?? when).slice(0, 10),
     place: placeOf(locations),
@@ -245,11 +256,17 @@ export function runDays(firstDate: string, lastDate: string): number {
   return Math.round((Date.parse(`${lastDate}T00:00:00Z`) - Date.parse(`${firstDate}T00:00:00Z`)) / 86_400_000) + 1;
 }
 
-export type CitySkip = "excluded_category" | "long_run" | "no_time" | "no_place" | "duplicate";
+export type CitySkip = "excluded_category" | "long_run" | "weekly_several_days" | "no_time" | "no_place" | "duplicate";
 
 export function citySkipReason(r: CityRow): CitySkip | null {
   if (r.categories.length > 0 && r.categories.every((c) => EXCLUDED_CATEGORIES.has(c))) return "excluded_category";
-  if (r.frequency !== "Weekly" && runDays(r.firstDate, r.lastDate) > MAX_RUN_DAYS) return "long_run";
+  // Past four days, only a weekly repeat on one day of the week is a series (a Saturday
+  // market). An exhibition the feed calls weekly because it opens most days is a long
+  // run by another name (Alex, 30 Oct 2026).
+  if (runDays(r.firstDate, r.lastDate) > MAX_RUN_DAYS) {
+    if (r.frequency !== "Weekly") return "long_run";
+    if (r.weekdays !== 1) return "weekly_several_days";
+  }
   if (r.localTime === "00:00") return "no_time";
   if (!r.place) return "no_place";
   return null;
@@ -334,6 +351,7 @@ function snapshotOf(r: CityRow): Record<string, unknown> {
     // What the scoring prompt reads as the kind of thing this is.
     category: r.categories.join(", ") || null,
     frequency: r.frequency,
+    free: r.free,
     organiser: r.organiser,
     place: r.place?.name ?? null,
   };

@@ -4701,3 +4701,29 @@ Organisers for the 28 series: Frontrunners Toronto (3), Snakes & Lattes (7), Tor
 Bicycling Network (5), Toronto Ornithological Club (2), libraries by branch (Port Union 3,
 Kennedy/Eglinton 1), Pub Chess Toronto; the rest their own. Migrations `20261030010647`,
 `20261030010649`; P276, P277; CF01–CF12, CY01–CY15, TU01–TU08.
+
+#### M4.4, after the first score spread (Alex, 30 Oct 2026)
+
+The 30 Oct 08:00 run scored the City feed by the Events rubric: **0 of 184 events reached the
+floor of 60** (148 under 20; the best a music night at 55; every farmers' market 8–15 for "no
+pre-event meetup culture"). The rubric was measuring the wrong thing, not finding weak
+listings. Alex decided:
+
+1. **The City feed has its own Community rubric** (`COMMUNITY_SCORING_SYSTEM`, `rubricFor`):
+   social by design 30, easy to come alone 20, aged 19–35 20, a set start at one place 10,
+   recurring 10, free 10; capped at 10 for under-19 audiences, at 35 for talks, exhibitions
+   and shows you watch. It is the wording of "Community gatherings are first-class" above.
+   Only the City feed uses it: Ticketmaster rows on Community keep the Events rubric. The
+   City drafts were re-scored with it (`scripts/rescore.ts --source city`), and **the feed
+   stays held until Alex has seen that spread too**.
+2. **Ticketmaster multi-day listings stay skipped.** They carry no end date, and the ones
+   seen are season tickets and passes, not festivals. Item 5 above ("one gathering a day")
+   is the City feed's rule only.
+3. **A weekly repeat over four days is admitted only when it is on one day of the week**
+   (the listing's ticked `repeat_weekdays`; none readable counts as several). Exhibitions the
+   feed marks "Weekly" because they open most days are skipped as `weekly_several_days` —
+   33 of the 41 long weekly events on 30 Oct, 797 of 1,048 drafts. A weekend market ticked
+   Saturday and Sunday is skipped too (Downsview Park Merchants Market). CY08, CY16.
+4. **The seven series the top-up cannot read stay as they are** — the four TBN rides, Blood
+   on the Clocktower (Annex), Accessible Birding at Downsview Park and the Ornithological
+   Club's Woodbine Park walk. No pattern set by hand; the run keeps naming them.

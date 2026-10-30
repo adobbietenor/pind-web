@@ -8,11 +8,12 @@ import {
   parseScores,
   parseSpots,
   SCORE_SCHEMA,
-  SCORING_SYSTEM,
   scoringUserMessage,
   SPOTS_SYSTEM,
   SPOTS_TOOL,
   spotsUserMessage,
+  systemFor,
+  type Rubric,
   type ScoreInput,
   type SpotIdea,
 } from "./ai";
@@ -29,17 +30,18 @@ export function claudeClient(apiKey: string): Anthropic {
 export const SCORE_CALL_MS = 3 * 60 * 1000;
 export const SPOTS_CALL_MS = 4 * 60 * 1000;
 
-// One call for up to 25 drafts. A refusal, a cut-off answer or a malformed one scores
+// One call for up to 25 drafts, all judged by one rubric. A refusal, a cut-off answer or a malformed one scores
 // nothing; those drafts stay unscored and are retried on the next run.
 export async function scoreBatch(
   client: Anthropic,
   events: ScoreInput[],
+  rubric: Rubric = "events",
 ): Promise<{ scores: Map<string, { score: number; reason: string }>; cost: number }> {
   const res = await client.messages
     .stream({
       model: MODEL,
       max_tokens: 8000,
-      system: SCORING_SYSTEM,
+      system: systemFor(rubric),
       output_config: {
         effort: "low",
         format: { type: "json_schema", schema: SCORE_SCHEMA as unknown as Record<string, unknown> },
