@@ -465,7 +465,7 @@ comments are on M4.1's rota at the reports' standard (decisions, "A16's comment 
 **Ships only with the privacy page's two lines about it, in the same deploy** (both
 applied on the branch, 14 Oct, so the next deploy carries the field and the copy together).
 
-### A18 — Notifications (eight, under one rule)
+### A18 — Notifications (nine, under one rule)
 
 **The rule is a ban on engagement bait** (Alex, 6 Oct 2026; decisions, "A18: the rule is
 the ban, not the count"). **A notification earns its place only by being something the
@@ -525,6 +525,13 @@ does not name. It was five until 28 Sept; how it became seven, then eight, is re
    gathering's start — unseen until then, it is an answer the sender never gets. Its
    guardrails bound it: at most 3 open per sender per gathering, one per pair ever, a
    preset line only.
+9. **A keep-in-touch request** (`keep_request`) — "Maya wants to keep in touch after X" →
+   Requests in Connections, once per request (Alex, 30 Oct 2026, UI pass 1 round 2: "the same
+   as 1-on-1 requests"). Never for a "Not now", which sends nothing to anyone, and never when
+   both asked, which connects you at once with nothing left to answer. *Not bait:* it is a
+   person you met asking to stay reachable, and unanswered it lapses with the 7-day window;
+   one per pair per gathering, never asked again after a take-back. A request taken back,
+   answered or from someone since hidden or blocked is not sent (read at every attempt).
 
 **Nothing else.** Each kind has its own switch in Settings (A23), and every email its stop
 link. **Every notification is mirrored by email to people without a device token**
@@ -586,7 +593,7 @@ count (Q3).
 "Meet 1-on-1" appears here only as a summary of the per-gathering setting (on at which
 gatherings, and who can see you); it is switched on and off on the pinned crowd page
 (A28), never here.
-Notifications: the eight, toggleable.
+Notifications: the nine, toggleable.
 Data: export my data, delete account (in-app, required by both stores).
 Sign out (Alex, 10 Oct 2026): this device only, in a card of its own above Delete, two
 taps. Shown only with a permanent sign-in. It takes this phone off the account's push

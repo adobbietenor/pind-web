@@ -233,7 +233,7 @@ export default function QuickPin() {
 
   if (stage === "removed") {
     return (
-      <AppScreen>
+      <AppScreen step={stage}>
         <Heading>{QUICKPIN_COPY.heading}</Heading>
         <Body muted>{where}</Body>
         <View style={{ marginTop: spacing.lg }}>
@@ -250,7 +250,7 @@ export default function QuickPin() {
 
   if (stage === "done" && result && gathering) {
     return (
-      <AppScreen>
+      <AppScreen step={stage}>
         {/* The pin's moment: "You're pinned" lands with a small spring. */}
         <Pop>
           <Heading>{result.already ? QUICKPIN_COPY.alreadyPinned : QUICKPIN_COPY.pinned}</Heading>
@@ -290,7 +290,7 @@ export default function QuickPin() {
   const errorFor = (field: string) => (fieldError?.field === field ? fieldError.says : undefined);
 
   return (
-    <AppScreen>
+    <AppScreen step={stage}>
       <Heading>{QUICKPIN_COPY.heading}</Heading>
       <View style={{ marginBottom: spacing.lg }}>
         <Body muted>{where}</Body>

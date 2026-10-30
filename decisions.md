@@ -4815,3 +4815,61 @@ What the build added to the calls above, so nobody has to rediscover it:
 - **Checks rewritten to walk the new flows**: `check:pair` (two sessions, a silent "Not
   now"), `check:after` (a request accepted by the other person as themselves), plus
   `scripts/ui-shots*.mjs` for the mockup comparisons.
+
+### UI pass 1, round 2: shared rules, not per-screen fixes (Alex, 30 Oct 2026)
+
+Alex's round-2 list after walking build 19's screens. Each fault had been met on one screen,
+and each is now a rule in shared code with a test that fails when a screen goes its own way.
+
+- **Every screen and every step opens at the top.** "Where in the city?" and "A few things to
+  say" opened at their foot. Not a scroll fault of either page: a step is drawn inside the
+  same frame as the one before, so it kept that step's scroll, which had ended at Next.
+  AppScreen now takes the route's `step` and scrolls to the top when it changes, and a
+  component with steps of its own calls `useStepTop(step)` (WhereStep, IdentityStep's code).
+  S56 finds every file that changes step and fails one that does neither; S57 fails any
+  other code that scrolls a page.
+- **Wherever you type, the frame makes room for the keyboard.** The squad form was a Modal of
+  its own that knew nothing of the keyboard; the chats relied on KeyboardAvoidingView, which
+  measures the keyboard against its own frame and gets it wrong when anything sits above it.
+  Now `components/keyboard.ts` measures what the keyboard covers (its own frame on iOS, the
+  visual viewport on the web), and the two frames that hold every field, AppScreen and
+  SheetFrame, give up exactly that, then keep the focused field and room for its button in
+  view. Every sheet is SheetFrame. S52 fails a screen that measures the keyboard itself, S53
+  a Modal of its own, S54 a frame that stops making room, S55 a field in a scroll of its own.
+  Checked in Chrome with a stand-in for iOS Safari's keyboard (`KEYBOARD=1
+  scripts/ui-shots-room.mjs`): in the room and a squad the newest message stays over the
+  box, and the box on the keyboard, before and after typing; both ends of the squad form stay
+  above it. The iOS build walks the real one.
+- **In the room is not at the venue.** "Here" meant both. The room's words now say "in the
+  room" ("You're the first in the room", "4 in the room"); "I'm here" is "I've arrived", with
+  its own count ("2 have arrived") on its own row, below the Meeting Room and the squads, and
+  only on the night (3 hours before to the end). Same switch, Q7's line, same visibility.
+  S58 fails room copy that says "here"; S59 fails the crowd page out of that order.
+- **The ninth notification: a keep-in-touch request** (spec A18 #9), the same as a 1-on-1
+  request: push, email without a device token, its own switch, read again at every attempt
+  (a request taken back, answered, or from someone since hidden or blocked is not sent), and
+  never to a test person. P298-P299.
+- **A missing 1-on-1 button always says why.** Alex opened Tati's sheet on The Wrecks and
+  there was no button. Diagnosed from the data, not guessed: Alex's switch was on, his pin
+  open, the event hours away, no earlier request and no 1-on-1; Tati was the only other
+  person open to meeting there, and **her account switch was off**. It defaults to off, and
+  the 20261030174015 backfill carried only people who had the old per-pin switch on at an
+  upcoming gathering, which she never had. Not a code fault; the fault was the silence. The
+  sheet now always holds the button or one line where it would be (`oneOnOneState`, shared):
+  "Requests close when the event starts", "Turn on 1-on-1 chats to send requests" with the
+  switch itself, "You already have a 1-on-1 at this event", "1-on-1 chats are paused right
+  now", "Request sent ✓", and for every reason on the other person's side, one line: "Tati
+  isn't taking 1-on-1 requests". It never says which (their switch, who they take requests
+  from, a 1-on-1 they already have), and every fact it reads is the viewer's own or
+  solo_people's existing answer, so it shows nothing the missing button did not. A full
+  profile (A22), outside any gathering, says requests are sent from an event's page and links
+  the next one you share. O01-O04.
+- **The chat leads.** The squad page carried a card, Share, an "I'm here" form and Leave above
+  its thread. Now every chat is the header, one optional line, then the conversation: the
+  place and time ride in the header, the night's "I've arrived" is one slim row with "Later"
+  (put away for that squad, on that device), and details, sharing the event, Edit, Leave or
+  Call off and "Get the app" are in the header's ••• sheet. The room's row of faces moved
+  into its info sheet; "three of you, go together" is one line. S60-S61.
+- **Not done: the staging app's Apple ID** for `submit.internal.ascAppId` (item 7). The
+  number did not come through in the message, and Alex chose to build without auto-submit
+  rather than wait.

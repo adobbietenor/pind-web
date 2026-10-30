@@ -1646,6 +1646,7 @@ export type Database = {
           day_of: boolean
           digest: boolean
           invite: boolean
+          keep_request: boolean
           next_morning: boolean
           person_id: string
           plan_status: boolean
@@ -1658,6 +1659,7 @@ export type Database = {
           day_of?: boolean
           digest?: boolean
           invite?: boolean
+          keep_request?: boolean
           next_morning?: boolean
           person_id: string
           plan_status?: boolean
@@ -1670,6 +1672,7 @@ export type Database = {
           day_of?: boolean
           digest?: boolean
           invite?: boolean
+          keep_request?: boolean
           next_morning?: boolean
           person_id?: string
           plan_status?: boolean
@@ -1697,6 +1700,7 @@ export type Database = {
           crew_id: string | null
           gathering_id: string | null
           id: string
+          keep_request_id: string | null
           kind: Database["public"]["Enums"]["notification_kind"]
           last_error: string | null
           path: string
@@ -1714,6 +1718,7 @@ export type Database = {
           crew_id?: string | null
           gathering_id?: string | null
           id?: string
+          keep_request_id?: string | null
           kind: Database["public"]["Enums"]["notification_kind"]
           last_error?: string | null
           path: string
@@ -1731,6 +1736,7 @@ export type Database = {
           crew_id?: string | null
           gathering_id?: string | null
           id?: string
+          keep_request_id?: string | null
           kind?: Database["public"]["Enums"]["notification_kind"]
           last_error?: string | null
           path?: string
@@ -1753,6 +1759,13 @@ export type Database = {
             columns: ["gathering_id"]
             isOneToOne: false
             referencedRelation: "gatherings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_keep_request_id_fkey"
+            columns: ["keep_request_id"]
+            isOneToOne: false
+            referencedRelation: "keep_requests"
             referencedColumns: ["id"]
           },
           {
@@ -4076,6 +4089,7 @@ export type Database = {
         | "room_activity"
         | "invite"
         | "solo_proposal"
+        | "keep_request"
       outbound_kind: "threshold" | "survey"
       photo_status: "pending" | "approved" | "needs_review" | "rejected"
       publish_mark: "publish" | "never"
@@ -4264,6 +4278,7 @@ export const Constants = {
         "room_activity",
         "invite",
         "solo_proposal",
+        "keep_request",
       ],
       outbound_kind: ["threshold", "survey"],
       photo_status: ["pending", "approved", "needs_review", "rejected"],

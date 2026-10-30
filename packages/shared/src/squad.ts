@@ -130,6 +130,8 @@ export const SQUAD_FORM_COPY = {
   save: "Save",
   noPlan: "No plan yet · add a place or time",
   edit: "Edit",
+  // The ••• sheet's way into the form (UI pass 1, round 2).
+  editMenu: "Edit name, details, place or time",
   checking: "Changes are being checked. They'll show to others in a moment.",
 } as const;
 export const SQUAD_DETAILS_MAX = 200;

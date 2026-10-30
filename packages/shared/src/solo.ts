@@ -173,4 +173,62 @@ export const ONE_ON_ONE_COPY = {
   timePlaceholder: "e.g. around 7",
   save: "Save",
   clear: "Take the place away",
+  // Where the button would be, when it can't be (UI pass 1, round 2: never a missing
+  // button with no reason). One line each; oneOnOneState picks which.
+  notTaking: (name: string) => `${name} isn't taking 1-on-1 requests`,
+  turnOnToAsk: "Turn on 1-on-1 chats to send requests",
+  closedAtStart: "Requests close when the event starts",
+  paused: "1-on-1 chats are paused right now",
+  alreadyHave: "You already have a 1-on-1 at this event",
+  fromAnEvent: "1-on-1 requests are sent from an event's page",
+  openEvent: (event: string) => `Open ${event}`,
 } as const;
+
+// What the person sheet shows where "Let's meet up 1-on-1" goes (UI pass 1, round 2). Every
+// fact is the viewer's own or public: their switch, their requests and their 1-on-1, the
+// start time, the brake. Whether the other person can be asked is solo_people's answer
+// (can_see_solo), and when it is no, the reason on their side (their switch, who they take
+// requests from, a 1-on-1 they already have) is one line, "isn't taking 1-on-1 requests",
+// so the sheet tells nobody which of those it is.
+export type OneOnOneState = "ask" | "asked" | "theirs" | "turnOn" | "closed" | "paused" | "planned" | "elsewhere";
+
+export function oneOnOneState(f: {
+  atGathering: boolean;
+  available: boolean;
+  asked: boolean;
+  started: boolean;
+  inPlan: boolean;
+  mineOn: boolean;
+  open: boolean;
+}): OneOnOneState {
+  if (!f.atGathering) return "elsewhere";
+  // A request already sent stays "sent" whatever happens next (a "Not now" is silent).
+  if (f.asked) return "asked";
+  if (!f.available) return "paused";
+  if (f.started) return "closed";
+  if (f.inPlan) return "planned";
+  if (!f.mineOn) return "turnOn";
+  return f.open ? "ask" : "theirs";
+}
+
+// The line for every state but "ask" (which is the button).
+export function oneOnOneLine(state: OneOnOneState, name: string): string | null {
+  switch (state) {
+    case "ask":
+      return null;
+    case "asked":
+      return ONE_ON_ONE_COPY.sent(name);
+    case "theirs":
+      return ONE_ON_ONE_COPY.notTaking(name);
+    case "turnOn":
+      return ONE_ON_ONE_COPY.turnOnToAsk;
+    case "closed":
+      return ONE_ON_ONE_COPY.closedAtStart;
+    case "paused":
+      return ONE_ON_ONE_COPY.paused;
+    case "planned":
+      return ONE_ON_ONE_COPY.alreadyHave;
+    case "elsewhere":
+      return ONE_ON_ONE_COPY.fromAnEvent;
+  }
+}

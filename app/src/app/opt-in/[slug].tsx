@@ -263,7 +263,7 @@ export default function OptIn() {
 
   if (step === "removed") {
     return (
-      <AppScreen>
+      <AppScreen step={step}>
         <Heading>{OPTIN_COPY.heading}</Heading>
         <Body>{OPTIN_COPY.under19Removed}</Body>
       </AppScreen>
@@ -271,7 +271,7 @@ export default function OptIn() {
   }
 
   return (
-    <AppScreen>
+    <AppScreen step={step}>
       {step !== "where" && step !== "meet" ? <Heading>{step === "identity" ? OPTIN_COPY.contactHeading : step === "safety" ? OPTIN_COPY.safetyHeading : OPTIN_COPY.heading}</Heading> : null}
       {step !== "where" && step !== "meet" ? (
         <View style={{ marginBottom: spacing.lg }}>

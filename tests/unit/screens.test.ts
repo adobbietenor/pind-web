@@ -503,13 +503,16 @@ describe("Threads: a message costs a row, and the box rides the keyboard (the th
   });
 
   it("S40 the frame keeps a footer on the keyboard and the newest message in view — in the shared frame, not a screen", () => {
-    assert.match(frame, /<KeyboardAvoidingView[^>]*behavior=\{Platform\.OS === "ios" \? "padding" : undefined\}/, "iOS does not lift the footer by the keyboard");
-    const conv = frame.slice(frame.indexOf("function Conversation"));
+    // Round 2: the room the keyboard needs is measured once (components/keyboard.ts) and
+    // given up at the foot of the frame, on iOS and the web alike (S52-S54).
+    const conv = frame.slice(frame.indexOf("function Conversation"), frame.indexOf("const styles"));
     assert.ok(conv.length > 100, "the conversation frame is gone");
-    assert.doesNotMatch(conv.slice(0, conv.indexOf("function useVisualViewportHeight")), /automaticallyAdjustKeyboardInsets/, "the scroll insets itself AND sits in a keyboard-avoiding view: the keyboard counted twice");
+    assert.match(conv, /useKeyboardRoom\(edges\)/, "the conversation does not make room for the keyboard");
+    assert.match(conv, /paddingBottom: room/, "the footer is not lifted onto the keyboard");
+    assert.doesNotMatch(conv, /automaticallyAdjustKeyboardInsets|KeyboardAvoidingView/, "the keyboard counted twice");
     assert.match(conv, /onContentSizeChange=\{follow\}/, "a new message does not keep the newest in view");
     assert.match(conv, /onLayout=\{follow\}/, "the keyboard or a taller box does not keep the newest in view");
-    assert.match(conv, /visualViewport/, "on the web the footer sits behind a phone's keyboard");
+    assert.match(conv, /useEffect\(follow, \[room, follow\]\)/, "the keyboard coming up does not keep the newest message over the box");
     // React Native Web dismisses "on-drag" on ANY scroll, its own included: following the
     // newest message blurred the box mid-word (every other new line lost, in real Chrome).
     assert.match(conv, /keyboardDismissMode=\{Platform\.OS === "ios" \? "on-drag" : "none"\}/, "the web blurs the box every time the conversation follows a new message");

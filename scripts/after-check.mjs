@@ -118,11 +118,16 @@ try {
   // A17 — the finished group points at A16.
   await send("Page.navigate", { url: `${SITE}/group/${crew}` });
   step("A17: the group says it has finished", await until(AFTER_COPY.finished));
-  await click(AFTER_COPY.howDidItGo);
-  step("…and its one action opens A16", await until(AFTER_COPY.whoDidYouMeet));
+  // The line under the header is one button (the chat leads, UI pass 1 round 2): tap it,
+  // and prove the page really moved. Its words and A16's heading are the same words, so
+  // "the words are on screen" proves nothing (it passed once with the tap landing nowhere).
+  await evaluate(`(() => { const e=[...document.querySelectorAll("[role=button]")].find(x=>x.innerText.includes(${JSON.stringify(AFTER_COPY.howDidItGo)})); e && e.click(); return !!e; })()`);
+  let onA16 = false;
+  for (let t = 0; t < 20 && !onA16; t++) { await sleep(500); onA16 = String(await evaluate("location.pathname")).startsWith("/after/"); }
+  step("…and its one action opens A16", onA16 && (await until(AFTER_COPY.whoDidYouMeet)));
 
   // A16 — keep in touch as a request and an accept (UI pass 1, 092/095).
-  step("A16 asks the question too", (await body()).includes(AFTER_COPY.question));
+  step("A16 asks the question too", await until(AFTER_COPY.question, 8000));
   step("a card for each person met, 'In your squad'", (await body()).includes(KEEP_COPY.metAs("squad")));
   await click(KEEP_COPY.keep);
   step("'Keep in touch' sends a request", await poll(`/rest/v1/keep_requests?gathering_id=eq.${X.id}&from_person=eq.${people.Ari.personId}&status=eq.open&select=id`, 1));

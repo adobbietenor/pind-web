@@ -26,7 +26,7 @@
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
-import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, radius, spacing } from "@pind/shared";
+import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, ONE_ON_ONE_COPY, oneOnOneLine, radius, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Body, Heading } from "@/components/ui";
 import { supabase } from "@/lib/supabase";
@@ -39,7 +39,7 @@ const TAG_GROUPS = [...new Set(ALL_TAGS.map((t) => t.group))];
 const hoodName = (slug: string | null) => NEIGHBOURHOODS.find((n) => n.slug === slug)?.name ?? null;
 
 interface Them {
-  shared: { slug: string; name: string }[];
+  shared: { slug: string; name: string; startsAt: string }[];
   gatherings: number;
   firstName: string;
   neighbourhood: string | null;
@@ -86,7 +86,7 @@ export default function Person() {
         .map((p) => (p as unknown as { gatherings: { slug: string; name: string; starts_at: string } | null }).gatherings)
         .filter((g): g is { slug: string; name: string; starts_at: string } => !!g)
         .sort((a, b) => a.starts_at.localeCompare(b.starts_at))
-        .map((g) => ({ slug: g.slug, name: g.name }));
+        .map((g) => ({ slug: g.slug, name: g.name, startsAt: g.starts_at }));
       setThem({
         shared,
         gatherings: person.gatherings_count ?? 0,
@@ -150,6 +150,23 @@ export default function Person() {
           </View>
         ) : null}
 
+        {/* A profile is outside any one gathering, so 1-on-1 is asked from the event's page
+            (UI pass 1, round 2: never a missing button with no reason). The next event you
+            share is one tap away. */}
+        {(() => {
+          const next = them.shared.find((g) => Date.parse(g.startsAt) > Date.now());
+          return (
+            <View style={styles.oneOnOne}>
+              <Text style={styles.oneOnOneLine}>{oneOnOneLine("elsewhere", them.firstName)}</Text>
+              {next ? (
+                <Tap accessibilityRole="link" onPress={() => router.push({ pathname: "/crowd/[slug]", params: { slug: next.slug } })} style={styles.oneOnOneLink}>
+                  <Text style={styles.oneOnOneLinkLabel}>{ONE_ON_ONE_COPY.openEvent(next.name)}</Text>
+                </Tap>
+              ) : null}
+            </View>
+          );
+        })()}
+
         {/* All their tags, in the vocabulary's own groups (V19). */}
         {TAG_GROUPS.map((group) => {
           const mine = them.tags.filter((t) => groupOf(t) === group);
@@ -198,6 +215,10 @@ export default function Person() {
 const A24_EXISTS = false;
 
 const styles = StyleSheet.create({
+  oneOnOne: { marginBottom: spacing.md, gap: spacing.xs },
+  oneOnOneLine: { fontSize: 15, color: palette.textMuted },
+  oneOnOneLink: { minHeight: 44, justifyContent: "center" },
+  oneOnOneLinkLabel: { fontFamily: fonts.headline, fontSize: 15, color: palette.accentText },
   root: { flex: 1, backgroundColor: palette.background },
   body: { padding: spacing.lg },
   head: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginBottom: spacing.md },

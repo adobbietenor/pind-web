@@ -52,7 +52,7 @@ import { CrowdDetails } from "@/components/CrowdDetails";
 import { ImHere } from "@/components/ImHere";
 import { hereNow, type HereNow } from "@/lib/here";
 import { Icon } from "@/components/Icon";
-import { PersonSheet, type SheetPerson } from "@/components/PersonSheet";
+import { PersonSheet, useOneOnOne, type SheetPerson } from "@/components/PersonSheet";
 import { HouseRules } from "@/components/HouseRules";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading } from "@/components/ui";
@@ -61,7 +61,6 @@ import { PushAsk } from "@/components/PushAsk";
 import { OneOnOneSwitch } from "@/components/OneOnOneSwitch";
 import { Sheet } from "@/components/Sheet";
 import { SwitchRow } from "@/components/SwitchRow";
-import { inviteSolo, soloHere } from "@/lib/solo";
 import { SquadSection } from "@/components/SquadSection";
 import { EndedEvent } from "@/components/EndedEvent";
 import { myRooms, type RoomSummary } from "@/lib/room";
@@ -250,16 +249,12 @@ export default function CrowdPage() {
   // The night's "I'm here" (UI pass 1, 088): read for anyone pinned, from 3 hours before
   // the start to the effective end; here_now decides what each person may see.
   // 1-on-1 here (UI pass 1): who the database lets me ask, and whom I have asked.
-  const [solo, setSolo] = useState<{ open: string[]; asked: string[] } | null>(null);
-  const [asking, setAsking] = useState(false);
-  const [askRefusal, setAskRefusal] = useState<string | null>(null);
+  // The person sheet always says something where the 1-on-1 button goes (useOneOnOne).
   const [meetSheet, setMeetSheet] = useState(false);
-  const readSolo = useCallback(() => {
-    const g = view?.gathering;
-    if (!g || !view?.mine?.open || Date.now() >= Date.parse(g.effectiveEnd)) return setSolo(null);
-    soloHere(g.id).then(setSolo, () => setSolo(null));
-  }, [view]);
-  useEffect(readSolo, [readSolo]);
+  const soloAt = view?.gathering && view.mine?.open && Date.now() < Date.parse(view.gathering.effectiveEnd) ? view.gathering : null;
+  const oneOnOne = useOneOnOne(soloAt ? { id: soloAt.id, startsAt: soloAt.startsAt } : null, view?.meId ?? null);
+  const solo = oneOnOne.facts;
+  const readSolo = oneOnOne.read;
   const [here, setHereNow] = useState<HereNow | null>(null);
   const readHere = useCallback(() => {
     const g = view?.gathering;
@@ -336,20 +331,13 @@ export default function CrowdPage() {
             <Text style={styles.went}>{ENDED_COPY.went(view.going)}</Text>
           </View>
         ) : (
-        <Counters going={view.going} open={view.open} extra={here ? [{ icon: "pin", line: HERE_COPY.count(here.count) }] : undefined} />
+        <Counters going={view.going} open={view.open} />
         )}
         {countNext(view.open) ? <Body muted>{countNext(view.open)}</Body> : null}
         {view.mix ? <Body muted>{view.mix}</Body> : null}
       </View>
 
       {trouble ? <Trouble what={trouble} onRetry={refresh} busy={busy} /> : null}
-
-      {/* One "I'm here" for the room and your squad, on the night, if you're open (088). */}
-      {here && view.mine?.open && !ended ? (
-        <View style={{ marginBottom: spacing.md }}>
-          <ImHere gatheringId={g.id} note={here.me} people={here.people} onChanged={readHere} />
-        </View>
-      ) : null}
 
       {!view.mine ? (
         // A8 — not pinned here.
@@ -468,6 +456,14 @@ export default function CrowdPage() {
           {view.meId ? (
             <SquadSection gatheringId={g.id} meId={view.meId} ended={ended} faces={view.faces.map((f) => ({ id: f.id, firstName: f.firstName, photoUrl: f.photoUrl }))} />
           ) : null}
+          {/* "I've arrived" (UI pass 1, round 2): at the venue, which is not the same as in the
+              room, so it comes after the room and the squads, with its own count, and only on
+              the night (here is read from 3 hours before the start to the end). */}
+          {here ? (
+            <View style={{ marginTop: spacing.lg }}>
+              <ImHere gatheringId={g.id} note={here.me} people={here.people} count={here.count} onChanged={readHere} />
+            </View>
+          ) : null}
           {/* No separate 1-on-1 box (UI pass 1, 055): who is open to it wears a tag below,
               and the request lives on their profile sheet. */}
           {/* The open-to-meeting list: people you can tap (UI pass 1, 055), the profile
@@ -520,27 +516,7 @@ export default function CrowdPage() {
               setSheet(null);
               if (id) router.push(`/person/${id}`);
             }}
-            oneOnOne={
-              sheet && solo?.open.includes(sheet.id) && !ended
-                ? {
-                    asked: solo.asked.includes(sheet.id),
-                    busy: asking,
-                    refusal: askRefusal,
-                    onAsk: async () => {
-                      setAsking(true);
-                      setAskRefusal(null);
-                      try {
-                        await inviteSolo(g.id, sheet.id);
-                        readSolo();
-                      } catch (err) {
-                        setAskRefusal(failed("send that", err).says);
-                      } finally {
-                        setAsking(false);
-                      }
-                    },
-                  }
-                : undefined
-            }
+            oneOnOne={sheet ? oneOnOne.forPerson(sheet.id) : null}
           />
           {!ended ? (
             <View style={{ marginTop: spacing.lg }}>

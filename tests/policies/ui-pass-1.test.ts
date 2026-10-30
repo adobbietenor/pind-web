@@ -349,6 +349,46 @@ test("P296 B: Bob accepts: a connection on both sides, and the 'showed up' badge
   assert.equal(await connected("Gus", "Bob"), true);
 });
 
+// #9, the keep-in-touch request's notification (UI pass 1, round 2; spec A18 #9).
+const keepNotes = async (to: string, from: string) => {
+  const reqs = (await must(service.from("keep_requests").select("id").eq("gathering_id", g.Past).eq("from_person", ppl[from]!.id).eq("to_person", ppl[to]!.id), "the request")) as { id: string }[];
+  if (!reqs.length) return [];
+  return (await must(service.from("notifications").select("id, kind, path").eq("person_id", ppl[to]!.id).eq("kind", "keep_request").in("keep_request_id", reqs.map((r) => r.id)), "its notifications")) as { id: string; kind: string; path: string }[];
+};
+const pendingIds = async () =>
+  new Set(((await must(service.rpc("admin_pending_notifications", { p_limit: 100000 }), "the queue")) as { id: string }[]).map((n) => n.id));
+
+test("P298 B #9: a request CAN notify the person asked, once, to Connections; CANNOT with their switch off, for an answered request, or to the asker; a test person is sent nowhere", async () => {
+  // Answered ones (P294-P296): each was queued once, and none goes out now.
+  const toBob = await keepNotes("Bob", "Ann");
+  assert.equal(toBob.length, 1, "Ann's request to Bob was not queued, or queued twice");
+  assert.equal(toBob[0]!.path, "/connections");
+  const toDee = await keepNotes("Dee", "Ann");
+  assert.equal(toDee.length, 1, "Ann's second ask after 'Not now' queued another");
+  assert.equal((await keepNotes("Bob", "Gus")).length, 1);
+  assert.equal((await keepNotes("Gus", "Bob")).length, 0, "asking back, which connects at once, notified");
+  const queue = await pendingIds();
+  for (const n of [...toBob, ...toDee]) assert.ok(!queue.has(n.id), "an accepted or 'Not now' request would still be sent");
+  // An open one goes out, and a test person's carries no phone and no address (P162).
+  assert.equal(await must(ask("Bob", "Dee"), "Bob asks Dee"), "sent");
+  const open = await keepNotes("Dee", "Bob");
+  assert.equal(open.length, 1, "an open request was not queued");
+  const row = ((await must(service.rpc("admin_pending_notifications", { p_limit: 100000 }), "the queue")) as { id: string; tokens: string[]; email: string | null }[]).find((n) => n.id === open[0]!.id);
+  if (row) {
+    assert.deepEqual(row.tokens, [], "a test person would be pushed");
+    assert.equal(row.email, null, "a test person would be emailed");
+  } else {
+    // Delivery ran in between: it must have sent nothing anywhere.
+    const sent = (await must(service.from("notifications").select("sent_at, channel").eq("id", open[0]!.id).single(), "the row")) as { channel: string | null };
+    assert.ok(!sent.channel || sent.channel === "none", `a test person's notification went out by ${sent.channel}`);
+  }
+  // Switched off: no notification at all.
+  await must(service.from("notification_settings").upsert({ person_id: ppl.Dee!.id, keep_request: false }), "Dee switches #9 off");
+  assert.equal(await must(ask("Gus", "Dee"), "Gus asks Dee"), "sent");
+  assert.equal((await keepNotes("Dee", "Gus")).length, 0, "a switched-off person was notified");
+  await must(service.from("notification_settings").update({ keep_request: true }).eq("person_id", ppl.Dee!.id), "Dee switches it back on");
+});
+
 test("P297 B: a request CAN be taken back while it waits; a block CANNOT be crossed and cancels what is waiting; nothing before the end or after 7 days", async () => {
   // Dee asks Ann (Ann's own request was "Not now"-ed, so this is Dee's first), then takes it back.
   assert.equal(await must(ask("Dee", "Ann"), "Dee asks Ann"), "sent");
@@ -373,4 +413,14 @@ test("P297 B: a request CAN be taken back while it waits; a block CANNOT be cros
   await must(service.from("gatherings").update({ starts_at: new Date(Date.now() - 9 * 86_400_000).toISOString() }).eq("id", g.Past), "eight days on");
   await refused(ask("Cal", "Bob"), "42501", "keep_window");
   assert.equal(((await must(ppl.Ann!.c.rpc("keep_people", { p_gathering: g.Past }), "cards")) as { open: boolean }).open, false);
+});
+
+test("P299 B #9: a request taken back, or cancelled by a block, was queued and CANNOT be sent", async () => {
+  const takenBack = await keepNotes("Ann", "Dee");
+  const blocked = await keepNotes("Gus", "Cal");
+  assert.equal(takenBack.length, 1, "Dee's request to Ann was never queued");
+  assert.equal(blocked.length, 1, "Cal's request to Gus was never queued");
+  const queue = await pendingIds();
+  assert.ok(!queue.has(takenBack[0]!.id), "a taken-back request would still be sent");
+  assert.ok(!queue.has(blocked[0]!.id), "a request cancelled by a block would still be sent");
 });

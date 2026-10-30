@@ -1,10 +1,11 @@
 // A dropdown that opens a list in a sheet (UI pass 1, 024: the date of birth as Month /
-// Day / Year). Built from React Native's own Modal and ScrollView, so the web and iOS get
+// Day / Year). Built on the shared sheet (SheetFrame), so the web and iOS get
 // the same control with no new dependency; a native iOS wheel would need one, which is
 // Alex's call (CLAUDE.md, "Expo rules").
 import { Image } from "expo-image";
 import { useState } from "react";
-import { Modal, ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { SheetFrame } from "./Sheet";
 import { colors as palette, iconUri, radius, spacing } from "@pind/shared";
 import { Tap } from "./Tap";
 
@@ -43,13 +44,9 @@ export function Select<T extends string | number>({
         </Text>
         <Image source={{ uri: iconUri("chevronDown", 16, palette.text) }} style={{ width: 16, height: 16 }} />
       </Tap>
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Tap accessibilityLabel="Close" style={styles.scrim} onPress={() => setOpen(false)}>
-          <View />
-        </Tap>
-        <View style={styles.sheet}>
+      <SheetFrame visible={open} onClose={() => setOpen(false)} style={styles.sheet} contentStyle={{ gap: 0 }}>
           <Text style={styles.sheetTitle}>{label}</Text>
-          <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ paddingBottom: spacing.md }}>
+          <View>
             {options.map((o) => {
               const on = o.value === value;
               return (
@@ -67,9 +64,8 @@ export function Select<T extends string | number>({
                 </Tap>
               );
             })}
-          </ScrollView>
-        </View>
-      </Modal>
+          </View>
+      </SheetFrame>
     </View>
   );
 }
@@ -88,20 +84,7 @@ const styles = StyleSheet.create({
     backgroundColor: palette.surface,
   },
   value: { flexShrink: 1, fontSize: 16, color: palette.text },
-  scrim: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)" },
-  sheet: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    maxWidth: 520,
-    alignSelf: "center",
-    width: "100%",
-    backgroundColor: palette.surface,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
-    padding: spacing.md,
-  },
+  sheet: { padding: spacing.md },
   sheetTitle: { fontSize: 14, color: palette.textMuted, marginBottom: spacing.sm },
   row: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.sm },
   rowOn: { backgroundColor: palette.accent },

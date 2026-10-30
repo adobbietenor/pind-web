@@ -29,9 +29,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Share, StyleSheet, Text, View } from "react-native";
-import { AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, houseClock, radius, shareCardUrl, SHARE_COPY, ONE_ON_ONE_COPY, SOLO_COPY, spacing, SQUAD_COPY, SQUAD_FORM_COPY, type Convening, type ThreadMessage } from "@pind/shared";
+import { AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, HERE_COPY, houseClock, radius, shareCardUrl, SHARE_COPY, ONE_ON_ONE_COPY, SOLO_COPY, spacing, SQUAD_COPY, SQUAD_FORM_COPY, type Convening, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { AvatarStack } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
@@ -40,6 +40,9 @@ import { editSquad } from "@/lib/squads";
 import { Composer } from "@/components/Composer";
 import { GetTheApp } from "@/components/GetTheApp";
 import { SoloPlace } from "@/components/SoloPlace";
+import { ImHere } from "@/components/ImHere";
+import { Sheet } from "@/components/Sheet";
+import { isPutAway, putAway } from "@/lib/putaway";
 import { MessageSheet } from "@/components/MessageSheet";
 import { ThreadMessages } from "@/components/ThreadMessages";
 import { Trouble } from "@/components/Trouble";
@@ -182,6 +185,17 @@ export default function Group() {
   const [editRefusal, setEditRefusal] = useState<string | null>(null);
   const [held, setHeld] = useState<ThreadMessage | null>(null);
   const [focused, setFocused] = useState(false);
+  // The header's ••• sheet, the 1-on-1's place sheet, and the night's row put away with "Later".
+  const [menu, setMenu] = useState(false);
+  const [placeOpen, setPlaceOpen] = useState(false);
+  const [laterHidden, setLaterHidden] = useState<boolean | null>(null);
+  useEffect(() => {
+    let on = true;
+    void isPutAway(`arrived.${id}`).then((away) => on && setLaterHidden(away));
+    return () => {
+      on = false;
+    };
+  }, [id]);
 
   const shell = useQuery({
     queryKey: ["group", id],
@@ -272,6 +286,11 @@ export default function Group() {
     if (words) setDraft((d) => (d.trim() ? `${words}\n${d}` : words));
   };
   const open = view.state !== "dissolved";
+  // The night: from 3 hours before the start to the end, as set_here's window (here_window).
+  const night = Date.now() >= Date.parse(view.gathering.startsAt) - 3 * 3_600_000 && Date.now() < Date.parse(effectiveEnd(view.gathering.startsAt, view.gathering.endsAt));
+  // The plan in words: what is set of the place and the time, nothing when neither is.
+  const placeName = view.solo ? (view.plan.spotId ? view.spots.find((x) => x.id === view.plan.spotId)?.name ?? view.spot : view.plan.atEvent ? ONE_ON_ONE_COPY.atTheEvent : null) : view.spot;
+  const planText = view.solo || view.squad ? [placeName, view.solo ? view.plan.timeNote : view.squad?.timeNote].filter(Boolean).join(" · ") : "";
   // Q11: writable until 24 h after the night, read-only after (crew_messages_post_members).
   const closed = Date.now() >= Date.parse(effectiveEnd(view.gathering.startsAt, view.gathering.endsAt)) + 24 * 3_600_000;
 
@@ -291,8 +310,9 @@ export default function Group() {
         ) : undefined
       }
     >
-      {/* The squad's header in the room's style (UI pass 1, 071): its faces, its name, how
-          many of you and the event. */}
+      {/* The chat leads (UI pass 1, round 2): the header, one optional line, then the
+          conversation. Everything else (details, sharing the event, leaving) is in the
+          header's ••• sheet. */}
       <View style={styles.header}>
         <AvatarStack
           size={30}
@@ -300,180 +320,198 @@ export default function Group() {
           people={view.members.map((m) => ({ id: m.personId, name: m.personId === view.meId ? "You" : m.firstName, source: m.photoUrl && m.photoPath ? faceSource(m.photoUrl, m.photoPath) : null }))}
         />
         <View style={{ flex: 1 }}>
-          <Text style={styles.headTitle} numberOfLines={2}>
+          <Text style={styles.headTitle} numberOfLines={1}>
             {view.solo ? (view.state === "forming" ? SOLO_COPY.pairHeading(names[0] ?? "") : SOLO_COPY.planHeading(names[0] ?? "")) : view.squad ? view.squad.name : GROUP_COPY.heading}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
-            {view.squad ? SQUAD_COPY.headerLine(view.members.length, view.gathering.name) : view.gathering.name}
+            {[view.squad ? SQUAD_COPY.headerLine(view.members.length, view.gathering.name) : view.gathering.name, planText].filter(Boolean).join(" · ")}
           </Text>
         </View>
+        <Tap accessibilityRole="button" accessibilityLabel={GROUP_COPY.more} onPress={() => setMenu(true)} style={styles.more}>
+          <Text style={styles.moreLabel}>•••</Text>
+        </Tap>
       </View>
-      {view.squad?.nameStatus === "pending" ? <Body muted>{SQUAD_COPY.checking}</Body> : null}
-      {view.squad?.nameStatus === "rejected" ? <Text accessibilityRole="alert" style={styles.refusal}>{SQUAD_COPY.rejected}</Text> : null}
-      {/* Once per person, the first time they are in a group (M3.3). */}
-      {me && view.state !== "dissolved" && view.state !== "done" ? <GetTheApp /> : null}
-
 
       {trouble ? <Trouble what={trouble} onRetry={refresh} busy={busy} /> : null}
 
-      {view.state === "dissolved" ? (
+      {/* The one optional line, in this order: what the squad's name is waiting on, the end
+          of the plan, the night's "I've arrived", or the plan itself. */}
+      {view.squad?.nameStatus === "rejected" ? (
+        <Text accessibilityRole="alert" style={styles.refusal}>{SQUAD_COPY.rejected}</Text>
+      ) : view.squad?.nameStatus === "pending" ? (
+        <Text style={styles.lineText}>{SQUAD_COPY.checking}</Text>
+      ) : view.state === "dissolved" ? (
         <View style={styles.card}>
           <Body>{view.solo ? SOLO_COPY.planOff : GROUP_COPY.closed}</Body>
           {view.roomId ? <Button label={GROUP_COPY.closedNext} onPress={() => router.replace({ pathname: "/room/[id]", params: { id: view.roomId! } })} /> : null}
         </View>
-      ) : (
-        <View style={styles.card}>
-          {/* 1-on-1 since UI pass 1 (079): a plain chat. Its place and time are one optional
-              row either of you sets; nobody confirms. */}
-          {view.solo && ["forming", "spot_set", "live"].includes(view.state) ? (
-            <>
-              <Body>{ONE_ON_ONE_COPY.firstLine}</Body>
-              <SoloPlace crewId={view.id} spots={view.spots} spotId={view.plan.spotId} atEvent={view.plan.atEvent} timeNote={view.plan.timeNote} onChanged={refresh} />
-            </>
-          ) : null}
-          {view.solo || view.squad ? null : (
-            <Body>{GROUP_COPY.on(names)}</Body>
-          )}
-          {!view.solo && view.state === "forming" && view.convening !== "at_the_gathering" ? (
-            <>
-              <Text style={styles.section}>{GROUP_COPY.pollHeading}</Text>
-              <Body muted>{GROUP_COPY.pollHint}</Body>
-              {view.proposals.map((p) => (
-                <Tap
-                  key={p.id}
-                  onPress={() =>
-                    void act("vote", () =>
-                      p.mine
-                        ? supabase().from("crew_proposal_votes").delete().eq("proposal_id", p.id).eq("person_id", view.meId)
-                        : supabase().from("crew_proposal_votes").insert({ proposal_id: p.id, person_id: view.meId }),
-                    )
-                  }
-                  style={[styles.pick, p.mine && styles.pickOn]}
-                >
-                  <Text style={styles.name}>{`${p.spot} · ${clock(p.meetAt)}`}</Text>
-                  <Text style={styles.meta}>{`${p.votes} ${p.votes === 1 ? "vote" : "votes"}`}</Text>
-                </Tap>
-              ))}
-            </>
-          ) : view.meetAt && !view.solo ? (
-            <>
-              {/* The plan as one line (UI pass 1, 071), never the lead: what is set, or
-                  "No plan yet · add a place or time", which opens the form (any member). */}
-              {view.squad?.details ? <Body muted>{view.squad.details}</Body> : null}
-              {view.squad ? (
-                <Tap accessibilityRole="button" onPress={() => setEditing(true)} style={styles.planLine}>
-                  <Icon name="pin" size={16} color={palette.textMuted} />
-                  <Text style={[styles.meta, { flex: 1 }]}>{[view.spot, view.squad.timeNote].filter(Boolean).join(" · ") || SQUAD_FORM_COPY.noPlan}</Text>
-                  <Text style={styles.editLink}>{SQUAD_FORM_COPY.edit}</Text>
-                </Tap>
-              ) : (
-                <View style={styles.planLine}>
-                  <Icon name="pin" size={16} color={palette.textMuted} />
-                  <Text style={styles.meta}>{`${view.spot ?? SQUAD_COPY.atTheGathering} · ${dayClock(view.meetAt)}`}</Text>
-                </View>
-              )}
-              {view.squad?.nameStatus === "pending" ? <Body muted>{SQUAD_FORM_COPY.checking}</Body> : null}
-              {editing && view.squad ? (
-                <SquadForm
-                  title={SQUAD_FORM_COPY.editTitle}
-                  start={{ name: view.squad.name, details: view.squad.details ?? "", place: view.squad.spotId, time: view.squad.timeNote ?? "" }}
-                  spots={view.spots}
-                  busy={busy}
-                  refusal={editRefusal}
-                  onClose={() => setEditing(false)}
-                  onSave={async (w) => {
-                    setBusy(true);
-                    setEditRefusal(null);
-                    try {
-                      await editSquad(view.id, w.name, w.details, w.place && w.place !== "event" ? w.place : null, w.time);
-                      setEditing(false);
-                      refresh();
-                    } catch (err) {
-                      setEditRefusal(failed("change your squad", err).says);
-                    } finally {
-                      setBusy(false);
-                    }
-                  }}
-                />
-              ) : null}
-              <Button
-                kind="quiet"
-                label={shared === "copied" ? "Link copied" : shared === "failed" ? "Couldn't share. Try again" : SHARE_COPY.button}
-                onPress={async () => {
-                  // The event and its venue card, never the meeting place (UI pass 1, rule 3).
-                  const url = shareCardUrl(SITE, view.gathering.slug, null, null);
-                  setShared(await shareCard(SHARE_COPY.message(view.gathering.name, null, null), url).catch(() => "failed" as const));
-                }}
-              />
-            </>
-          ) : null}
-        </View>
-      )}
+      ) : view.state === "done" ? (
+        // A17: finished, and its one action points at A16.
+        <Tap accessibilityRole="button" onPress={() => router.push({ pathname: "/after/[slug]", params: { slug: view.gathering.slug } })} style={styles.line}>
+          <Text style={styles.lineText} numberOfLines={1}>
+            {`${AFTER_COPY.finished} `}
+            <Text style={styles.lineLink}>{AFTER_COPY.howDidItGo}</Text>
+          </Text>
+        </Tap>
+      ) : night && me && laterHidden === false ? (
+        <ImHere
+          slim
+          gatheringId={view.gathering.id}
+          note={me.arrivedAt ? me.arrivalNote ?? "" : null}
+          people={others.filter((m) => m.arrivedAt).map((m) => ({ personId: m.personId, firstName: m.firstName, note: m.arrivalNote ?? "" }))}
+          count={view.members.filter((m) => m.arrivedAt).length}
+          onChanged={refresh}
+          onLater={() => {
+            setLaterHidden(true);
+            void putAway(`arrived.${view.id}`);
+          }}
+        />
+      ) : view.solo && ["forming", "spot_set", "live"].includes(view.state) ? (
+        <SoloPlace crewId={view.id} spots={view.spots} spotId={view.plan.spotId} atEvent={view.plan.atEvent} timeNote={view.plan.timeNote} onChanged={refresh} open={placeOpen} onOpenChange={setPlaceOpen} />
+      ) : view.squad ? (
+        <Tap accessibilityRole="button" onPress={() => setEditing(true)} style={styles.line}>
+          <Icon name="pin" size={16} color={palette.textMuted} />
+          <Text style={[styles.lineText, { flex: 1 }]} numberOfLines={1}>{planText || SQUAD_FORM_COPY.noPlan}</Text>
+          <Text style={styles.editLink}>{SQUAD_FORM_COPY.edit}</Text>
+        </Tap>
+      ) : null}
+      {/* On the night the place line gives way to "I've arrived": the 1-on-1's place is still
+          one tap away, from the header's sheet. */}
+      {view.solo && night && me && laterHidden === false ? (
+        <SoloPlace crewId={view.id} spots={view.spots} spotId={view.plan.spotId} atEvent={view.plan.atEvent} timeNote={view.plan.timeNote} onChanged={refresh} open={placeOpen} onOpenChange={setPlaceOpen} row={false} />
+      ) : null}
 
-      {/* The night: "I'm here", with a line so they can find you (Q7). */}
-      {view.state === "live" && me ? (
-        <View style={styles.card}>
-          {me.arrivedAt ? (
-            <Body>{`You're here: "${me.arrivalNote}"`}</Body>
-          ) : (
-            <>
-              <Field label={GROUP_COPY.here} hint={GROUP_COPY.hereHint} value={note} onChangeText={setNote} maxLength={80} />
-              <Button
-                label={GROUP_COPY.here}
-                disabled={!note.trim()}
-                busy={busy}
+      {editing && view.squad ? (
+        <SquadForm
+          title={SQUAD_FORM_COPY.editTitle}
+          start={{ name: view.squad.name, details: view.squad.details ?? "", place: view.squad.spotId, time: view.squad.timeNote ?? "" }}
+          spots={view.spots}
+          busy={busy}
+          refusal={editRefusal}
+          onClose={() => setEditing(false)}
+          onSave={async (w) => {
+            setBusy(true);
+            setEditRefusal(null);
+            try {
+              await editSquad(view.id, w.name, w.details, w.place && w.place !== "event" ? w.place : null, w.time);
+              setEditing(false);
+              refresh();
+            } catch (err) {
+              setEditRefusal(failed("change your squad", err).says);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        />
+      ) : null}
+
+      {/* The header's ••• : what used to sit above the chat. */}
+      <Sheet visible={menu} onClose={() => setMenu(false)}>
+        <Text style={styles.headTitle}>{view.solo ? SOLO_COPY.planHeading(names[0] ?? "") : view.squad ? view.squad.name : GROUP_COPY.heading}</Text>
+        {view.solo ? <Body muted>{ONE_ON_ONE_COPY.firstLine}</Body> : null}
+        {view.squad?.details ? <Body>{view.squad.details}</Body> : null}
+        {!view.solo && !view.squad ? <Body>{GROUP_COPY.on(names)}</Body> : null}
+        {/* Legacy invite-only groups still forming: their poll. */}
+        {!view.solo && !view.squad && view.state === "forming" && view.convening !== "at_the_gathering" ? (
+          <>
+            <Text style={styles.section}>{GROUP_COPY.pollHeading}</Text>
+            <Body muted>{GROUP_COPY.pollHint}</Body>
+            {view.proposals.map((p) => (
+              <Tap
+                key={p.id}
                 onPress={() =>
-                  void act("say you're here", () =>
-                    // One "I'm here" for the room and the squad (UI pass 1): set_here marks both.
-                    supabase().rpc("set_here", { p_gathering: view.gathering.id, p_note: note.trim() }),
+                  void act("vote", () =>
+                    p.mine
+                      ? supabase().from("crew_proposal_votes").delete().eq("proposal_id", p.id).eq("person_id", view.meId)
+                      : supabase().from("crew_proposal_votes").insert({ proposal_id: p.id, person_id: view.meId }),
                   )
                 }
+                style={[styles.pick, p.mine && styles.pickOn]}
+              >
+                <Text style={styles.name}>{`${p.spot} · ${clock(p.meetAt)}`}</Text>
+                <Text style={styles.meta}>{`${p.votes} ${p.votes === 1 ? "vote" : "votes"}`}</Text>
+              </Tap>
+            ))}
+          </>
+        ) : null}
+        {!view.squad && !view.solo && view.meetAt ? <Body muted>{`${view.spot ?? SQUAD_COPY.atTheGathering} · ${dayClock(view.meetAt)}`}</Body> : null}
+        {open && view.squad ? (
+          <Button
+            kind="quiet"
+            label={SQUAD_FORM_COPY.editMenu}
+            onPress={() => {
+              setMenu(false);
+              // iOS shows one Modal at a time: the form waits for this sheet to close.
+              setTimeout(() => setEditing(true), Platform.OS === "ios" ? 350 : 0);
+            }}
+          />
+        ) : null}
+        {open && view.solo && ["forming", "spot_set", "live"].includes(view.state) ? (
+          <Button
+            kind="quiet"
+            label={ONE_ON_ONE_COPY.addPlace}
+            onPress={() => {
+              setMenu(false);
+              setTimeout(() => setPlaceOpen(true), Platform.OS === "ios" ? 350 : 0);
+            }}
+          />
+        ) : null}
+        {open && view.squad ? (
+          // Share the event with a friend: the event and its venue card, never the meeting place (rule 3).
+          <Button
+            kind="quiet"
+            label={shared === "copied" ? "Link copied" : shared === "failed" ? "Couldn't share. Try again" : SHARE_COPY.button}
+            onPress={async () => {
+              const url = shareCardUrl(SITE, view.gathering.slug, null, null);
+              setShared(await shareCard(SHARE_COPY.message(view.gathering.name, null, null), url).catch(() => "failed" as const));
+            }}
+          />
+        ) : null}
+        {night && me && laterHidden === true ? (
+          <Button
+            kind="quiet"
+            label={HERE_COPY.label}
+            onPress={() => {
+              setLaterHidden(false);
+              setMenu(false);
+            }}
+          />
+        ) : null}
+        {/* Once per person, the first time they are in a group (M3.3). */}
+        {me && view.state !== "dissolved" && view.state !== "done" ? <GetTheApp /> : null}
+        {open ? (
+          view.solo ? (
+            <>
+              <Button
+                kind="quiet"
+                label={SOLO_COPY.callOff}
+                onPress={() => {
+                  setMenu(false);
+                  void act("call off the 1-on-1", () => supabase().rpc("leave_group", { p_crew: view.id })).then(() => router.replace({ pathname: "/crowd/[slug]", params: { slug: view.gathering.slug } }));
+                }}
               />
+              <Body muted>{SOLO_COPY.callOffNote}</Body>
             </>
-          )}
-          {others.filter((m) => m.arrivedAt).map((m) => (
-            <Body key={m.personId} muted>{`${m.firstName} is here: "${m.arrivalNote}"`}</Body>
-          ))}
-        </View>
-      ) : null}
-
-      {/* A17 — done: said, counted, and its only action points at A16. */}
-      {view.state === "done" ? (
-        <View style={styles.card}>
-          <Text style={styles.section}>{AFTER_COPY.finished}</Text>
-          <Body muted>{AFTER_COPY.finishedCounts(view.members.length, view.members.filter((m) => m.arrivedAt).length)}</Body>
-          <Body muted>{AFTER_COPY.finishedLine}</Body>
-          <Button label={AFTER_COPY.howDidItGo} onPress={() => router.push({ pathname: "/after/[slug]", params: { slug: view.gathering.slug } })} />
-        </View>
-      ) : null}
+          ) : (
+            <Button
+              kind="quiet"
+              label={view.squad ? SQUAD_COPY.leave : GROUP_COPY.leave}
+              onPress={() => {
+                setMenu(false);
+                void act(view.squad ? "leave the squad" : "leave the group", () => supabase().rpc("leave_group", { p_crew: view.id })).then(() =>
+                  view.squad || !view.roomId
+                    ? router.replace({ pathname: "/crowd/[slug]", params: { slug: view.gathering.slug } })
+                    : router.replace({ pathname: "/room/[id]", params: { id: view.roomId } }),
+                );
+              }}
+            />
+          )
+        ) : null}
+        <Button kind="quiet" label="Close" onPress={() => setMenu(false)} />
+      </Sheet>
 
       {open ? (
         <>
-          <View>
-            {view.solo ? (
-              <>
-                <Button
-                  kind="quiet"
-                  label={SOLO_COPY.callOff}
-                  onPress={() => void act("call off the 1-on-1", () => supabase().rpc("leave_group", { p_crew: view.id })).then(() => router.replace({ pathname: "/crowd/[slug]", params: { slug: view.gathering.slug } }))}
-                />
-                <Body muted>{SOLO_COPY.callOffNote}</Body>
-              </>
-            ) : (
-              <Button
-                kind="quiet"
-                label={view.squad ? SQUAD_COPY.leave : GROUP_COPY.leave}
-                onPress={() =>
-                  void act(view.squad ? "leave the squad" : "leave the group", () => supabase().rpc("leave_group", { p_crew: view.id })).then(() =>
-                    view.squad || !view.roomId
-                      ? router.replace({ pathname: "/crowd/[slug]", params: { slug: view.gathering.slug } })
-                      : router.replace({ pathname: "/room/[id]", params: { id: view.roomId } }),
-                  )
-                }
-              />
-            )}
-          </View>
-
           {/* The group's own thread, last, so its newest message sits over the box. */}
           {threadTrouble ? <Trouble what={threadTrouble} onRetry={thread.retry} /> : null}
           {thread.messages ? (
@@ -521,6 +559,11 @@ export default function Group() {
 const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4, paddingBottom: spacing.sm, marginBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: palette.border },
   headTitle: { fontFamily: fonts.headline, fontSize: 18, color: palette.text },
+  more: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  moreLabel: { fontSize: 18, color: palette.text, letterSpacing: 1 },
+  line: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 44, borderBottomWidth: 1, borderBottomColor: palette.border },
+  lineText: { fontSize: 15, color: palette.text },
+  lineLink: { fontFamily: fonts.headline, color: palette.accentText },
   planLine: { flexDirection: "row", alignItems: "center", gap: 6, minHeight: 44 },
   editLink: { fontSize: 14, color: palette.accentText, textDecorationLine: "underline" },
   faces: { flexDirection: "row", gap: 6, marginVertical: spacing.md },

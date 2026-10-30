@@ -21,6 +21,7 @@
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { colors as palette, fonts, spacing, TAGS_MAXIMUM, TAGS_MINIMUM, TAGS_NEED_MORE } from "@pind/shared";
+import { useStepTop } from "@/components/AppScreen";
 import { NeighbourhoodPicker } from "@/components/profile/NeighbourhoodPicker";
 import { TagPicker, tagsCanContinue, type Picked } from "@/components/TagPicker";
 import { Trouble } from "@/components/Trouble";
@@ -38,6 +39,8 @@ export interface WhereStepProps {
 
 export function WhereStep({ personId, neighbourhood, tags, onDone }: WhereStepProps) {
   const [page, setPage] = useState<"where" | "tags">("where");
+  // The tags open at the top, not where Next was on the first page (UI pass 1, round 2).
+  useStepTop(page);
   const [hood, setHood] = useState<string | null>(neighbourhood);
   const [picked, setPicked] = useState<Picked[]>(tags);
   const [busy, setBusy] = useState(false);

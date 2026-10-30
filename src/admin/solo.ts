@@ -42,7 +42,7 @@ const COLUMNS: [string, string][] = [
   ["closed", "Closed"],
   ["plans", "Plans"],
   ["plans_dissolved", "Called off"],
-  ["arrived", "I'm here"],
+  ["arrived", "I've arrived"],
   ["met", "Met"],
   ["also_in_a_group", "Also in a group"],
 ];

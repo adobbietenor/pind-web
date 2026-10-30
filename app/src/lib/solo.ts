@@ -240,3 +240,33 @@ export async function soloRequests(): Promise<SoloRequest[]> {
 export async function setSoloPlace(crewId: string, spotId: string | null, atEvent: boolean, timeNote: string): Promise<void> {
   await said(supabase().rpc("set_solo_place", { p_crew: crewId, p_spot: spotId as string, p_at_event: atEvent, p_time_note: timeNote }));
 }
+
+// What the person sheet needs to say why, or to show the button (UI pass 1, round 2): all
+// of it the viewer's own (my_one_on_one, my_solo_proposals, my own 1-on-1 membership) or
+// the database's answer about the other person (solo_people), and the brake.
+export interface SoloFacts {
+  open: string[];
+  asked: string[];
+  mineOn: boolean;
+  available: boolean;
+  inPlan: boolean;
+}
+
+export async function soloFacts(gatheringId: string, meId: string): Promise<SoloFacts> {
+  const db = supabase();
+  const [here, mine, brake, sw, plan] = await Promise.all([
+    soloHere(gatheringId),
+    myOneOnOne(),
+    db.rpc("solo_available"),
+    db.from("app_switches").select("ios, web").eq("name", "solo").maybeSingle(),
+    db.from("crew_members").select("crew_id, crews(state)").eq("person_id", meId).eq("gathering_id", gatheringId).eq("kind", "solo").is("left_at", null),
+  ]);
+  const platformOn = sw.data ? (Platform.OS === "web" ? sw.data.web : sw.data.ios) : true;
+  const states = ((plan.data ?? []) as unknown as { crews: { state: string } | null }[]).map((r) => r.crews?.state);
+  return {
+    ...here,
+    mineOn: mine.on,
+    available: brake.data !== false && platformOn,
+    inPlan: states.some((s) => s === "forming" || s === "spot_set" || s === "live" || s === "done"),
+  };
+}

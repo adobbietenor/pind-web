@@ -29,7 +29,7 @@ export const CROWD_COPY = {
   // drawn "here right now": the count is who is in the room, not who is looking at it (H6).
   roomKicker: "Main room",
   roomTitle: "The Pin'd Meeting Room",
-  roomCount: (n: number) => `${n} ${n === 1 ? "person" : "people"} in the room`,
+  roomCount: (n: number) => `${n} in the room`,
   roomSayHi: "Say hi",
   seeAll: (n: number) => `See all ${n}`,
   listEmpty: "Nobody else has said yes yet. You're the first. They'll appear here as they do.",

@@ -28,7 +28,7 @@ import { Sheet, SideScroll } from "@/components/Sheet";
 import { Avatar, AvatarStack } from "@/components/Avatar";
 import { HouseRules } from "@/components/HouseRules";
 import { Icon } from "@/components/Icon";
-import { PersonSheet, type SheetPerson } from "@/components/PersonSheet";
+import { PersonSheet, useOneOnOne, type SheetPerson } from "@/components/PersonSheet";
 import { leaveWomenOnlyRoom } from "@/lib/after";
 import { AppScreen } from "@/components/AppScreen";
 import { Composer } from "@/components/Composer";
@@ -105,6 +105,8 @@ export default function Room() {
     refetchOnWindowFocus: false,
   });
   const view = shell.data;
+  // The person sheet's 1-on-1 part: a button or one line saying why not (PersonSheet).
+  const oneOnOne = useOneOnOne(view ? { id: view.gathering.id, startsAt: view.gathering.startsAt } : null, view?.me.personId ?? null);
   const { refetch: refetchShell } = shell;
   const refreshShell = useCallback(() => void refetchShell(), [refetchShell]);
 
@@ -229,39 +231,51 @@ export default function Room() {
         )
       }
     >
-      {/* The room's header (UI pass 1, 057): its faces, its name, the event and how many
-          are here, and the info button, which holds the house rules and the rest. */}
+      {/* The room leads with the conversation (UI pass 1, round 2): the header, one optional
+          line, then the messages. The header's faces and the info button open the sheet that
+          holds everyone in the room, the house rules and the rest. */}
       <View style={styles.header}>
-        <AvatarStack size={30} max={3} people={people.map((p) => ({ id: p.personId, name: p.firstName, source: faceOf(p) }))} />
+        <Tap accessibilityRole="button" accessibilityLabel={ROOM_COPY.whoIsIn} onPress={() => setInfo(true)}>
+          <AvatarStack size={30} max={3} people={people.map((p) => ({ id: p.personId, name: p.firstName, source: faceOf(p) }))} />
+        </Tap>
         <View style={{ flex: 1 }}>
           <Text style={styles.title} numberOfLines={1}>{view.womenOnly ? WOMEN_ONLY_COPY.room : ROOM_COPY.title}</Text>
           {view.womenOnly ? <Text style={styles.woTag}>{WOMEN_ONLY_COPY.tag}</Text> : null}
-          <Text style={styles.meta} numberOfLines={1}>{`${view.gathering.name} · ${ROOM_COPY.here(count)}`}</Text>
+          <Text style={styles.meta} numberOfLines={1}>{`${ROOM_COPY.here(count)} · ${view.gathering.name}`}</Text>
         </View>
         <Tap accessibilityRole="button" accessibilityLabel={ROOM_COPY.about} onPress={() => setInfo(true)} style={styles.infoButton}>
           <Icon name="info" size={22} color={palette.text} />
         </Tap>
       </View>
 
-      {/* Everyone here, a face each, you last. Tap anyone for their profile sheet. */}
-      <SideScroll>
-        {people.map((p) => (
-          <Tap key={p.personId} accessibilityRole="button" accessibilityLabel={p.firstName} onPress={() => open(p)} style={styles.faceCell}>
-            <Avatar name={p.firstName} source={faceOf(p)} size={52} />
-            <Text style={styles.faceName} numberOfLines={1}>{p.firstName}</Text>
-          </Tap>
-        ))}
-        <View style={styles.faceCell}>
-          <View style={styles.you}>
-            <Text style={styles.youLabel}>You</Text>
-          </View>
-          <Text style={styles.faceName}>You</Text>
-        </View>
-      </SideScroll>
-
       <Sheet visible={info} onClose={() => setInfo(false)}>
             <Text style={styles.title}>{ROOM_COPY.about}</Text>
             <Body muted>{`${view.gathering.name} · ${ROOM_COPY.inRoom(count)}`}</Body>
+            {/* Everyone in the room, a face each, you last. Tap anyone for their profile sheet. */}
+            <SideScroll>
+              {people.map((p) => (
+                <Tap
+                  key={p.personId}
+                  accessibilityRole="button"
+                  accessibilityLabel={p.firstName}
+                  onPress={() => {
+                    setInfo(false);
+                    // iOS shows one Modal at a time: the person sheet waits for this one to close.
+                    setTimeout(() => open(p), Platform.OS === "ios" ? 350 : 0);
+                  }}
+                  style={styles.faceCell}
+                >
+                  <Avatar name={p.firstName} source={faceOf(p)} size={52} />
+                  <Text style={styles.faceName} numberOfLines={1}>{p.firstName}</Text>
+                </Tap>
+              ))}
+              <View style={styles.faceCell}>
+                <View style={styles.you}>
+                  <Text style={styles.youLabel}>You</Text>
+                </View>
+                <Text style={styles.faceName}>You</Text>
+              </View>
+            </SideScroll>
             {/* At 5, the mix (Q3's floor): the gathering's public numbers, never the room's own. */}
             {count >= 5 && view.mix ? <Body muted>{view.mix}</Body> : null}
             <HouseRules />
@@ -303,6 +317,7 @@ export default function Room() {
       </Sheet>
       <PersonSheet
         person={sheet}
+        oneOnOne={sheet ? oneOnOne.forPerson(sheet.id) : null}
         onClose={() => setSheet(null)}
         onProfile={() => {
           const pid = sheet?.id;
@@ -311,18 +326,17 @@ export default function Room() {
         }}
       />
 
-      {/* At 3, once: the next step, never pushed. */}
+      {/* At 3, once: the next step, never pushed. The room's one optional line. */}
       {showGo ? (
-        <View style={styles.go}>
-          <Body>{ROOM_COPY.enoughToGo}</Body>
-          <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
-            <View style={{ flex: 1 }}>
-              <Button label={SQUAD_COPY.start} onPress={() => router.push({ pathname: "/crowd/[slug]", params: { slug: view.gathering.slug } })} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Button kind="quiet" label="Later" onPress={() => setGoDismissed(true)} />
-            </View>
-          </View>
+        <View style={styles.line}>
+          <Tap accessibilityRole="button" onPress={() => router.push({ pathname: "/crowd/[slug]", params: { slug: view.gathering.slug } })} style={styles.lineMain}>
+            <Text style={styles.lineLabel} numberOfLines={2}>
+              {ROOM_COPY.enoughToGo} <Text style={styles.lineLink}>{SQUAD_COPY.start}</Text>
+            </Text>
+          </Tap>
+          <Tap accessibilityRole="button" onPress={() => setGoDismissed(true)} style={styles.lineLater}>
+            <Text style={styles.lineLaterLabel}>Later</Text>
+          </Tap>
         </View>
       ) : null}
 
@@ -397,6 +411,12 @@ const styles = StyleSheet.create({
   shared: { fontSize: 13, color: palette.accentText, marginTop: 2 },
   strip: { flexDirection: "row", alignItems: "center", gap: 4, marginVertical: spacing.sm },
   stripFace: { width: 28, height: 28, borderRadius: 14 },
+  line: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: spacing.xs, borderBottomWidth: 1, borderBottomColor: palette.border },
+  lineMain: { flex: 1, minHeight: 44, justifyContent: "center" },
+  lineLabel: { fontSize: 14, color: palette.text },
+  lineLink: { fontFamily: fonts.headline, color: palette.accentText },
+  lineLater: { minHeight: 44, minWidth: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.sm },
+  lineLaterLabel: { fontSize: 14, color: palette.textMuted },
   go: { padding: spacing.md, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, backgroundColor: palette.surface, marginTop: spacing.md, gap: spacing.sm },
   opener: { minHeight: 40, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderColor: palette.accent, borderRadius: 999 },
   header: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4, paddingBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: palette.border },

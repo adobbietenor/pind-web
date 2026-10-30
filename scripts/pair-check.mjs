@@ -115,7 +115,8 @@ try {
   let at = "";
   for (let t = 0; t < 30 && !at.startsWith("/group/"); t++) { await sleep(500); at = await path(); }
   const crew = at.replace("/group/", "");
-  step("Accept opens the chat", at.startsWith("/group/") && (await until(ONE_ON_ONE_COPY.firstLine)));
+  // The chat leads (UI pass 1, round 2): its header, then one line, "Add a place or time".
+  step("Accept opens the chat", at.startsWith("/group/") && (await until(ONE_ON_ONE_COPY.addPlace)));
 
   // A29: either of them adds a place and a time; nobody confirms.
   await click(ONE_ON_ONE_COPY.addPlace);

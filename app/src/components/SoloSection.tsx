@@ -15,7 +15,8 @@
 // platform by the admin (decisions Part 5).
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Image, Modal, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
+import { SheetFrame } from "./Sheet";
 import {
   colors as palette,
   fonts,
@@ -225,9 +226,7 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
       ) : null}
 
       {/* A28 — the sheet: optional, the venue's spots only, and a forced choice. */}
-      <Modal visible={sheet} transparent animationType="slide" onRequestClose={() => setSheet(false)}>
-        <View style={styles.scrim}>
-          <View style={styles.sheet}>
+      <SheetFrame visible={sheet} onClose={() => setSheet(false)} animation="slide" contentStyle={{ gap: spacing.sm }}>
             <Text style={styles.sheetTitle}>{SOLO_COPY.sheetTitle}</Text>
             <Body>{SOLO_COPY.sheetLine}</Body>
             {/* "Women only" only for whom it is (R1, M4.2): offered to anyone else, the
@@ -251,9 +250,7 @@ export function SoloSection({ gatheringId, pinId, meId, faces, ended }: { gather
             />
             {saidAt("sheet")}
             <Button kind="quiet" label="Not now" onPress={() => setSheet(false)} />
-          </View>
-        </View>
-      </Modal>
+      </SheetFrame>
 
     </View>
   );

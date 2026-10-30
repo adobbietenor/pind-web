@@ -16,6 +16,7 @@
 import { useState } from "react";
 import { Platform, View } from "react-native";
 import { CODE_SENT_TO, codeLengthMismatch, EMAIL_CODE_LENGTH, isEmailTaken, OPTIN_COPY, spacing, WRONG_ADDRESS } from "@pind/shared";
+import { useStepTop } from "@/components/AppScreen";
 import { SignInButton } from "@/components/SignInButton";
 import { Body, Button, Field, Notice } from "@/components/ui";
 import { linkEmail, linkProvider, methodsFor, sendEmailCode, signInError, signInForMerge, signInWithApple, signInWithGoogle, verifyEmailCode } from "@/lib/auth";
@@ -44,6 +45,8 @@ export function IdentityStep({ mode, returnTo, onDone, hasAccount = null, notice
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [sent, setSent] = useState(false);
+  // The code opens at the top of the page, with its field (UI pass 1, round 2).
+  useStepTop(sent);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState(notice ?? "");
   const [info, setInfo] = useState("");

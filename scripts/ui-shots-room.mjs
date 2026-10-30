@@ -7,6 +7,12 @@
 //
 // "women" makes everyone a woman, so the women-only room opens beside the main one, and
 // shoots the crowd page's second card, that room and Settings (105, 103, 106).
+//
+// KEYBOARD=1 (UI pass 1, round 2) stands in a phone's keyboard the way iOS Safari has one:
+// the window keeps its height and the visual viewport loses the keyboard's (336 px). It then
+// measures, rather than shoots only: in the room and the squad, the newest message sits over
+// the box and the box over the keyboard, before and after typing; in the squad form, each
+// field typed in is above the keyboard. Each prints "KB ok" or "KB FAIL", and a FAIL exits 1.
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
@@ -105,6 +111,53 @@ try {
     await send("Emulation.setDeviceMetricsOverride", { width: 393, height: 852, deviceScaleFactor: 2, mobile: true });
   };
   await send("Page.enable");
+  // The stand-in keyboard: a visual viewport that window.__kb(px) shortens, as iOS Safari's does.
+  const KB = 336;
+  if (process.env.KEYBOARD) {
+    await send("Page.addScriptToEvaluateOnNewDocument", { source: `(() => { const ls = {}; let kb = 0;
+      const vv = { get height() { return innerHeight - kb; }, get width() { return innerWidth; }, offsetTop: 0, offsetLeft: 0, pageTop: 0, pageLeft: 0, scale: 1,
+        addEventListener(t, f) { (ls[t] = ls[t] || []).push(f); }, removeEventListener(t, f) { ls[t] = (ls[t] || []).filter((x) => x !== f); } };
+      Object.defineProperty(window, "visualViewport", { get: () => vv, configurable: true });
+      window.__kb = (px) => { kb = px; (ls.resize || []).forEach((f) => f()); }; })();` });
+  }
+  let kbFailed = false;
+  const kbStep = (what, pass, detail) => {
+    console.log(`KB ${pass ? "ok  " : "FAIL"} ${what}${pass ? "" : " " + JSON.stringify(detail)}`);
+    if (!pass) kbFailed = true;
+  };
+  // Where things are, in the window: the keyboard's top, the focused field, the box, a message.
+  const geo = (text) =>
+    evaluate(`(() => { const r = (e) => e ? (({ top, bottom }) => ({ top: Math.round(top), bottom: Math.round(bottom) }))(e.getBoundingClientRect()) : null;
+      const want = ${JSON.stringify(text ?? "")};
+      const msg = want ? [...document.querySelectorAll("div")].reverse().find((x) => x.childElementCount === 0 && x.innerText && x.innerText.trim() === want) : null;
+      const a = document.activeElement;
+      return { kbTop: Math.round(visualViewport.height), field: r(a && /INPUT|TEXTAREA/.test(a.tagName) ? a : null), box: r(document.querySelector("textarea")), msg: r(msg) }; })()`);
+  const focusBox = () => evaluate(`(() => { const t = document.querySelector("textarea"); t && t.focus(); return !!t; })()`);
+  // A conversation with the keyboard up: the newest message over the box, the box over the keyboard.
+  const kbThread = async (where, newest) => {
+    await focusBox();
+    await evaluate(`window.__kb(${KB})`);
+    await sleep(900);
+    let g = await geo(newest);
+    kbStep(`${where}: the box sits on the keyboard`, !!g.box && g.box.bottom <= g.kbTop && g.box.bottom >= g.kbTop - 120, g);
+    kbStep(`${where}: the newest message is in view, over the box`, !!g.msg && !!g.box && g.msg.top >= 0 && g.msg.bottom <= g.box.top, g);
+    await send("Input.insertText", { text: "Typing with the keyboard up, a line long enough to wrap onto a second line in the box" });
+    await sleep(700);
+    g = await geo(newest);
+    kbStep(`${where}: typing, the box still sits on the keyboard`, !!g.box && g.box.bottom <= g.kbTop, g);
+    kbStep(`${where}: typing, the newest message is still over the box`, !!g.msg && !!g.box && g.msg.top >= 0 && g.msg.bottom <= g.box.top, g);
+    await snap(`kb-${where}`, false);
+    await evaluate(`(() => { const t = document.querySelector("textarea"); if (t) { const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set; set.call(t, ""); t.dispatchEvent(new Event("input", { bubbles: true })); } window.__kb(0); return true; })()`);
+    await sleep(400);
+  };
+  // A form field with the keyboard up: the field above the keyboard.
+  const kbField = async (where, selector) => {
+    await evaluate(`(() => { const i = document.querySelector(${JSON.stringify(selector)}); i && i.focus(); return !!i; })()`);
+    await evaluate(`window.__kb(${KB})`);
+    await sleep(900);
+    const g = await geo();
+    kbStep(`${where}: the field is above the keyboard`, !!g.field && g.field.top >= 0 && g.field.bottom <= g.kbTop, g);
+  };
   await send("Emulation.setDeviceMetricsOverride", { width: 393, height: 852, deviceScaleFactor: 2, mobile: true });
   await send("Page.navigate", { url: `${SITE}/` });
   await sleep(1500);
@@ -126,17 +179,24 @@ try {
     // turns it on in the browser, which asks for the line first.
     await as("Priya", "set_here", { p_gathering: gathering.id, p_note: "yellow raincoat" });
     await send("Page.reload");
-    await until("I'm here");
-    await evaluate(`(() => { const s=[...document.querySelectorAll('[role=switch]')].find(e=>e.innerText.includes("I'm here")); s && s.click(); return !!s; })()`);
+    await until("I've arrived");
+    await evaluate(`(() => { const s=[...document.querySelectorAll('[role=switch]')].find(e=>e.innerText.includes("I've arrived")); s && s.click(); return !!s; })()`);
     await until("What are you wearing");
     await snap("a9-here-ask", false);
     await evaluate(`(() => { const i=[...document.querySelectorAll('input')].find(x=>x.placeholder==="green Matthews jersey"); i && i.focus(); return !!i; })()`);
     await send("Input.insertText", { text: "green Matthews jersey" });
     await sleep(300);
     await evaluate(`(() => { const b=[...document.querySelectorAll('[role=button]')].filter(e=>e.innerText.trim()==="Tell them").pop(); b && b.click(); return !!b; })()`);
-    await until("You're here");
+    await until("You've arrived");
     await snap("a9-here", false);
   }
+  // The person sheet (item 8): Ari's own 1-on-1 switch is off, so the sheet says so, with it.
+  await scrollTo("Open to meeting");
+  await evaluate(`(() => { const b=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.startsWith(${JSON.stringify(NAMES[1])})); b && b.click(); return !!b; })()`);
+  await until("See their profile");
+  await snap("a9-sheet", false);
+  await evaluate(`(() => { const b=[...document.querySelectorAll('[aria-label=Close]')][0]; b && b.click(); return !!b; })()`);
+  await sleep(500);
   await scrollTo("Squads");
   await snap("a9-squads", false);
   // The squad form (064/065): empty, then named with a curated place and a time in words.
@@ -144,6 +204,7 @@ try {
   await until("Meeting point");
   await snap("a15-form", false);
   await evaluate(`(() => { const i=[...document.querySelectorAll('input')].find(x=>x.placeholder==="e.g. 300 level pre-game"); i && i.focus(); return !!i; })()`);
+  if (process.env.KEYBOARD) await kbField("the squad form's name", 'input[placeholder="e.g. 300 level pre-game"]');
   await send("Input.insertText", { text: "Section 314 pre-game" });
   await evaluate(`(() => { const i=[...document.querySelectorAll('textarea')].find(x=>x.placeholder&&x.placeholder.startsWith("Anything people")); i && i.focus(); return !!i; })()`);
   await send("Input.insertText", { text: "First time solo, happy to grab a drink before." });
@@ -154,9 +215,14 @@ try {
   await evaluate(`(() => { const b=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.trim()==="Add a time"); b && b.click(); return !!b; })()`);
   await sleep(300);
   await evaluate(`(() => { const i=[...document.querySelectorAll('input')].find(x=>x.placeholder==="e.g. around 5:30 p.m."); i && i.focus(); return !!i; })()`);
+  if (process.env.KEYBOARD) await kbField("the squad form's time, at its foot", 'input[placeholder="e.g. around 5:30 p.m."]');
   await send("Input.insertText", { text: "around 5:30" });
   await sleep(300);
-  await snap("a15-form-filled", false);
+  await snap(process.env.KEYBOARD ? "kb-a15-form" : "a15-form-filled", false);
+  if (process.env.KEYBOARD) {
+    await evaluate("window.__kb(0)");
+    await sleep(400);
+  }
   await evaluate(`(() => { const b=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.trim()==="Close"||e.getAttribute("aria-label")==="Close"); b && b.click(); return !!b; })()`);
   await sleep(500);
   if (squadId) {
@@ -170,10 +236,18 @@ try {
     await send("Page.navigate", { url: `${SITE}/group/${squadId}` });
     await until("Where are you two sitting");
     await snap("a11-squad", false);
+    // The ••• sheet (item 9): what used to sit above the chat.
+    await evaluate(`(() => { const b=document.querySelector('[aria-label=More]'); b && b.click(); return !!b; })()`);
+    await until("Leave this squad");
+    await snap("a11-more", false);
+    await evaluate(`(() => { const b=[...document.querySelectorAll('[role=button]')].filter(e=>e.innerText.trim()==="Close").pop(); b && b.click(); return !!b; })()`);
+    await sleep(500);
+    if (process.env.KEYBOARD) await kbThread("a11-squad", "Hey! Where are you two sitting?");
   }
   await send("Page.navigate", { url: `${SITE}/room/${roomId}` });
   await until("Love it, see you there.") || await until(NAMES[1]);
   await snap("a10-room", false);
+  if (process.env.KEYBOARD) await kbThread("a10-room", NAMES.includes("Priya") ? "Love it, see you there." : "Same, first time going solo. Count me in!");
   await send("Page.navigate", { url: `${SITE}/my-events` });
   await until("My Events");
   await snap("a19");
@@ -193,6 +267,7 @@ try {
     await scrollTo("How you meet");
     await snap("a23", false);
   }
+  if (kbFailed) process.exitCode = 1;
   ws.close();
 } catch (err) {
   console.log(String(err.stack ?? err));

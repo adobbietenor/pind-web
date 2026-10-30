@@ -121,7 +121,7 @@ export const WOMEN_ONLY_COPY = {
 export const GET_THE_APP = {
   url: null as string | null,
   heading: "You're in a group. Get the app",
-  line: "Your group's plan, the day-of note and \"I'm here\", on your lock screen instead of your inbox.",
+  line: "Your group's plan, the day-of note and \"I've arrived\", on your lock screen instead of your inbox.",
   yes: "Get the app",
   no: "Not now",
 } as const;

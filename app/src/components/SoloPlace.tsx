@@ -20,6 +20,9 @@ export function SoloPlace({
   atEvent,
   timeNote,
   onChanged,
+  open: openAs,
+  onOpenChange,
+  row = true,
 }: {
   crewId: string;
   spots: { id: string; name: string }[];
@@ -27,8 +30,15 @@ export function SoloPlace({
   atEvent: boolean;
   timeNote: string | null;
   onChanged: () => void;
+  // Opened from elsewhere too (the chat's header): the screen holds whether it is open.
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  // Without its own row, when the screen draws the line itself.
+  row?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [openHere, setOpenHere] = useState(false);
+  const open = openAs ?? openHere;
+  const setOpen = (o: boolean) => (onOpenChange ? onOpenChange(o) : setOpenHere(o));
   const [place, setPlace] = useState<string | null>(spotId ?? (atEvent ? "event" : null));
   const [time, setTime] = useState(timeNote ?? "");
   const [busy, setBusy] = useState(false);
@@ -51,11 +61,13 @@ export function SoloPlace({
 
   return (
     <>
-      <Tap accessibilityRole="button" onPress={() => setOpen(true)} style={styles.row}>
-        <Icon name="pin" size={18} color={palette.accentText} />
-        <Text style={[styles.rowLabel, !shown && { color: palette.textMuted }]}>{shown || ONE_ON_ONE_COPY.addPlace}</Text>
-        <Text style={styles.plus}>{shown ? "›" : "+"}</Text>
-      </Tap>
+      {row ? (
+        <Tap accessibilityRole="button" onPress={() => setOpen(true)} style={styles.row}>
+          <Icon name="pin" size={16} color={palette.accentText} />
+          <Text style={[styles.rowLabel, !shown && { color: palette.textMuted }]} numberOfLines={1}>{shown || ONE_ON_ONE_COPY.addPlace}</Text>
+          <Text style={styles.plus}>{shown ? "›" : "+"}</Text>
+        </Tap>
+      ) : null}
       <Sheet visible={open} onClose={() => setOpen(false)}>
         <Text style={styles.title}>{ONE_ON_ONE_COPY.addPlace}</Text>
         <Text style={styles.label}>{ONE_ON_ONE_COPY.place}</Text>
@@ -79,8 +91,9 @@ export function SoloPlace({
 }
 
 const styles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 52, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderStyle: "dashed", borderColor: palette.border },
-  rowLabel: { flex: 1, fontFamily: fonts.headline, fontSize: 15, color: palette.text },
+  // One slim line under the chat's header (UI pass 1, round 2: the chat leads).
+  row: { flexDirection: "row", alignItems: "center", gap: spacing.sm, minHeight: 44, borderBottomWidth: 1, borderBottomColor: palette.border },
+  rowLabel: { flex: 1, fontSize: 15, color: palette.text },
   plus: { fontSize: 20, color: palette.textMuted },
   title: { fontFamily: fonts.headline, fontSize: 20, color: palette.text },
   label: { fontFamily: fonts.headline, fontSize: 14, color: palette.textMuted },

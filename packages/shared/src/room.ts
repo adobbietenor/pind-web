@@ -10,8 +10,9 @@
 
 export const ROOM_COPY = {
   // 1 — just you. It has to read as a good place to be, not an empty room (Alex).
-  firstHeading: "You're the first here",
-  firstLine: "You're the first here to say you'd like to meet. We'll tell you the moment someone else does.",
+  // "In the room", never "here" (UI pass 1, round 2): "here" is the venue, "I've arrived".
+  firstHeading: "You're the first in the room",
+  firstLine: "You're the first in the room. We'll tell you the moment someone else joins.",
   firstWhy: "Whoever says yes next will see you straight away. Being first means you're the one they meet.",
   firstByEmail: (email: string) => `We'll email ${email} the moment it happens.`,
   firstShare: "Know someone else going? Send them this crowd.",
@@ -19,13 +20,14 @@ export const ROOM_COPY = {
   inRoom: (n: number) => `${n} in the room`,
   // The room's own header (UI pass 1, 057).
   title: "Pin'd Meeting Room",
-  here: (n: number) => `${n} here`,
+  here: (n: number) => `${n} in the room`,
   about: "About this room",
   sayHi: "Say hi in the room",
+  whoIsIn: "Who's in the room",
   openRoom: "Open the room",
-  arrived: "is here",
+  arrived: "joined the room",
   sharedTag: (tag: string) => `You both picked ${tag}`,
-  morePeople: (n: number) => `${n} here`,
+  morePeople: (n: number) => `${n} in the room`,
   // 3 — once.
   enoughToGo: "There are three of you, enough to go together.",
   goTogether: "Go together",
@@ -65,9 +67,11 @@ export const GROUP_COPY = {
   pollHint: "Vote for a spot. Three hours before, the one with the most votes is the plan.",
   atTheStart: "You'll find each other at the start.",
   meets: (spot: string, time: string) => `You meet at ${spot}, ${time}.`,
-  here: "I'm here",
+  here: "I've arrived",
   hereHint: "Say what you're wearing so they can find you, like \"green Matthews jersey\".",
   leave: "Leave this group",
+  // The chat header's menu (UI pass 1, round 2): details, sharing and leaving, off the page.
+  more: "More",
   threadPlaceholder: "Say something to your group",
   // Q11, as the room says it: writable until 24 h after the night, then read-only.
   readOnly: "This chat has closed. You can still read it for 30 days.",
@@ -102,22 +106,25 @@ export const REPORT_REASONS: { value: "uncomfortable" | "not_who_they_said" | "u
   { value: "spam", label: "Spam" },
 ];
 
-// A9 on the night (UI pass 1, 088): one "I'm here" for the room and your squad. It asks for
-// Q7's line (set_here refuses a blank one, here_note); it switches itself off at the end.
+// A9 on the night (UI pass 1, 088): one "I've arrived" for the room and your squad (named
+// "I'm here" until round 2, when "here" became the venue and the room became "in the room").
+// It asks for Q7's line (set_here refuses a blank one, here_note); it switches itself off
+// at the end.
 export const HERE_COPY = {
-  label: "I'm here",
+  label: "I've arrived",
+  later: "Later",
   line: "Let the room and your squad know you've arrived. Switches off after the event.",
   ask: "What are you wearing, so they can find you?",
   placeholder: "green Matthews jersey",
   save: "Tell them",
   cancel: "Not yet",
-  yours: (note: string) => `You're here: "${note}"`,
-  theirs: (name: string, note: string) => `${name} is here: "${note}"`,
-  count: (n: number) => `${n} here now`,
+  yours: (note: string) => `You've arrived: "${note}"`,
+  theirs: (name: string, note: string) => `${name} has arrived: "${note}"`,
+  count: (n: number) => `${n} ${n === 1 ? "has" : "have"} arrived`,
   refusal: (hint: string | undefined): string =>
     hint === "here_note"
       ? "Say what you're wearing, in a few words."
       : hint === "here_window"
         ? "That switch opens 3 hours before the start."
-        : "Only people open to meeting here can say they're here.",
+        : "Only people open to meeting here can say they've arrived.",
 } as const;

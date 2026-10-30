@@ -8,10 +8,11 @@
 // handles, links and numbers are refused outright (squad_contact): the sentence for each
 // refusal is squadRefusal's, said under the button that was pressed.
 import { useState } from "react";
-import { Modal, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { StyleSheet, Text, TextInput, View } from "react-native";
 import { colors as palette, fonts, radius, spacing, SQUAD_COPY, SQUAD_DETAILS_MAX, SQUAD_FORM_COPY, SQUAD_NAME_MAX, SQUAD_TIME_MAX, squadNameProblem } from "@pind/shared";
 import { Button } from "./ui";
 import { Icon } from "./Icon";
+import { SheetFrame } from "./Sheet";
 import { Tap } from "./Tap";
 
 export interface SquadWords {
@@ -53,10 +54,9 @@ export function SquadForm({
   const placeName = place === "event" ? SQUAD_FORM_COPY.atTheEvent : spots.find((s) => s.id === place)?.name ?? null;
 
   return (
-    <Modal visible transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.scrim}>
-        <View style={styles.sheet}>
-          <ScrollView contentContainerStyle={{ gap: spacing.sm }} keyboardShouldPersistTaps="handled">
+    // The shared sheet: it stands on the keyboard and keeps the field being typed in, and
+    // the button under it, in view (UI pass 1, round 2: the fields were covered on the phone).
+    <SheetFrame visible onClose={onClose} animation="slide" style={styles.sheet} contentStyle={{ gap: spacing.sm }}>
             <View style={styles.titleRow}>
               <Text style={styles.title}>{title}</Text>
               <Tap accessibilityRole="button" accessibilityLabel="Close" onPress={onClose} style={styles.close}>
@@ -126,10 +126,7 @@ export function SquadForm({
               <Button label={start ? SQUAD_FORM_COPY.save : SQUAD_FORM_COPY.start} disabled={!!problem} busy={busy} onPress={() => onSave({ name: name.trim(), details: details.trim(), place, time: time.trim() }, forWomen)} />
             </View>
             {refusal ? <Text accessibilityRole="alert" style={styles.refusal}>{refusal}</Text> : null}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
+    </SheetFrame>
   );
 }
 
@@ -155,8 +152,7 @@ function Row({ icon, text, onRemove }: { icon: "pin"; text: string; onRemove: ()
 }
 
 const styles = StyleSheet.create({
-  scrim: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.6)" },
-  sheet: { maxHeight: "92%", maxWidth: 520, width: "100%", alignSelf: "center", backgroundColor: palette.background, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg, borderWidth: 1, borderColor: palette.border },
+  sheet: { backgroundColor: palette.background, borderWidth: 1, borderColor: palette.border },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   title: { fontFamily: fonts.headline, fontSize: 26, color: palette.text },
   close: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
