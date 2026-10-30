@@ -104,6 +104,9 @@ export function Composer({
           placeholderTextColor={palette.tabInactive}
           maxLength={500}
           multiline
+          // One row to start: the web textarea otherwise opens two rows tall, off the Send
+          // button's centre line; the effect above grows it as the text does.
+          numberOfLines={1}
           scrollEnabled
           style={styles.input}
           enterKeyHint="send"
