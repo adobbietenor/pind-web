@@ -38,6 +38,7 @@ const cookie = await seal(process.env.SESSION_SECRET, { userId, refreshToken: si
 const port = 9500 + Math.floor(Math.random() * 90);
 const chrome = spawn(CHROME, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), "pind-shots-"))}`, "--hide-scrollbars", "about:blank"], { stdio: "ignore" });
 let ws;
+const BARE_DONE = Symbol("bare walk finished");
 try {
   for (let i = 0; i < 60 && !ws; i++) { await sleep(250); try { const p = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === "page"); if (p) ws = new WebSocket(p.webSocketDebuggerUrl); } catch {} }
   await new Promise((r) => ws.addEventListener("open", r, { once: true }));
@@ -70,7 +71,7 @@ try {
       await until(text);
       await snap(name);
     }
-    throw new Error("done");
+    throw BARE_DONE;
   }
   // The app's own A26, as a stranger would fill it: a name, the 19+ tick, the button.
   await send("Page.navigate", { url: `${SITE}/pin/${crowd.slug}` });
@@ -93,6 +94,8 @@ try {
   await send("Page.navigate", { url: `${SITE}/crowds` });
   await until("Find your crowd");
   await snap("a5");
+} catch (err) {
+  if (err !== BARE_DONE) throw err;
 } finally {
   ws?.close();
   chrome.kill();
