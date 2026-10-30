@@ -364,7 +364,8 @@ export default function Group() {
                 busy={busy}
                 onPress={() =>
                   void act("say you're here", () =>
-                    supabase().from("crew_members").update({ arrived_at: new Date().toISOString(), arrival_note: note.trim() }).eq("crew_id", view.id).eq("person_id", view.meId),
+                    // One "I'm here" for the room and the squad (UI pass 1): set_here marks both.
+                    supabase().rpc("set_here", { p_gathering: view.gathering.id, p_note: note.trim() }),
                   )
                 }
               />

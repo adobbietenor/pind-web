@@ -18,7 +18,7 @@
 // `can_see_photo` allows. The gathering is read through RLS too, not the public door,
 // so a tester reaches the seed gathering and nobody else does.
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Image, Linking, Platform, StyleSheet, Text, View } from "react-native";
 import {
   ALL_TAGS,
@@ -28,6 +28,7 @@ import {
   countNext,
   CROWD_COPY,
   ENDED_COPY,
+  HERE_COPY,
   liveCity,
   ROOM_COPY,
   effectiveEnd,
@@ -41,6 +42,8 @@ import {
 import { AppScreen } from "@/components/AppScreen";
 import { Avatar, AvatarStack } from "@/components/Avatar";
 import { Counters } from "@/components/Counters";
+import { ImHere } from "@/components/ImHere";
+import { hereNow, type HereNow } from "@/lib/here";
 import { Icon } from "@/components/Icon";
 import { PersonSheet, type SheetPerson } from "@/components/PersonSheet";
 import { HouseRules } from "@/components/HouseRules";
@@ -241,6 +244,18 @@ export default function CrowdPage() {
   // Every visit, not once: the list changes as people say yes.
   useFocusEffect(refresh);
 
+  // The night's "I'm here" (UI pass 1, 088): read for anyone pinned, from 3 hours before
+  // the start to the effective end; here_now decides what each person may see.
+  const [here, setHereNow] = useState<HereNow | null>(null);
+  const readHere = useCallback(() => {
+    const g = view?.gathering;
+    if (!g || !view?.mine) return setHereNow(null);
+    const t = Date.now();
+    if (t < Date.parse(g.startsAt) - 3 * 3_600_000 || t >= Date.parse(g.effectiveEnd)) return setHereNow(null);
+    hereNow(g.id).then(setHereNow, () => setHereNow(null));
+  }, [view]);
+  useEffect(readHere, [readHere]);
+
   const setOpen = async (open: boolean) => {
     if (!view?.mine) return;
     // The first time, "I'd like to meet people" is A27 — the database refuses the flag
@@ -307,13 +322,20 @@ export default function CrowdPage() {
             <Text style={styles.went}>{ENDED_COPY.went(view.going)}</Text>
           </View>
         ) : (
-        <Counters going={view.going} open={view.open} />
+        <Counters going={view.going} open={view.open} extra={here ? [{ icon: "pin", line: HERE_COPY.count(here.count) }] : undefined} />
         )}
         {countNext(view.open) ? <Body muted>{countNext(view.open)}</Body> : null}
         {view.mix ? <Body muted>{view.mix}</Body> : null}
       </View>
 
       {trouble ? <Trouble what={trouble} onRetry={refresh} busy={busy} /> : null}
+
+      {/* One "I'm here" for the room and your squad, on the night, if you're open (088). */}
+      {here && view.mine?.open && !ended ? (
+        <View style={{ marginBottom: spacing.md }}>
+          <ImHere gatheringId={g.id} note={here.me} onChanged={readHere} />
+        </View>
+      ) : null}
 
       {!view.mine ? (
         // A8 — not pinned here.

@@ -96,6 +96,35 @@ export type Database = {
         }
         Relationships: []
       }
+      arrivals: {
+        Row: {
+          arrived_at: string
+          gathering_id: string
+          note: string
+          person_id: string
+        }
+        Insert: {
+          arrived_at?: string
+          gathering_id: string
+          note: string
+          person_id: string
+        }
+        Update: {
+          arrived_at?: string
+          gathering_id?: string
+          note?: string
+          person_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "arrivals_gathering_id_person_id_fkey"
+            columns: ["gathering_id", "person_id"]
+            isOneToOne: true
+            referencedRelation: "pins"
+            referencedColumns: ["gathering_id", "person_id"]
+          },
+        ]
+      }
       blocks: {
         Row: {
           blocked_id: string
@@ -3603,6 +3632,7 @@ export type Database = {
         Args: { p_classification: string }
         Returns: Database["public"]["Enums"]["gathering_category"]
       }
+      clear_here: { Args: { p_gathering: string }; Returns: undefined }
       confirm_solo_spot: { Args: { p_crew: string }; Returns: undefined }
       convening_of: {
         Args: { p_gathering: string }
@@ -3627,6 +3657,7 @@ export type Database = {
         }[]
       }
       group_closes_at: { Args: { p_crew: string }; Returns: string }
+      here_now: { Args: { p_gathering: string }; Returns: Json }
       i_may_meet: { Args: never; Returns: boolean }
       invite_connection: {
         Args: { p_gathering: string; p_to: string }
@@ -3787,6 +3818,10 @@ export type Database = {
         Returns: string
       }
       room_seen: { Args: { p_room: string }; Returns: undefined }
+      set_here: {
+        Args: { p_gathering: string; p_note: string }
+        Returns: undefined
+      }
       set_women_only_rooms: { Args: { p_on: boolean }; Returns: undefined }
       showed_up: { Args: { p_person: string }; Returns: boolean }
       solo_available: { Args: never; Returns: boolean }

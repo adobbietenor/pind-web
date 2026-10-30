@@ -101,3 +101,22 @@ export const REPORT_REASONS: { value: "uncomfortable" | "not_who_they_said" | "u
   { value: "under_19", label: "Under 19" },
   { value: "spam", label: "Spam" },
 ];
+
+// A9 on the night (UI pass 1, 088): one "I'm here" for the room and your squad. It asks for
+// Q7's line (set_here refuses a blank one, here_note); it switches itself off at the end.
+export const HERE_COPY = {
+  label: "I'm here",
+  line: "Let the room and your squad know you've arrived. Switches off after the event.",
+  ask: "What are you wearing, so they can find you?",
+  placeholder: "green Matthews jersey",
+  save: "Tell them",
+  cancel: "Not yet",
+  yours: (note: string) => `You're here: "${note}"`,
+  count: (n: number) => `${n} here now`,
+  refusal: (hint: string | undefined): string =>
+    hint === "here_note"
+      ? "Say what you're wearing, in a few words."
+      : hint === "here_window"
+        ? "That switch opens 3 hours before the start."
+        : "Only people open to meeting here can say they're here.",
+} as const;
