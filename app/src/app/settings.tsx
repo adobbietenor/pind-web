@@ -184,6 +184,7 @@ export default function Settings() {
               onChange={(v) => void flipWomenOnly(v)}
             />
             {roomsTrouble ? <Trouble what={roomsTrouble} /> : null}
+            <View style={{ height: spacing.md }} />
           </>
         ) : null}
 

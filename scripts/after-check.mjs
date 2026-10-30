@@ -159,6 +159,8 @@ try {
   // room's "you're the first here", a squad to start, or the 1-on-1 list.
   await send("Page.navigate", { url: `${SITE}/crowd/${slug}` });
   step("A9 says the event has ended (#18)", await until(ENDED_COPY.heading));
+  // The chats arrive a moment after the heading (one query): wait for them before reading.
+  await until(ENDED_COPY.viewChat);
   const a9 = await body();
   // Since UI pass 1 each chat is a grey card ("Meeting has ended", View chat) whose name
   // to a screen reader says what it opens: "Read: Everyone going".

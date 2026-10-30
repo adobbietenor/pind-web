@@ -98,6 +98,7 @@ planless until it is too late to matter.
 ### Q6 — Keep-in-touch mechanics
 **Call:** ticks are **invisible until mutual** (A16), gated behind a mutual "we met",
 and **expire 72 hours after the event**. *(Superseded 29 Sept 2026: ticks stay open **7 days** after the effective end, and one can be taken back until it is matched — Part 5, "The night and after".)* No pending state, no rejection receipt.
+**Superseded (Alex, 30 Oct 2026, UI pass 1):** keep in touch is a one-sided request and an accept, like 1-on-1; "Not now" is silent to the sender; the 7-day window stays. See "UI pass 1: the screen review and what it decided".
 **Alternative:** show one-way interest. Higher connection rates, reinvents the like button.
 
 ### Q7 — "I'm here" without location
@@ -4752,3 +4753,35 @@ markets 42–50; one weekly tour 45 on six Sundays and 60 on two. Alex decided, 
     Sunday Market was listed twice). CY20.
 11. **Play Mobile is left out**: its drafts are marked "never".
 12. **The hold came off on 30 Oct 2026** (Alex: "switch it on yourself, run the publisher").
+
+### UI pass 1: the screen review and what it decided (Alex, 30 Oct 2026)
+
+The design pack is `docs/design/ui-pass-1/` (README.md is the spec; it wins over a mockup).
+Group 1, look and copy, was built section by section on `ui/pass-1` and checked in Chrome
+against each mockup. Alex accepted every departure from the mockups listed when it shipped
+(no "message them" on Connections, "N people in the room" not "here right now", no Report
+or Block on the person sheet yet, Skip kept on "Where", the dropdown sheet for the date of
+birth, no count on the women-only card). The calls on the rest:
+
+1. **H5 stands.** "Add a place" (squads and 1-on-1) picks from the venue's nearby curated
+   spots or "at the event itself". **No free-text addresses.** The time may be free text.
+   The App Review line (`CREWS_MEET`) stays true and stays on the terms page; the crowd
+   surfaces no longer carry it (UI pass 1, rule 3).
+2. **Keep in touch is a request and an accept, like 1-on-1.** It replaces Q6's invisible
+   mutual ticks. One person asks; the other sees "X wants to keep in touch" in Connections
+   and accepts or says "Not now". **"Not now" is silent to the sender.** The 7-day window
+   after the effective end is kept. Q6 is marked superseded.
+3. **Bio: no.** "A bio is a V17 bypass" (M3.1) stands.
+4. **"I'm here" keeps Q7's required one-line description**; the night's switch asks for it.
+5. **"How was it?"** (Great / Okay / Not for me, optional, no text box) is a new column on
+   `survey_responses`.
+6. **A16's person cards and Settings' "Open to 1-on-1 chats"** are built with the
+   keep-in-touch and 1-on-1 changes, not before.
+7. **Group 2 approved:** 1-on-1 (opt in by switch, request from the profile, requests in
+   Connections, accept opens a chat, place from the curated list and time optional, no
+   confirmation step) and keep in touch, with the calls above. Their policies and
+   lifecycles are explained in plain English and approved before they are built, as
+   always.
+
+Also from the review: a squad stays capped (a full squad says "This squad is full."), and
+"Not now" on any request never tells the sender.

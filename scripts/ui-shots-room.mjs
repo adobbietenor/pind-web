@@ -67,7 +67,7 @@ const says = async (label, roomId, body) => (await sleep(3200), true) &&
   must(await fetch(`${base}/rest/v1/room_messages`, { method: "POST", headers: { apikey: pub, authorization: `Bearer ${people[label].session.access_token}`, "content-type": "application/json", prefer: "return=minimal" }, body: JSON.stringify({ room_id: roomId, author_id: people[label].personId, body }) }), `${label} says`);
 
 try {
-  [gathering] = await must(await rest("/rest/v1/gatherings", { method: "POST", body: JSON.stringify({ name: "Leafs vs Bruins (UI shots)", starts_at: new Date(Date.now() + 3 * 86_400_000).toISOString(), venue_id: crowd.venue_id, published_at: new Date().toISOString(), source: "manual" }) }), "gathering");
+  [gathering] = await must(await rest("/rest/v1/gatherings", { method: "POST", body: JSON.stringify({ name: "Leafs vs Bruins (UI shots)", starts_at: new Date(Date.now() + (process.env.TONIGHT ? 2 * 3_600_000 : 3 * 86_400_000)).toISOString(), venue_id: crowd.venue_id, published_at: new Date().toISOString(), source: "manual" }) }), "gathering");
   await must(await rest("/rest/v1/rpc/admin_mint_slug", { method: "POST", body: JSON.stringify({ p_gathering: gathering.id }) }), "slug");
   const [g] = await must(await rest(`/rest/v1/gatherings?id=eq.${gathering.id}&select=slug`), "the slug");
   for (const [i, n] of NAMES.entries()) await person(n, i);

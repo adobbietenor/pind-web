@@ -169,6 +169,7 @@ Two kinds, both mutual-or-nothing and invisible until mutual (Q6):
 - **we met** — mutual confirmation mints the "showed up" badge for both.
 - **keep in touch** — unlocked per person only after a mutual "we met"; mutual ticks
   create a connection. Expires 72h after the gathering's effective end.
+  *(Superseded 30 Oct 2026, UI pass 1: keep in touch becomes a request and an accept, like 1-on-1; "Not now" is silent; the 7-day window stays. decisions.md, "UI pass 1: the screen review and what it decided". Built with group 2.)*
 
 ### connection
 The result of a mutual keep-in-touch. Its only verb is **invite to a gathering**.
@@ -452,6 +453,7 @@ Per crew member: **"we met"**, then **"keep in touch"** unlocked only once both 
 they met. Ticks invisible until mutual; nobody learns they were ticked and not ticked
 back (Q6). A mutual we-met mints the **"showed up"** badge for both. A mutual
 keep-in-touch creates a connection and offers "Pin in to the next one together".
+*(Superseded 30 Oct 2026, UI pass 1: keep in touch becomes a request and an accept, like 1-on-1; "Not now" is silent; the 7-day window stays. decisions.md, "UI pass 1: the screen review and what it decided". Built with group 2.)*
 The same screen serves a solo plan's two members.
 **One question for everyone who was opted in** (moved from Test 0's T8): "Would you
 have gone alone anyway?" — Yes / No / I wasn't going to go at all. It is the
