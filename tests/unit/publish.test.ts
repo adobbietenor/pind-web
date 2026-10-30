@@ -36,6 +36,7 @@ const SETTINGS: PublishSettings = {
   communityMaxPerOrganiserWeekly: 2,
   cityFeedPublishing: true,
   scoreFloor: 70,
+  cityScoreFloor: 45,
   growReach: 0.6,
   growMedianPins: 8,
   shrinkReach: 0.3,
@@ -486,12 +487,25 @@ describe("the Community tab's own fill", () => {
     assert.equal(reasonFor(p, oneOff.id).reasonCode, "unscored");
   });
 
-  it("CF09 a City feed row is held by the score floor, from both sides", () => {
-    const below = city({ aiScore: 69, finalScore: 69 });
-    const at = city({ aiScore: 70, finalScore: 70 });
-    const p = plan([below, at]);
+  it("CF09 a City feed row is held by the City feed's own floor, from both sides — not the Events one (Alex, 30 Oct 2026)", () => {
+    const below = city({ aiScore: 44, finalScore: 44, venueId: "a" });
+    const at = city({ aiScore: 45, finalScore: 45, venueId: "b" });
+    const p = plan([below, at]); // scoreFloor 70, cityScoreFloor 45
     assert.equal(reasonFor(p, below.id).reasonCode, "below_floor");
-    assert.equal(reasonFor(p, at.id).reasonCode, "published");
+    assert.match(reasonFor(p, below.id).reason, /City feed's floor of 45/);
+    assert.equal(reasonFor(p, at.id).reasonCode, "published", "a City row was held by the Events floor");
+    const raised = plan([at], { cityScoreFloor: 50 });
+    assert.equal(reasonFor(raised, at.id).reasonCode, "below_floor", "the City floor is read from the settings");
+  });
+
+  it("CF13 a Ticketmaster row on the Community tab keeps the main floor, however low the City's is", () => {
+    const fair = (score: number) => draft({ tab: "community", source: "ticketmaster", venueId: `ex${score}`, aiScore: score, finalScore: score });
+    const low = fair(50);
+    const high = fair(70);
+    const p = plan([low, high]);
+    assert.equal(reasonFor(p, low.id).reasonCode, "below_floor");
+    assert.match(reasonFor(p, low.id).reason, /below the floor of 70/);
+    assert.equal(reasonFor(p, high.id).reasonCode, "published");
   });
 
   it("CF10 the City feed is held until Alex switches it on, and publishes when he has", () => {

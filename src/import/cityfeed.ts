@@ -187,10 +187,37 @@ export function organiserOf(raw: Record<string, unknown>): string | null {
   return email ? email.toLowerCase() : null;
 }
 
+// The title a listing shows (Alex, 30 Oct 2026). Some programmes list each session
+// under nothing but its place and its time — "Falstaff Park - 11 a.m. to 1 p.m." —
+// with the programme's own name, "Play Mobile", only in the City's calendar_name. Those
+// take the programme's name: the card shows the park anyway.
+//
+// Narrow on purpose, because calendar_name is usually a department's calendar
+// ("Tourism" for 216 events on 30 Oct): only when everything after " - " is a time,
+// and the part before it is the listing's own place (the same first word, so "Heron
+// Park" at "Heron Park Community Centre" counts and "Jazz Night" at The Rex does not).
+const TIME_ONLY =
+  /^(?=.*[ap]\s*\.?\s*m)\d{1,2}(:\d{2})?(\s*[ap]\s*\.?\s*m\s*\.?)?\s*(\.?\s*to\s*\d{1,2}(:\d{2})?\s*[ap]\s*\.?\s*m\s*\.?)?\s*$/i;
+
+const firstWord = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, "").trim().split(/\s+/)[0] ?? "";
+
+export function titleOf(raw: Record<string, unknown>): string | null {
+  const name = text(raw.event_name);
+  if (!name) return null;
+  const dash = name.lastIndexOf(" - ");
+  const programme = text(raw.calendar_name);
+  const place = text(((Array.isArray(raw.event_locations) ? raw.event_locations : [])[0] as RawLocation | undefined)?.location_name);
+  if (dash < 0 || !programme || !place) return name;
+  const head = name.slice(0, dash).trim();
+  const tail = name.slice(dash + 3).trim();
+  if (!TIME_ONLY.test(tail) || !firstWord(head) || firstWord(head) !== firstWord(place)) return name;
+  return programme;
+}
+
 export function toCityRow(raw: Record<string, unknown>): CityRow | null {
   const eventKey = text(raw.submission_id);
   const when = text(raw.calendar_date);
-  const name = text(raw.event_name);
+  const name = titleOf(raw);
   if (!eventKey || !when || !name) return null;
   const t = Date.parse(when);
   if (Number.isNaN(t)) return null;
@@ -275,6 +302,13 @@ export function citySkipReason(r: CityRow): CitySkip | null {
 // One gathering per listed day: the feed's own key for the event, and the moment.
 export function cityExternalId(r: CityRow): string {
   return `${r.eventKey}|${r.startsAt}`;
+}
+
+// The event a listing-day belongs to, back from its external id: every date of one
+// event shares a score (shareScores).
+export function cityEventKey(externalId: string): string {
+  const bar = externalId.lastIndexOf("|");
+  return bar < 0 ? externalId : externalId.slice(0, bar);
 }
 
 // ---------------------------------------------------------------------------

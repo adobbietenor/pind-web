@@ -22,11 +22,13 @@
 //
 // --source picks drafts by where they came from instead (M4.4: the City feed, after its
 // own rubric arrived). Either way each draft is judged by the rubric rubricFor gives
-// its source, the same one the nightly run uses.
+// its source, the same one the nightly run uses — and a City event is scored once, its
+// score written to every date (shareScores), as the nightly run does.
 
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
-import { costUsd, MODEL, parseScores, rubricFor, SCORE_SCHEMA, scoringUserMessage, systemFor, type ScoreInput } from "../src/import/ai.ts";
+import { costUsd, MODEL, parseScores, rubricFor, SCORE_SCHEMA, scoringUserMessage, shareScores, systemFor, type ScoreInput } from "../src/import/ai.ts";
+import { cityEventKey } from "../src/import/cityfeed.ts";
 import { formatLocal } from "../src/admin/time.ts";
 
 const args = process.argv.slice(2);
@@ -54,9 +56,10 @@ const claude = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY!.trim(), ma
 const now = new Date();
 const { data, error } = await db
   .from("gatherings")
-  .select("id, name, starts_at, source, slug, dismissed_at, is_seed, venues(name), gathering_triage(score, reason), gathering_sources(snapshot)")
+  .select("id, name, starts_at, source, slug, dismissed_at, is_seed, venues(name), gathering_triage(score, reason), gathering_sources(external_id, snapshot)")
   .gte("starts_at", now.toISOString())
   .lt("starts_at", new Date(now.getTime() + weeks * 7 * 86_400_000).toISOString())
+  .order("starts_at")
   .limit(3000);
 if (error) throw new Error(error.message);
 
@@ -95,10 +98,20 @@ const inputs: ScoreInput[] = rows.map((r) => ({
     : {}),
 }));
 
+// Every draft here is re-judged, so none lends a score: each event is scored once,
+// through its earliest date.
+const externalId = (r: any): string | null => (r.gathering_sources ?? []).map((s: any) => s?.external_id).find(Boolean) ?? null;
+const shared = shareScores(
+  rows.map((r) => ({ id: r.id, group: rubric === "community" && externalId(r) ? cityEventKey(externalId(r)!) : null, score: null })),
+);
+const alsoOf = new Map(shared.toScore.map((x) => [x.id, x.also]));
+const toCall = inputs.filter((x) => alsoOf.has(x.id));
+console.log(`${toCall.length} ${rubric === "community" ? "events" : "drafts"} to score.`);
+
 const scores = new Map<string, { score: number; reason: string }>();
 let cost = 0;
-for (let i = 0; i < inputs.length; i += BATCH) {
-  const batch = inputs.slice(i, i + BATCH);
+for (let i = 0; i < toCall.length; i += BATCH) {
+  const batch = toCall.slice(i, i + BATCH);
   const res = await claude.messages
     .stream({
       model: MODEL,
@@ -110,11 +123,15 @@ for (let i = 0; i < inputs.length; i += BATCH) {
     .finalMessage();
   cost += costUsd(res.usage);
   const text = res.content.map((b: any) => (b.type === "text" ? b.text : "")).join("");
-  for (const [k, v] of parseScores(text, batch.map((e) => e.id))) scores.set(k, v);
-  console.log(`  batch ${i / BATCH + 1}: ${scores.size} of ${inputs.length} scored so far`);
+  for (const [k, v] of parseScores(text, batch.map((e) => e.id))) {
+    for (const id of [k, ...(alsoOf.get(k) ?? [])]) scores.set(id, v);
+  }
+  console.log(`  batch ${i / BATCH + 1}: ${scores.size} of ${inputs.length} dates scored so far`);
 }
 
-const FLOOR = 60;
+// The floor this source is published against, read from where the publisher reads it.
+const { data: cityRow } = await db.from("cities").select("score_floor, city_score_floor").eq("slug", "toronto").single();
+const FLOOR = Number(source === "city" ? cityRow?.city_score_floor : cityRow?.score_floor);
 let moved = 0;
 let crossed = 0;
 for (const r of rows) {

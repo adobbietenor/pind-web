@@ -4727,3 +4727,20 @@ listings. Alex decided:
 4. **The seven series the top-up cannot read stay as they are** — the four TBN rides, Blood
    on the Clocktower (Annex), Accessible Birding at Downsview Park and the Ornithological
    Club's Woodbine Park walk. No pattern set by hand; the run keeps naming them.
+
+The Community rubric's first spread (249 drafts, 149 events): 3 events cleared 60; farmers'
+markets 42–50; one weekly tour 45 on six Sundays and 60 on two. Alex decided, the same day:
+
+5. **The City feed's floor is 45** (`cities.city_score_floor`, in the admin's settings and
+   saved through `admin_save_publish_settings`). Everything else, Ticketmaster on Community
+   included, keeps `score_floor` (60): the two rubrics are different scales. CF09, CF13.
+6. **A City event is scored once and every date carries that score** (`shareScores`,
+   `cityEventKey`): a weekly event is on every week or not at all, and a new date of an
+   event already scored costs no call. A12, A13, CY19.
+7. **A listing named only by its place and a time takes its programme's name** — the City's
+   Play Mobile sessions ("Falstaff Park - 11 a.m. to 1 p.m." → "Play Mobile"), from the
+   feed's `calendar_name`. Only when everything after " - " is a time and the part before
+   it is the listing's own place: `calendar_name` is usually a department's calendar
+   ("Tourism"). Drafts already imported were renamed once. CY17, CY18.
+8. **The hold stays on until Alex switches it from the admin**, after seeing the exact list
+   (`scripts/city-preview.ts`, which plans from tonight's inputs and writes nothing).

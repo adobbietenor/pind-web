@@ -112,6 +112,58 @@ export function systemFor(rubric: Rubric): string {
   return rubric === "community" ? COMMUNITY_SCORING_SYSTEM : SCORING_SYSTEM;
 }
 
+// ---------------------------------------------------------------------------
+// One score per event (Alex, 30 Oct 2026)
+//
+// A City event is one draft per date, and each date used to be scored on its own: the
+// same Sunday beverage tour came back 45 on six dates and 60 on two, so two Sundays
+// would publish and six would not — the run-to-run noise of the model deciding which
+// weeks a weekly event exists. Now an event is scored once and every date carries
+// that score: a weekly event is on every week or not at all.
+//
+// `group` is the event (cityEventKey for the City feed); null is a draft on its own,
+// which is every Ticketmaster draft. A group that already has a score lends it to its
+// new dates without a call; a group with none is scored once, through its earliest
+// date (drafts arrive in start order).
+// ---------------------------------------------------------------------------
+
+export interface GroupedDraft {
+  id: string;
+  group: string | null;
+  score: { score: number; reason: string } | null;
+}
+
+export function shareScores(drafts: GroupedDraft[]): {
+  copies: { id: string; score: number; reason: string }[];
+  toScore: { id: string; also: string[] }[];
+} {
+  const known = new Map<string, { score: number; reason: string }>();
+  for (const d of drafts) if (d.group !== null && d.score && !known.has(d.group)) known.set(d.group, d.score);
+  const copies: { id: string; score: number; reason: string }[] = [];
+  const toScore: { id: string; also: string[] }[] = [];
+  const firstOf = new Map<string, { id: string; also: string[] }>();
+  for (const d of drafts) {
+    if (d.score) continue;
+    if (d.group === null) {
+      toScore.push({ id: d.id, also: [] });
+      continue;
+    }
+    const lent = known.get(d.group);
+    if (lent) {
+      copies.push({ id: d.id, ...lent });
+      continue;
+    }
+    const first = firstOf.get(d.group);
+    if (first) first.also.push(d.id);
+    else {
+      const rep = { id: d.id, also: [] as string[] };
+      firstOf.set(d.group, rep);
+      toScore.push(rep);
+    }
+  }
+  return { copies, toScore };
+}
+
 export interface ScoreInput {
   id: string;
   name: string;

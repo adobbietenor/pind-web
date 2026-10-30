@@ -36,6 +36,9 @@ export interface PublishSettings {
   communityMaxPerOrganiserWeekly: number;
   cityFeedPublishing: boolean;
   scoreFloor: number;
+  // The City feed's own floor on the Community tab (Alex, 30 Oct 2026): it is scored by
+  // the Community rubric, a different scale. Every other row uses scoreFloor.
+  cityScoreFloor: number;
   growReach: number;
   growMedianPins: number;
   shrinkReach: number;
@@ -620,12 +623,13 @@ function fillCommunity(
         record(c, { ...common, outcome: "skipped", reasonCode: "unscored", reason: `not published — not scored yet, so it has no final score` });
         return;
       }
-      if (c.finalScore < s.scoreFloor) {
+      const floor = c.source === "city" ? s.cityScoreFloor : s.scoreFloor;
+      if (c.finalScore < floor) {
         record(c, {
           ...common,
           outcome: "skipped",
           reasonCode: "below_floor",
-          reason: `not published — ${scoreText(c)}, below the floor of ${s.scoreFloor}`,
+          reason: `not published — ${scoreText(c)}, below the ${c.source === "city" ? "City feed's " : ""}floor of ${floor}`,
         });
         return;
       }

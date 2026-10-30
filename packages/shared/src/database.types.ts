@@ -138,6 +138,7 @@ export type Database = {
           centre_lat: number | null
           centre_lng: number | null
           city_feed_publishing: boolean
+          city_score_floor: number
           community_max_per_organiser_weekly: number
           community_max_per_venue_weekly: number
           community_weeks: number
@@ -178,6 +179,7 @@ export type Database = {
           centre_lat?: number | null
           centre_lng?: number | null
           city_feed_publishing?: boolean
+          city_score_floor?: number
           community_max_per_organiser_weekly?: number
           community_max_per_venue_weekly?: number
           community_weeks?: number
@@ -218,6 +220,7 @@ export type Database = {
           centre_lat?: number | null
           centre_lng?: number | null
           city_feed_publishing?: boolean
+          city_score_floor?: number
           community_max_per_organiser_weekly?: number
           community_max_per_venue_weekly?: number
           community_weeks?: number

@@ -1871,8 +1871,22 @@ describe("The public door's shape — the keys its readers need", () => {
   // **Careful with "gone".** A complete read dismisses every City draft it did not see,
   // so this case passes every real City id as seen — or one harness run would dismiss
   // the whole City feed on staging.
-  it("P277 the City feed's apply makes drafts once, dismisses only on a complete read, and never touches a published one", async () => {
-    const realIds: string[] = (await rows(w.service.from("gathering_sources").select("external_id").eq("source", "city"))).map((s) => s.external_id);
+  it("P277 the City feed's apply makes drafts once, dismisses only on a complete read, and never touches a published one", async (t) => {
+    // Every real City id, paged: the "complete read" below dismisses whatever is not in
+    // this list, so a read cut off at PostgREST's 1,000 rows dismissed a real draft
+    // (30 Oct 2026, at 1,052 City sources). The count proves the list is whole.
+    const realIds: string[] = [];
+    for (let from = 0; ; from += 1000) {
+      const page = await rows(w.service.from("gathering_sources").select("external_id").eq("source", "city").order("external_id").range(from, from + 999));
+      realIds.push(...page.map((s) => s.external_id));
+      if (page.length < 1000) break;
+    }
+    const { count } = await w.service.from("gathering_sources").select("external_id", { count: "exact", head: true }).eq("source", "city");
+    assert.equal(realIds.length, count, "the real City ids were read short");
+    // A failure part-way must not leave the import lock held for the next run.
+    t.after(async () => {
+      await w.service.from("import_runs").update({ status: "failed", finished_at: new Date().toISOString(), error: "P277 stopped part-way" }).eq("actor", "harness:P277").eq("status", "running");
+    });
     const startRun = async () => ok(w.service.rpc("admin_start_import_run", { p_source: "city", p_trigger: "city-manual", p_actor: "harness:P277", p_city: "toronto" }), "start a City run");
     const finish = async (run: number) => ok(w.service.from("import_runs").update({ status: "ok", finished_at: new Date().toISOString() }).eq("id", run), "finish the run");
     const key = `p277|harness ${Date.now()}`;

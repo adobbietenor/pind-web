@@ -454,6 +454,7 @@ const FIELDS: [NumericSetting, string, string][] = [
   ["community_max_per_venue_weekly", "Community: per venue, per week", "The Community tab's own cap, hand-entered series included (M4.4). The 50 above is the Events tab's"],
   ["community_max_per_organiser_weekly", "Community: per organiser, per week", "So one group cannot fill the tab. A gathering with no organiser is capped by venue only"],
   ["score_floor", "Score floor", "Final score below which nothing is auto-published; a draft you mark “publish” ignores it"],
+  ["city_score_floor", "City feed floor", "The same, for City of Toronto feed listings on the Community tab: they are scored by the Community rubric, on its own scale"],
   ["grow_reach", "Grow: reach rate", "Both this and the median must hold to grow"],
   ["grow_median_pins", "Grow: median pins", ""],
   ["shrink_reach", "Shrink: reach rate", "Below this, the target drops"],

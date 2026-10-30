@@ -19,6 +19,7 @@ import {
   type Candidate,
   type Decision,
   type OutcomeRow,
+  type PlanInput,
   type PublishSettings,
   type TargetDecision,
   type WeekState,
@@ -136,6 +137,7 @@ const SETTING_COLUMNS = [
   "community_max_per_organiser_weekly",
   "city_feed_publishing",
   "score_floor",
+  "city_score_floor",
   "grow_reach",
   "grow_median_pins",
   "shrink_reach",
@@ -171,6 +173,7 @@ export function toSettings(row: Record<string, any>): PublishSettings {
     communityMaxPerOrganiserWeekly: Number(row.community_max_per_organiser_weekly),
     cityFeedPublishing: Boolean(row.city_feed_publishing),
     scoreFloor: Number(row.score_floor),
+    cityScoreFloor: Number(row.city_score_floor),
     growReach: Number(row.grow_reach),
     growMedianPins: Number(row.grow_median_pins),
     shrinkReach: Number(row.shrink_reach),
@@ -198,11 +201,12 @@ export interface PublishContext {
   now?: Date;
 }
 
-export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Promise<PublishRunResult> {
+// Everything the plan is made from, read once. Split from the run so a preview plans
+// from exactly what tonight's run would read (scripts/city-preview.ts) and writes nothing.
+export async function readPublishInput(db: SupabaseClient, ctx: PublishContext): Promise<PlanInput> {
   const { city } = ctx;
   const now = ctx.now ?? new Date();
   const settings = await loadSettings(db, city.slug);
-  const errors: string[] = [];
 
   const weekStarts = Array.from({ length: WEEKS_AHEAD }, (_, i) => addWeeks(weekStartOf(now.toISOString(), city.timezone), i));
   // Read a day either side of the weeks in question: a week's boundary in the city's
@@ -304,7 +308,16 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
       };
     });
 
-  const plan = planPublishing({ now: now.toISOString(), timeZone: city.timezone, settings, weeks, candidates });
+  return { now: now.toISOString(), timeZone: city.timezone, settings, weeks, candidates };
+}
+
+export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Promise<PublishRunResult> {
+  const now = ctx.now ?? new Date();
+  const input = await readPublishInput(db, ctx);
+  const { city } = ctx;
+  const settings = input.settings;
+  const errors: string[] = [];
+  const plan = planPublishing(input);
 
   // Publish, in the plan's order. A failure here is a real event — a gathering that
   // started in the seconds since the queue was read, a venue that lost its row —

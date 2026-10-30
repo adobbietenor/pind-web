@@ -222,6 +222,7 @@ None of this applies to the web build, which is where solo is measured first.
 | `max_per_venue_per_week`          | 6 (M2.2)       | A Jays homestand does not fill the week                                                      |
 | ~~`community_slots_weekly`~~      | —              | **Removed (M4.4, 29 Oct 2026):** it never fired; Community has its own fill (below)          |
 | `community_max_per_venue_weekly` · `community_max_per_organiser_weekly` | 2 · 2 (M4.4) | The Community tab's caps, hand-entered series included; the 50 is the Events tab's |
+| `city_score_floor`                | 45 (M4.4)      | The floor for City of Toronto feed listings, scored by the Community rubric; everything else uses `score_floor` (Alex, 30 Oct 2026) |
 | `city_feed_publishing`            | off (M4.4)     | The City feed imports and is scored, but publishes only once Alex has seen its scores        |
 | `score_floor`                     | 60 (M2.2)      | Final score (AI score minus distance adjustment) below which a draft is never auto-published |
 | `max_category_share`              | 0.40 (M2.2)    | No category takes more than this share of what is published — lands with the floor of 60    |

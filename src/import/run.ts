@@ -22,7 +22,8 @@ import { importFailedAlert, sendAlert } from "../ops/alert";
 import { ensureMapsForUpcoming } from "../public/mapserve";
 import { PUBLISHER, runPublishing } from "../publish/run";
 import { serviceClient } from "../supabase";
-import { canSpend, ESTIMATE, MODEL, rubricFor, type Rubric, type ScoreInput } from "./ai";
+import { canSpend, ESTIMATE, MODEL, rubricFor, shareScores, type Rubric, type ScoreInput } from "./ai";
+import { cityEventKey } from "./cityfeed.ts";
 import { claudeClient, scoreBatch, SPOTS_CALL_MS, suggestSpots } from "./claude";
 import { topUpSeries } from "../community/topup.ts";
 import { describeEvents } from "./describe.ts";
@@ -439,20 +440,39 @@ interface Spending {
 // Not hand-entered drafts (M4.4, Alex): a series someone typed in is held by the
 // Community tab's caps only, never by the AI's score, so it is not scored at all.
 // A batch is one rubric: City drafts by the Community rubric, the rest by Events'
-// (rubricFor, Alex 30 Oct 2026).
+// (rubricFor, Alex 30 Oct 2026). A City event is scored once and every date carries it
+// (shareScores, Alex 30 Oct 2026): a new date of an event already scored costs no call.
 async function scoreDrafts(db: SupabaseClient, city: City, claude: ReturnType<typeof claudeClient>, s: Spending) {
-  const drafts = (
-    await all<any>((a, b) =>
-      db
-        .from("gatherings")
-        .select("id, name, starts_at, source, venue_id, venue_name_raw, gathering_triage(gathering_id), gathering_sources(snapshot)")
-        .eq("status", "draft")
-        .neq("source", "manual")
-        .gt("starts_at", new Date().toISOString())
-        .order("starts_at")
-        .range(a, b),
-    )
-  ).filter((g) => !(Array.isArray(g.gathering_triage) ? g.gathering_triage.length : g.gathering_triage));
+  const queue = await all<any>((a, b) =>
+    db
+      .from("gatherings")
+      .select("id, name, starts_at, source, venue_id, venue_name_raw, gathering_triage(score, reason), gathering_sources(external_id, snapshot)")
+      .eq("status", "draft")
+      .neq("source", "manual")
+      .gt("starts_at", new Date().toISOString())
+      .order("starts_at")
+      .range(a, b),
+  );
+  const triageOf = (g: any) => (Array.isArray(g.gathering_triage) ? g.gathering_triage[0] : g.gathering_triage) ?? null;
+  const shared = shareScores(
+    queue.map((g) => {
+      const ext = (g.gathering_sources ?? []).map((x: any) => x.external_id).find(Boolean) ?? null;
+      const t = triageOf(g);
+      return {
+        id: g.id,
+        group: rubricFor(g.source) === "community" && ext ? cityEventKey(ext) : null,
+        score: t && t.score !== null ? { score: t.score, reason: t.reason } : null,
+      };
+    }),
+  );
+  // New dates of an event already scored: its score, no call.
+  if (shared.copies.length) {
+    const at = new Date().toISOString();
+    const rows = shared.copies.map((c) => ({ gathering_id: c.id, score: c.score, reason: c.reason, model: MODEL, scored_at: at }));
+    for (let i = 0; i < rows.length; i += 500) await must(db.from("gathering_triage").upsert(rows.slice(i, i + 500), { onConflict: "gathering_id" }));
+  }
+  const alsoOf = new Map(shared.toScore.map((r) => [r.id, r.also]));
+  const drafts = queue.filter((g) => alsoOf.has(g.id));
 
   const venueIds = [...new Set(drafts.map((g) => g.venue_id).filter(Boolean))] as string[];
   const venues = new Map<string, any>(
@@ -486,6 +506,7 @@ async function scoreDrafts(db: SupabaseClient, city: City, claude: ReturnType<ty
   }
   batches.sort((a, b) => a.first - b.first);
   let scored = 0;
+  let dates = 0;
   let failures = 0;
   let capped = false;
   let next = 0;
@@ -501,9 +522,13 @@ async function scoreDrafts(db: SupabaseClient, city: City, claude: ReturnType<ty
       try {
         const { scores, cost } = await scoreBatch(claude, batch, rubric);
         await s.spend(cost);
-        const rows = [...scores].map(([id, v]) => ({ gathering_id: id, score: v.score, reason: v.reason, model: MODEL, scored_at: new Date().toISOString() }));
+        // The event's score goes to every date it has (shareScores).
+        const rows = [...scores].flatMap(([id, v]) =>
+          [id, ...(alsoOf.get(id) ?? [])].map((gid) => ({ gathering_id: gid, score: v.score, reason: v.reason, model: MODEL, scored_at: new Date().toISOString() })),
+        );
         if (rows.length) await must(db.from("gathering_triage").upsert(rows, { onConflict: "gathering_id" }));
-        scored += rows.length;
+        scored += scores.size;
+        dates += rows.length;
         if (rows.length < batch.length) failures++;
       } catch (err) {
         failures++;
@@ -512,7 +537,10 @@ async function scoreDrafts(db: SupabaseClient, city: City, claude: ReturnType<ty
     }
   }
   await Promise.all(Array.from({ length: SCORE_PARALLEL }, worker));
-  return { counts: { to_score: inputs.length, scored, unscored_left: inputs.length - scored, ai_capped: capped }, failures };
+  return {
+    counts: { to_score: inputs.length, scored, unscored_left: inputs.length - scored, ai_capped: capped, dates_scored: dates, shared: shared.copies.length },
+    failures,
+  };
 }
 
 // Venues with fewer than 3 approved spots and no pending suggestions, that have an

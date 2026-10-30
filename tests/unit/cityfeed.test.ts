@@ -8,6 +8,7 @@ import { readFileSync } from "node:fs";
 import {
   calendarDateOf,
   chipFor,
+  cityEventKey,
   cityExternalId,
   citySkipReason,
   MAX_RUN_DAYS,
@@ -16,6 +17,7 @@ import {
   placeKey,
   planCity,
   runDays,
+  titleOf,
   toCityRow,
   type CityPlanInput,
   type CityRow,
@@ -216,5 +218,45 @@ describe("the plan", () => {
     assert.deepEqual(p.seen.map((s) => s.externalId), [known]);
     assert.deepEqual(p.seenIds, [known]);
     assert.equal(p.skipped.no_time, 1);
+  });
+});
+
+describe("titles and events (Alex, 30 Oct 2026)", () => {
+  const listing = (name: string, place: string, calendar: string | null = "Play Mobile") => ({
+    event_name: name,
+    calendar_name: calendar,
+    event_locations: [{ location_name: place }],
+  });
+
+  it("CY17 a session named only by its place and time takes the programme's name", () => {
+    // Real names from the feed, odd spacing and all.
+    assert.equal(titleOf(listing("Falstaff Park - 11 a.m. to 1 p.m.", "Falstaff Park")), "Play Mobile");
+    assert.equal(titleOf(listing("Moore Park - 2:30 to 4:30 p.m.", "Moore Park")), "Play Mobile");
+    assert.equal(titleOf(listing("Trinity Bellwoods Park - 11 a.m .to 1 p.m.", "Trinity Bellwoods Park")), "Play Mobile");
+    assert.equal(titleOf(listing("Marie Curtis Park - 11a.m. to 1p.m.", "Marie Curtis Park")), "Play Mobile");
+    assert.equal(titleOf(listing("Heron Park - 2:30 to 4:30 p.m.", "Heron Park Community Centre")), "Play Mobile");
+    assert.equal(titleOf(listing("R.V. Burgess Park - 2:30 to 4:30 p.m.", "RV Burgess Park")), "Play Mobile");
+    const row = toCityRow({ ...RAW[0]!, ...listing("Falstaff Park - 11 a.m. to 1 p.m.", "Falstaff Park") , event_locations: [{ ...(RAW[0]!.event_locations as any[])[0], location_name: "Falstaff Park" }] });
+    assert.equal(row?.name, "Play Mobile", "the row did not use the title");
+  });
+
+  it("CY18 and nothing else does: a real name with a dash, a time after a name that is not the place, or no programme", () => {
+    assert.equal(titleOf(listing("Jazz Night - 7 p.m.", "The Rex", "Tourism")), "Jazz Night - 7 p.m.");
+    assert.equal(titleOf(listing("Pasta Making Classes: Taste of Italy - 8 Session Series", "Joseph D. Carrier Art Gallery", "Tourism")), "Pasta Making Classes: Taste of Italy - 8 Session Series");
+    assert.equal(titleOf(listing("Toronto Postcard Club - 45th Annual Sale", "Japanese Canadian Cultural Centre", "Tourism")), "Toronto Postcard Club - 45th Annual Sale");
+    assert.equal(titleOf(listing("Rosalie Favell | Belonging (1982 - 2024)", "Onsite Gallery", "Tourism")), "Rosalie Favell | Belonging (1982 - 2024)");
+    assert.equal(titleOf(listing("Falstaff Park - 11", "Falstaff Park")), "Falstaff Park - 11", "a bare number is not a time");
+    assert.equal(titleOf(listing("Falstaff Park - 11 a.m. to 1 p.m.", "Falstaff Park", null)), "Falstaff Park - 11 a.m. to 1 p.m.", "no programme to name it by");
+    assert.equal(titleOf(listing("Harvest Fair", "Falstaff Park")), "Harvest Fair");
+  });
+
+  it("CY19 every date of one event has the same event key, and two events do not", () => {
+    const a = { ...byName("Downsview Park Merchants Market") };
+    const one = cityExternalId(a);
+    const two = cityExternalId({ ...a, startsAt: "2026-11-08T15:00:00.000Z" });
+    assert.notEqual(one, two);
+    assert.equal(cityEventKey(one), cityEventKey(two));
+    assert.equal(cityEventKey(one), a.eventKey);
+    assert.notEqual(cityEventKey(cityExternalId({ ...a, eventKey: "other" })), cityEventKey(one));
   });
 });

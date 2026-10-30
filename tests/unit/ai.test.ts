@@ -14,6 +14,7 @@ import {
   rubricFor,
   SCORING_SYSTEM,
   scoringUserMessage,
+  shareScores,
   systemFor,
 } from "../../src/import/ai.ts";
 
@@ -99,6 +100,43 @@ describe("Scores — a failed or malformed answer leaves drafts unscored", () =>
     // And the pattern that must be absent can see a real system line, so its absence means something.
     assert.match(claude, /system: SPOTS_SYSTEM/);
     assert.doesNotMatch(claude + rescore, /system: SCORING_SYSTEM/, "a call hard-codes the Events rubric");
+  });
+
+  it("A12 one score per event: a new event is scored once through its first date, an event already scored lends its score with no call (Alex, 30 Oct 2026)", () => {
+    const s = (score: number) => ({ score, reason: `r${score}` });
+    const { copies, toScore } = shareScores([
+      { id: "tour1", group: "tour", score: null },
+      { id: "tour2", group: "tour", score: null },
+      { id: "tour3", group: "tour", score: null },
+      { id: "mkt1", group: "market", score: s(48) },
+      { id: "mkt2", group: "market", score: null },
+      { id: "tm1", group: null, score: null },
+      { id: "tm2", group: null, score: null },
+      { id: "tm3", group: null, score: s(70) },
+    ]);
+    assert.deepEqual(toScore, [
+      { id: "tour1", also: ["tour2", "tour3"] },
+      { id: "tm1", also: [] },
+      { id: "tm2", also: [] },
+    ]);
+    assert.deepEqual(copies, [{ id: "mkt2", score: 48, reason: "r48" }], "a new date of a scored event was sent to be scored again");
+    // An event with every date scored, and a draft on its own already scored: nothing to do.
+    const none = shareScores([
+      { id: "a", group: "g", score: s(50) },
+      { id: "b", group: "g", score: s(50) },
+      { id: "c", group: null, score: s(80) },
+    ]);
+    assert.deepEqual(none, { copies: [], toScore: [] });
+  });
+
+  it("A13 the nightly scorer and the re-score script both write an event's score to all its dates", () => {
+    const run = readFileSync(new URL("../../src/import/run.ts", import.meta.url), "utf8");
+    const rescore = readFileSync(new URL("../../scripts/rescore.ts", import.meta.url), "utf8");
+    for (const [name, src] of [["run.ts", run], ["rescore.ts", rescore]] as const) {
+      assert.match(src, /shareScores\(/, `${name} does not group by event`);
+      assert.match(src, /cityEventKey\(/, `${name} does not key by event`);
+      assert.match(src, /alsoOf\.get\(/, `${name} does not write the other dates`);
+    }
   });
 });
 
