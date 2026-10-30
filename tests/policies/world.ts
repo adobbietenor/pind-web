@@ -554,7 +554,7 @@ async function populate(env: HarnessEnv, service: SupabaseClient, opts: { failAf
     "Ben's vote",
   );
   await must(
-    service.from("survey_responses").insert({ gathering_id: w.G, person_id: ben, met: "none", would_have_gone: "yes" }),
+    service.from("survey_responses").insert({ gathering_id: w.G, person_id: ben, how_was_it: "okay", met: "none", would_have_gone: "yes" }),
     "Ben's survey",
   );
   await must(

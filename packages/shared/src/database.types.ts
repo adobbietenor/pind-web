@@ -2892,28 +2892,37 @@ export type Database = {
           comment: string | null
           created_at: string
           gathering_id: string
+          how_was_it: Database["public"]["Enums"]["survey_how_was_it"] | null
           id: string
           met: Database["public"]["Enums"]["survey_met"] | null
           person_id: string | null
-          would_have_gone: Database["public"]["Enums"]["survey_would_have_gone"]
+          would_have_gone:
+            | Database["public"]["Enums"]["survey_would_have_gone"]
+            | null
         }
         Insert: {
           comment?: string | null
           created_at?: string
           gathering_id: string
+          how_was_it?: Database["public"]["Enums"]["survey_how_was_it"] | null
           id?: string
           met?: Database["public"]["Enums"]["survey_met"] | null
           person_id?: string | null
-          would_have_gone: Database["public"]["Enums"]["survey_would_have_gone"]
+          would_have_gone?:
+            | Database["public"]["Enums"]["survey_would_have_gone"]
+            | null
         }
         Update: {
           comment?: string | null
           created_at?: string
           gathering_id?: string
+          how_was_it?: Database["public"]["Enums"]["survey_how_was_it"] | null
           id?: string
           met?: Database["public"]["Enums"]["survey_met"] | null
           person_id?: string | null
-          would_have_gone?: Database["public"]["Enums"]["survey_would_have_gone"]
+          would_have_gone?:
+            | Database["public"]["Enums"]["survey_would_have_gone"]
+            | null
         }
         Relationships: [
           {
@@ -3894,6 +3903,7 @@ export type Database = {
       solo_visibility: "everyone" | "women_only"
       squad_name_status: "pending" | "approved" | "rejected"
       suggestion_status: "pending" | "approved" | "rejected"
+      survey_how_was_it: "great" | "okay" | "not_for_me"
       survey_met: "none" | "1_2" | "3_5" | "6_plus"
       survey_would_have_gone: "yes" | "no" | "wasnt_going"
       withdraw_reason: "cancelled" | "postponed" | "takedown" | "other"
@@ -4082,6 +4092,7 @@ export const Constants = {
       solo_visibility: ["everyone", "women_only"],
       squad_name_status: ["pending", "approved", "rejected"],
       suggestion_status: ["pending", "approved", "rejected"],
+      survey_how_was_it: ["great", "okay", "not_for_me"],
       survey_met: ["none", "1_2", "3_5", "6_plus"],
       survey_would_have_gone: ["yes", "no", "wasnt_going"],
       withdraw_reason: ["cancelled", "postponed", "takedown", "other"],

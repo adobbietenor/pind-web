@@ -54,7 +54,7 @@ ${draftBanner()}
 <li><strong>A photo</strong>, so the people you meet can find you.</li>
 <li><strong>A way to sign in</strong>: your email address (we send you a six-digit code; there are no passwords), or Sign in with Apple, or Google.</li>
 <li><strong>Optionally</strong>: a neighbourhood, a few tags about yourself, and an Instagram handle.</li>
-<li><strong>After a gathering</strong>: whether you would have gone alone anyway, and, if you want to add one, a comment.</li>
+<li><strong>After a gathering</strong>, if you choose to answer: how it was (great, okay or not for me).</li>
 </ul>
 <p>When you use a room, a squad or a 1-on-1, we keep its messages, and the reports and blocks you make.</p>
 <p><strong>What we never collect:</strong> your location, your contacts, your phone number, your surname beyond an initial, your ticket or seat, advertising identifiers, or anything about your employer, school or sexual orientation. Pin&#39;d never asks where you are; the only coordinates we hold belong to venues and public places near them.</p>

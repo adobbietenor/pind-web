@@ -74,13 +74,13 @@ export async function tick(crewId: string, to: string, kind: "we_met" | "keep_in
 
 // Who is answering is read fresh at the write, never taken from the screen (CLAUDE.md,
 // "re-read who you are").
-// The comment (#10) goes in the same row, so it is sent with the answer or not at all.
-export async function answer(gatheringId: string, wouldHaveGone: "yes" | "no" | "wasnt_going", comment: string | null = null): Promise<void> {
+// "How was it?" (UI pass 1): one answer, written once, by Done.
+export async function answer(gatheringId: string, howWasIt: "great" | "okay" | "not_for_me"): Promise<void> {
   const me = await readProfile();
   if (!me.personId) throw new Error("not signed in");
   const { error } = await supabase()
     .from("survey_responses")
-    .insert({ gathering_id: gatheringId, person_id: me.personId, would_have_gone: wouldHaveGone, comment });
+    .insert({ gathering_id: gatheringId, person_id: me.personId, how_was_it: howWasIt });
   if (error) throw error;
 }
 

@@ -137,21 +137,17 @@ try {
   await send("Page.reload");
   step("both ways: connected", await until(AFTER_COPY.connected));
 
-  // The question, with A16's comment (#10), in Tatiana's order (21 Oct): the answer FIRST,
-  // then the comment, then Send. A tap on an answer used to send it, so the box was never
-  // reached by anyone who answered first.
+  // "How was it?" (UI pass 1): optional, three taps, no box. Picking is not sending (#10);
+  // Done sends the one picked.
   const answered = `/rest/v1/survey_responses?gathering_id=eq.${X.id}&person_id=eq.${people.Ari.personId}&select=id`;
-  step("A16 offers the optional comment box", (await body()).includes(AFTER_COPY.commentLabel));
-  await click("No");
+  step("A16 asks 'How was it?', marked optional, with no text box", (await body()).includes(AFTER_COPY.question) && (await body()).includes(AFTER_COPY.optional) && !(await evaluate("!!document.querySelector('textarea')")));
+  await click("Great");
   await sleep(2500);
   step("picking an answer sends nothing", (await must(await rest(answered), "answers so far")).length === 0);
-  const said = "  pindhx after-check: the spot was easy to find  ";
-  step("the box still takes a comment after the answer", await evaluate(`(() => { const t=document.querySelector('textarea'); if(!t) return false; t.focus(); return true; })()`));
-  await send("Input.insertText", { text: said });
   await click(AFTER_COPY.send);
-  step("Send writes the answer once", await poll(answered, 1));
-  const [stored] = await must(await rest(`/rest/v1/survey_responses?gathering_id=eq.${X.id}&person_id=eq.${people.Ari.personId}&select=would_have_gone,comment`), "stored answer");
-  step("…with the comment in the same row, trimmed", stored?.would_have_gone === "no" && stored?.comment === said.trim());
+  step("Done writes the answer once", await poll(answered, 1));
+  const [stored] = await must(await rest(`/rest/v1/survey_responses?gathering_id=eq.${X.id}&person_id=eq.${people.Ari.personId}&select=how_was_it,would_have_gone,comment`), "stored answer");
+  step("…as How was it, and nothing else", stored?.how_was_it === "great" && stored?.would_have_gone === null && stored?.comment === null);
   step("…and thanked", await until(AFTER_COPY.thanks));
 
   // #18 — A9 for the ended event: it says so, offers the room and the squad to read (the

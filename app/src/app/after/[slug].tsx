@@ -32,7 +32,7 @@ export default function After() {
   const [view, setView] = useState<AfterView | null | undefined>(undefined);
   const [trouble, setTrouble] = useState<Described | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [comment, setComment] = useState("");
+  const [done, setDone] = useState(false);
   const [picked, setPicked] = useState<(typeof AFTER_COPY.answers)[number]["value"] | null>(null);
   // A refusal is said where the tap was (CLAUDE.md, "seen is part of a refusal").
   const [refusedFor, setRefusedFor] = useState<{ key: string; what: Described } | null>(null);
@@ -135,34 +135,29 @@ export default function After() {
 
       {view.asked ? (
         <View style={styles.card}>
-          {view.answered ? (
+          {view.answered || done ? (
             <Body>{AFTER_COPY.thanks}</Body>
           ) : (
             <>
-              <Body muted>{AFTER_COPY.questionWhy}</Body>
-              {/* Picking is not sending (#10): the answer, then the comment if any, then Send. */}
+              {/* "How was it?" (UI pass 1, 097): optional, three taps. Picking is not sending
+                  (#10): Done sends the picked answer, and Done with none picked writes nothing. */}
+              <View style={styles.qTop}>
+                <Text style={styles.section}>{AFTER_COPY.question}</Text>
+                <Text style={styles.optional}>{AFTER_COPY.optional}</Text>
+              </View>
               <Choice
-                label={AFTER_COPY.question}
+                label=""
                 options={AFTER_COPY.answers.map((a) => ({ value: a.value, name: a.label }))}
                 value={picked}
                 onChange={setPicked}
               />
-              <Field
-                label={AFTER_COPY.commentLabel}
-                hint={AFTER_COPY.commentHint}
-                value={comment}
-                onChangeText={setComment}
-                multiline
-                maxLength={COMMENT_MAX}
-                editable={!busy}
-              />
               <Button
+                kind="quiet"
                 label={AFTER_COPY.send}
                 busy={busy === "q"}
-                disabled={!picked || !!busy}
-                onPress={() => picked && void act("q", "send your answer", () => answer(view.gathering.id, picked, commentToSend(comment)))}
+                disabled={!!busy}
+                onPress={() => (picked ? void act("q", "send your answer", () => answer(view.gathering.id, picked)) : setDone(true))}
               />
-              {!picked ? <Body muted>{AFTER_COPY.pickFirst}</Body> : null}
               {refusedFor?.key === "q" ? <Trouble what={refusedFor.what} /> : null}
             </>
           )}
@@ -177,6 +172,8 @@ export default function After() {
 const styles = StyleSheet.create({
   card: { padding: spacing.md, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, backgroundColor: palette.surface, gap: spacing.sm, marginTop: spacing.md },
   section: { fontFamily: fonts.headline, fontSize: 17, color: palette.text },
+  qTop: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
+  optional: { fontSize: 13, color: palette.textMuted },
   person: { borderTopWidth: 1, borderTopColor: palette.border, paddingTop: spacing.md, marginTop: spacing.sm, gap: spacing.sm },
   personTop: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   face: { width: 52, height: 52, borderRadius: 26 },

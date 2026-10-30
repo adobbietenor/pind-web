@@ -665,11 +665,11 @@ describe("A1 over an anonymous session is the link (#11)", () => {
 describe("A16: picking an answer is not sending it (#10)", () => {
   const a16 = readFileSync("app/src/app/after/[slug].tsx", "utf8");
 
-  it("S51 the answers are a Choice, and the answer is sent from one place — Send — with the comment", () => {
+  it("S51 the answers are a Choice, and the answer is sent from one place, Done; Done with nothing picked writes nothing", () => {
     assert.match(a16, /<Choice\b[\s\S]*?options=\{AFTER_COPY\.answers\.map/, "the answers are not a choice");
     const calls = [...a16.matchAll(/\banswer\(view\.gathering\.id/g)];
-    assert.equal(calls.length, 1, `answer() is called ${calls.length} times; it must be once, from Send`);
-    assert.match(a16, /label=\{AFTER_COPY\.send\}[\s\S]{0,200}answer\(view\.gathering\.id, picked, commentToSend\(comment\)\)/, "Send does not send the picked answer with the comment");
+    assert.equal(calls.length, 1, `answer() is called ${calls.length} times; it must be once, from Done`);
+    assert.match(a16, /label=\{AFTER_COPY\.send\}[\s\S]{0,200}picked \? void act\("q", "send your answer", \(\) => answer\(view\.gathering\.id, picked\)\) : setDone\(true\)/, "Done does not send the picked answer, or writes something with none picked");
     assert.doesNotMatch(a16, /AFTER_COPY\.answers\.map\(\(a\) => \(\s*<Button/, "an answer is a button again — one tap would send it");
   });
 });

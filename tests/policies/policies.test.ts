@@ -568,12 +568,12 @@ describe("Survey", () => {
   it("P32 Ava CANNOT answer before the gathering has happened / CANNOT submit as someone else", async () => {
     const ava = c(M("Ava"));
     await denied(
-      ava.from("survey_responses").insert({ gathering_id: w.G, person_id: id("Ava"), would_have_gone: "no" }),
+      ava.from("survey_responses").insert({ gathering_id: w.G, person_id: id("Ava"), how_was_it: "great" }),
       "42501",
     );
     assert.deepEqual(await rows(ava.from("survey_responses").select("person_id")), []);
     await denied(
-      ava.from("survey_responses").insert({ gathering_id: w.G, person_id: id("Dee"), met: "none", would_have_gone: "yes" }),
+      ava.from("survey_responses").insert({ gathering_id: w.G, person_id: id("Dee"), how_was_it: "okay" }),
       "42501",
     );
   });
@@ -1035,7 +1035,7 @@ describe("Withdrawn — V13 (Alex, M1.3)", () => {
     const option = await ok(w.service.from("gathering_spots").select("id").eq("gathering_id", w.W).limit(1).single());
     await denied(wil.from("spot_votes").insert({ gathering_id: w.W, gathering_spot_id: option.id, person_id: id("Wil") }), "42501");
     await denied(
-      wil.from("survey_responses").insert({ gathering_id: w.W, person_id: id("Wil"), met: "none", would_have_gone: "yes" }),
+      wil.from("survey_responses").insert({ gathering_id: w.W, person_id: id("Wil"), how_was_it: "okay" }),
       "42501",
     );
     await denied(c(M("Hana")).from("pins").insert({ gathering_id: w.W, person_id: id("Hana"), open_to_meeting: true }), "42501");
@@ -4084,7 +4084,7 @@ describe("The night and after — #4, A16, connections (V23), the question, #5 (
 
   it("P167 before the end: no ticks (the group isn't done) and no answer (the night hasn't happened)", async () => {
     await denied(tick("Ann", "Ben", "we_met"), "42501");
-    await denied(cl("Eve").from("survey_responses").insert({ gathering_id: A, person_id: id("Eve"), would_have_gone: "yes" }));
+    await denied(cl("Eve").from("survey_responses").insert({ gathering_id: A, person_id: id("Eve"), how_was_it: "great" }));
   });
 
   it("P168 #4: going live tells each member once, with the way to 'I'm here' — nobody outside the group", async () => {
@@ -4157,13 +4157,34 @@ describe("The night and after — #4, A16, connections (V23), the question, #5 (
   });
 
   it("P173 the question: once, after the end, by someone who was open to meeting — readable only by them", async () => {
-    await ok(cl("Eve").from("survey_responses").insert({ gathering_id: A, person_id: id("Eve"), would_have_gone: "no" }).select("id").single());
-    await denied(cl("Eve").from("survey_responses").insert({ gathering_id: A, person_id: id("Eve"), would_have_gone: "yes" }));
-    await denied(cl("Fox").from("survey_responses").insert({ gathering_id: A, person_id: id("Fox"), would_have_gone: "yes" }));
-    await denied(cl("Ann").from("survey_responses").insert({ gathering_id: A, person_id: id("Eve"), would_have_gone: "yes" }));
+    await ok(cl("Eve").from("survey_responses").insert({ gathering_id: A, person_id: id("Eve"), how_was_it: "great" }).select("id").single());
+    await denied(cl("Eve").from("survey_responses").insert({ gathering_id: A, person_id: id("Eve"), how_was_it: "okay" }));
+    await denied(cl("Fox").from("survey_responses").insert({ gathering_id: A, person_id: id("Fox"), how_was_it: "okay" }));
+    await denied(cl("Ann").from("survey_responses").insert({ gathering_id: A, person_id: id("Eve"), how_was_it: "okay" }));
     assert.equal((await rows(cl("Ann").from("survey_responses").select("id").eq("person_id", id("Eve")))).length, 0, "someone read another's answer");
     const s = await ok(cl("Eve").rpc("after_state", { p_gathering: A }));
     assert.deepEqual([s.asked, s.answered, s.crew_id], [true, true, null]);
+  });
+
+  // UI pass 1 (Alex, 30 Oct 2026): "How was it?" is the only question. Both sides of every
+  // rule it brings: the answer CAN be written and read by its author; an empty row, the old
+  // questions, a second answer, someone else's answer and a reader who isn't its author
+  // CANNOT.
+  it("P278 'How was it?': Ben CAN answer Not for me and read it back; a blank row, a second answer, a forged one and every other reader CANNOT", async () => {
+    await denied(cl("Ben").from("survey_responses").insert({ gathering_id: A, person_id: id("Ben") }), "23514");
+    await denied(cl("Ben").from("survey_responses").insert({ gathering_id: A, person_id: id("Ben"), how_was_it: "terrible" as never }), "22P02");
+    const mine = await ok(cl("Ben").from("survey_responses").insert({ gathering_id: A, person_id: id("Ben"), how_was_it: "not_for_me" }).select("how_was_it").single());
+    assert.equal(mine.how_was_it, "not_for_me");
+    assert.deepEqual(await rows(cl("Ben").from("survey_responses").select("how_was_it").eq("gathering_id", A).eq("person_id", id("Ben"))), [{ how_was_it: "not_for_me" }]);
+    await denied(cl("Ben").from("survey_responses").insert({ gathering_id: A, person_id: id("Ben"), how_was_it: "great" }));
+    await denied(cl("Ann").from("survey_responses").insert({ gathering_id: A, person_id: id("Ben"), how_was_it: "great" }));
+    for (const who of ["Ann", "Cat", "Eve", "Fox"]) {
+      assert.equal((await rows(cl(who).from("survey_responses").select("how_was_it").eq("person_id", id("Ben")))).length, 0, `${who} read Ben's answer`);
+    }
+    await denied(w.anon.from("survey_responses").select("how_was_it").eq("person_id", id("Ben")));
+    // Changing it afterwards does nothing: there is no update grant.
+    await cl("Ben").from("survey_responses").update({ how_was_it: "great" }).eq("person_id", id("Ben"));
+    assert.equal((await ok(w.service.from("survey_responses").select("how_was_it").eq("gathering_id", A).eq("person_id", id("Ben")).single())).how_was_it, "not_for_me");
   });
 
   it("P174 #5: at 9am the morning after — 'Did you meet up?' to the group, only the question to everyone else; not before 9, never twice, never a backlog", async () => {
@@ -4197,15 +4218,17 @@ describe("The night and after — #4, A16, connections (V23), the question, #5 (
   // service key's alone. Deleted with the account; the answer stays.
   const CAT_SAYS = "pindhx: the spot was hard to find in the rain";
 
-  it("P205 a comment is written with the answer, by its author only — up to 1,000 characters, never blank, never edited", async () => {
-    // The cap, both sides: 1,001 is refused and 1,000 goes in. Blank is not a comment.
-    await denied(cl("Ann").from("survey_responses").insert({ gathering_id: A, person_id: id("Ann"), would_have_gone: "yes", comment: "x".repeat(1001) }), "23514");
-    await denied(cl("Ann").from("survey_responses").insert({ gathering_id: A, person_id: id("Ann"), would_have_gone: "yes", comment: "   " }), "23514");
-    await ok(cl("Ann").from("survey_responses").insert({ gathering_id: A, person_id: id("Ann"), would_have_gone: "yes", comment: "x".repeat(1000) }).select("id").single());
-    await ok(cl("Cat").from("survey_responses").insert({ gathering_id: A, person_id: id("Cat"), would_have_gone: "no", comment: CAT_SAYS }).select("id").single());
-    // Not for someone else, not by someone who wasn't open to meeting there.
-    await denied(cl("Ben").from("survey_responses").insert({ gathering_id: A, person_id: id("Cat"), would_have_gone: "yes", comment: "not mine to write" }));
-    await denied(cl("Fox").from("survey_responses").insert({ gathering_id: A, person_id: id("Fox"), would_have_gone: "yes", comment: "never there" }));
+  it("P205 since UI pass 1 nobody writes a comment, a 'would you have gone' or a 'how many' any more; the ones written before keep their shape and are never edited", async () => {
+    // The old questions are refused at the column (A16's one question is "How was it?").
+    await denied(cl("Ann").from("survey_responses").insert({ gathering_id: A, person_id: id("Ann"), how_was_it: "great", comment: "x" }), "42501");
+    await denied(cl("Ann").from("survey_responses").insert({ gathering_id: A, person_id: id("Ann"), how_was_it: "great", would_have_gone: "yes" }), "42501");
+    await denied(cl("Ann").from("survey_responses").insert({ gathering_id: A, person_id: id("Ann"), how_was_it: "great", met: "none" }), "42501");
+    // Comments from before, as the team holds them: the shape still holds (1,001 and blank
+    // refused, 1,000 kept).
+    await denied(w.service.from("survey_responses").insert({ gathering_id: A, person_id: id("Ann"), how_was_it: "okay", comment: "x".repeat(1001) }), "23514");
+    await denied(w.service.from("survey_responses").insert({ gathering_id: A, person_id: id("Ann"), how_was_it: "okay", comment: "   " }), "23514");
+    await ok(w.service.from("survey_responses").insert({ gathering_id: A, person_id: id("Ann"), how_was_it: "okay", comment: "x".repeat(1000) }).select("id").single());
+    await ok(w.service.from("survey_responses").insert({ gathering_id: A, person_id: id("Cat"), how_was_it: "great", comment: CAT_SAYS }).select("id").single());
     // Never edited: the author's update changes nothing.
     await cl("Cat").from("survey_responses").update({ comment: "changed my mind" }).eq("person_id", id("Cat"));
     const kept = await ok(w.service.from("survey_responses").select("comment").eq("gathering_id", A).eq("person_id", id("Cat")).single());
@@ -4260,7 +4283,8 @@ describe("The night and after — #4, A16, connections (V23), the question, #5 (
     // Gil answers, with a comment, then deletes his account the way A23 does it.
     await meeter("Gil", null);
     await ok(w.service.from("pins").insert({ gathering_id: A, person_id: id("Gil"), party_total: 1, open_to_meeting: true }).select("id").single());
-    const answer = (await ok(cl("Gil").from("survey_responses").insert({ gathering_id: A, person_id: id("Gil"), would_have_gone: "wasnt_going", comment: "pindhx: my name is Gil and I loved it" }).select("id").single())).id;
+    // An answer from before UI pass 1, with a comment (only the team can write those now).
+    const answer = (await ok(w.service.from("survey_responses").insert({ gathering_id: A, person_id: id("Gil"), how_was_it: "great", would_have_gone: "wasnt_going", comment: "pindhx: my name is Gil and I loved it" }).select("id").single())).id;
     const held = await ok(w.service.from("survey_responses").select("comment").eq("id", answer).single());
     assert.ok(held.comment, "control: the comment was not stored before the deletion");
     await ok(w.service.from("pins").delete().eq("person_id", id("Gil")));

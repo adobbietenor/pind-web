@@ -29,12 +29,12 @@ describe("A16's comment (#10)", () => {
     assert.equal(databaseCap(readFileSync(`${dir}/${file}`, "utf8")), COMMENT_MAX, "the app and the database cap a comment differently");
   });
 
-  it("C12 the screen sends through the shared rule and limits the box by the shared cap", () => {
+  it("C12 since UI pass 1 the screen has no comment box and the write carries only 'How was it?' (the database refuses the rest, P205)", () => {
     const screen = readFileSync("app/src/app/after/[slug].tsx", "utf8");
-    assert.match(screen, /answer\(view\.gathering\.id, picked, commentToSend\(comment\)\)/, "the answer is sent without the comment, or past the shared rule");
-    assert.match(screen, /maxLength=\{COMMENT_MAX\}/, "the box is not limited by the shared cap");
+    assert.doesNotMatch(screen, /commentToSend\(|COMMENT_MAX\}/, "A16 still offers a comment");
     const lib = readFileSync("app/src/lib/after.ts", "utf8");
-    assert.match(lib, /would_have_gone: wouldHaveGone, comment \}/, "the write leaves the comment out of the row");
+    assert.match(lib, /\.insert\(\{ gathering_id: gatheringId, person_id: me\.personId, how_was_it: howWasIt \}\)/, "the answer is not written as how_was_it");
+    assert.doesNotMatch(lib, /would_have_gone|comment\b/, "the write still sends an old question");
   });
 });
 

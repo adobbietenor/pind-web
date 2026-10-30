@@ -951,7 +951,7 @@ test("Q32 votes & surveys — own only, opted in only, the option must belong to
   if (!v3.error) leaks.push("Cy (not opted in) voted");
   const r = await C("Ana").from("spot_votes").select("person_id").neq("person_id", m.Ana!.id);
   if (!r.error && (r.data ?? []).length) leaks.push("Ana reads others' votes");
-  const s = await C("Ana").from("survey_responses").insert({ gathering_id: g.G, person_id: m.Ida!.id, met: "none", would_have_gone: "yes" });
+  const s = await C("Ana").from("survey_responses").insert({ gathering_id: g.G, person_id: m.Ida!.id, how_was_it: "okay" });
   if (!s.error) leaks.push("Ana wrote Ida's survey");
   const cp = await C("Ana").from("contact_points").insert({ person_id: m.Ida!.id, kind: "email", value: "x@example.com" });
   if (!cp.error) leaks.push("Ana wrote Ida's contact point");

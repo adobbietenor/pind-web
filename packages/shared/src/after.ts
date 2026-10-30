@@ -18,20 +18,21 @@ export const AFTER_COPY = {
   takeBack: "Take back",
   // Alex: gently, no implication anybody failed — they said they'd like to meet, and
   // we're asking how the night went.
-  question: "Would you have gone alone anyway?",
+  // UI pass 1 (097/098; Alex, 30 Oct 2026): the only question, optional, three taps, no text
+  // box. "Done" without an answer writes nothing (survey_responses_answered).
+  question: "How was it?",
+  optional: "Optional",
   answers: [
-    { value: "yes", label: "Yes" },
-    { value: "no", label: "No" },
-    { value: "wasnt_going", label: "I wasn't going to go at all" },
+    { value: "great", label: "Great" },
+    { value: "okay", label: "Okay" },
+    { value: "not_for_me", label: "Not for me" },
   ] as const,
-  questionWhy: "One question, so we know whether Pin'd helps anyone get out who wouldn't have.",
   // #10 (Alex, 14 Oct 2026): optional, sent with the answer, read by its author and by
   // people at Pin'd only. Since 29 Oct picking an answer does not send it: Send does, with
   // the comment. PROPOSED copy for the three lines below (Tatiana's to reword).
   commentLabel: "Anything else you'd like to tell us?",
   commentHint: "Optional. It's sent with your answer, and only people at Pin'd can read it.",
-  send: "Send",
-  pickFirst: "Pick an answer above, then Send.",
+  send: "Done",
   thanks: "Thank you, that helps.",
   nothing: "Nothing to do here. This is for people who said they'd like to meet.",
   notYet: "This opens once the night is over.",

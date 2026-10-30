@@ -1084,12 +1084,12 @@ test("R74 V23: showed_up answers nothing about a person the asker cannot see", a
 });
 
 test("R75 V23: the after-event question — once, after the end, open-to-meeting only, own only", async () => {
-  const ok = await ppl.A4!.c.from("survey_responses").insert({ gathering_id: g.A, person_id: ppl.A4!.id, met: "none", would_have_gone: "yes" });
+  const ok = await ppl.A4!.c.from("survey_responses").insert({ gathering_id: g.A, person_id: ppl.A4!.id, how_was_it: "okay" });
   assert.equal(ok.error, null, `control: A4 cannot answer: ${ok.error?.message}`);
-  const twice = await ppl.A4!.c.from("survey_responses").insert({ gathering_id: g.A, person_id: ppl.A4!.id, met: "none", would_have_gone: "yes" });
-  const notOpen = await ppl.A5!.c.from("survey_responses").insert({ gathering_id: g.A, person_id: ppl.A5!.id, met: "none", would_have_gone: "yes" });
-  const early = await ppl.Mo!.c.from("survey_responses").insert({ gathering_id: g.G, person_id: ppl.Mo!.id, met: "none", would_have_gone: "yes" });
-  const forged = await ppl.A1!.c.from("survey_responses").insert({ gathering_id: g.A, person_id: ppl.A3!.id, met: "none", would_have_gone: "no" });
+  const twice = await ppl.A4!.c.from("survey_responses").insert({ gathering_id: g.A, person_id: ppl.A4!.id, how_was_it: "okay" });
+  const notOpen = await ppl.A5!.c.from("survey_responses").insert({ gathering_id: g.A, person_id: ppl.A5!.id, how_was_it: "okay" });
+  const early = await ppl.Mo!.c.from("survey_responses").insert({ gathering_id: g.G, person_id: ppl.Mo!.id, how_was_it: "okay" });
+  const forged = await ppl.A1!.c.from("survey_responses").insert({ gathering_id: g.A, person_id: ppl.A3!.id, how_was_it: "great" });
   const read = await ppl.A1!.c.from("survey_responses").select("*").eq("gathering_id", g.A);
   assert.ok(twice.error, "answered twice");
   assert.ok(notOpen.error, "answered without being open to meeting");
