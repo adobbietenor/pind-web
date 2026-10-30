@@ -10,8 +10,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "expo-router";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
-import { AFTER_COPY, clockLocal, colors as palette, endedChats, endedPhase, ENDED_COPY, fonts, lastDayCloses, radius, spacing } from "@pind/shared";
+import { AFTER_COPY, clockLocal, colors as palette, endedChats, endedPhase, ENDED_COPY, fonts, homeList, lastDayCloses, radius, spacing } from "@pind/shared";
 import { Body, Button } from "@/components/ui";
+import { Icon } from "./Icon";
+import { Tap } from "./Tap";
 import { loadMyChats, MY_CHATS_KEY } from "@/lib/myevents";
 
 const weekdayClock = (iso: string, tz: string) =>
@@ -26,36 +28,53 @@ export function EndedEvent({ gatheringId, slug }: { gatheringId: string; slug: s
   const phase = e ? endedPhase(e, now) : null;
   const list = e ? endedChats(e, now) : [];
 
+  // UI pass 1 (089/102): each chat as a grey card, "Meeting has ended" with View chat;
+  // then "Who did you meet?" and "Find your next event". The phase line stays, quiet:
+  // it is the one thing saying how long the chats are kept (Q11).
   return (
-    <View style={styles.card}>
-      <Text style={styles.heading}>{ENDED_COPY.heading}</Text>
+    <View style={{ gap: spacing.sm + 2, marginTop: spacing.md }}>
+      <Text accessibilityRole="header" style={styles.hidden}>{ENDED_COPY.heading}</Text>
       {chats.isPending ? (
         <ActivityIndicator color={palette.textMuted} />
       ) : !e || (phase !== "cleared" && list.length === 0) ? (
         <Body muted>{ENDED_COPY.none}</Body>
       ) : (
         <>
-          <Body muted>
-            {phase === "last-day" ? ENDED_COPY.lastDay(weekdayClock(lastDayCloses(e), e.timezone)) : phase === "read-only" ? ENDED_COPY.readOnly : ENDED_COPY.cleared}
-          </Body>
           {list.map((c) => (
-            <Button
+            <Tap
               key={c.id}
-              kind={phase === "last-day" ? "primary" : "quiet"}
-              label={`${phase === "last-day" ? ENDED_COPY.open : ENDED_COPY.read}: ${c.label}`}
+              accessibilityRole="button"
+              accessibilityLabel={`${phase === "last-day" ? ENDED_COPY.open : ENDED_COPY.read}: ${c.label}`}
               onPress={() => router.push(c.kind === "room" ? { pathname: "/room/[id]", params: { id: c.id } } : { pathname: "/group/[id]", params: { id: c.id } })}
-            />
+              style={styles.chat}
+            >
+              <Icon name="chat" size={20} color={palette.textMuted} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.chatTitle}>{c.kind === "room" && !c.label.includes("women") ? ENDED_COPY.roomTitle : c.label}</Text>
+                <Text style={styles.chatLine}>{ENDED_COPY.meetingEnded}</Text>
+              </View>
+              <Text style={styles.view}>{ENDED_COPY.viewChat}</Text>
+            </Tap>
           ))}
+          <Text style={styles.phase}>
+            {phase === "last-day" ? ENDED_COPY.lastDay(weekdayClock(lastDayCloses(e), e.timezone)) : phase === "read-only" ? ENDED_COPY.readOnly : ENDED_COPY.cleared}
+          </Text>
         </>
       )}
       {/* A group of 3+ keeps its 7 days of ticks (A16). */}
-      {e?.after?.open ? <Button kind="quiet" label={AFTER_COPY.howDidItGo} onPress={() => router.push({ pathname: "/after/[slug]", params: { slug } })} /> : null}
+      {e?.after?.open ? <Button label={AFTER_COPY.howDidItGo} onPress={() => router.push({ pathname: "/after/[slug]", params: { slug } })} /> : null}
+      <Button kind="quiet" label={ENDED_COPY.findNext} onPress={() => router.push(homeList() as never)} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   // A9's card (crowd/[slug].tsx, oneStep), so an ended event reads as the same page.
-  card: { padding: spacing.lg, borderWidth: 1, borderColor: palette.accent, borderRadius: radius.lg, backgroundColor: palette.surface, gap: spacing.sm, marginTop: spacing.md },
-  heading: { fontFamily: fonts.headline, fontSize: 22, color: palette.text },
+  // Said to a screen reader; the page's "Ended" tag says it to everyone else.
+  hidden: { position: "absolute", width: 1, height: 1, overflow: "hidden", opacity: 0 },
+  chat: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4, minHeight: 64, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
+  chatTitle: { fontFamily: fonts.headline, fontSize: 16, color: palette.textMuted },
+  chatLine: { fontSize: 13, color: palette.textMuted, marginTop: 1 },
+  view: { fontSize: 14, color: palette.accentText, textDecorationLine: "underline" },
+  phase: { fontSize: 13, lineHeight: 18, color: palette.textMuted },
 });

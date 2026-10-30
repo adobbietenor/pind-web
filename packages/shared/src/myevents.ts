@@ -298,6 +298,16 @@ export const ENDED_COPY = {
   none: "No chats from this one.",
   open: "Open",
   read: "Read",
+  // UI pass 1 (088, 089/102): the tags over the title, the one counter, the grey room card.
+  tonightTag: "Tonight",
+  endedTag: "Ended",
+  lastNight: "Last night",
+  startsAt: (time: string) => `Starts at ${time}`,
+  went: (n: number) => (n === 1 ? "1 person went" : `${n} people went`),
+  roomTitle: "The Pin'd Meeting Room",
+  meetingEnded: "Meeting has ended",
+  viewChat: "View chat",
+  findNext: "Find your next event",
 } as const;
 
 // Every chat's unread count, for the tab's dot. Open squads are not yours yet: not counted.

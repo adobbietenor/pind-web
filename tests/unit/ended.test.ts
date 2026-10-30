@@ -54,7 +54,7 @@ describe("An ended event's phases (#18)", () => {
   });
 
   it("EN05 the ended card never borrows the room's first-here promise", () => {
-    const words = Object.values(ENDED_COPY).map((v) => (typeof v === "function" ? v("Wednesday at 10:00 p.m.") : v)).join(" ");
+    const words = Object.values(ENDED_COPY).map((v) => (typeof v === "function" ? (v as (x: string) => string)("Wednesday at 10:00 p.m.") : v)).join(" ");
     assert.doesNotMatch(words, new RegExp(ROOM_COPY.firstHeading.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "i"));
     assert.doesNotMatch(words, /we'll tell you/i);
   });

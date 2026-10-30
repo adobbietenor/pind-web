@@ -24,8 +24,11 @@ import {
   ALL_TAGS,
   CITY_ATTRIBUTION,
   colors as palette,
+  clockLocal,
   countNext,
   CROWD_COPY,
+  ENDED_COPY,
+  liveCity,
   ROOM_COPY,
   effectiveEnd,
   fonts,
@@ -112,6 +115,9 @@ interface View9 {
   email: string | null;
   meId: string | null;
 }
+
+// The venue's own clock: the one live city's (Toronto); every gathering today is there.
+const TZ = liveCity().timezone;
 
 function when(iso: string): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -272,11 +278,19 @@ export default function CrowdPage() {
 
   const g = view.gathering;
   const ended = Date.now() >= Date.parse(g.effectiveEnd);
+  // Tonight: the venue's own day, or under way. "Last night": it started on the venue's
+  // yesterday.
+  const day = (d: Date) => new Intl.DateTimeFormat("en-CA", { timeZone: TZ, year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
+  const tonight = !ended && (Date.parse(g.startsAt) <= Date.now() || day(new Date(g.startsAt)) === day(new Date()));
+  const lastNight = day(new Date(g.startsAt)) === day(new Date(Date.now() - 86_400_000));
 
   return (
     <AppScreen>
+      {/* UI pass 1 (088, 089): a tag over the title on the night and after it, and the
+          line under it says when in those words. */}
+      {ended || tonight ? <Text style={[styles.dayTag, ended && styles.dayTagEnded]}>{ended ? ENDED_COPY.endedTag : ENDED_COPY.tonightTag}</Text> : null}
       <Heading>{g.name}</Heading>
-      <Body muted>{`${view.facts?.when ?? when(g.startsAt)} · ${g.venue}`}</Body>
+      <Body muted>{`${ended && lastNight ? ENDED_COPY.lastNight : tonight && !ended ? ENDED_COPY.startsAt(clockLocal(g.startsAt, TZ)) : view.facts?.when ?? when(g.startsAt)} · ${g.venue}`}</Body>
       {view.facts?.address ? <Body muted>{view.facts.address}</Body> : null}
       {view.facts?.blurb ? (
         <View style={{ marginTop: spacing.sm }}>
@@ -286,7 +300,15 @@ export default function CrowdPage() {
       ) : null}
 
       <View style={styles.counts}>
+        {ended && view.mine ? (
+          // After the night, one number: how many went (089). No going/open counters.
+          <View style={styles.wentRow}>
+            <Icon name="person" size={22} color={palette.accentText} />
+            <Text style={styles.went}>{ENDED_COPY.went(view.going)}</Text>
+          </View>
+        ) : (
         <Counters going={view.going} open={view.open} />
+        )}
         {countNext(view.open) ? <Body muted>{countNext(view.open)}</Body> : null}
         {view.mix ? <Body muted>{view.mix}</Body> : null}
       </View>
@@ -552,6 +574,10 @@ const styles = StyleSheet.create({
   roomButton: { minHeight: 52, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: "#FFFFFF" },
   roomButtonLabel: { fontFamily: fonts.headline, fontSize: 18, color: palette.accent },
   listHeading: { fontFamily: fonts.headline, fontSize: 17, color: palette.text, marginBottom: spacing.sm },
+  dayTag: { alignSelf: "flex-start", fontFamily: fonts.headline, fontSize: 12, color: "#E9DDF6", backgroundColor: "#3A2A4E", paddingHorizontal: 8, paddingVertical: 2, borderRadius: 6, overflow: "hidden", marginBottom: spacing.xs },
+  dayTagEnded: { color: palette.textMuted, backgroundColor: "#24222A" },
+  wentRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4 },
+  went: { fontFamily: fonts.headline, fontSize: 20, color: palette.text },
   woCard: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4, minHeight: 60, padding: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: "#8A3E66", backgroundColor: "#22141C" },
   woTitle: { fontFamily: fonts.headline, fontSize: 16, color: palette.text },
   woLine: { fontSize: 13, color: "#E7B9CF", marginTop: 1 },
