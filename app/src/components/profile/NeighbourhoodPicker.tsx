@@ -35,7 +35,7 @@ const styles = StyleSheet.create({
     borderColor: palette.border,
     backgroundColor: palette.surface,
     borderRadius: radius.lg,
-    paddingVertical: 9,
+    paddingVertical: 11,
     paddingHorizontal: 14,
   },
   hoodOn: { backgroundColor: palette.accent, borderColor: palette.accent },

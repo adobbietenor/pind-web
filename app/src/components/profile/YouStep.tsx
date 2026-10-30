@@ -22,7 +22,10 @@ import { Image, StyleSheet, Text, View } from "react-native";
 import {
   type A2Photo,
   ageOn,
+  birthYears,
   canContinue,
+  daysIn,
+  MONTHS,
   colors as palette,
   GENDER_CHOICES,
   GENDER_WHY,
@@ -39,6 +42,7 @@ import {
   uploadReason,
 } from "@pind/shared";
 import { Trouble } from "@/components/Trouble";
+import { Select } from "@/components/Select";
 import { Body, Button, Choice, Field, Notice } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
 import { askForCheck, pickPhoto, uploadPhoto, type Picked } from "@/lib/photo";
@@ -62,15 +66,25 @@ export interface YouStepProps {
 
 export function YouStep({ firstName: initialName, hasPrivate, hasPhoto, photoRequired, onSaved, onUnder19, continueLabel = "Continue" }: YouStepProps) {
   const [firstName, setFirstName] = useState(initialName);
-  const [day, setDay] = useState("");
-  const [month, setMonth] = useState("");
-  const [year, setYear] = useState("");
+  const [day, setDay] = useState<number | null>(null);
+  const [month, setMonth] = useState<number | null>(null);
+  const [year, setYear] = useState<number | null>(null);
   const [gender, setGender] = useState<Gender | null>(null);
   const [womenOnly, setWomenOnly] = useState(false);
   const [photo, setPhoto] = useState<A2Photo<Picked>>({ state: "none" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<Described | null>(null);
 
+  // A day the new month or year does not have is cleared, so the Day box never shows
+  // "Day" while holding a 31 that blocks Next.
+  const pickMonth = (m: number) => {
+    setMonth(m);
+    if (day && day > daysIn(m, year)) setDay(null);
+  };
+  const pickYear = (y: number) => {
+    setYear(y);
+    if (day && month && day > daysIn(month, y)) setDay(null);
+  };
   const age = useMemo(() => ageOn(Number(day), Number(month), Number(year)), [day, month, year]);
   const tooYoung = !hasPrivate && age !== null && !isOldEnough(age);
   const detailsOk = hasPrivate ? firstName.trim().length > 0 : canContinue({ firstName, oldEnough: isOldEnough(age), gender });
@@ -137,19 +151,18 @@ export function YouStep({ firstName: initialName, hasPrivate, hasPhoto, photoReq
       {!hasPrivate ? (
         <>
           <Text style={styles.label}>Date of birth</Text>
+          {/* Month / Day / Year, three dropdowns (UI pass 1, 024). The years start at the
+              youngest allowed age (birthYears); ageOn still decides 19+. */}
           <View style={styles.dob}>
-            <View style={styles.dobPart}>
-              <Field label="Day" value={day} onChangeText={setDay} keyboardType="number-pad" inputMode="numeric" maxLength={2} placeholder="14" />
-            </View>
-            <View style={styles.dobPart}>
-              <Field label="Month" value={month} onChangeText={setMonth} keyboardType="number-pad" inputMode="numeric" maxLength={2} placeholder="06" />
-            </View>
-            <View style={[styles.dobPart, { flex: 1.4 }]}>
-              <Field label="Year" value={year} onChangeText={setYear} keyboardType="number-pad" inputMode="numeric" maxLength={4} placeholder="1997" />
-            </View>
-          </View>
-          <View style={{ marginBottom: spacing.md }}>
-            <Body muted>We keep the year and throw the rest away.</Body>
+            <Select label="Month" placeholder="Month" flex={1.5} value={month} onChange={pickMonth} options={MONTHS.map((name, i) => ({ value: i + 1, name }))} />
+            <Select
+              label="Day"
+              placeholder="Day"
+              value={day}
+              onChange={setDay}
+              options={Array.from({ length: daysIn(month ?? 0, year) }, (_, i) => ({ value: i + 1, name: String(i + 1) }))}
+            />
+            <Select label="Year" placeholder="Year" flex={1.2} value={year} onChange={pickYear} options={birthYears().map((y) => ({ value: y, name: String(y) }))} />
           </View>
 
           {tooYoung ? <Notice tone="stop">{UNDER_19}</Notice> : null}
@@ -223,8 +236,7 @@ export function YouStep({ firstName: initialName, hasPrivate, hasPhoto, photoReq
 
 const styles = StyleSheet.create({
   label: { fontSize: 14, color: palette.textMuted, marginBottom: spacing.xs + 2 },
-  dob: { flexDirection: "row", gap: spacing.sm },
-  dobPart: { flex: 1 },
+  dob: { flexDirection: "row", gap: spacing.sm, marginBottom: spacing.md },
   photoRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginBottom: spacing.sm },
   preview: { width: 72, height: 72, borderRadius: radius.md },
   previewEmpty: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },

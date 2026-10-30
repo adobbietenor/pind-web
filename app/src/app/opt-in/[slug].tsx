@@ -21,9 +21,10 @@
 // Apple or Google. `nextOptInStep` (shared) decides, from the gate's own facts.
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Linking, Platform, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Linking, Platform, StyleSheet, Text, View } from "react-native";
 import {
   colors as palette,
+  fonts,
   nextOptInStep,
   OPTIN_COPY,
   optInMissing,
@@ -38,6 +39,7 @@ import { IdentityStep } from "@/components/profile/IdentityStep";
 import { WhereStep } from "@/components/profile/WhereStep";
 import { YouStep } from "@/components/profile/YouStep";
 import type { Picked } from "@/components/TagPicker";
+import { Tap } from "@/components/Tap";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Tick } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
@@ -267,7 +269,7 @@ export default function OptIn() {
       {step !== "where" ? <Heading>{step === "identity" ? OPTIN_COPY.contactHeading : step === "safety" ? OPTIN_COPY.safetyHeading : OPTIN_COPY.heading}</Heading> : null}
       {step !== "where" ? (
         <View style={{ marginBottom: spacing.lg }}>
-          <Body muted>{mine ? `${mine.firstName} · ${mine.gatheringName}` : ""}</Body>
+          {step !== "you" ? <Body muted>{mine ? `${mine.firstName} · ${mine.gatheringName}` : ""}</Body> : null}
           {step === "you" ? <Body muted>{OPTIN_COPY.lede}</Body> : null}
           {step === "identity" ? <Body muted>{OPTIN_COPY.contactWhy}</Body> : null}
         </View>
@@ -302,14 +304,14 @@ export default function OptIn() {
       ) : null}
 
       {/* Before the first field, where it can't be missed (Alex): someone whose browser
-          forgot them signs in first and is asked nothing they already gave. */}
-      {(step === "you" || step === "where") && mine && !mine.permanent && !signInFirst ? (
-        <View style={styles.why}>
-          <Body>{OPTIN_COPY.alreadyOnPind}</Body>
-          <Body muted>{OPTIN_COPY.alreadyOnPindLine}</Body>
-          <View style={{ marginTop: spacing.sm }}>
-            <Button label={OPTIN_COPY.signIn} onPress={() => setSignInFirst(true)} />
-          </View>
+          forgot them signs in first and is asked nothing they already gave. Step 1 only,
+          in the short form: one bold line and Sign in (UI pass 1, 024). */}
+      {step === "you" && mine && !mine.permanent && !signInFirst ? (
+        <View style={[styles.why, styles.already]}>
+          <Text style={styles.alreadyLine}>{OPTIN_COPY.alreadyOnPind}</Text>
+          <Tap accessibilityRole="button" onPress={() => setSignInFirst(true)} style={styles.alreadyButton}>
+            <Text style={styles.alreadyButtonLabel}>{OPTIN_COPY.signIn}</Text>
+          </Tap>
         </View>
       ) : null}
 
@@ -395,6 +397,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     marginBottom: spacing.md,
   },
+  already: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
+  alreadyLine: { fontFamily: fonts.headline, fontSize: 18, color: palette.text, flexShrink: 1 },
+  alreadyButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.sm, backgroundColor: palette.accent },
+  alreadyButtonLabel: { fontFamily: fonts.headline, fontSize: 15, color: palette.onAccent },
   sheet: {
     gap: spacing.sm,
     padding: spacing.md,

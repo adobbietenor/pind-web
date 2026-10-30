@@ -45,9 +45,12 @@ export { countOnList, enoughPicked, tagsCanContinue } from "@pind/shared";
 export function TagPicker({
   picked,
   onChange,
+  showCount = true,
 }: {
   picked: PickedTag[];
   onChange: (next: PickedTag[]) => void;
+  // A3/A27 draw their own "2 of 10" above the chips (UI pass 1); /tags keeps this one.
+  showCount?: boolean;
 }) {
   // What the last tap said, and where: the name of the group it was in, or "list".
   const [note, setNote] = useState<{ says: string; at: string } | null>(null);
@@ -117,6 +120,7 @@ export function TagPicker({
         </View>
       ) : null}
 
+      {showCount ? (
       <View style={{ marginTop: spacing.sm }}>
         <Body muted>
           {picked.length < TAGS_MINIMUM
@@ -124,6 +128,7 @@ export function TagPicker({
             : `${picked.length} picked, ${countOnList(picked)} on the list.`}
         </Body>
       </View>
+      ) : null}
     </View>
   );
 }
@@ -136,7 +141,8 @@ const styles = StyleSheet.create({
     borderColor: palette.border,
     backgroundColor: palette.surface,
     borderRadius: radius.lg,
-    paddingVertical: 9,
+    // 44px tall with the 15px label (UI pass 1, rule 8).
+    paddingVertical: 11,
     paddingHorizontal: 14,
   },
   chipOn: { backgroundColor: palette.accent, borderColor: palette.accent },

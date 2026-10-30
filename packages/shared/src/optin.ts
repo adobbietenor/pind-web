@@ -11,7 +11,7 @@ import { SAFETY_TODAY } from "./policy.ts";
 
 export const OPTIN_COPY = {
   heading: "A few details",
-  lede: "So the people going can find you. Your date of birth and gender are never shown to anyone.",
+  lede: "Your date of birth and gender are never shown to anyone.",
   // Under 19 at A27 removes the person completely (Alex, M3.2; P103). The screen says
   // so plainly: they told us, and their pin is gone.
   under19Removed: "Pin'd is 19+. Your pin has been removed, and nothing about you is kept.",
@@ -44,7 +44,6 @@ export const OPTIN_COPY = {
   // Safari deletes a site's data after 7 days, so a returning person arrives as a
   // stranger). Straight to the sign-in step; the merge finds their account.
   alreadyOnPind: "Already on Pin'd?",
-  alreadyOnPindLine: "Sign in and you'll go straight to the room. Nothing asked again.",
   signIn: "Sign in",
 } as const;
 

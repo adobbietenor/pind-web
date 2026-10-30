@@ -42,3 +42,20 @@ describe("Age on a day", () => {
     assert.equal(isOldEnough(20), true);
   });
 });
+
+describe("The date-of-birth dropdowns (UI pass 1, 024)", () => {
+  it("AG10 the years start at the youngest allowed age, and the 19+ stop still fires inside the first year", async () => {
+    const { birthYears, daysIn } = await import("../../packages/shared/src/age.ts");
+    const now = on("2026-10-30");
+    const years = birthYears(now);
+    assert.equal(years[0], 2007, "the newest year is not this year minus 19");
+    assert.ok(!years.includes(2008), "a year that can only fail the 19+ check is offered");
+    assert.equal(years.length, 100);
+    // The first year listed is both sides of the boundary: born before today, 19; after, 18.
+    assert.equal(isOldEnough(ageOn(29, 10, 2007, now)), true);
+    assert.equal(isOldEnough(ageOn(31, 10, 2007, now)), false, "the list let an 18-year-old through");
+    assert.equal(daysIn(2, 2004), 29);
+    assert.equal(daysIn(2, 2005), 28);
+    assert.equal(daysIn(0, null), 31);
+  });
+});

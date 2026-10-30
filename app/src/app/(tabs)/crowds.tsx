@@ -14,7 +14,8 @@ import { useCallback, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { CITIES, cityOpens, colors as palette, fonts, HOME_COPY, radius, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
-import { Body, Button, Heading } from "@/components/ui";
+import { ProfileOffer } from "@/components/ProfileOffer";
+import { Body, Heading } from "@/components/ui";
 import { readProfile } from "@/lib/profile";
 import { Tap } from "@/components/Tap";
 import { Rise } from "@/components/Motion";
@@ -40,7 +41,7 @@ export default function Home() {
   );
 
   return (
-    <AppScreen edges={["top"]}>
+    <AppScreen edges={["top"]} contentStyle={{ flexGrow: 1 }}>
       <Heading>{HOME_COPY.heading}</Heading>
       <Body muted>{HOME_COPY.line}</Body>
 
@@ -66,21 +67,13 @@ export default function Home() {
         })}
       </View>
 
-      {offerProfile ? (
-        <View style={styles.profile}>
-          <Body>{HOME_COPY.profileHeading}</Body>
-          <Body muted>{HOME_COPY.profileLine}</Body>
-          <View style={{ marginTop: spacing.sm }}>
-            <Button kind="quiet" label={HOME_COPY.profileButton} onPress={() => router.push("/sign-in")} />
-          </View>
-        </View>
-      ) : null}
+      {offerProfile ? <ProfileOffer onSetUp={() => router.push("/sign-in")} /> : null}
     </AppScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  cities: { marginTop: spacing.lg, gap: spacing.sm },
+  cities: { marginTop: spacing.lg, marginBottom: spacing.xl, gap: spacing.sm },
   city: {
     flexDirection: "row",
     alignItems: "center",

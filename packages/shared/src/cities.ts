@@ -49,13 +49,23 @@ export function cityOpens(slug: string): boolean {
   return CITIES.some((c) => c.slug === slug && c.live);
 }
 
+// The offer at the foot of A5 and of A21 signed out (UI pass 1, 022/038; copy as drawn).
+export const PROFILE_OFFER = {
+  heading: "No profile needed to pin in.",
+  lines: [
+    { icon: "pin", lead: "Pin in", rest: "to any event. Free, no profile." },
+    { icon: "person", lead: "Meet the crowd.", rest: "See who's going and join the room. Needs a quick profile, about 2 minutes." },
+    { icon: "handshake", lead: "Meet one-on-one.", rest: "Opt in separately, only when you want to." },
+  ],
+  button: "Set Up Your Profile",
+  alreadyOnPind: "Already on Pin'd?",
+  signIn: "Sign in",
+} as const;
+
 export const HOME_COPY = {
   heading: "Find your crowd",
   line: "Pick a city to see who's going to what this week.",
   comingSoon: "Coming soon",
-  profileHeading: "Set up your profile now?",
-  profileLine: "Optional. You can do it later. Pin'd asks when you first pin in.",
-  profileButton: "Set up my profile",
   listEmpty: "Nothing listed in the next seven days yet.",
   // On a card the signed-in person has pinned (#3, Alex's words). The count stays.
   youreGoing: "You're going",

@@ -33,3 +33,23 @@ export function ageOn(day: number, month: number, year: number, now = new Date()
 export function isOldEnough(age: number | null): boolean {
   return age !== null && age >= MINIMUM_AGE;
 }
+
+// The three date-of-birth dropdowns (UI pass 1, 024: Month / Day / Year). **The years
+// start at the youngest allowed age**, so nobody scrolls past years that can only end in
+// the 19+ stop; someone born in the first year listed whose birthday is still to come is
+// 18, and ageOn and isOldEnough still say so (H8: the stop is the rule, not the list).
+// A century of years is plenty, and the list never reaches past ageOn's 1900 floor.
+export const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+] as const;
+
+export function birthYears(now = new Date()): number[] {
+  const newest = now.getUTCFullYear() - MINIMUM_AGE;
+  return Array.from({ length: 100 }, (_, i) => newest - i).filter((y) => y >= 1900);
+}
+
+export function daysIn(month: number, year: number | null): number {
+  if (!month) return 31;
+  return new Date(Date.UTC(year || 2000, month, 0)).getUTCDate();
+}

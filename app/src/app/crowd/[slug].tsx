@@ -24,10 +24,8 @@ import {
   ALL_TAGS,
   CITY_ATTRIBUTION,
   colors as palette,
-  countLine,
-  CREWS_MEET,
+  countNext,
   CROWD_COPY,
-  HOUSE_RULES,
   ROOM_COPY,
   effectiveEnd,
   fonts,
@@ -38,6 +36,8 @@ import {
   WOMEN_ONLY_COPY,
 } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
+import { Counters } from "@/components/Counters";
+import { HouseRules } from "@/components/HouseRules";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
@@ -266,7 +266,6 @@ export default function CrowdPage() {
   }
 
   const g = view.gathering;
-  const count = countLine(view.going, view.open);
   const ended = Date.now() >= Date.parse(g.effectiveEnd);
 
   return (
@@ -282,8 +281,8 @@ export default function CrowdPage() {
       ) : null}
 
       <View style={styles.counts}>
-        <Text style={styles.countLine}>{count.line}</Text>
-        {count.next ? <Body muted>{count.next}</Body> : null}
+        <Counters going={view.going} open={view.open} />
+        {countNext(view.open) ? <Body muted>{countNext(view.open)}</Body> : null}
         {view.mix ? <Body muted>{view.mix}</Body> : null}
       </View>
 
@@ -310,15 +309,12 @@ export default function CrowdPage() {
         <View style={styles.oneStep}>
           <Text style={styles.oneStepHeading}>{CROWD_COPY.notOpenHeading}</Text>
           <Body>{CROWD_COPY.notOpenLine}</Body>
-          <Body muted>{CROWD_COPY.notOpenOthers(view.open)}</Body>
           {!ended ? (
-            <View style={{ marginTop: spacing.md }}>
+            <View style={{ marginTop: spacing.sm }}>
               <Button label={CROWD_COPY.openToMeeting} busy={busy} onPress={() => void setOpen(true)} />
-              {!view.mayMeet ? (
-                <View style={{ marginTop: spacing.sm }}>
-                  <Body muted>{CROWD_COPY.openToMeetingHint}</Body>
-                </View>
-              ) : null}
+              <View style={{ marginTop: spacing.sm }}>
+                <Text style={styles.small}>{CROWD_COPY.openToMeetingHint}</Text>
+              </View>
             </View>
           ) : null}
         </View>
@@ -438,14 +434,11 @@ export default function CrowdPage() {
         </View>
       ) : null}
 
-      {/* W2's anatomy (spec A8): the house rules, then the map and where crews meet. */}
-      <Text style={[styles.sectionName, { marginTop: spacing.xl }]}>House rules</Text>
-      <View style={styles.rules}>
-        {HOUSE_RULES.map((r, i) => (
-          <Text key={r} style={styles.rule}>{`${i + 1}.  ${r}`}</Text>
-        ))}
+      {/* W2's anatomy (spec A8): house rules as one closed row (UI pass 1, rule 2), then the
+          venue map. No meeting-place lines (rule 3). */}
+      <View style={{ marginTop: spacing.md }}>
+        <HouseRules />
       </View>
-      <Body muted>{CREWS_MEET}</Body>
 
       {view.facts?.map ? (
         <View style={{ marginTop: spacing.xl }}>
@@ -454,14 +447,9 @@ export default function CrowdPage() {
               source={{ uri: view.facts.map.src }}
               style={StyleSheet.absoluteFill}
               resizeMode="cover"
-              accessibilityLabel="Map of the venue and the numbered spots groups meet at. No people are shown."
+              accessibilityLabel="Map of the venue. No people are shown."
             />
             <View style={styles.venuePin} />
-            {view.facts.map.markers.map((m) => (
-              <View key={m.n} style={[styles.marker, { left: `${m.left}%`, top: `${m.top}%` }]}>
-                <Text style={styles.markerNum}>{m.n}</Text>
-              </View>
-            ))}
           </View>
           <Text style={styles.caption}>
             {view.facts.map.openInMaps ? (
@@ -473,34 +461,6 @@ export default function CrowdPage() {
         </View>
       ) : null}
 
-      {view.facts?.spots.length ? (
-        <View style={{ marginTop: spacing.lg }}>
-          <Text style={styles.sectionName}>Where groups meet</Text>
-          {view.facts.spots.map((sp) => (
-            <View key={sp.name} style={styles.spot}>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
-                {sp.n !== null ? (
-                  <View style={styles.badge}>
-                    <Text style={styles.markerNum}>{sp.n}</Text>
-                  </View>
-                ) : null}
-                <Text style={styles.spotName}>{sp.name}</Text>
-              </View>
-              {sp.description ? <Body muted>{sp.description}</Body> : null}
-              <Text style={styles.meta}>
-                {[`meet ${sp.meet}`, sp.walk ? `${sp.walk} min walk` : null, sp.offMap ? "a bit further out, so not on the map above" : null]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </Text>
-              {sp.directions ? (
-                <Text style={styles.link} onPress={() => void Linking.openURL(sp.directions!)}>
-                  Walking directions
-                </Text>
-              ) : null}
-            </View>
-          ))}
-        </View>
-      ) : null}
       {view.gathering.fromCity ? (
         <Text style={styles.caption} onPress={() => void Linking.openURL(CITY_ATTRIBUTION.href)}>
           {CITY_ATTRIBUTION.text}
@@ -524,8 +484,8 @@ const styles = StyleSheet.create({
   spot: { paddingVertical: spacing.sm, borderBottomWidth: 1, borderBottomColor: palette.border, gap: 3 },
   spotName: { fontFamily: fonts.headline, fontSize: 16, color: palette.text },
   meta: { fontSize: 13, color: palette.textMuted },
-  counts: { marginTop: spacing.md, marginBottom: spacing.lg, gap: 2 },
-  countLine: { fontFamily: fonts.headline, fontSize: 20, color: palette.text },
+  counts: { marginTop: spacing.md, marginBottom: spacing.lg, gap: 4 },
+  small: { fontSize: 13, lineHeight: 18, color: palette.textMuted },
   oneStep: {
     padding: spacing.lg,
     borderWidth: 1,
