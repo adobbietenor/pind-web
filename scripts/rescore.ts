@@ -39,12 +39,15 @@ const flag = (name: string): string | null => {
 const write = args.includes("--write");
 const like = flag("like") ?? "";
 const source = flag("source") ?? "";
+// --name matches the title, for a kind of thing the source files under several
+// classifications (the City feed's markets: Farmers' Market, Food/Culinary, Artisan…).
+const name = flag("name") ?? "";
 const weeks = Number(flag("weeks") ?? 8);
 const BATCH = 25;
 const TZ = "America/Toronto";
 
-if (!like && !source) {
-  console.error('Give --like "<part of the classification>" (e.g. --like "Comedy"), --source <source> (e.g. --source city), or both.');
+if (!like && !source && !name) {
+  console.error('Give --like "<part of the classification>" (e.g. --like "Comedy"), --source <source> (e.g. --source city), --name "<part of the title>", or several.');
   process.exit(1);
 }
 
@@ -82,10 +85,11 @@ const rows = (data as any[]).filter(
     !r.dismissed_at &&
     !r.slug &&
     (!source || r.source === source) &&
-    (!like || classification(r).toLowerCase().includes(like.toLowerCase())),
+    (!like || classification(r).toLowerCase().includes(like.toLowerCase())) &&
+    (!name || String(r.name).toLowerCase().includes(name.toLowerCase())),
 );
 const rubric = rubricFor(source || "ticketmaster");
-if (like && rows.some((r) => rubricFor(r.source) !== rubric)) {
+if (!source && rows.some((r) => rubricFor(r.source) !== rubric)) {
   console.error("Those drafts need two different rubrics; re-score them with --source, one source at a time.");
   process.exit(1);
 }
