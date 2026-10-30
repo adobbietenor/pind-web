@@ -132,7 +132,9 @@ const SETTING_COLUMNS = [
   "max_category_share",
   "min_per_category",
   "min_capacity",
-  "community_slots_weekly",
+  "community_max_per_venue_weekly",
+  "community_max_per_organiser_weekly",
+  "city_feed_publishing",
   "score_floor",
   "grow_reach",
   "grow_median_pins",
@@ -150,7 +152,7 @@ export const SETTINGS_SELECT = SETTING_COLUMNS.join(", ");
 // The settings form names these, so a column renamed in a migration and not in the
 // form is a typecheck failure rather than a field that silently stops saving.
 export type SettingColumn = (typeof SETTING_COLUMNS)[number];
-export type NumericSetting = Exclude<SettingColumn, "adaptive">;
+export type NumericSetting = Exclude<SettingColumn, "adaptive" | "city_feed_publishing">;
 
 // Every number comes off the cities row; none of them has a default in code, so a
 // setting Alex changes in the admin takes effect on the next run with no deploy.
@@ -165,7 +167,9 @@ export function toSettings(row: Record<string, any>): PublishSettings {
     maxCategoryShare: Number(row.max_category_share),
     minPerCategory: Number(row.min_per_category),
     minCapacity: Number(row.min_capacity),
-    communitySlotsWeekly: Number(row.community_slots_weekly),
+    communityMaxPerVenueWeekly: Number(row.community_max_per_venue_weekly),
+    communityMaxPerOrganiserWeekly: Number(row.community_max_per_organiser_weekly),
+    cityFeedPublishing: Boolean(row.city_feed_publishing),
     scoreFloor: Number(row.score_floor),
     growReach: Number(row.grow_reach),
     growMedianPins: Number(row.grow_median_pins),
@@ -216,19 +220,32 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
   const live = await must<any[]>(
     db
       .from("gatherings")
-      .select("id, starts_at, venue_id, category, gathering_sources(snapshot)")
+      .select("id, starts_at, venue_id, category, tab, organiser, gathering_sources(snapshot)")
       .eq("status", "published")
       .eq("is_seed", false)
       .gte("starts_at", spanFrom)
       .lte("starts_at", spanTo),
   );
 
-  const weeks: WeekState[] = weekStarts.map((weekStart) => ({ weekStart, publishedLive: 0, perVenue: {}, perCategory: {} }));
+  const weeks: WeekState[] = weekStarts.map((weekStart) => ({
+    weekStart,
+    publishedLive: 0,
+    perVenue: {},
+    perCategory: {},
+    community: { perVenue: {}, perOrganiser: {} },
+  }));
   const byWeek = new Map(weeks.map((w) => [w.weekStart, w]));
   for (const g of live) {
     if (!here(g.venue_id)) continue;
     const w = byWeek.get(weekStartOf(g.starts_at, city.timezone));
     if (!w) continue;
+    // Each tab counts its own (M4.4): the Events target never sees a run club, and the
+    // Community caps count every published Community row, hand-entered ones included.
+    if (g.tab === "community") {
+      w.community.perVenue[g.venue_id] = (w.community.perVenue[g.venue_id] ?? 0) + 1;
+      if (g.organiser) w.community.perOrganiser[g.organiser] = (w.community.perOrganiser[g.organiser] ?? 0) + 1;
+      continue;
+    }
     w.publishedLive += 1;
     w.perVenue[g.venue_id] = (w.perVenue[g.venue_id] ?? 0) + 1;
     // What is already published counts against the share too, or a week filled by
@@ -244,7 +261,7 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
   const drafts = await must<any[]>(
     db
       .from("gatherings")
-      .select("id, name, starts_at, venue_id, slug, publish_mark, source, category, capacity, gathering_triage(score), gathering_sources(snapshot)")
+      .select("id, name, starts_at, venue_id, slug, publish_mark, source, category, capacity, tab, organiser, series_id, gathering_triage(score), gathering_sources(snapshot)")
       .eq("status", "draft")
       .eq("is_seed", false)
       .gt("starts_at", now.toISOString())
@@ -277,6 +294,9 @@ export async function runPublishing(db: SupabaseClient, ctx: PublishContext): Pr
         hasSlug: g.slug !== null,
         source: g.source,
         capacity: g.capacity ?? null,
+        tab: g.tab,
+        organiser: g.organiser ?? null,
+        fromSeries: g.source === "manual" && g.series_id !== null,
         // The listing's own classification, where it has one; the stored chip only
         // for a gathering entered by hand. See capBucket: M2.3 filled the chip in for
         // every Ticketmaster row, and the cap has to keep the finer split.

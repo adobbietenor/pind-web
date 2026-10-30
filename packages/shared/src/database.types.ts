@@ -137,7 +137,9 @@ export type Database = {
           adjust_window_days: number
           centre_lat: number | null
           centre_lng: number | null
-          community_slots_weekly: number
+          city_feed_publishing: boolean
+          community_max_per_organiser_weekly: number
+          community_max_per_venue_weekly: number
           community_weeks: number
           core_radius_km: number | null
           country: string
@@ -175,7 +177,9 @@ export type Database = {
           adjust_window_days?: number
           centre_lat?: number | null
           centre_lng?: number | null
-          community_slots_weekly?: number
+          city_feed_publishing?: boolean
+          community_max_per_organiser_weekly?: number
+          community_max_per_venue_weekly?: number
           community_weeks?: number
           core_radius_km?: number | null
           country?: string
@@ -213,7 +217,9 @@ export type Database = {
           adjust_window_days?: number
           centre_lat?: number | null
           centre_lng?: number | null
-          community_slots_weekly?: number
+          city_feed_publishing?: boolean
+          community_max_per_organiser_weekly?: number
+          community_max_per_venue_weekly?: number
           community_weeks?: number
           core_radius_km?: number | null
           country?: string
@@ -304,6 +310,7 @@ export type Database = {
           last_confirmed_at: string | null
           last_note: string | null
           last_status: string | null
+          organiser: string | null
           settled_at: string | null
           settled_by: string | null
           settled_note: string | null
@@ -321,6 +328,7 @@ export type Database = {
           last_confirmed_at?: string | null
           last_note?: string | null
           last_status?: string | null
+          organiser?: string | null
           settled_at?: string | null
           settled_by?: string | null
           settled_note?: string | null
@@ -338,6 +346,7 @@ export type Database = {
           last_confirmed_at?: string | null
           last_note?: string | null
           last_status?: string | null
+          organiser?: string | null
           settled_at?: string | null
           settled_by?: string | null
           settled_note?: string | null
@@ -1213,6 +1222,7 @@ export type Database = {
           is_seed: boolean
           merged_into_id: string | null
           name: string
+          organiser: string | null
           publish_mark: Database["public"]["Enums"]["publish_mark"] | null
           published_at: string | null
           room_size: number | null
@@ -1223,6 +1233,7 @@ export type Database = {
           source: Database["public"]["Enums"]["gathering_source"]
           starts_at: string
           status: string | null
+          tab: Database["public"]["Enums"]["list_tab"]
           threshold_notified_at: string | null
           venue_id: string | null
           venue_name_raw: string | null
@@ -1249,6 +1260,7 @@ export type Database = {
           is_seed?: boolean
           merged_into_id?: string | null
           name: string
+          organiser?: string | null
           publish_mark?: Database["public"]["Enums"]["publish_mark"] | null
           published_at?: string | null
           room_size?: number | null
@@ -1259,6 +1271,7 @@ export type Database = {
           source?: Database["public"]["Enums"]["gathering_source"]
           starts_at: string
           status?: string | null
+          tab: Database["public"]["Enums"]["list_tab"]
           threshold_notified_at?: string | null
           venue_id?: string | null
           venue_name_raw?: string | null
@@ -1285,6 +1298,7 @@ export type Database = {
           is_seed?: boolean
           merged_into_id?: string | null
           name?: string
+          organiser?: string | null
           publish_mark?: Database["public"]["Enums"]["publish_mark"] | null
           published_at?: string | null
           room_size?: number | null
@@ -1295,6 +1309,7 @@ export type Database = {
           source?: Database["public"]["Enums"]["gathering_source"]
           starts_at?: string
           status?: string | null
+          tab?: Database["public"]["Enums"]["list_tab"]
           threshold_notified_at?: string | null
           venue_id?: string | null
           venue_name_raw?: string | null
@@ -3120,6 +3135,10 @@ export type Database = {
         Returns: undefined
       }
       admin_categorise_gatherings: { Args: never; Returns: number }
+      admin_city_import_apply: {
+        Args: { p_plan: Json; p_run: number }
+        Returns: Json
+      }
       admin_claim_squad_name_check: {
         Args: { p_crew: string; p_name: string }
         Returns: boolean
@@ -3513,6 +3532,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      admin_tab_gatherings: { Args: never; Returns: number }
       admin_testers: {
         Args: never
         Returns: {
@@ -3732,6 +3752,7 @@ export type Database = {
               slug: string
               source: Database["public"]["Enums"]["gathering_source"]
               starts_at: string
+              tab: Database["public"]["Enums"]["list_tab"]
               venue_id: string
               venue_name: string
             }[]
@@ -3803,6 +3824,10 @@ export type Database = {
         Args: { p_crew: string; p_meet_at: string; p_spot: string }
         Returns: undefined
       }
+      tab_for_classification: {
+        Args: { p_classification: string }
+        Returns: Database["public"]["Enums"]["list_tab"]
+      }
       venue_map_key: { Args: { p_lat: number; p_lng: number }; Returns: string }
       waiting_for_women_only_room: {
         Args: { p_gathering: string }
@@ -3833,10 +3858,11 @@ export type Database = {
         | "postponed"
         | "cancelled"
         | "missing"
-      gathering_source: "ticketmaster" | "manual" | "ai"
+      gathering_source: "ticketmaster" | "manual" | "ai" | "city"
       gender: "woman" | "man" | "nonbinary" | "undisclosed"
       group_link_kind: "everyone" | "women_only"
       invite_status: "sent" | "accepted" | "declined" | "expired" | "withdrawn"
+      list_tab: "events" | "community"
       message_kind: "system" | "user" | "arrival"
       notification_kind:
         | "digest"
@@ -4018,10 +4044,11 @@ export const Constants = {
         "cancelled",
         "missing",
       ],
-      gathering_source: ["ticketmaster", "manual", "ai"],
+      gathering_source: ["ticketmaster", "manual", "ai", "city"],
       gender: ["woman", "man", "nonbinary", "undisclosed"],
       group_link_kind: ["everyone", "women_only"],
       invite_status: ["sent", "accepted", "declined", "expired", "withdrawn"],
+      list_tab: ["events", "community"],
       message_kind: ["system", "user", "arrival"],
       notification_kind: [
         "digest",

@@ -3,7 +3,7 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { categoryLabel, clockLocal, countLine, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, readShareCard, SEARCH_COPY, SEARCH_DAYS, SEARCH_MAX, searchQuery, SAFETY_TODAY, SEE_WHO, SHARE_COPY, SUGGEST_TO, suggestSubject, THRESHOLD_EXPLANATION } from "@pind/shared";
+import { categoryLabel, CITY_ATTRIBUTION, clockLocal, countLine, CREWS_MEET, entryLine, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, readShareCard, SEARCH_COPY, SEARCH_DAYS, SEARCH_MAX, searchQuery, SAFETY_TODAY, SEE_WHO, SHARE_COPY, SUGGEST_TO, suggestSubject, THRESHOLD_EXPLANATION } from "@pind/shared";
 import type { Env } from "../env";
 import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
 import { faviconSvg } from "./favicon";
@@ -124,6 +124,12 @@ const W1_FOOTER =
   `<a href="mailto:${SUGGEST_TO}?subject=A%20gathering%20for%20Pin%27d">suggest a gathering</a>` +
   `${DOT}<a href="/about">about</a>${DOT}19+`;
 
+// The licence line the City feed requires, wherever one of its listings is on the page
+// (M4.4). A link of our own origin's style; the licence page itself is the City's.
+const CITY_LINE = `<br><a href="${CITY_ATTRIBUTION.href}" rel="license">${escape(CITY_ATTRIBUTION.text)}</a>`;
+const withCityLine = (footer: string, rows: { source: string }[]) =>
+  rows.some((r) => r.source === "city") ? footer + CITY_LINE : footer;
+
 // The window the list is read over: the week being shown, plus the week after it so
 // the pager knows whether there is anything later to point at. One round trip.
 const READ_WEEKS = 2;
@@ -198,7 +204,7 @@ ${pager(path, chips, win, later.length)}`,
       // The unfiltered tab, whatever is being filtered or paged: the canonical page
       // is the one worth sharing.
       canonical: `${origin}${path}`,
-      footer: W1_FOOTER,
+      footer: withCityLine(W1_FOOTER, shown),
       script: REPLACE_SCRIPT,
     },
   );
@@ -246,7 +252,7 @@ ${body}`,
       title: `${q} · Pin'd`,
       description: ONE_LINER,
       canonical: `${url.origin}/`,
-      footer: W1_FOOTER,
+      footer: withCityLine(W1_FOOTER, found),
     },
   );
 }
@@ -446,7 +452,7 @@ ${spotList(door, tz, map.kind, zoom)}
       canonical: url,
       image: `${origin}/og/${g.slug}.png`,
       head: `<link rel="alternate" type="text/calendar" href="/g/${escape(g.slug)}.ics">`,
-      footer: W2_FOOTER(g.slug),
+      footer: withCityLine(W2_FOOTER(g.slug), [g]),
       // One small thing the page does not need: on an iPhone the walking-directions
       // links point at Apple Maps instead of Google. With JavaScript off the links
       // still open Google Maps on every platform.

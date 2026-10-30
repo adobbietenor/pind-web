@@ -16,7 +16,7 @@ import {
   withdrawForm,
   withdrawnNote,
 } from "./imports";
-import { CATEGORIES, entryLine, TABS, tabForSource, tabLabel } from "@pind/shared";
+import { CATEGORIES, entryLine, TABS, tabLabel, type TabValue } from "@pind/shared";
 import { places, venueOptions, type Places } from "./places";
 import { markCell, promoteInline, promotionPanel, publishingPanel } from "./publishing";
 import { formatLocal, fromLocalInput, localDate, toLocalInput } from "./time";
@@ -389,9 +389,9 @@ function categoryField(g: any): string {
       .join("");
     return `<optgroup label="${e(t.label)} chips">${options}</optgroup>`;
   }).join("");
-  const mine = g?.source ? tabLabel(tabForSource(g.source)) : null;
+  const mine = g?.tab ? tabLabel(g.tab as TabValue) : null;
   return `<label>Category <span class="muted">(the chip a reader filters by, within a tab${
-    mine ? `. This gathering is in the <strong>${e(mine)}</strong> tab, because that is its source` : ""
+    mine ? `. This gathering is in the <strong>${e(mine)}</strong> tab, from its source and, for Ticketmaster, its own classification` : ""
   })</span><br>
 <select name="category"><option value="">— not said; unclassified, and still on every unfiltered list —</option>${groups}</select></label>`;
 }

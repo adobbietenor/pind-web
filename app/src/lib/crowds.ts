@@ -43,6 +43,7 @@ export interface ListGathering {
   signup_required: boolean;
   blurb: string | null;
   source: string;
+  tab: "events" | "community";
   venue_id: string;
   venue_name: string;
   city_name: string;

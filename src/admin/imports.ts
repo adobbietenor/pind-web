@@ -40,14 +40,17 @@ function skippedTotal(counts: any): number {
 }
 
 export async function importPanel(ctx: AdminContext, backTo: string): Promise<string> {
-  const [runs, spent] = await Promise.all([
+  const [runs, spent, cityRuns] = await Promise.all([
     must(ctx.db.from("import_runs").select("*").in("trigger", ["cron", "manual"]).order("started_at", { ascending: false }).limit(1)),
     must(ctx.db.rpc("admin_ai_spend_today", { p_city: "toronto" })),
+    must(ctx.db.from("import_runs").select("*").eq("source", "city").order("started_at", { ascending: false }).limit(1)),
   ]);
+  const cityPanel = cityFeedPanel(cityRuns[0]);
   const cap = Number(ctx.env.AI_DAILY_CAP_USD ?? 3);
   const run = runs[0];
   const button = postButton("/admin/import/run", "Run import now", backTo);
-  if (!run) return `<fieldset><legend>Ticketmaster import</legend><p>No import has run yet. ${button}</p></fieldset>`;
+  if (!run) return `<fieldset><legend>Ticketmaster import</legend><p>No import has run yet. ${button}</p></fieldset>${cityPanel}`;
+  const unclear = ((run.counts?.topup?.unclear ?? []) as { label: string; why: string }[]).map((u) => `${u.label}: ${u.why}`);
   const a = applied(run.counts);
   const errors: string[] = run.counts?.errors ?? [];
   const cls = run.status === "ok" ? "good" : run.status === "running" ? "" : "bad";
@@ -64,7 +67,29 @@ ${skipped ? `<p class="muted">Skipped: ${e(skipped)}</p>` : ""}
 ${errors.length ? `<p class="bad">${errors.slice(0, 3).map((x) => e(x)).join("<br>")}</p>` : ""}
 ${run.counts?.ai_capped ? `<p class="bad">Daily AI cap reached: the rest are scored tomorrow.</p>` : ""}
 <p>AI spend today: $${Number(spent).toFixed(2)} of $${cap.toFixed(2)} · ${button} <a href="/admin/imports">All runs</a>
-<span class="muted">· nightly at 4am (3am in winter)</span></p></fieldset>`;
+<span class="muted">· nightly at 4am (3am in winter)</span></p>
+${run.counts?.topup ? `<p>Series topped up: ${run.counts.topup.added ?? 0} dates for ${run.counts.topup.series ?? 0} series${
+    unclear.length ? ` · <span class="bad">not topped up, dates fit no one pattern: ${unclear.map((x) => e(x)).join("; ")}</span>` : ""
+  }</p>` : ""}</fieldset>${cityPanel}`;
+}
+
+// The City of Toronto feed (M4.4): its own run, half an hour before the import. Shown
+// here so a night it failed is in front of Alex, not only in the alert.
+function cityFeedPanel(run: any): string {
+  if (!run) return `<fieldset><legend>City of Toronto feed</legend><p class="muted">Not run yet. Nightly at 3:30am (2:30am in winter).</p></fieldset>`;
+  const a = applied(run.counts);
+  const errors: string[] = run.counts?.errors ?? [];
+  const cls = run.status === "ok" ? "good" : run.status === "running" ? "" : "bad";
+  const skipped = Object.entries((run.counts?.skipped ?? {}) as Record<string, number>)
+    .map(([k, n]) => `${k.replace(/_/g, " ")} ${n}`)
+    .join(", ");
+  return `<fieldset><legend>City of Toronto feed</legend>
+<p>Last run: <strong>${e(formatLocal(run.started_at, TORONTO))}</strong> · <span class="${cls}">${e(run.status)}</span>
+· ${run.counts?.in_window ?? 0} listing-days in the window · new <strong>${a.new ?? 0}</strong> · seen again ${a.seen ?? 0}
+· dismissed ${a.dismissed ?? 0} · flagged ${a.flagged ?? 0} · new places ${a.venues_created ?? 0}</p>
+${skipped ? `<p class="muted">Skipped: ${e(skipped)}</p>` : ""}
+${errors.length ? `<p class="bad">${errors.slice(0, 3).map((x) => e(x)).join("<br>")}</p>` : ""}
+<p class="muted">Published only while "Publish City of Toronto feed listings" is on (Publishing settings).</p></fieldset>`;
 }
 
 const FLAG_TEXT: Record<string, string> = {
@@ -78,7 +103,7 @@ const FLAG_TEXT: Record<string, string> = {
 export async function flagsPanel(ctx: AdminContext, p: Places, backTo: string, gatheringId?: string): Promise<string> {
   let q = ctx.db
     .from("gathering_flags")
-    .select("id, kind, old_starts_at, new_starts_at, created_at, updated_at, gathering_id, gatherings(name, venue_id, starts_at)")
+    .select("id, kind, source, old_starts_at, new_starts_at, created_at, updated_at, gathering_id, gatherings(name, venue_id, starts_at)")
     .is("resolved_at", null)
     .order("created_at");
   if (gatheringId) q = q.eq("gathering_id", gatheringId);
@@ -98,7 +123,7 @@ export async function flagsPanel(ctx: AdminContext, p: Places, backTo: string, g
           })
         : "";
       return `<tr><td><a href="/admin/gatherings/${e(f.gathering_id)}">${e(g?.name ?? "")}</a><br><span class="muted">${e(formatLocal(g?.starts_at, tz))}</span></td>
-<td class="bad">${e(FLAG_TEXT[f.kind] ?? f.kind)}<br>${change}</td>
+<td class="bad">${e(f.source === "city" && f.kind === "missing" ? "No longer listed in the City of Toronto feed" : (FLAG_TEXT[f.kind] ?? f.kind))}<br>${change}</td>
 <td>${apply} <a href="/admin/gatherings/${e(f.gathering_id)}#withdraw">Withdraw…</a> ${postButton(`/admin/flags/${f.id}/ignore`, "Ignore", backTo, { cls: "plain" })}</td></tr>`;
     })
     .join("");

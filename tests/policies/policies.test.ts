@@ -1199,7 +1199,7 @@ async function publicDoor(client: SupabaseClient, slug: string): Promise<any> {
 
 // The slugs the week's list would show, over a window wide enough for the world.
 async function publicList(client: SupabaseClient): Promise<string[]> {
-  const data = await rows(client.rpc("public_gatherings", { p_from: inDays(-90), p_to: inDays(90), p_city: "toronto" }));
+  const data = await rows(client.rpc("public_gatherings", { p_from: inDays(-90), p_to: inDays(90), p_city: "toronto", p_query: null }));
   return data.map((r: { slug: string }) => r.slug);
 }
 
@@ -1735,9 +1735,9 @@ describe("The public door's shape — the keys its readers need", () => {
       }
     }
 
-    const listed = await rows(w.anon.rpc("public_gatherings", { p_from: inDays(-90), p_to: inDays(90), p_city: "toronto" }));
+    const listed = await rows(w.anon.rpc("public_gatherings", { p_from: inDays(-90), p_to: inDays(90), p_city: "toronto", p_query: null }));
     assert.ok(listed.length > 0, "the list came back empty, so its shape proves nothing");
-    for (const k of ["slug", "name", "starts_at", "ends_at", "entry", "door_price_cents", "entry_note", "category", "signup_required", "source", "venue_id", "venue_name", "city_name", "city_timezone", "pinned", "open_to_meeting", "crews_open"]) {
+    for (const k of ["slug", "name", "starts_at", "ends_at", "entry", "door_price_cents", "entry_note", "category", "signup_required", "source", "venue_id", "venue_name", "city_name", "city_timezone", "pinned", "open_to_meeting", "crews_open", "tab"]) {
       assert.ok(k in listed[0], `public_gatherings is missing "${k}" — got ${Object.keys(listed[0]).join(", ")}`);
     }
   });
@@ -1802,6 +1802,166 @@ describe("The public door's shape — the keys its readers need", () => {
     await denied(w.anon.rpc("chip_category", { p_classification: "Music / Rock" }), "42501");
     await denied(w.anon.rpc("admin_categorise_gatherings"), "42501");
     await denied(c(w.m.Dev).rpc("admin_categorise_gatherings"), "42501");
+  });
+
+  // M4.4 — which tab a gathering is listed on (Alex, 29 Oct 2026). It used to be the
+  // source; a Ticketmaster fair, expo or food & drink listing is now Community, by its
+  // own classification, decided once in the database. Both sides of every branch: the
+  // four genres that move and one that does not, a published row that never moves, and
+  // the default every insert gets from its source.
+  it("P276 a Ticketmaster fair moves to Community by its classification, while it has never been public", async () => {
+    const draft = w.D.ticketmaster;
+    const setSnapshot = async (category: string) =>
+      ok(w.service.from("gathering_sources").update({ snapshot: { category } }).eq("gathering_id", draft).eq("source", "ticketmaster"), "set the snapshot");
+    const tabNow = async (id = draft): Promise<string> => (await ok(w.service.from("gatherings").select("tab").eq("id", id).single(), "read the tab")).tab;
+
+    for (const genre of ["Fairs & Festivals", "Food & Drink", "Hobby/Special Interest Expos", "Community/Civic"]) {
+      await setSnapshot(`Miscellaneous / ${genre}`);
+      await ok(w.service.rpc("admin_tab_gatherings"), "tab");
+      assert.equal(await tabNow(), "community", `Miscellaneous / ${genre} should be Community`);
+    }
+    // The rest of Miscellaneous — mostly club nights and parties — and everything else stay Events.
+    for (const classification of ["Miscellaneous / Lecture/Seminar", "Music / Rock", "Sports / Hockey"]) {
+      await setSnapshot(classification);
+      await ok(w.service.rpc("admin_tab_gatherings"), "tab");
+      assert.equal(await tabNow(), "events", `${classification} should be Events`);
+    }
+    // A second pass writes nothing.
+    assert.equal(await ok(w.service.rpc("admin_tab_gatherings"), "tab again"), 0);
+
+    // A gathering that has been public never jumps tabs because Ticketmaster re-filed it.
+    const published = await ok(
+      w.service.from("gathering_sources").select("gathering_id, snapshot, gatherings!inner(slug, tab)").eq("source", "ticketmaster").not("gatherings.slug", "is", null).limit(1).single(),
+      "find a published Ticketmaster row",
+    );
+    const before = published.gatherings.tab;
+    const snapshot = published.snapshot;
+    await ok(w.service.from("gathering_sources").update({ snapshot: { ...snapshot, category: before === "events" ? "Miscellaneous / Food & Drink" : "Music / Rock" } }).eq("gathering_id", published.gathering_id).eq("source", "ticketmaster"), "re-file it");
+    await ok(w.service.rpc("admin_tab_gatherings"), "tab");
+    assert.equal(await tabNow(published.gathering_id), before, "a published gathering moved tab");
+    await ok(w.service.from("gathering_sources").update({ snapshot }).eq("gathering_id", published.gathering_id).eq("source", "ticketmaster"), "put it back");
+
+    // Every insert that does not say gets the tab its source implies.
+    const made = await ok(
+      w.service.from("gatherings").insert([
+        { name: "P276 hand", starts_at: inDays(40), source: "manual", is_seed: true },
+        { name: "P276 tm", starts_at: inDays(40), source: "ticketmaster", is_seed: true },
+        { name: "P276 city", starts_at: inDays(40), source: "city", is_seed: true },
+      ]).select("name, tab"),
+      "insert three",
+    );
+    assert.deepEqual(Object.fromEntries(made.map((g: any) => [g.name, g.tab])), { "P276 hand": "community", "P276 tm": "events", "P276 city": "community" });
+    await ok(w.service.from("gatherings").delete().like("name", "P276 %"), "clean up");
+
+    // The public list says which tab, and a visitor may call neither rule.
+    const listed = await rows(w.anon.rpc("public_gatherings", { p_from: inDays(-90), p_to: inDays(90), p_city: "toronto", p_query: null }));
+    assert.ok(listed.length > 0 && listed.every((g) => g.tab === "events" || g.tab === "community"), "public_gatherings has no tab");
+    await denied(w.anon.rpc("admin_tab_gatherings"), "42501");
+    await denied(w.anon.rpc("tab_for_classification", { p_classification: "Music / Rock" }), "42501");
+    await denied(c(w.m.Dev).rpc("admin_tab_gatherings"), "42501");
+    await setSnapshot("Music / Rock");
+    await ok(w.service.rpc("admin_tab_gatherings"), "put the draft back on Events");
+  });
+
+  // M4.4 — a night of the City of Toronto feed, applied. The rules that refuse: only a
+  // City run may apply; a listing-day is never made twice; only a COMPLETE read may say
+  // something has gone; a published gathering is never dismissed (a flag for Alex);
+  // and only the importer's own dismissal is undone when a listing comes back.
+  //
+  // **Careful with "gone".** A complete read dismisses every City draft it did not see,
+  // so this case passes every real City id as seen — or one harness run would dismiss
+  // the whole City feed on staging.
+  it("P277 the City feed's apply makes drafts once, dismisses only on a complete read, and never touches a published one", async () => {
+    const realIds: string[] = (await rows(w.service.from("gathering_sources").select("external_id").eq("source", "city"))).map((s) => s.external_id);
+    const startRun = async () => ok(w.service.rpc("admin_start_import_run", { p_source: "city", p_trigger: "city-manual", p_actor: "harness:P277", p_city: "toronto" }), "start a City run");
+    const finish = async (run: number) => ok(w.service.from("import_runs").update({ status: "ok", finished_at: new Date().toISOString() }).eq("id", run), "finish the run");
+    const key = `p277|harness ${Date.now()}`;
+    const ext = (n: number) => `${key}|${n}`;
+    const draftOf = (n: number, startsAt: string) => ({
+      externalId: ext(n),
+      name: `P277 harvest fair ${n}`,
+      startsAt,
+      endsAt: null,
+      venueId: null,
+      venueKey: key,
+      eventUrl: "https://example.org/p277",
+      category: "markets",
+      entry: "free",
+      organiser: "P277 organiser",
+      snapshot: { name: `P277 harvest fair ${n}`, category: "Farmers' Market" },
+    });
+    const plan = (over: Record<string, unknown>) => ({
+      complete: false,
+      newVenues: [{ key, name: "P277 Harness Barns", address: "1 Nowhere St", lat: 43.68, lng: -79.42 }],
+      venueKeys: [],
+      newDrafts: [],
+      seen: [],
+      seenIds: [],
+      ...over,
+    });
+    const byExt = async (n: number) =>
+      (await ok(w.service.from("gathering_sources").select("gathering_id, gatherings!inner(id, status, source, tab, organiser, dismissed_at)").eq("source", "city").eq("external_id", ext(n)).maybeSingle(), "find it"))?.gatherings ?? null;
+
+    // Only a City run may apply.
+    const tmRun = await ok(w.service.rpc("admin_start_import_run", { p_source: "ticketmaster", p_trigger: "manual", p_actor: "harness:P277", p_city: "toronto" }), "start a TM run");
+    await denied(w.service.rpc("admin_city_import_apply", { p_run: tmRun, p_plan: plan({}) }));
+    await finish(tmRun);
+
+    let run = await startRun();
+    const applied = await ok(w.service.rpc("admin_city_import_apply", { p_run: run, p_plan: plan({ newDrafts: [draftOf(1, inDays(10)), draftOf(2, inDays(11))] }) }), "apply");
+    assert.equal(applied.new, 2);
+    assert.equal(applied.venues_created, 1);
+    const one = await byExt(1);
+    assert.deepEqual([one.source, one.tab, one.organiser, one.status], ["city", "community", "P277 organiser", "draft"]);
+    // Seed-tagged, so nothing here can reach a public page when it is published below.
+    await ok(w.service.from("gatherings").update({ is_seed: true }).like("name", "P277 %"), "tag as seed");
+
+    // Never a second copy.
+    const again = await ok(w.service.rpc("admin_city_import_apply", { p_run: run, p_plan: plan({ newDrafts: [draftOf(1, inDays(10))] }) }), "apply again");
+    assert.equal(again.new, 0, "the same listing-day was made twice");
+
+    // A partial read that did not see them says nothing is gone.
+    const partial = await ok(w.service.rpc("admin_city_import_apply", { p_run: run, p_plan: plan({ complete: false, seenIds: realIds }) }), "partial");
+    assert.equal(partial.dismissed, 0, "a partial read dismissed something");
+    assert.equal((await byExt(1)).dismissed_at, null);
+
+    // Publish #2, then a complete read that sees neither: the draft is dismissed by the
+    // importer, the published one is flagged and left alone.
+    await ok(w.service.rpc("admin_publish_gathering", { p_gathering: (await byExt(2)).id, p_actor: "harness:P277" }), "publish #2");
+    const gone = await ok(w.service.rpc("admin_city_import_apply", { p_run: run, p_plan: plan({ complete: true, seenIds: realIds }) }), "complete, unseen");
+    assert.equal(gone.dismissed, 1);
+    assert.equal(gone.flagged, 1);
+    assert.notEqual((await byExt(1)).dismissed_at, null, "the draft that left the feed is still a draft");
+    const two = await byExt(2);
+    assert.equal(two.dismissed_at, null, "a published gathering was dismissed by the importer");
+    const flags = await rows(w.service.from("gathering_flags").select("kind, source").eq("gathering_id", two.id).is("resolved_at", null));
+    assert.deepEqual(flags, [{ kind: "missing", source: "city" }]);
+
+    // Seen again: the importer's own dismissal is undone...
+    const back = await ok(w.service.rpc("admin_city_import_apply", { p_run: run, p_plan: plan({ seen: [{ externalId: ext(1), snapshot: {} }], seenIds: [...realIds, ext(1), ext(2)] }) }), "seen again");
+    assert.equal(back.restored, 1);
+    assert.equal((await byExt(1)).dismissed_at, null);
+    await finish(run);
+
+    // ...but not Alex's.
+    const id1 = (await byExt(1)).id;
+    await ok(w.service.from("gatherings").update({ dismissed_at: new Date().toISOString() }).eq("id", id1), "Alex dismisses");
+    await ok(w.service.from("moderation_log").insert({ actor: "alex@example.com", action: "dismiss", gathering_id: id1, note: "P277" }), "log it as Alex");
+    run = await startRun();
+    const notBack = await ok(w.service.rpc("admin_city_import_apply", { p_run: run, p_plan: plan({ seen: [{ externalId: ext(1), snapshot: {} }], seenIds: [...realIds, ext(1), ext(2)] }) }), "seen once more");
+    assert.equal(notBack.restored, 0, "the importer undid Alex's dismissal");
+    await finish(run);
+
+    // Nobody but the service key may apply.
+    await denied(w.anon.rpc("admin_city_import_apply", { p_run: run, p_plan: plan({}) }), "42501");
+    await denied(c(w.m.Dev).rpc("admin_city_import_apply", { p_run: run, p_plan: plan({}) }), "42501");
+
+    // Clean up: the gatherings (their sources and flags cascade), the venue and its key.
+    const venue = (await ok(w.service.from("venue_external_ids").select("venue_id").eq("source", "city").eq("external_id", key).single(), "the venue")).venue_id;
+    const ids = (await rows(w.service.from("gatherings").select("id").like("name", "P277 %"))).map((g) => g.id);
+    await ok(w.service.from("moderation_log").delete().in("gathering_id", ids), "clean the log");
+    await ok(w.service.from("gatherings").delete().in("id", ids), "clean up gatherings");
+    await ok(w.service.from("venues").delete().eq("id", venue), "clean up the venue");
   });
 });
 

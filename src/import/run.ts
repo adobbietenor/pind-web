@@ -24,6 +24,7 @@ import { PUBLISHER, runPublishing } from "../publish/run";
 import { serviceClient } from "../supabase";
 import { canSpend, ESTIMATE, MODEL, type ScoreInput } from "./ai";
 import { claudeClient, scoreBatch, SPOTS_CALL_MS, suggestSpots } from "./claude";
+import { topUpSeries } from "../community/topup.ts";
 import { describeEvents } from "./describe.ts";
 import { fetchWindow } from "./tmclient";
 import {
@@ -211,6 +212,17 @@ export async function runImport(env: Env, opts: RunOptions): Promise<RunOutcome>
     // a genre Ticketmaster changes later never silently re-tags anything. The rule
     // itself is public.chip_category, one copy, in the database.
     counts.categorised = await must(db.rpc("admin_categorise_gatherings"));
+
+    // 4c. The tab (M4.4): a Ticketmaster fair, expo or food & drink listing is
+    // Community, by its own classification, while it has never been public. One rule,
+    // in the database (public.tab_for_classification).
+    counts.tabbed = await must(db.rpc("admin_tab_gatherings"));
+
+    // 4d. Top up every confirmed series with fewer than three weeks of dates (M4.4).
+    // Drafts only, before the publisher runs, so tonight's fill can consider them.
+    // A series whose dates fit no pattern is named for Alex rather than guessed at.
+    const topup = await topUpSeries(db, { now, tz: city.timezone });
+    counts.topup = topup;
 
     // 5. Retention.
     counts.purged = await must(db.rpc("admin_purge_ticketmaster_data", { p_days: RETENTION_DAYS }));
@@ -424,6 +436,8 @@ interface Spending {
 }
 
 // Every upcoming draft without a score, soonest first, 25 per call, 4 calls at a time.
+// Not hand-entered drafts (M4.4, Alex): a series someone typed in is held by the
+// Community tab's caps only, never by the AI's score, so it is not scored at all.
 async function scoreDrafts(db: SupabaseClient, city: City, claude: ReturnType<typeof claudeClient>, s: Spending) {
   const drafts = (
     await all<any>((a, b) =>
@@ -431,6 +445,7 @@ async function scoreDrafts(db: SupabaseClient, city: City, claude: ReturnType<ty
         .from("gatherings")
         .select("id, name, starts_at, venue_id, venue_name_raw, gathering_triage(gathering_id), gathering_sources(snapshot)")
         .eq("status", "draft")
+        .neq("source", "manual")
         .gt("starts_at", new Date().toISOString())
         .order("starts_at")
         .range(a, b),

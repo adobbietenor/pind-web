@@ -31,7 +31,10 @@ export interface PublishSettings {
   maxCategoryShare: number;
   minPerCategory: number;
   minCapacity: number;
-  communitySlotsWeekly: number;
+  // The Community tab's own fill (M4.4, Alex): its caps, and the hold on the City feed.
+  communityMaxPerVenueWeekly: number;
+  communityMaxPerOrganiserWeekly: number;
+  cityFeedPublishing: boolean;
   scoreFloor: number;
   growReach: number;
   growMedianPins: number;
@@ -79,6 +82,14 @@ export interface Candidate {
   // so on. Provisional in M2.2, derived from the source's own classification; M2.3
   // promotes it to a column and settles the public naming.
   category: string;
+  // M4.4: which tab it is listed on, decided by the database. Each tab is filled by
+  // its own rules: Events to the weekly target, Community by its own caps.
+  tab: "events" | "community";
+  // Who runs it, for the Community tab's per-organiser cap. Null is capped by venue only.
+  organiser: string | null;
+  // A date of a hand-entered series: held by the Community caps only, never by a
+  // score (Alex, 29 Oct 2026) — it is not scored at all.
+  fromSeries: boolean;
 }
 
 // A week of the calendar, as it stands before this run.
@@ -87,6 +98,9 @@ export interface WeekState {
   publishedLive: number; // published, not withdrawn, not seed, starting that week
   perVenue: Record<string, number>; // the same, by venue
   perCategory: Record<string, number>; // and by the kind of gathering it is
+  // The four above are the Events tab's. The Community tab counts its own, published
+  // and live, by venue and by organiser — its caps are per week too.
+  community: { perVenue: Record<string, number>; perOrganiser: Record<string, number> };
 }
 
 export type ReasonCode =
@@ -99,8 +113,10 @@ export type ReasonCode =
   | "below_floor"
   | "venue_cap"
   | "category_cap"
-  | "community_slot_held"
-  | "week_full";
+  | "week_full"
+  | "community_venue_cap"
+  | "organiser_cap"
+  | "city_feed_held";
 
 export interface Decision {
   weekStart: string;
@@ -133,6 +149,8 @@ export interface WeekSummary {
   published: number;
   shortBy: number;
   note: string;
+  // M4.4: how many the Community tab's own fill published into this week.
+  community: number;
 }
 
 export interface PublishPlan {
@@ -258,7 +276,12 @@ export function planPublishing(input: PlanInput): PublishPlan {
   // Marked picks still COUNT towards the caps, so the automatic picks that follow
   // see them. The override is for the draft he named, not for everything after it.
   // ---------------------------------------------------------------------------
-  const weeks = input.weeks.map((w) => ({ ...w, perVenue: { ...w.perVenue }, perCategory: { ...w.perCategory } }));
+  const weeks = input.weeks.map((w) => ({
+    ...w,
+    perVenue: { ...w.perVenue },
+    perCategory: { ...w.perCategory },
+    community: { perVenue: { ...w.community.perVenue }, perOrganiser: { ...w.community.perOrganiser } },
+  }));
   const byWeek = new Map(weeks.map((w) => [w.weekStart, w]));
   const takenByMark = new Set<string>();
   const markedInWeek = new Map<string, number>();
@@ -291,7 +314,10 @@ export function planPublishing(input: PlanInput): PublishPlan {
     picks.push(c.id);
     const n = (markedInWeek.get(weekStart) ?? 0) + 1;
     markedInWeek.set(weekStart, n);
-    if (w) {
+    if (w && c.tab === "community") {
+      w.community.perVenue[c.venueId] = (w.community.perVenue[c.venueId] ?? 0) + 1;
+      if (c.organiser) w.community.perOrganiser[c.organiser] = (w.community.perOrganiser[c.organiser] ?? 0) + 1;
+    } else if (w) {
       w.publishedLive += 1;
       w.perVenue[c.venueId] = (w.perVenue[c.venueId] ?? 0) + 1;
       w.perCategory[c.category] = (w.perCategory[c.category] ?? 0) + 1;
@@ -319,6 +345,7 @@ export function planPublishing(input: PlanInput): PublishPlan {
       .filter((c) => {
         const at = Date.parse(c.startsAt);
         if (takenByMark.has(c.id)) return false; // already published above
+        if (c.tab !== "events") return false; // the Community tab fills itself, below
         return at >= from && at <= to && weekStartOf(c.startsAt, timeZone) === week.weekStart;
       })
       .sort(rankCandidates);
@@ -393,12 +420,9 @@ export function planPublishing(input: PlanInput): PublishPlan {
     // At most `target` dry runs over a pool of a few hundred, once per week.
     const ceiling = solveCategoryCeiling(ranked, week, s, target, publishedBefore);
 
-    // A community slot is only held when there is something to hold it for: holding
-    // an empty slot would publish four where the target says five. Nothing sources
-    // community gatherings until M4.4, so this reserves nothing today.
-    const isCommunity = (c: Candidate) => c.source === "community";
-    const communityWaiting = ranked.filter(isCommunity).length;
-    const reserved = Math.min(s.communitySlotsWeekly, communityWaiting);
+    // (A "community slot" used to be held here for the last place in the week. It
+    // tested source === "community", a value the source enum never had, so it never
+    // held anything; M4.4 gave Community its own fill instead and it is gone.)
 
     ranked.forEach((c, i) => {
       const rank = i + 1;
@@ -455,24 +479,12 @@ export function planPublishing(input: PlanInput): PublishPlan {
         return;
       }
 
-      // The last slots belong to community gatherings while any are waiting.
-      const communityStillWaiting = ranked.slice(i).filter(isCommunity).length;
-      if (!isCommunity(c) && remaining <= Math.min(reserved, communityStillWaiting)) {
-        record(c, {
-          ...common,
-          outcome: "skipped",
-          reasonCode: "community_slot_held",
-          reason: `not published — the last slot of the week of ${shortDate(week.weekStart)} is held for a community gathering; ranked ${ordinal(rank)} of ${ranked.length} with ${scoreText(c)}`,
-        });
-        return;
-      }
-
       filled += 1;
       perVenue[c.venueId!] = venueSoFar + 1;
       perCategory[c.category] = already + 1;
       picks.push(c.id);
       const next = ranked[i + 1];
-      const slotKind = c.mark === "publish" ? "marked" : isCommunity(c) ? "community" : "target";
+      const slotKind = c.mark === "publish" ? "marked" : "target";
       const how =
         c.mark === "publish"
           ? `you marked it "publish", so it went first`
@@ -488,6 +500,8 @@ export function planPublishing(input: PlanInput): PublishPlan {
       });
     });
 
+    const community = fillCommunity(week, input.candidates, takenByMark, { from, to, timeZone, settings: s }, decisions, picks);
+
     const shortBy = Math.max(0, target - filled);
     summaries.push({
       weekStart: week.weekStart,
@@ -495,11 +509,179 @@ export function planPublishing(input: PlanInput): PublishPlan {
       publishedBefore,
       published: filled - publishedBefore,
       shortBy,
-      note: weekNote({ target, filled, publishedBefore, shortBy, ranked: ranked.length, pool: pool.length, week: week.weekStart }),
+      note:
+        weekNote({ target, filled, publishedBefore, shortBy, ranked: ranked.length, pool: pool.length, week: week.weekStart }) +
+        (community.considered ? ` Community: ${community.published} published of ${community.considered} in the window.` : ""),
+      community: community.published,
     });
   }
 
   return { decisions, weeks: summaries, picks };
+}
+
+// ---------------------------------------------------------------------------
+// The Community tab's own fill (M4.4, Alex, 29 Oct 2026)
+//
+// Community is not inside the Events tab's 50. It used to be, which meant an unscored
+// series date ranked last in a full week and never published, and a whole tab could
+// be crowded out by concerts. Its own rules, in the order a refusal is reported:
+//
+//   1. the hard skips everything shares: marked "never", public before, too small,
+//      no venue;
+//   2. the score floor — except a date of a hand-entered series, which is held by the
+//      caps only and has no score;
+//   3. the hold on the City feed, until Alex has seen its scores;
+//   4. at most N at one venue in the week, and at most N by one organiser, counting
+//      what is already published (hand-entered series too).
+//
+// No target and no category share: the tab is as full as its supply allows under the
+// caps. Ranked as the Events tab is — Alex's marks, then the score, then the sooner
+// start — so when a cap bites, the better-scored and then the earlier one stays.
+// ---------------------------------------------------------------------------
+
+function fillCommunity(
+  week: WeekState,
+  candidates: Candidate[],
+  takenByMark: Set<string>,
+  o: { from: number; to: number; timeZone: string; settings: PublishSettings },
+  decisions: Decision[],
+  picks: string[],
+): { published: number; considered: number } {
+  const s = o.settings;
+  const perVenue = week.community.perVenue;
+  const perOrganiser = week.community.perOrganiser;
+  const pool = candidates
+    .filter((c) => {
+      const at = Date.parse(c.startsAt);
+      return (
+        c.tab === "community" &&
+        !takenByMark.has(c.id) &&
+        at >= o.from &&
+        at <= o.to &&
+        weekStartOf(c.startsAt, o.timeZone) === week.weekStart
+      );
+    })
+    .sort(rankCandidates);
+
+  let published = 0;
+  const record = (c: Candidate, d: Partial<Decision> & { outcome: Decision["outcome"]; reasonCode: ReasonCode; reason: string }) =>
+    decisions.push({
+      weekStart: week.weekStart,
+      target: 0,
+      publishedBefore: 0,
+      gatheringId: c.id,
+      gatheringName: c.name,
+      startsAt: c.startsAt,
+      venueId: c.venueId,
+      venueName: c.venueName,
+      slot: null,
+      slotKind: null,
+      rank: null,
+      candidates: null,
+      aiScore: c.aiScore,
+      adjustment: c.adjustment,
+      finalScore: c.finalScore,
+      distanceKm: c.distanceKm,
+      mark: c.mark,
+      category: c.category,
+      ...d,
+    });
+
+  pool.forEach((c, i) => {
+    const common = { rank: i + 1, candidates: pool.length };
+    if (c.mark === "never") {
+      record(c, { ...common, outcome: "skipped", reasonCode: "marked_never", reason: `not published — you marked it "never"` });
+      return;
+    }
+    if (c.hasSlug) {
+      record(c, {
+        ...common,
+        outcome: "skipped",
+        reasonCode: "previously_published",
+        reason: `skipped, previously published — it has been on the public web before, so only you can publish it again`,
+      });
+      return;
+    }
+    if (c.capacity !== null && c.capacity < s.minCapacity) {
+      record(c, {
+        ...common,
+        outcome: "skipped",
+        reasonCode: "too_small",
+        reason: `not published — it holds ${c.capacity}, under the floor of ${s.minCapacity}. Publish it by hand if you want it anyway.`,
+      });
+      return;
+    }
+    if (!c.venueId) {
+      record(c, { ...common, outcome: "skipped", reasonCode: "no_venue", reason: `not published — no venue yet` });
+      return;
+    }
+    if (!c.fromSeries) {
+      if (c.finalScore === null) {
+        record(c, { ...common, outcome: "skipped", reasonCode: "unscored", reason: `not published — not scored yet, so it has no final score` });
+        return;
+      }
+      if (c.finalScore < s.scoreFloor) {
+        record(c, {
+          ...common,
+          outcome: "skipped",
+          reasonCode: "below_floor",
+          reason: `not published — ${scoreText(c)}, below the floor of ${s.scoreFloor}`,
+        });
+        return;
+      }
+    }
+    if (c.source === "city" && !s.cityFeedPublishing) {
+      record(c, {
+        ...common,
+        outcome: "skipped",
+        reasonCode: "city_feed_held",
+        reason: `not published — City of Toronto feed listings are held until you have seen their scores (${scoreText(c)})`,
+      });
+      return;
+    }
+    const atVenue = perVenue[c.venueId] ?? 0;
+    if (atVenue >= s.communityMaxPerVenueWeekly) {
+      record(c, {
+        ...common,
+        outcome: "skipped",
+        reasonCode: "community_venue_cap",
+        reason: `not published — ${c.venueName ?? "that venue"} already has ${atVenue} on the Community tab the week of ${shortDate(week.weekStart)}, ${
+          atVenue > s.communityMaxPerVenueWeekly ? "above" : "which is"
+        } the cap of ${s.communityMaxPerVenueWeekly}; ranked ${ordinal(i + 1)} of ${pool.length} with ${scoreText(c)}`,
+      });
+      return;
+    }
+    const byOrganiser = c.organiser ? (perOrganiser[c.organiser] ?? 0) : 0;
+    if (c.organiser && byOrganiser >= s.communityMaxPerOrganiserWeekly) {
+      record(c, {
+        ...common,
+        outcome: "skipped",
+        reasonCode: "organiser_cap",
+        reason: `not published — ${c.organiser} already has ${byOrganiser} on the Community tab the week of ${shortDate(week.weekStart)}, ${
+          byOrganiser > s.communityMaxPerOrganiserWeekly ? "above" : "which is"
+        } the cap of ${s.communityMaxPerOrganiserWeekly}; ranked ${ordinal(i + 1)} of ${pool.length} with ${scoreText(c)}`,
+      });
+      return;
+    }
+
+    perVenue[c.venueId] = atVenue + 1;
+    if (c.organiser) perOrganiser[c.organiser] = byOrganiser + 1;
+    published += 1;
+    picks.push(c.id);
+    record(c, {
+      ...common,
+      outcome: "published",
+      reasonCode: "published",
+      slot: published,
+      slotKind: "community",
+      reason: `published on the Community tab for the week of ${shortDate(week.weekStart)} — ${
+        c.fromSeries ? "a date of a hand-entered series, held by the caps only" : scoreText(c)
+      }; ${c.venueName ?? "its venue"} ${atVenue + 1} of ${s.communityMaxPerVenueWeekly}${
+        c.organiser ? `, ${c.organiser} ${byOrganiser + 1} of ${s.communityMaxPerOrganiserWeekly}` : ""
+      }`,
+    });
+  });
+  return { published, considered: pool.length };
 }
 
 // The largest week in which no category exceeds its share, and the per-category

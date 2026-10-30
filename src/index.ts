@@ -3,7 +3,9 @@ import { jobsFor } from "./cron";
 import { deliverPending } from "./notify/deliver";
 import { spotSuggestionsOn, type Env } from "./env";
 import { escape, page } from "./html";
+import { CITY_IMPORTER, runCityImport } from "./import/cityrun";
 import { IMPORTER, runImport } from "./import/run";
+import { sendAlert } from "./ops/alert";
 import { checkExpiringCredentials } from "./ops/watch";
 import { keepTestCrowdAhead } from "./admin/testcrowd";
 import { runJobsLoudly } from "./loud";
@@ -64,6 +66,17 @@ export default {
     if (jobs.includes("notify")) {
       const outcome = await deliverPending(env);
       if (outcome.sent.push + outcome.sent.email + outcome.sent.none + outcome.failed > 0) console.log(outcome.message);
+      return;
+    }
+    if (jobs.includes("city-import")) {
+      // M4.4: the City of Toronto feed. A failed run tells somebody, as the import does.
+      const outcome = await runCityImport(env, { trigger: "city-cron", actor: CITY_IMPORTER });
+      console.log(outcome.message);
+      if (outcome.status === "failed") {
+        await sendAlert(env, serviceClient(env), "import_failed", "Pin'd: the City feed import failed", outcome.message).catch((err) =>
+          console.error("could not send the City feed alert:", err instanceof Error ? err.message : err),
+        );
+      }
       return;
     }
     if (jobs.includes("liveness")) {

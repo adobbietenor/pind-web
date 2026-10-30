@@ -17,7 +17,6 @@ import {
   CHIP_MIN_GATHERINGS,
   CHIP_MIN_VENUES,
   TABS,
-  tabForSource,
   type TabValue,
 } from "./constants.ts";
 import { fromLocalInput, localDate } from "./time.ts";
@@ -27,6 +26,8 @@ import { fromLocalInput, localDate } from "./time.ts";
 export interface ListRow {
   starts_at: string;
   source: string;
+  // Which tab it is listed on — the database's call, not this file's (constants.ts).
+  tab: TabValue;
   category: string | null;
   venue_id: string;
   name: string;
@@ -112,7 +113,7 @@ export function windowFor(now: Date, tz: string, from: string | null | undefined
 // ---------------------------------------------------------------------------
 
 export const rowsInTab = <T extends ListRow>(rows: T[], tab: TabValue): T[] =>
-  rows.filter((r) => tabForSource(r.source) === tab);
+  rows.filter((r) => r.tab === tab);
 
 // ---------------------------------------------------------------------------
 // The chips

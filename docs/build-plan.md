@@ -59,7 +59,7 @@ Contents
 | M4.1 | Policy, terms, operations                   | Privacy policy and terms live; moderation rota and incident scripts written                            | 4–6     |
 | M4.2 | Adversarial review of the visibility rules  | Leaks fixed as migrations; harness green including solo cases                                          | 4–8     |
 | M4.3 | Production project + external TestFlight    | A real person can sign up on pind.social; Beta App Review passed                                       | 6–8     |
-| M4.4 | Community & free sourcing                   | A weekly run fills its own admin tab; one community gathering is published                             | 8–12    |
+| M4.4 | Community & free sourcing                   | **Replaced (Alex, 29 Oct 2026):** the City of Toronto open data feed through the publisher, series top-up, the Community tab's own caps — see §M4.4 | 8–12    |
 | M4.5 | Metrics + adaptive publishing on            | A metrics page in the admin; the controller logs a weekly decision                                     | 6–8     |
 | —    | The first real crowds                       | 6–8 weeks; 2–3 seeded gatherings a week; a decision meeting against §7                                 | ~2/week |
 | M5.1 | Store readiness                             | Listing, labels, manifest, EULA, a review-only gathering the reviewer can use end to end               | 8–12    |
@@ -220,7 +220,9 @@ None of this applies to the web build, which is where solo is measured first.
 | `publish_min` / `publish_max`     | 3 / 75 (M2.2)  | Floor and ceiling for the target                                                             |
 | `publish_lead_days_min` / `_max`  | 0 / 21 (M2.2)  | Publish a draft only if it starts within this window; nearer first                           |
 | `max_per_venue_per_week`          | 6 (M2.2)       | A Jays homestand does not fill the week                                                      |
-| `community_slots_weekly`          | 1              | Reserved for a "Community & free" gathering above its own threshold (from M4.4)              |
+| ~~`community_slots_weekly`~~      | —              | **Removed (M4.4, 29 Oct 2026):** it never fired; Community has its own fill (below)          |
+| `community_max_per_venue_weekly` · `community_max_per_organiser_weekly` | 2 · 2 (M4.4) | The Community tab's caps, hand-entered series included; the 50 is the Events tab's |
+| `city_feed_publishing`            | off (M4.4)     | The City feed imports and is scored, but publishes only once Alex has seen its scores        |
 | `score_floor`                     | 60 (M2.2)      | Final score (AI score minus distance adjustment) below which a draft is never auto-published |
 | `max_category_share`              | 0.40 (M2.2)    | No category takes more than this share of what is published — lands with the floor of 60    |
 | `grow_reach` · `grow_median_pins` | 0.60 · 8       | Both must hold to grow                                                                       |
@@ -763,6 +765,15 @@ decisions, "M3.7: named squads, open to join").
 8–12 h
 
 #### M4.4 · Community & free sourcing
+
+**Replaced, 29 Oct 2026 (Alex, from the community pipeline diagnosis; decisions.md, "M4.4:
+community sources").** Not the weekly Claude-with-web-search run below: the City of Toronto's
+Festivals & Events open data feed, imported nightly and published through the same publisher
+(held until Alex has seen its scores); confirmed series topped up nightly; Ticketmaster fairs,
+expos and food & drink on the Community tab; and the Community tab filled by its own rules —
+2 per venue and 2 per organiser a week, hand-entered series by the caps only. The community
+slot below is gone. Toronto Public Library, Meetup and Eventbrite are not now (the library
+needs its permission). What follows is the plan as it stood.
 
 **Settled: the first community gatherings were entered by hand (M2.3); the automated run stays here.** As it was asked: **Open: should this move earlier?** (Alex asked in M2.2; **not decided, nothing reordered.**) The prompt was a measurement, not enthusiasm: Ticketmaster classifies everything as Music, Sports or Arts & Theatre, so "bars" and "community" have no source at all, and the breadth a 50-a-week target exists to show is three categories wearing five labels. The variety problem is a *sourcing* problem, and no publishing setting fixes it.
 

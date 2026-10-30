@@ -39,7 +39,9 @@ export interface Crowd {
   // One short line saying what this is, where a source knew something. Null is the
   // common case and shows nothing: a blank beats a restatement of the title.
   blurb: string | null;
-  source: "manual" | "ticketmaster" | "ai";
+  source: "manual" | "ticketmaster" | "ai" | "city";
+  // Which tab it is listed on, decided by the database (M4.4).
+  tab: "events" | "community";
   // The venue's id, not just its name: a chip earns its place at three gatherings in
   // at least two distinct *places*, and counting places by name is the kind of
   // nearly-right that bites when two rooms share one (M2.3).
@@ -89,7 +91,7 @@ export interface Crowd2 {
     // What makes this one worth turning up to, where the source said anything. The
     // crowd page has room for both lines; a card has room for one.
     blurb_why: string | null;
-    source: "manual" | "ticketmaster" | "ai";
+    source: "manual" | "ticketmaster" | "ai" | "city";
     event_url: string | null;
   };
   venue: {

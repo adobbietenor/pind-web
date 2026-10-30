@@ -16,7 +16,6 @@ import {
   href,
   parseChips,
   rowsInTab,
-  tabForSource,
   tabHref,
   toggle,
   windowFor,
@@ -35,6 +34,7 @@ let seq = 0;
 const row = (over: Partial<ListRow> & { starts_at: string }): ListRow => ({
   name: `Gathering ${++seq}`,
   source: "ticketmaster",
+  tab: "events",
   category: null,
   venue_id: "v1",
   city_timezone: TZ,
@@ -77,18 +77,17 @@ describe("the week W1 shows", () => {
 });
 
 describe("which tab a gathering is in", () => {
-  it("is its source, so nobody decides it per gathering", () => {
-    assert.equal(tabForSource("ticketmaster"), "events");
-    assert.equal(tabForSource("manual"), "community");
-    // The AI discovery run (M4.4) is the community half's own source.
-    assert.equal(tabForSource("ai"), "community");
+  it("is the row's own tab, never its source (M4.4: a Ticketmaster fair is Community)", () => {
+    const fair = row({ starts_at: at("2026-09-21T23"), source: "ticketmaster", tab: "community" });
+    assert.deepEqual(rowsInTab([fair], "community"), [fair]);
+    assert.deepEqual(rowsInTab([fair], "events"), []);
   });
 
   it("splits the rows and leaves their order alone", () => {
     const rows = [
-      row({ starts_at: at("2026-09-21T23"), source: "manual" }),
+      row({ starts_at: at("2026-09-21T23"), source: "manual", tab: "community" }),
       row({ starts_at: at("2026-09-22T23"), source: "ticketmaster" }),
-      row({ starts_at: at("2026-09-23T23"), source: "manual" }),
+      row({ starts_at: at("2026-09-23T23"), source: "manual", tab: "community" }),
     ];
     assert.deepEqual(
       rowsInTab(rows, "community").map((r) => r.starts_at),
@@ -102,7 +101,7 @@ describe("which chips are offered", () => {
   // Three gatherings, in at least two places. Both halves of that bar exist because
   // one alone was wrong: venues alone would have hidden running, which is four clubs
   // meeting constantly at two venues (Alex, after the wider community pass).
-  const community = (over: Partial<ListRow>) => row({ starts_at: at("2026-09-21T23"), source: "manual", ...over });
+  const community = (over: Partial<ListRow>) => row({ starts_at: at("2026-09-21T23"), source: "manual", tab: "community", ...over });
 
   it("offers a chip for three gatherings in two places", () => {
     const rows = [

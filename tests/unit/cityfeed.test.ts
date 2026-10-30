@@ -1,0 +1,204 @@
+// The City of Toronto feed (M4.4): reading the 235 MB file in pieces, the rules Alex
+// chose, and the plan. Every rule is proved from both sides — the row refused, and the
+// row that fits. The fixture is seven real rows from the feed (29 Oct 2026), trimmed
+// of their long descriptions. Run with `npm run test:unit`.
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import {
+  calendarDateOf,
+  chipFor,
+  cityExternalId,
+  citySkipReason,
+  MAX_RUN_DAYS,
+  ObjectSplitter,
+  organiserOf,
+  placeKey,
+  planCity,
+  runDays,
+  toCityRow,
+  type CityPlanInput,
+  type CityRow,
+} from "../../src/import/cityfeed.ts";
+
+const FILE = readFileSync(new URL("./fixtures/city-feed-sample.json", import.meta.url), "utf8");
+const RAW = JSON.parse(FILE).value as Record<string, unknown>[];
+const byName = (n: string) => toCityRow(RAW.find((r) => String(r.event_name).startsWith(n))!)!;
+
+describe("reading the feed in pieces", () => {
+  it("CY01 hands back exactly the array's objects, whatever size the pieces arrive in", () => {
+    for (const size of [1, 7, 113, 4096, FILE.length]) {
+      const s = new ObjectSplitter();
+      const out: string[] = [];
+      for (let i = 0; i < FILE.length; i += size) out.push(...s.push(FILE.slice(i, i + size)));
+      assert.equal(out.length, RAW.length, `piece size ${size}`);
+      assert.deepEqual(out.map((o) => JSON.parse(o)), RAW, `piece size ${size}`);
+    }
+  });
+
+  it("CY02 is not fooled by braces, brackets and escaped quotes inside strings", () => {
+    const text = JSON.stringify({ value: [{ a: 'he said "{[" and }', b: "\\" }, { c: "]}" }] });
+    const out = new ObjectSplitter().push(text);
+    assert.deepEqual(out.map((o) => JSON.parse(o)), [{ a: 'he said "{[" and }', b: "\\" }, { c: "]}" }]);
+  });
+
+  it("CY03 reads the day off an object without parsing it", () => {
+    assert.equal(calendarDateOf('{"x":1,"calendar_date":"2026-11-21T10:00:00-05:00","y":2}'), "2026-11-21T10:00:00-05:00");
+    assert.equal(calendarDateOf('{"x":1}'), null);
+  });
+});
+
+describe("one row, reduced", () => {
+  it("CY04 maps a real weekly market: its place, its pattern, its moment", () => {
+    const r = byName("Downsview Park Merchants Market");
+    assert.equal(r.frequency, "Weekly");
+    assert.ok(r.place && Number.isFinite(r.place.lat) && Number.isFinite(r.place.lng));
+    assert.equal(r.startsAt, new Date(String(RAW.find((x) => x.event_name === r.name)!.calendar_date)).toISOString());
+    assert.equal(r.localTime, "10:00");
+    assert.equal(r.free, true);
+  });
+
+  it("CY05 the organiser is 'presented by' when named, then the contact address, then nobody", () => {
+    assert.equal(organiserOf({ partnerships: [{ text: " DEAFest Toronto Inc.", value: "event_presented_by" }], event_email: "x@y.ca" }), "DEAFest Toronto Inc.");
+    assert.equal(organiserOf({ partnerships: [{ text: "City of Toronto", value: "event_funded_by" }], event_email: "Assembly@Toronto.ca" }), "assembly@toronto.ca");
+    assert.equal(organiserOf({ partnerships: [] }), null);
+  });
+});
+
+describe("the rules (Alex, 29 Oct 2026)", () => {
+  const base: CityRow = {
+    eventKey: "k",
+    startsAt: "2026-11-07T15:00:00.000Z",
+    localDate: "2026-11-07",
+    localTime: "10:00",
+    name: "A thing",
+    categories: ["Food/Culinary"],
+    frequency: "Single Date",
+    firstDate: "2026-11-07",
+    lastDate: "2026-11-07",
+    place: { name: "Somewhere", address: "1 Front St", lat: 43.65, lng: -79.38 },
+    organiser: null,
+    url: null,
+    free: true,
+  };
+
+  it("CY06 leaves out a listing whose every category is Events territory, and keeps one with any other", () => {
+    assert.equal(citySkipReason(byName("Jazz at the Columbus Centre")), "excluded_category");
+    assert.equal(citySkipReason({ ...base, categories: ["Music", "Live Performances"] }), "excluded_category");
+    assert.equal(citySkipReason({ ...base, categories: ["Music", "Food/Culinary"] }), null, "a food festival with music was dropped");
+    assert.equal(citySkipReason({ ...base, categories: ["Virtual/Online Event"] }), "excluded_category");
+  });
+
+  it("CY07 a run of four days or fewer is one gathering a day; a fifth day makes it a long run", () => {
+    assert.equal(MAX_RUN_DAYS, 4);
+    assert.equal(runDays("2026-11-07", "2026-11-10"), 4);
+    assert.equal(citySkipReason({ ...base, lastDate: "2026-11-10" }), null);
+    assert.equal(citySkipReason({ ...base, lastDate: "2026-11-11" }), "long_run");
+    assert.equal(citySkipReason(byName("First Wednesday Night Free at the AGO")), "long_run");
+    assert.equal(citySkipReason(byName("2026 Hockey Hall of Fame Induction")), null);
+  });
+
+  it("CY08 except a weekly repeat, which takes each listed day however long the season", () => {
+    const market = byName("Downsview Park Merchants Market");
+    assert.ok(runDays(market.firstDate, market.lastDate) > MAX_RUN_DAYS);
+    assert.equal(citySkipReason(market), null);
+    assert.equal(citySkipReason({ ...base, frequency: "Daily", lastDate: "2026-12-07" }), "long_run", "a daily exhibition got in");
+  });
+
+  it("CY09 a midnight start is no time at all; any other time is a time", () => {
+    // A real one: Arts/Exhibits keeps it past the category rule, and its midnight start stops it.
+    assert.equal(citySkipReason(byName("Lakeshore Dance Series")), "no_time");
+    assert.equal(citySkipReason({ ...base, localTime: "00:00" }), "no_time");
+    assert.equal(citySkipReason({ ...base, localTime: "00:30" }), null);
+  });
+
+  it("CY10 needs exactly one address with coordinates", () => {
+    assert.equal(byName("Winter Wings").place, null);
+    assert.equal(citySkipReason({ ...base, place: null }), "no_place");
+    assert.equal(citySkipReason(base), null);
+    const two = toCityRow({
+      ...RAW[0]!,
+      event_locations: [...(RAW[0]!.event_locations as unknown[]), ...(RAW[0]!.event_locations as unknown[])],
+    })!;
+    assert.equal(two.place, null, "a listing at two places was given one of them");
+  });
+
+  it("CY11 the chips that map cleanly, and nothing for the rest", () => {
+    assert.equal(chipFor(["Farmers' Market", "Food/Culinary"]), "markets");
+    assert.equal(chipFor(["Run/Walk"]), "running");
+    assert.equal(chipFor(["Trivia"]), "games");
+    assert.equal(chipFor(["Environmental"]), "outdoors");
+    assert.equal(chipFor(["Tour", "History"]), "outdoors");
+    assert.equal(chipFor(["Cultural", "Celebrations"]), null);
+  });
+});
+
+describe("the plan", () => {
+  const row = (over: Partial<CityRow> = {}): CityRow => ({
+    eventKey: "e1",
+    startsAt: "2026-11-07T15:00:00.000Z",
+    localDate: "2026-11-07",
+    localTime: "10:00",
+    name: "Harvest Fair",
+    categories: ["Food/Culinary"],
+    frequency: "Single Date",
+    firstDate: "2026-11-07",
+    lastDate: "2026-11-07",
+    place: { name: "Wychwood Barns", address: "601 Christie St", lat: 43.68, lng: -79.424 },
+    organiser: "The Stop",
+    url: "thestop.org",
+    free: true,
+    ...over,
+  });
+  const input = (over: Partial<CityPlanInput> = {}): CityPlanInput => ({
+    rows: [row()],
+    venues: [],
+    aliases: [],
+    cityKeys: [],
+    knownIds: [],
+    existing: [],
+    complete: true,
+    ...over,
+  });
+
+  it("CY12 a new place becomes a new venue, once, however many days it has", () => {
+    const p = planCity(input({ rows: [row(), row({ startsAt: "2026-11-08T15:00:00.000Z", localDate: "2026-11-08" })] }));
+    assert.equal(p.newVenues.length, 1);
+    assert.equal(p.newDrafts.length, 2);
+    assert.equal(p.newDrafts[0]!.venueKey, placeKey(row().place!));
+    assert.equal(p.newDrafts[0]!.eventUrl, "https://thestop.org");
+    assert.equal(p.newDrafts[0]!.organiser, "The Stop");
+  });
+
+  it("CY13 a known venue of the same name is used only when it is the same place", () => {
+    const near = { id: "v-near", name: "Wychwood Barns", lat: 43.6801, lng: -79.4241 };
+    const far = { id: "v-far", name: "Wychwood Barns", lat: 43.75, lng: -79.3 };
+    const a = planCity(input({ venues: [near] }));
+    assert.equal(a.newDrafts[0]!.venueId, "v-near");
+    assert.deepEqual(a.venueKeys, [{ key: placeKey(row().place!), venueId: "v-near" }]);
+    const b = planCity(input({ venues: [far] }));
+    assert.equal(b.newDrafts[0]!.venueId, null, "a namesake 10 km away was taken for the same place");
+    assert.equal(b.newVenues.length, 1);
+  });
+
+  it("CY14 a second copy of something already listed is skipped; something else at the venue is not", () => {
+    const venue = { id: "v1", name: "Wychwood Barns", lat: 43.68, lng: -79.424 };
+    const sameTime = { venueId: "v1", startsAt: "2026-11-07T16:00:00.000Z", name: "Saturday market", localDate: "2026-11-07" };
+    const later = { venueId: "v1", startsAt: "2026-11-07T18:00:00.000Z", name: "Saturday market", localDate: "2026-11-07" };
+    assert.equal(planCity(input({ venues: [venue], existing: [sameTime] })).skipped.duplicate, 1);
+    assert.equal(planCity(input({ venues: [venue], existing: [later] })).newDrafts.length, 1);
+    const sameName = { venueId: "elsewhere", startsAt: "2026-11-07T23:00:00.000Z", name: "Harvest Fair", localDate: "2026-11-07" };
+    assert.equal(planCity(input({ existing: [sameName] })).skipped.duplicate, 1);
+    const otherDay = { ...sameName, startsAt: "2026-11-08T23:00:00.000Z", localDate: "2026-11-08" };
+    assert.equal(planCity(input({ existing: [otherDay] })).newDrafts.length, 1);
+  });
+
+  it("CY15 a listing-day already known is seen, not created again; a refused row is not seen", () => {
+    const known = cityExternalId(row());
+    const p = planCity(input({ knownIds: [known], rows: [row(), row({ eventKey: "e2", localTime: "00:00" })] }));
+    assert.equal(p.newDrafts.length, 0);
+    assert.deepEqual(p.seen.map((s) => s.externalId), [known]);
+    assert.deepEqual(p.seenIds, [known]);
+    assert.equal(p.skipped.no_time, 1);
+  });
+});

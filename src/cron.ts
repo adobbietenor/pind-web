@@ -10,6 +10,9 @@
 
 export const IMPORT_CRON = "0 8 * * *";
 export const LIVENESS_CRON = "0 13 * * *";
+// The City of Toronto feed (M4.4): half an hour before the import, which then scores
+// its new drafts and publishes over both.
+export const CITY_CRON = "30 7 * * *";
 // Hourly. Free when nothing is waiting; caps an unchecked photo at an hour if the
 // webhook is broken, rather than a day.
 export const PHOTO_SWEEP_CRON = "0 * * * *";
@@ -21,13 +24,14 @@ export const CREDENTIALS_HOUR_UTC = 9;
 // is empty; a minute is the longest "someone wants to meet" waits.
 export const NOTIFY_CRON = "* * * * *";
 
-export const CRONS = [IMPORT_CRON, PHOTO_SWEEP_CRON, LIVENESS_CRON, NOTIFY_CRON] as const;
+export const CRONS = [IMPORT_CRON, PHOTO_SWEEP_CRON, LIVENESS_CRON, NOTIFY_CRON, CITY_CRON] as const;
 
-export type Job = "import" | "photo-sweep" | "credentials" | "test-crowd" | "liveness" | "notify";
+export type Job = "import" | "photo-sweep" | "credentials" | "test-crowd" | "liveness" | "notify" | "city-import";
 
 export function jobsFor(cron: string, scheduledTime: number): Job[] {
   if (cron === IMPORT_CRON) return ["import"];
   if (cron === LIVENESS_CRON) return ["liveness"];
+  if (cron === CITY_CRON) return ["city-import"];
   if (cron === NOTIFY_CRON) return ["notify"];
   if (cron === PHOTO_SWEEP_CRON) {
     // The test crowd is kept two days ahead by the same daily run (M3.3): it used to move

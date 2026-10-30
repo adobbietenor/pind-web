@@ -34,7 +34,7 @@ One product (Alex, revised build plan, 18 Sept 2026; `docs/build-plan.md`):
 
 ### gathering
 A real public event. Arrives as a **draft** from the nightly Ticketmaster import, the
-weekly Community & free run (M4.4), or manual entry (fallback), and is public only once
+nightly City of Toronto open data feed (M4.4), or manual entry (fallback), and is public only once
 it is published — by the auto-publisher (§8) or by Alex (decisions Part 5, "Gathering
 sourcing"). Fields: name, starts_at,
 `ends_at` (nullable), venue, `event_url` (tickets or event info; optional), `is_free`,
@@ -223,8 +223,9 @@ organiser's. Footer: suggest a gathering (a mailto link,
 nothing stored) · about · 19+.
 
 **A list of fifty is a different screen from a list of five** (built in M2.3):
-- **Two tabs, split on `source`** — **Events** is the Ticketmaster feed at `/`,
-  **Community** is everything entered by hand and, later, M4.4's run, at `/community`.
+- **Two tabs, split on `gatherings.tab`** — **Events** is the Ticketmaster feed at `/`,
+  **Community** is everything entered by hand, the City of Toronto feed, and Ticketmaster's
+  fairs, expos and food & drink (M4.4), at `/community`.
   No editorial call per gathering. Both tabs are always shown; one of them being empty
   this week is a fact about the week, not a reason to move the furniture.
 - **Category chips within a tab, never across it**, multi-select, showing the union of
@@ -797,7 +798,7 @@ working. Hours are Alex's, agent-assisted.
 | M4.1 | Policy, terms, operations (moderation rota, incident scripts) | **Partly** — the privacy and terms pages are live (published early, in M3.2). **Not done:** the moderation rota, incident scripts, and the line-by-line check of every privacy-page promise | 4–6 |
 | M4.2 | Independent adversarial review of the visibility rules | **Partly** — the room, groups, notifications and after-the-night rules (V20–V23) were reviewed on 6 Oct; every leak it found was fixed as a migration, with the cases in `test:policies`. The review of V1–V19 ran on 6–7 Oct (`docs/m1.1-review-brief.md`; `npm run test:review-v1`, Q01–Q43): 35 attacks refused, **8 leaks found — all 8 fixed 10 Oct 2026** in Alex's order (Q41 first, H8; then Q37+Q07, Q17, Q40, Q39, Q42, Q43), each a migration with its harness case (P194–P203) and the review's own case turning green (decisions, "The V1–V19 leaks, closed"). **Not done:** the solo cases (M3.4 is not built), and Alex's end-to-end read and sign-off of `docs/visibility.md` | 4–8 |
 | M4.3 | Production project (`pind-prod`) + external TestFlight | Not started | 6–8 |
-| M4.4 | Community & free sourcing | **Partly** — the Community tab has been on W1 since M2.3 with hand-entered gatherings (the manual community pass), with what it costs to walk in, the category chips, and a weekly check that recurring ones are still running (M2.3b). **Not built:** the automated weekly sourcing run and its admin tab | 8–12 |
+| M4.4 | Community & free sourcing | **Replaced and built, 29 Oct 2026** (decisions, "M4.4: community sources"): the City of Toronto open data feed nightly at 07:30 UTC, through the publisher and **held until Alex has seen its scores**; confirmed series topped up nightly; Ticketmaster fairs, expos and food & drink on Community (`gatherings.tab`); the Community tab's own fill, 2 per venue and 2 per organiser a week. **Not built:** Ticketmaster multi-day as one a day (no end date in the feed — asked); the library, Meetup and Eventbrite (not now) | 8–12 |
 | M4.5 | Metrics (§7) + adaptive publishing on (§8) | Not started | 6–8 |
 | M4.6 | Add an event — a stranger submits a gathering; Alex approves every one; none under 24 hours before it starts (filed M3.1; supersedes the mailto) | Not started — recorded in decisions.md | 6–10 |
 | — | **The first real crowds** — 6–8 weeks, 2–3 seeded gatherings a week, then a decision meeting against §7 | Not started | ~2/week |

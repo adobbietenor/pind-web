@@ -32,7 +32,9 @@ const SETTINGS: PublishSettings = {
   maxCategoryShare: 0.4,
   minPerCategory: 3,
   minCapacity: 10,
-  communitySlotsWeekly: 1,
+  communityMaxPerVenueWeekly: 2,
+  communityMaxPerOrganiserWeekly: 2,
+  cityFeedPublishing: true,
   scoreFloor: 70,
   growReach: 0.6,
   growMedianPins: 8,
@@ -72,6 +74,9 @@ function draft(over: Partial<Candidate> = {}): Candidate {
     // its own category keeps the share rule out of their way. The cases that mean to
     // exercise it set it deliberately.
     category: `cat${seq}`,
+    tab: "events",
+    organiser: null,
+    fromSeries: false,
     ...over,
   };
 }
@@ -82,6 +87,7 @@ function weeks(state: Partial<Record<string, Partial<WeekState>>> = {}): WeekSta
     publishedLive: 0,
     perVenue: {},
     perCategory: {},
+    community: { perVenue: {}, perOrganiser: {} },
     ...(state[weekStart] ?? {}),
   }));
 }
@@ -396,22 +402,125 @@ describe("the category cap", () => {
   });
 });
 
-describe("the community slot", () => {
-  // Nothing sources community gatherings until M4.4, so this must reserve nothing
-  // today: holding an empty slot would publish four where the target says five.
-  it("holds nothing when no community gathering is waiting", () => {
-    const pool = Array.from({ length: 5 }, (_, i) => draft({ venueId: `v${i}` }));
-    assert.equal(plan(pool).picks.length, 5);
+// M4.4 (Alex, 29 Oct 2026): the Community tab fills itself — not inside the Events
+// target, held by its own caps of 2 per venue and 2 per organiser a week, hand-entered
+// series by the caps only, the City feed held until Alex has seen its scores. Every
+// cap is proved from both sides: the one refused, and the one that fits.
+const club = (over: Partial<Candidate> = {}) =>
+  draft({ tab: "community", source: "manual", fromSeries: true, aiScore: null, finalScore: null, venueId: "park", venueName: "Barbara Hall Park", ...over });
+const city = (over: Partial<Candidate> = {}) => draft({ tab: "community", source: "city", venueId: `c${seq + 1}`, ...over });
+const day = (n: number) => `${WEEK1}T${String(12 + n).padStart(2, "0")}:00:00.000Z`;
+
+describe("the Community tab's own fill", () => {
+  it("CF01 is not counted in the Events target and never waits on it", () => {
+    const full = weeks({ [WEEK1]: { publishedLive: 5 } }); // the Events week is full
+    const run = club();
+    const concert = draft({ venueId: "arena" });
+    const p = plan([run, concert], {}, full);
+    assert.ok(p.picks.includes(run.id), "a run club waited on the Events target");
+    assert.equal(reasonFor(p, concert.id).reasonCode, "week_full", "the concert should still be held by the full Events week");
+    assert.equal(reasonFor(p, run.id).slotKind, "community");
   });
 
-  it("keeps the last slot for a community gathering when one is waiting", () => {
-    const ticketed = Array.from({ length: 5 }, (_, i) => draft({ venueId: `v${i}`, finalScore: 95 - i }));
-    const community = draft({ source: "community", finalScore: 72, venueId: "park" });
-    const p = plan([...ticketed, community]);
-    assert.equal(p.picks.length, 5);
-    assert.ok(p.picks.includes(community.id));
-    assert.equal(reasonFor(p, ticketed[4]!.id).reasonCode, "community_slot_held");
-    assert.equal(reasonFor(p, community.id).slotKind, "community");
+  it("CF02 and the Events target is not filled by Community rows", () => {
+    const busy = weeks({ [WEEK1]: { community: { perVenue: { park: 1 }, perOrganiser: {} } } });
+    const pool = Array.from({ length: 5 }, (_, i) => draft({ venueId: `v${i}` }));
+    assert.equal(plan(pool, {}, busy).picks.length, 5, "a published run club took an Events slot");
+  });
+
+  it("CF03 refuses a third at one venue in a week, and takes a second", () => {
+    const a = club({ startsAt: day(1) });
+    const b = club({ startsAt: day(2) });
+    const c = club({ startsAt: day(3) });
+    const p = plan([a, b, c]);
+    assert.ok(p.picks.includes(a.id) && p.picks.includes(b.id), "the second at the venue was refused");
+    assert.equal(reasonFor(p, c.id).reasonCode, "community_venue_cap");
+    assert.match(reasonFor(p, c.id).reason, /cap of 2/);
+  });
+
+  it("CF04 counts what is already published at the venue, hand-entered series included", () => {
+    const two = weeks({ [WEEK1]: { community: { perVenue: { park: 2 }, perOrganiser: {} } } });
+    const one = weeks({ [WEEK1]: { community: { perVenue: { park: 1 }, perOrganiser: {} } } });
+    const d = club();
+    assert.equal(reasonFor(plan([d], {}, two), d.id).reasonCode, "community_venue_cap");
+    assert.equal(reasonFor(plan([d], {}, one), d.id).reasonCode, "published");
+  });
+
+  it("CF05 refuses a third by one organiser across different venues, and takes a second", () => {
+    const org = { organiser: "Frontrunners Toronto" };
+    const a = club({ ...org, venueId: "p1", startsAt: day(1) });
+    const b = club({ ...org, venueId: "p2", startsAt: day(2) });
+    const c = club({ ...org, venueId: "p3", startsAt: day(3) });
+    const p = plan([a, b, c]);
+    assert.ok(p.picks.includes(a.id) && p.picks.includes(b.id), "the organiser's second was refused");
+    assert.equal(reasonFor(p, c.id).reasonCode, "organiser_cap");
+    assert.match(reasonFor(p, c.id).reason, /Frontrunners Toronto already has 2/);
+  });
+
+  it("CF06 counts the organiser's published rows too, and a gathering with no organiser is capped by venue only", () => {
+    const two = weeks({ [WEEK1]: { community: { perVenue: {}, perOrganiser: { "Snakes & Lattes": 2 } } } });
+    const d = club({ organiser: "Snakes & Lattes", venueId: "annex" });
+    assert.equal(reasonFor(plan([d], {}, two), d.id).reasonCode, "organiser_cap");
+    const nobody = Array.from({ length: 3 }, (_, i) => club({ organiser: null, venueId: `free${i}`, startsAt: day(i) }));
+    assert.equal(plan(nobody, {}, two).picks.length, 3, "a null organiser was capped as if it were one group");
+  });
+
+  it("CF07 when a cap bites, the better score stays, then the earlier date", () => {
+    const low = city({ venueId: "hall", finalScore: 65, aiScore: 65, startsAt: day(1) });
+    const high = city({ venueId: "hall", finalScore: 90, aiScore: 90, startsAt: day(3) });
+    const early = city({ venueId: "hall", finalScore: 75, aiScore: 75, startsAt: day(2) });
+    const p = plan([low, high, early], { scoreFloor: 60 });
+    assert.deepEqual(new Set(p.picks), new Set([high.id, early.id]));
+    assert.equal(reasonFor(p, low.id).reasonCode, "community_venue_cap");
+    const first = club({ startsAt: day(1) });
+    const second = club({ startsAt: day(2) });
+    const third = club({ startsAt: day(3) });
+    assert.deepEqual(new Set(plan([third, second, first]).picks), new Set([first.id, second.id]), "unscored dates kept the later ones");
+  });
+
+  it("CF08 a series date needs no score; anything else from the Community tab does", () => {
+    const series = club();
+    const oneOff = club({ fromSeries: false });
+    const p = plan([series, oneOff]);
+    assert.equal(reasonFor(p, series.id).reasonCode, "published");
+    assert.equal(reasonFor(p, oneOff.id).reasonCode, "unscored");
+  });
+
+  it("CF09 a City feed row is held by the score floor, from both sides", () => {
+    const below = city({ aiScore: 69, finalScore: 69 });
+    const at = city({ aiScore: 70, finalScore: 70 });
+    const p = plan([below, at]);
+    assert.equal(reasonFor(p, below.id).reasonCode, "below_floor");
+    assert.equal(reasonFor(p, at.id).reasonCode, "published");
+  });
+
+  it("CF10 the City feed is held until Alex switches it on, and publishes when he has", () => {
+    const row = city({ aiScore: 90, finalScore: 90 });
+    const held = plan([row], { cityFeedPublishing: false });
+    assert.equal(reasonFor(held, row.id).reasonCode, "city_feed_held");
+    assert.ok(!held.picks.includes(row.id));
+    assert.match(reasonFor(held, row.id).reason, /score 90/, "the hold should still say the score");
+    const series = club();
+    assert.ok(plan([series], { cityFeedPublishing: false }).picks.includes(series.id), "the hold caught a hand-entered series");
+    assert.ok(plan([row], { cityFeedPublishing: true }).picks.includes(row.id));
+  });
+
+  it("CF11 a draft Alex marks is published and still counts against the venue cap", () => {
+    const marked = club({ mark: "publish", startsAt: day(1) });
+    const a = club({ startsAt: day(2) });
+    const b = club({ startsAt: day(3) });
+    const p = plan([marked, a, b]);
+    assert.ok(p.picks.includes(marked.id) && p.picks.includes(a.id));
+    assert.equal(reasonFor(p, b.id).reasonCode, "community_venue_cap");
+  });
+
+  it("CF12 a Ticketmaster fair on the Community tab is filled there, under the floor and the caps", () => {
+    const fair = draft({ tab: "community", source: "ticketmaster", venueId: "ex", aiScore: 75, finalScore: 75 });
+    const full = weeks({ [WEEK1]: { publishedLive: 5 } });
+    const p = plan([fair], {}, full);
+    assert.equal(reasonFor(p, fair.id).slotKind, "community");
+    const poor = draft({ tab: "community", source: "ticketmaster", venueId: "ex2", aiScore: 40, finalScore: 40 });
+    assert.equal(reasonFor(plan([poor], {}, full), poor.id).reasonCode, "below_floor");
   });
 });
 

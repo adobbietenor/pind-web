@@ -61,9 +61,12 @@ export const categoryLabel = (value: string | null | undefined): string =>
 // The two tabs (Alex, walking the community pages; M2.3 builds them)
 // ---------------------------------------------------------------------------
 
-// **Which tab a gathering is in is its source, so there is no editorial call per
-// gathering.** Events is the Ticketmaster feed; Community is everything entered by
-// hand and, later, everything the Community & free run finds (M4.4).
+// **Which tab a gathering is in is a column the database sets, so there is no
+// editorial call per gathering.** It used to be the source alone — Events was the
+// Ticketmaster feed, Community everything else. M4.4 broke that on purpose: a
+// Ticketmaster fair or food festival is Community (Alex, 29 Oct 2026), so the database
+// decides once, from the source and the listing's own classification
+// (public.tab_for_classification), and every list reads `tab`.
 //
 // This is not a second product. Community gatherings and big ticketed events share
 // one structure, one pin, one crew: "a Leafs game and a run club differ only in what
@@ -77,7 +80,14 @@ export const TABS = [
 
 export type TabValue = (typeof TABS)[number]["value"];
 
-export const tabForSource = (source: string): TabValue => (source === "ticketmaster" ? "events" : "community");
+// The City of Toronto's Festivals & Events feed is used under the Open Government
+// Licence – Toronto, which requires this statement wherever its listings appear (M4.4).
+// One copy: the list, the crowd page and the app's crowd page all print this one, and
+// only where a City listing is actually on the page.
+export const CITY_ATTRIBUTION = {
+  text: "Contains information licensed under the Open Government Licence – Toronto.",
+  href: "https://open.toronto.ca/open-data-license/",
+} as const;
 
 export const tabLabel = (value: TabValue): string => TABS.find((t) => t.value === value)!.label;
 

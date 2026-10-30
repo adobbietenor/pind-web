@@ -451,7 +451,8 @@ const FIELDS: [NumericSetting, string, string][] = [
   ["max_category_share", "Category share", "No one kind of gathering takes more than this share of a week (0.40 = 40%). What makes a lower score floor safe"],
   ["min_per_category", "Category allowance", "Every kind may take this many before the share applies at all"],
   ["min_capacity", "Smallest room", "A known capacity under this is never auto-published — a crew needs 5 opted in out of about 10 pinners"],
-  ["community_slots_weekly", "Community slots", "Held for a community gathering, and only when one is waiting (from M4.4)"],
+  ["community_max_per_venue_weekly", "Community: per venue, per week", "The Community tab's own cap, hand-entered series included (M4.4). The 50 above is the Events tab's"],
+  ["community_max_per_organiser_weekly", "Community: per organiser, per week", "So one group cannot fill the tab. A gathering with no organiser is capped by venue only"],
   ["score_floor", "Score floor", "Final score below which nothing is auto-published; a draft you mark “publish” ignores it"],
   ["grow_reach", "Grow: reach rate", "Both this and the median must hold to grow"],
   ["grow_median_pins", "Grow: median pins", ""],
@@ -472,6 +473,8 @@ ${hint ? `<span class="muted"> ${e(hint)}</span>` : ""}</label>`,
   return `<form method="post" action="/admin/publishing/settings"><input type="hidden" name="back" value="${e(backTo)}">
 <fieldset><legend>Settings (on the Toronto row, never in code)</legend>
 ${inputs}
+<label><input type="checkbox" name="city_feed_publishing"${s.cityFeedPublishing ? " checked" : ""}> Publish City of Toronto feed listings
+<span class="muted">Off until you have seen their scores. While it is off they are imported and scored, and the log says each one was held.</span></label>
 <label><input type="checkbox" name="adaptive"${s.adaptive ? " checked" : ""}> Adaptive: let the weekly adjust move the target
 <span class="muted">Off until M4.5. While it is off the adjust still runs every Monday and still logs, so switching it on is this checkbox and nothing else.</span></label>
 <button>Save settings</button></fieldset></form>`;
@@ -479,7 +482,10 @@ ${inputs}
 
 export const savePublishSettings: AdminHandler = async (request, ctx) => {
   const form = await request.formData();
-  const settings: Record<string, unknown> = { adaptive: form.get("adaptive") === "on" };
+  const settings: Record<string, unknown> = {
+    adaptive: form.get("adaptive") === "on",
+    city_feed_publishing: form.get("city_feed_publishing") === "on",
+  };
   for (const [key] of FIELDS) {
     const raw = str(form, key);
     const n = Number(raw);

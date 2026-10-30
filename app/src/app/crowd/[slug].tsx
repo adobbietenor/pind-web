@@ -22,6 +22,7 @@ import { useCallback, useState } from "react";
 import { ActivityIndicator, Image, Linking, Platform, StyleSheet, Text, View } from "react-native";
 import {
   ALL_TAGS,
+  CITY_ATTRIBUTION,
   colors as palette,
   countLine,
   CREWS_MEET,
@@ -80,6 +81,8 @@ interface Gathering {
   startsAt: string;
   effectiveEnd: string;
   venue: string;
+  // From the City of Toronto's feed (M4.4): its licence line goes at the foot.
+  fromCity: boolean;
 }
 interface Face {
   id: string;
@@ -121,7 +124,7 @@ async function load(slug: string): Promise<View9 | null> {
   const db = supabase();
   const { data: g, error } = await db
     .from("gatherings")
-    .select("id, name, starts_at, ends_at, venues(name)")
+    .select("id, name, starts_at, ends_at, source, venues(name)")
     .eq("slug", slug)
     .maybeSingle();
   if (error) throw error;
@@ -132,6 +135,7 @@ async function load(slug: string): Promise<View9 | null> {
     startsAt: g.starts_at,
     effectiveEnd: effectiveEnd(g.starts_at, g.ends_at),
     venue: (g as unknown as { venues: { name: string } | null }).venues?.name ?? "",
+    fromCity: g.source === "city",
   };
 
   const { data: counts } = await db.rpc("gathering_counts", { gathering_ids: [g.id] });
@@ -497,6 +501,11 @@ export default function CrowdPage() {
             </View>
           ))}
         </View>
+      ) : null}
+      {view.gathering.fromCity ? (
+        <Text style={styles.caption} onPress={() => void Linking.openURL(CITY_ATTRIBUTION.href)}>
+          {CITY_ATTRIBUTION.text}
+        </Text>
       ) : null}
     </AppScreen>
   );

@@ -4651,3 +4651,53 @@ with everyone else too — "same principle: a block must never cost the person w
   who keeps "Who did you meet?", a blocker kept by V23 included (`20261029145956`). The full
   harness caught it (P174): Ann blocked Ben in a finished group (P172) and was then sent the
   no-group question about a night she had a group for.
+
+### M4.4: community sources — the City feed, top-ups and the Community caps (Alex, 29 Oct 2026)
+
+From the community pipeline diagnosis (the tab was 28 hand-entered series, nothing new since
+16 Oct, nine places in the next 30 days, Barbara Hall Park 13 of 47). Alex chose:
+
+1. **The City of Toronto's Festivals & Events open data feed is a source** (`source = 'city'`),
+   imported nightly at 07:30 UTC and published by the same publisher as everything else —
+   score floor and caps, never around them. Open Government Licence – Toronto; the licence
+   line appears wherever a City listing does (W1, search, W2, the app's crowd page). Not the
+   share image. **Held** (`cities.city_feed_publishing = false`) until Alex has seen the
+   City listings' score spread; while held they import, are scored, and each is logged
+   `city_feed_held`.
+   - Categories: a listing is left out only when *every* category is Theatre, Live
+     Performances, Music, Comedy, Dance, Film, Nightlife, Virtual/Online or Camp.
+   - One gathering per day for a run of four days or fewer; longer runs skipped except a
+     weekly repeat, which takes each listed day.
+   - Chips: Farmers' Market → markets, Run/Walk → running, Trivia → games, Environmental and
+     Tour → outdoors; the rest none.
+   - Organiser: "presented by", or failing that the contact **address** (not its domain — a
+     domain would make every City-run programme one organiser, capped at two a week).
+   - Skipped as the Ticketmaster import skips: no time (the feed writes midnight), and no
+     single address with coordinates.
+2. **Top-up:** a series the liveness check calls *confirmed* with fewer than 21 days of
+   dates gets drafts to `community_weeks` (8) ahead, its pattern read off its own dates
+   (weekly, fortnightly, the nth or last weekday of the month, one local time). Dates that
+   fit no one pattern add nothing and are named in the run's counts. Still no recurrence
+   in the database.
+3. **Community has its own fill** (Alex chose this when the build found the 50-a-week target
+   counted Community rows and was already full, so unscored top-ups would never publish).
+   The 50 is the Events tab's. Community: **2 per venue and 2 per organiser per week**,
+   hand-entered series included; **hand-entered series are not scored and need no score —
+   caps only**; City and Ticketmaster-on-Community rows need the floor. When a cap bites:
+   score, then the earlier date. The old "community slot" is gone: it tested
+   `source = 'community'`, a value the enum never had, so it never fired.
+4. **Ticketmaster's Miscellaneous / Fairs & Festivals, Food & Drink, Hobby/Special Interest
+   Expos and Community/Civic go to Community** (`gatherings.tab`, set from the source and,
+   for Ticketmaster, from `public.tab_for_classification`, only while never public). The
+   rest of Miscellaneous stays Events: its genre-less rows are club nights and parties.
+5. **Multi-day festivals as one gathering a day** — done for the City feed. **Not done for
+   Ticketmaster:** its multi-day listings carry no end date, and the only three in Toronto
+   on 29 Oct were two season-ticket packages and a two-day pass. Asked, not invented.
+6. **The excess already published was withdrawn once, as Alex's decision** — 14 dates
+   (Frontrunners' Saturday run, and Snakes & Lattes' third and fourth of a week), keeping
+   pins first, then the score, then the earlier date (`scripts/community-cap-withdraw.mjs`).
+
+Organisers for the 28 series: Frontrunners Toronto (3), Snakes & Lattes (7), Toronto
+Bicycling Network (5), Toronto Ornithological Club (2), libraries by branch (Port Union 3,
+Kennedy/Eglinton 1), Pub Chess Toronto; the rest their own. Migrations `20261030010647`,
+`20261030010649`; P276, P277; CF01–CF12, CY01–CY15, TU01–TU08.

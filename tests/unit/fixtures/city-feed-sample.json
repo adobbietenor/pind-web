@@ -1,0 +1,738 @@
+{
+ "value": [
+  {
+   "__CreatedOn": "2026-05-22T13:49:18.746-04:00",
+   "__ModifiedOn": "2026-05-22T13:49:18.746-04:00",
+   "__Owner": "c3api_config",
+   "__Status": "",
+   "accessible_event": "Yes",
+   "calendar_date": "2026-10-31T10:00:00-04:00",
+   "calendar_date_group": "2026-10-31",
+   "calendar_id": "e16f90f2-c4b3-4bad-b188-235189089322",
+   "calendar_name": "Public Markets",
+   "calendar_time_of_day": "Day Event",
+   "cost_notes": null,
+   "event_category": [
+    "Farmers' Market",
+    "Food/Culinary",
+    "Other"
+   ],
+   "event_dates": [
+    {
+     "date": 1779544800000,
+     "locations": [
+      "40 Carl Hall Rd: 40 Carl Hall Rd, North York, ON, M3K 2C1"
+     ],
+     "sdate": "May 23, 2026 - 10 a.m."
+    },
+    {
+     "date": 1779631200000,
+     "locations": [
+      "40 Carl Hall Rd: 40 Carl Hall Rd, North York, ON, M3K 2C1"
+     ],
+     "sdate": "May 24, 2026 - 10 a.m."
+    }
+   ],
+   "event_description": "Downsview Park Merchants Market is one of Toronto’s vibrant weekend destinations, offering a dynamic indoor marketplace ",
+   "event_email": "Info@dpmarket.com",
+   "event_enddate": "2027-05-02T10:00:00-04:00",
+   "event_expirydate": "2027-05-02T17:00:00-04:00",
+   "event_features": [],
+   "event_image": [
+    {
+     "bin_id": "HsINX9unS5aRBvcRR5D6QA",
+     "fields": {
+      "alt": "table with different types of apples in a display for sales, various signs in a busy market. Shopper",
+      "credit": "marketcityTO"
+     },
+     "file_name": "e1a35b04-0892-4079-88e6-b9073d04b60b-2026_05_22-Donwsview_Park_Merchants_market_2_cr_marketcityTO-520a8907-9d1a-40ff-9c4b-e5ff17ae2d5e.jpg",
+     "name": "Donwsview_Park_Merchants_market_2_cr_marketcityTO.jpg",
+     "size": 127419,
+     "status": "success",
+     "type": "image/jpeg",
+     "uploadDate": "2026-05-22T13:48:59.398-04:00"
+    }
+   ],
+   "event_locations": [
+    {
+     "date_notes": "",
+     "geo_lat": "",
+     "geo_long": "",
+     "location_address": "40 Carl Hall Rd, North York, ON, M3K 2C1",
+     "location_dates": "[{\"date_title\":\"\",\"startdate\":\"2026-05-23\",\"starttime\":\"10:00 AM\",\"enddate\":\"2026-05-23\",\"endtime\":\"05:00 PM\",\"allday_chk\":\"\",\"midnight_chk\":\"\",\"event_frequency\":\"Weekly\",\"repeat_month\":\"\",\"repeat_day\":\"\",\"repeat_enddate\":\"2027-05-02\",\"repeat_weekdays\":[{\"checked\":true,\"stime\":\"10:00 AM\",\"etime\":\"05:00 PM\",\"notes\":\"\"},{\"checked\":false,\"stime\":\"\",\"etime\":\"\",\"notes\":\"\"},{\"checked\":false,\"stime\":\"\",\"etime\":\"\",\"notes\":\"\"},{\"checked\":false,\"stime\":\"\",\"etime\":\"\",\"notes\":\"\"},{\"checked\":false,\"stime\":\"\",\"etime\":\"\",\"notes\":\"\"},{\"checked\":false,\"stime\":\"\",\"etime\":\"\",\"notes\":\"\"},{\"checked\":true,\"stime\":\"10:00 AM\",\"etime\":\"05:00 PM\",\"notes\":\"\"}],\"multiple_dates\":[]}]",
+     "location_gps": "[{\"gps_lat\":43.7483766822,\"gps_lng\":-79.4791132214}]",
+     "location_name": "40 Carl Hall Rd",
+     "location_notes": "",
+     "location_type": "Address",
+     "location_url": "",
+     "same_location_dates_chk": "",
+     "ticketing_location": ""
+    }
+   ],
+   "event_name": "Downsview Park Merchants Market",
+   "event_price": null,
+   "event_price_adult": null,
+   "event_price_child": null,
+   "event_price_high": null,
+   "event_price_low": null,
+   "event_price_pwyc": null,
+   "event_price_senior": null,
+   "event_price_student": null,
+   "event_price_youth": null,
+   "event_startdate": "2026-05-23T10:00:00-04:00",
+   "event_status": "Approved",
+   "event_sub_category": [],
+   "event_telephone": "4166382525",
+   "event_telephone_ext": null,
+   "event_theme": [],
+   "event_website": "www.dpmarket.com",
+   "facebook_url": null,
+   "featured_event": "No",
+   "free_event": "Yes",
+   "id": "50b0c46c-9026-4ee5-a0c2-c94e6d035da1",
+   "instagram_url": "Dpmerchantsmkt",
+   "other_event_category": "Shopping",
+   "other_event_sub_category": null,
+   "partnerships": [],
+   "reservations_required": "No",
+   "short_description": "Downsview Park Merchants Market is one of Toronto’s vibrant weekend destinations, offering a dynamic indoor marketplace ",
+   "short_name": "Downsview Park Merchants Market",
+   "submission_id": "b9b70207-f372-4af6-84b5-71c5f0d137c8",
+   "ticket_email": null,
+   "ticket_telephone": null,
+   "ticket_telephone_ext": null,
+   "ticket_website": null,
+   "twitter_url": null
+  },
+  {
+   "__CreatedOn": "2026-01-26T10:58:08.465-05:00",
+   "__ModifiedOn": "2026-01-26T10:58:08.465-05:00",
+   "__Owner": "c3api_config",
+   "__Status": "",
+   "accessible_event": "Yes",
+   "calendar_date": "2026-12-02T18:00:00-05:00",
+   "calendar_date_group": "2026-12-02",
+   "calendar_id": "a4f795ff-e94f-46bd-a1c3-c94ec1549567",
+   "calendar_name": "Tourism",
+   "calendar_time_of_day": "Night Event",
+   "cost_notes": "\nTickets for the free general admission must be booked online in advance. They will be released at 10 a.m. the Monday prior to the first Wednesday of the month. Maximum of two tickets may be booked at a time. \nAll visitors including children in strollers require a ticket.",
+   "event_category": [
+    "Arts/Exhibits",
+    "Cultural",
+    "Family/Children"
+   ],
+   "event_dates": [
+    {
+     "date": 1770246000000,
+     "locations": [
+      "Art Gallery of Ontario: 317 Dundas St W, Toronto, ON, M5T 1G4"
+     ],
+     "sdate": "Feb 04, 2026 - 6 p.m."
+    },
+    {
+     "date": 1772665200000,
+     "locations": [
+      "Art Gallery of Ontario: 317 Dundas St W, Toronto, ON, M5T 1G4"
+     ],
+     "sdate": "Mar 04, 2026 - 6 p.m."
+    }
+   ],
+   "event_description": "Enjoy the galleries at night.\n\nPlease dress for the weather as the queue for entrance begins outside the AGO. Pack light",
+   "event_email": "contactus@ago.ca",
+   "event_enddate": "2026-12-02T18:00:00-05:00",
+   "event_expirydate": "2026-12-02T21:00:00-05:00",
+   "event_features": [
+    "Bike Racks",
+    "Gender Neutral Washrooms",
+    "Public Washrooms",
+    "Paid Parking",
+    "On-site Food and Beverages"
+   ],
+   "event_image": [
+    {
+     "bin_id": "bep_Lj3fURjoKwv1k-WPDQ",
+     "fields": {
+      "alt": "people looking at art",
+      "credit": "Photo © AGO"
+     },
+     "file_name": "e1a35b04-0892-4079-88e6-b9073d04b60b-2026_01_20-356342-Web_and_Standard_PowerPoint-763d4403-e0ea-4f4f-a6ce-0ccd82a22cd3.jpg",
+     "name": "356342-Web and Standard PowerPoint.jpg",
+     "size": 388968,
+     "status": "success",
+     "type": "image/jpeg",
+     "uploadDate": "2026-01-20T10:58:34.933-05:00"
+    }
+   ],
+   "event_locations": [
+    {
+     "date_notes": "",
+     "geo_lat": "",
+     "geo_long": "",
+     "location_address": "317 Dundas St W, Toronto, ON, M5T 1G4",
+     "location_dates": "[{\"date_title\":\"\",\"startdate\":\"2026-02-04\",\"starttime\":\"06:00 PM\",\"enddate\":\"2026-02-04\",\"endtime\":\"09:00 PM\",\"allday_chk\":\"\",\"midnight_chk\":\"\",\"event_frequency\":\"Multiple\",\"repeat_month\":\"\",\"repeat_day\":\"\",\"repeat_enddate\":\"\",\"repeat_weekdays\":[],\"multiple_dates\":[{\"midnight\":\"\",\"title\":\"\",\"sdate\":\"2026-03-04\",\"edate\":\"\",\"stime\":\"06:00 PM\",\"etime\":\"09:00 PM\"},{\"midnight\":\"\",\"title\":\"\",\"sdate\":\"2026-04-01\",\"edate\":\"\",\"stime\":\"06:00 PM\",\"etime\":\"09:00 PM\"},{\"midnight\":\"\",\"title\":\"\",\"sdate\":\"2026-05-06\",\"edate\":\"\",\"stime\":\"06:00 PM\",\"etime\":\"09:00 PM\"},{\"midnight\":\"\",\"title\":\"\",\"sdate\":\"2026-06-03\",\"edate\":\"\",\"stime\":\"06:00 PM\",\"etime\":\"09:00 PM\"},{\"midnight\":\"\",\"title\":\"\",\"sdate\":\"2026-07-08\",\"edate\":\"\",\"stime\":\"06:00 PM\",\"etime\":\"09:00 PM\"},{\"midnight\":\"\",\"title\":\"\",\"sdate\":\"2026-08-05\",\"edate\":\"\",\"stime\":\"06:00 PM\",\"etime\":\"09:00 PM\"},{\"midnight\":\"\",\"title\":\"\",\"sdate\":\"2026-09-02\",\"edate\":\"\",\"stime\":\"06:00 PM\",\"etime\":\"09:00 PM\"},{\"midnight\":\"\",\"title\":\"\",\"sdate\":\"2026-10-07\",\"edate\":\"\",\"stime\":\"06:00 PM\",\"etime\":\"09:00 PM\"},{\"midnight\":\"\",\"title\":\"\",\"sdate\":\"2026-11-04\",\"edate\":\"\",\"stime\":\"06:00 PM\",\"etime\":\"09:00 PM\"},{\"midnight\":\"\",\"title\":\"\",\"sdate\":\"2026-12-02\",\"edate\":\"\",\"stime\":\"06:00 PM\",\"etime\":\"09:00 PM\"}]}]",
+     "location_gps": "[{\"gps_lat\":43.653511557,\"gps_lng\":-79.392569777}]",
+     "location_name": "Art Gallery of Ontario",
+     "location_notes": "",
+     "location_type": "Address",
+     "location_url": "",
+     "same_location_dates_chk": "",
+     "ticketing_location": ""
+    }
+   ],
+   "event_name": "First Wednesday Night Free at the AGO",
+   "event_price": null,
+   "event_price_adult": null,
+   "event_price_child": null,
+   "event_price_high": null,
+   "event_price_low": null,
+   "event_price_pwyc": null,
+   "event_price_senior": null,
+   "event_price_student": null,
+   "event_price_youth": null,
+   "event_startdate": "2026-02-04T18:00:00-05:00",
+   "event_status": "Approved",
+   "event_sub_category": [],
+   "event_telephone": "416-979-6648",
+   "event_telephone_ext": null,
+   "event_theme": [],
+   "event_website": "https://ago.ca/visit/free-wednesday-nights",
+   "facebook_url": null,
+   "featured_event": "No",
+   "free_event": "Yes",
+   "id": "0145ee0a-2f6f-4399-90a7-4e2f65954247",
+   "instagram_url": null,
+   "other_event_category": null,
+   "other_event_sub_category": null,
+   "partnerships": [],
+   "reservations_required": "Yes",
+   "short_description": "Enjoy the galleries at night.\n\nPlease dress for the weather as the queue for entrance begins outside the AGO. Pack light",
+   "short_name": "First Wednesday Night Free at the AGO",
+   "submission_id": "37703234-b6c3-4c22-a834-31ee04980f0d",
+   "ticket_email": null,
+   "ticket_telephone": null,
+   "ticket_telephone_ext": null,
+   "ticket_website": "https://visit.ago.ca/?_ga=2.250807618.598114334.1768831088-454920034.1768575201",
+   "twitter_url": null
+  },
+  {
+   "__CreatedOn": "2026-09-03T10:25:16.74-04:00",
+   "__ModifiedOn": "2026-09-03T10:25:16.74-04:00",
+   "__Owner": "c3api_config",
+   "__Status": "",
+   "accessible_event": "Yes",
+   "calendar_date": "2026-11-07T10:00:00-05:00",
+   "calendar_date_group": "2026-11-07",
+   "calendar_id": "a4f795ff-e94f-46bd-a1c3-c94ec1549567",
+   "calendar_name": "Tourism",
+   "calendar_time_of_day": "Day Event",
+   "cost_notes": null,
+   "event_category": [
+    "Celebrations",
+    "Charity/Cause",
+    "Sports"
+   ],
+   "event_dates": [
+    {
+     "date": 1794063600000,
+     "locations": [
+      "Hockey Hall of Fame : Brookfield Place, 30 Yonge Street, Toronto ON, M5E 1X8"
+     ],
+     "sdate": "Nov 07, 2026 - 10 a.m."
+    },
+    {
+     "date": 1794150000000,
+     "locations": [
+      "Hockey Hall of Fame : Brookfield Place, 30 Yonge Street, Toronto ON, M5E 1X8"
+     ],
+     "sdate": "Nov 08, 2026 - 10 a.m."
+    }
+   ],
+   "event_description": "Join the Hockey Hall of Fame as we welcome hockey’s newest legends, Class of 2026 Inductees: Patrice Bergeron, Brian Bur",
+   "event_email": "induction@hhof.com",
+   "event_enddate": "2026-11-09T17:30:00-05:00",
+   "event_expirydate": "2026-11-09T17:30:00-05:00",
+   "event_features": [
+    "Public Washrooms",
+    "Paid Parking",
+    "On-site Food and Beverages"
+   ],
+   "event_image": [
+    {
+     "bin_id": "jv2np708BWDdUpeAAnj7yw",
+     "fields": {
+      "alt": "A group of hockey players in their gear. ",
+      "credit": "Hockey Hall of Fame"
+     },
+     "file_name": "e1a35b04-0892-4079-88e6-b9073d04b60b-2026_08_19-26_Induction_Weekend__600x400_-2836372d-c695-45c5-ba58-1d6c1d779a72.jpg",
+     "name": "26 Induction Weekend (600x400).jpg",
+     "size": 132866,
+     "status": "success",
+     "type": "image/jpeg",
+     "uploadDate": "2026-08-19T14:46:13.917-04:00"
+    }
+   ],
+   "event_locations": [
+    {
+     "date_notes": "",
+     "geo_lat": "",
+     "geo_long": "",
+     "location_address": "Brookfield Place, 30 Yonge Street, Toronto ON, M5E 1X8",
+     "location_dates": "[{\"date_title\":\"\",\"startdate\":\"2026-11-07\",\"starttime\":\"10:00 AM\",\"enddate\":\"2026-11-07\",\"endtime\":\"06:00 PM\",\"allday_chk\":\"\",\"midnight_chk\":\"\",\"event_frequency\":\"Multiple\",\"repeat_month\":\"\",\"repeat_day\":\"\",\"repeat_enddate\":\"\",\"repeat_weekdays\":[],\"multiple_dates\":[{\"midnight\":\"\",\"title\":\"\",\"sdate\":\"2026-11-08\",\"edate\":\"\",\"stime\":\"10:00 AM\",\"etime\":\"06:00 PM\"},{\"midnight\":\"\",\"title\":\"\",\"sdate\":\"2026-11-09\",\"edate\":\"\",\"stime\":\"05:30 PM\",\"etime\":\"\"}]}]",
+     "location_gps": "[{\"gps_lat\":43.647006,\"gps_lng\":-79.377245}]",
+     "location_name": "Hockey Hall of Fame ",
+     "location_notes": "",
+     "location_type": "Address",
+     "location_url": "",
+     "same_location_dates_chk": "",
+     "ticketing_location": ""
+    }
+   ],
+   "event_name": "2026 Hockey Hall of Fame Induction Celebration",
+   "event_price": null,
+   "event_price_adult": null,
+   "event_price_child": null,
+   "event_price_high": "625.00",
+   "event_price_low": "295.00",
+   "event_price_pwyc": null,
+   "event_price_senior": null,
+   "event_price_student": null,
+   "event_price_youth": null,
+   "event_startdate": "2026-11-07T10:00:00-05:00",
+   "event_status": "Approved",
+   "event_sub_category": [
+    "Hockey"
+   ],
+   "event_telephone": null,
+   "event_telephone_ext": null,
+   "event_theme": [],
+   "event_website": "https://www.hhof.com/induction/induction2026/inductiontickets.html",
+   "facebook_url": "https://www.facebook.com/HockeyHallFame/",
+   "featured_event": "No",
+   "free_event": "No",
+   "id": "05c92271-5c23-46a4-ae32-1f1c733bdc74",
+   "instagram_url": "thehockeyhalloffame",
+   "other_event_category": null,
+   "other_event_sub_category": null,
+   "partnerships": [],
+   "reservations_required": "Yes",
+   "short_description": "Join the Hockey Hall of Fame as we welcome hockey’s newest legends, Class of 2026 Inductees: Patrice Bergeron, Brian Bur",
+   "short_name": "2026 Hockey Hall of Fame Induction Celebration",
+   "submission_id": "b11ec9d9-b05a-4ccf-913b-ff5ac4929d47",
+   "ticket_email": "induction@hhof.com",
+   "ticket_telephone": null,
+   "ticket_telephone_ext": null,
+   "ticket_website": "https://www.hhof.com/induction/induction2026/inductiontickets.html",
+   "twitter_url": "HockeyHallFame"
+  },
+  {
+   "__CreatedOn": "2026-04-09T15:39:39.692-04:00",
+   "__ModifiedOn": "2026-04-09T15:39:39.692-04:00",
+   "__Owner": "c3api_config",
+   "__Status": "",
+   "accessible_event": "Yes",
+   "calendar_date": "2026-12-03T19:30:00-05:00",
+   "calendar_date_group": "2026-12-03",
+   "calendar_id": "a4f795ff-e94f-46bd-a1c3-c94ec1549567",
+   "calendar_name": "Tourism",
+   "calendar_time_of_day": "Night Event",
+   "cost_notes": null,
+   "event_category": [
+    "Live Performances",
+    "Music"
+   ],
+   "event_dates": [
+    {
+     "date": 1777591800000,
+     "locations": [
+      "Joseph D. Carrier Art Gallery: 901 Lawrence Ave W, North York, ON, M6A 1C3"
+     ],
+     "sdate": "Apr 30, 2026 - 7:30 p.m."
+    },
+    {
+     "date": 1780011000000,
+     "locations": [
+      "Joseph D. Carrier Art Gallery: 901 Lawrence Ave W, North York, ON, M6A 1C3"
+     ],
+     "sdate": "May 28, 2026 - 7:30 p.m."
+    }
+   ],
+   "event_description": "Celebrate the richness, diversity and enduring appeal of jazz.\n\nBack by popular demand, enjoy ive unforgettable concerts",
+   "event_email": "marketing@villacharities.com",
+   "event_enddate": "2026-12-03T19:30:00-05:00",
+   "event_expirydate": "2026-12-03T21:00:00-05:00",
+   "event_features": [
+    "Paid Parking"
+   ],
+   "event_image": [],
+   "event_locations": [
+    {
+     "date_notes": "",
+     "geo_lat": "",
+     "geo_long": "",
+     "location_address": "901 Lawrence Ave W, North York, ON, M6A 1C3",
+     "location_dates": "[{\"date_title\":\"Jazz’s Greatest Hits\",\"startdate\":\"2026-04-30\",\"starttime\":\"07:30 PM\",\"enddate\":\"2026-04-30\",\"endtime\":\"09:00 PM\",\"allday_chk\":\"\",\"midnight_chk\":\"\",\"event_frequency\":\"Multiple\",\"repeat_month\":\"\",\"repeat_day\":\"\",\"repeat_enddate\":\"\",\"repeat_weekdays\":[],\"multiple_dates\":[{\"midnight\":\"\",\"title\":\"Napoli in Jazz\",\"sdate\":\"2026-05-28\",\"edate\":\"\",\"stime\":\"07:30 PM\",\"etime\":\"09:00 PM\"},{\"midnight\":\"\",\"title\":\"An Evening of Bossa Nova\",\"sdate\":\"2026-09-11\",\"edate\":\"\",\"stime\":\"07:30 PM\",\"etime\":\"09:00 PM\"},{\"midnight\":\"\",\"title\":\"Tribute to George Gershwin\",\"sdate\":\"2026-10-29\",\"edate\":\"\",\"stime\":\"07:30 PM\",\"etime\":\"09:00 PM\"},{\"midnight\":\"\",\"title\":\"A Very Jazzy Christmas\",\"sdate\":\"2026-12-03\",\"edate\":\"\",\"stime\":\"07:30 PM\",\"etime\":\"09:00 PM\"}]}]",
+     "location_gps": "[{\"gps_lat\":43.713005,\"gps_lng\":-79.456742}]",
+     "location_name": "Joseph D. Carrier Art Gallery",
+     "location_notes": "",
+     "location_type": "Address",
+     "location_url": "",
+     "same_location_dates_chk": "",
+     "ticketing_location": ""
+    }
+   ],
+   "event_name": "Jazz at the Columbus Centre",
+   "event_price": "100.00",
+   "event_price_adult": null,
+   "event_price_child": null,
+   "event_price_high": null,
+   "event_price_low": null,
+   "event_price_pwyc": null,
+   "event_price_senior": null,
+   "event_price_student": null,
+   "event_price_youth": null,
+   "event_startdate": "2026-04-30T19:30:00-04:00",
+   "event_status": "Approved",
+   "event_sub_category": [],
+   "event_telephone": "4167897011",
+   "event_telephone_ext": null,
+   "event_theme": [],
+   "event_website": "https://www.villacharities.com/culture-heritage/cultural-programming/new-cultural-events/#Jazz-at-the-Columbus-Centre",
+   "facebook_url": "https://www.facebook.com/villacharities",
+   "featured_event": "No",
+   "free_event": "No",
+   "id": "9e551f54-722f-4f35-9cbb-5bfa97dc6163",
+   "instagram_url": "villa_charities",
+   "other_event_category": null,
+   "other_event_sub_category": null,
+   "partnerships": [],
+   "reservations_required": "Yes",
+   "short_description": "Celebrate the richness, diversity and enduring appeal of jazz.\n\nBack by popular demand, enjoy ive unforgettable concerts",
+   "short_name": "Jazz at the Columbus Centre",
+   "submission_id": "336f391d-fb0b-4eec-8538-aa55bfc90938",
+   "ticket_email": "marketing@villacharities.com",
+   "ticket_telephone": "4167897011",
+   "ticket_telephone_ext": null,
+   "ticket_website": "https://www.villacharities.com/culture-heritage/cultural-programming/new-cultural-events/#Jazz-at-the-Columbus-Centre",
+   "twitter_url": null
+  },
+  {
+   "__CreatedOn": "2026-10-22T16:12:30-04:00",
+   "__ModifiedOn": "2026-10-22T16:12:30-04:00",
+   "__Owner": "c3api_config",
+   "__Status": "",
+   "accessible_event": "Yes",
+   "calendar_date": "2026-11-08T00:00:00-05:00",
+   "calendar_date_group": "2026-11-08",
+   "calendar_id": "430440c7-abe7-4a85-bc5f-d8e04aa9ce62",
+   "calendar_name": "Assembly Hall",
+   "calendar_time_of_day": "Day Event",
+   "cost_notes": "Ticket options range from $10-45, plus HST. We invite audience members to choose the price level that aligns with their circumstance using the guidelines provided. If you need a free $0 ticket, please email Bri (Artistic Producer, Education + Audience Relations) at info@toesfordance.ca. A limited number of $0 free tickets are available for each performance.\n",
+   "event_category": [
+    "Arts/Exhibits",
+    "Dance",
+    "Live Performances"
+   ],
+   "event_dates": [
+    {
+     "date": 1794027600000,
+     "locations": [
+      "Assembly Hall: 1 Colonel Samuel Smith Park Dr, Etobicoke, ON, M8V 4B6"
+     ],
+     "sdate": "Nov 07, 2026"
+    },
+    {
+     "date": 1794114000000,
+     "locations": [
+      "Assembly Hall: 1 Colonel Samuel Smith Park Dr, Etobicoke, ON, M8V 4B6"
+     ],
+     "sdate": "Nov 08, 2026"
+    }
+   ],
+   "event_description": "Encounter an elevated arts experience this fall featuring two compelling dance works in one exhilarating programme: CON ",
+   "event_email": "info@toesfordance.ca",
+   "event_enddate": "2026-11-08T00:00:00-05:00",
+   "event_expirydate": "2026-11-08T00:00:00-05:00",
+   "event_features": [
+    "Bike Racks",
+    "Gender Neutral Washrooms",
+    "Public Washrooms",
+    "Free Parking",
+    "On-site Food and Beverages"
+   ],
+   "event_image": [
+    {
+     "bin_id": "GOR1BGYfOYLGd4Yp-4y1_A",
+     "fields": {
+      "alt": "Composite photo of three dancers performing in deep purple light, featuring a traditional pose and dynamic lift.",
+      "credit": "Shannon Widdis"
+     },
+     "file_name": "e1a35b04-0892-4079-88e6-b9073d04b60b-2026_10_14-1200x800-8c0e8ae8-76e4-463d-85d6-ec0e8dde536c.png",
+     "name": "1200x800.png",
+     "size": 1103330,
+     "status": "success",
+     "type": "image/png",
+     "uploadDate": "2026-10-14T13:08:48.537-04:00"
+    }
+   ],
+   "event_locations": [
+    {
+     "date_notes": "Saturday, November 7, 2026 at 8 PM, followed by a post-show reception\nSunday, November 8, 2026 at 3 PM, followed by a post-show Artist Talk/Q&A\nTotal length: 90 minutes including a brief intermission.\n",
+     "geo_lat": "",
+     "geo_long": "",
+     "location_address": "1 Colonel Samuel Smith Park Dr, Etobicoke, ON, M8V 4B6",
+     "location_dates": "[{\"date_title\":\"\",\"startdate\":\"2026-11-07\",\"starttime\":\"\",\"enddate\":\"2026-11-08\",\"endtime\":\"\",\"allday_chk\":\"Yes\",\"midnight_chk\":\"\",\"event_frequency\":\"Single Date\",\"repeat_month\":\"\",\"repeat_day\":\"\",\"repeat_enddate\":\"\",\"repeat_weekdays\":[],\"multiple_dates\":[]}]",
+     "location_gps": "[{\"gps_lat\":43.597660441,\"gps_lng\":-79.515824559}]",
+     "location_name": "Assembly Hall",
+     "location_notes": "",
+     "location_type": "Address",
+     "location_url": "",
+     "same_location_dates_chk": "",
+     "ticketing_location": ""
+    }
+   ],
+   "event_name": "Lakeshore Dance Series: Premiere Dance Presentations",
+   "event_price": null,
+   "event_price_adult": null,
+   "event_price_child": null,
+   "event_price_high": null,
+   "event_price_low": null,
+   "event_price_pwyc": "10.00",
+   "event_price_senior": null,
+   "event_price_student": null,
+   "event_price_youth": null,
+   "event_startdate": "2026-11-07T00:00:00-05:00",
+   "event_status": "Approved",
+   "event_sub_category": [],
+   "event_telephone": null,
+   "event_telephone_ext": null,
+   "event_theme": [],
+   "event_website": "https://www.toesfordance.ca/lakeshore-dance-series",
+   "facebook_url": "https://www.facebook.com/TOESfordance/",
+   "featured_event": "No",
+   "free_event": "No",
+   "id": "bd2ed9c2-af4d-40df-bf8c-40405e80c1bb",
+   "instagram_url": "toesfordance",
+   "other_event_category": null,
+   "other_event_sub_category": null,
+   "partnerships": [],
+   "reservations_required": "Yes",
+   "short_description": "Encounter an elevated arts experience this fall featuring two compelling dance works in one exhilarating programme: CON ",
+   "short_name": "Lakeshore Dance Series: Premiere Dance Presentations",
+   "submission_id": "7d30ae24-6715-4f52-9e5a-9a38c7311def",
+   "ticket_email": "info@toesfordance.ca",
+   "ticket_telephone": null,
+   "ticket_telephone_ext": null,
+   "ticket_website": "https://www.toesfordance.ca/lakeshore-dance-series",
+   "twitter_url": null
+  },
+  {
+   "__CreatedOn": "2026-08-19T12:59:10.257-04:00",
+   "__ModifiedOn": "2026-08-19T12:59:10.257-04:00",
+   "__Owner": "c3api_config",
+   "__Status": "",
+   "accessible_event": "Yes",
+   "calendar_date": "2026-12-03T12:00:00-05:00",
+   "calendar_date_group": "2026-12-03",
+   "calendar_id": "ae3fcc96-e2eb-4522-95bd-5ba198ccf6de",
+   "calendar_name": "PFR Forestry Tours & Presentations",
+   "calendar_time_of_day": "Day Event",
+   "cost_notes": null,
+   "event_category": [
+    "Environmental",
+    "Virtual/Online Event"
+   ],
+   "event_dates": [
+    {
+     "date": 1796317200000,
+     "locations": [
+      "On-line Event: https://events.teams.microsoft.com/event/a6d0a87b-6c42-4f32-bd2e-557b8cae2db1@f0bc8ec6-9ed8-4d0c-9189-411ad949cc65"
+     ],
+     "sdate": "Dec 03, 2026 - Noon"
+    }
+   ],
+   "event_description": "Join us for an introduction to winter birding in Toronto. We'll explore a few of the fascinating birds that call the cit",
+   "event_email": "greentoronto@toronto.ca",
+   "event_enddate": "2026-12-03T12:00:00-05:00",
+   "event_expirydate": "2026-12-03T13:00:00-05:00",
+   "event_features": [],
+   "event_image": [
+    {
+     "bin_id": "yXvgF_GOs5uPt5ghC1hKcg",
+     "fields": {
+      "alt": "Northern Cardinal in the winter",
+      "credit": "City of Toronto"
+     },
+     "file_name": "e1a35b04-0892-4079-88e6-b9073d04b60b-2026_08_18-Northern_Cardinal_Female__WebUse-4e20b80e-6377-4274-bfb1-bf5c4393e011.jpg",
+     "name": "Northern Cardinal Female _WebUse.jpg",
+     "size": 435286,
+     "status": "success",
+     "type": "image/jpeg",
+     "uploadDate": "2026-08-18T14:38:21.474-04:00"
+    }
+   ],
+   "event_locations": [
+    {
+     "date_notes": "",
+     "geo_lat": "",
+     "geo_long": "",
+     "location_address": "",
+     "location_dates": "[{\"date_title\":\"\",\"startdate\":\"2026-12-03\",\"starttime\":\"12:00 PM\",\"enddate\":\"2026-12-03\",\"endtime\":\"01:00 PM\",\"allday_chk\":\"\",\"midnight_chk\":\"\",\"event_frequency\":\"Single Date\",\"repeat_month\":\"\",\"repeat_day\":\"\",\"repeat_enddate\":\"\",\"repeat_weekdays\":[],\"multiple_dates\":[]}]",
+     "location_gps": "",
+     "location_name": "On-line Event",
+     "location_notes": "",
+     "location_type": "City-Wide/Virtual",
+     "location_url": "https://events.teams.microsoft.com/event/a6d0a87b-6c42-4f32-bd2e-557b8cae2db1@f0bc8ec6-9ed8-4d0c-9189-411ad949cc65",
+     "same_location_dates_chk": "",
+     "ticketing_location": ""
+    }
+   ],
+   "event_name": "Winter Wings: Songbirds in Toronto Winter Webinar",
+   "event_price": null,
+   "event_price_adult": null,
+   "event_price_child": null,
+   "event_price_high": null,
+   "event_price_low": null,
+   "event_price_pwyc": null,
+   "event_price_senior": null,
+   "event_price_student": null,
+   "event_price_youth": null,
+   "event_startdate": "2026-12-03T12:00:00-05:00",
+   "event_status": "Approved",
+   "event_sub_category": [],
+   "event_telephone": null,
+   "event_telephone_ext": null,
+   "event_theme": [],
+   "event_website": "https://events.teams.microsoft.com/event/a6d0a87b-6c42-4f32-bd2e-557b8cae2db1@f0bc8ec6-9ed8-4d0c-9189-411ad949cc65",
+   "facebook_url": "https://www.facebook.com/NatureInTheCityTO/",
+   "featured_event": "No",
+   "free_event": "Yes",
+   "id": "92ca42d8-6cc2-489b-ab42-223d02ef1e9a",
+   "instagram_url": "torontopfr",
+   "other_event_category": null,
+   "other_event_sub_category": null,
+   "partnerships": [],
+   "reservations_required": "Yes",
+   "short_description": "Join us for an introduction to winter birding in Toronto. We'll explore a few of the fascinating birds that call the cit",
+   "short_name": "Winter Wings: Songbirds in Toronto Winter Webinar",
+   "submission_id": "90d58b28-aca1-4548-948b-7963e555664a",
+   "ticket_email": null,
+   "ticket_telephone": null,
+   "ticket_telephone_ext": null,
+   "ticket_website": "https://events.teams.microsoft.com/event/a6d0a87b-6c42-4f32-bd2e-557b8cae2db1@f0bc8ec6-9ed8-4d0c-9189-411ad949cc65",
+   "twitter_url": null
+  },
+  {
+   "__CreatedOn": "2026-04-28T14:35:41.828-04:00",
+   "__ModifiedOn": "2026-04-28T14:35:41.828-04:00",
+   "__Owner": "c3api_config",
+   "__Status": "",
+   "accessible_event": "Yes",
+   "calendar_date": "2026-12-08T19:00:00-05:00",
+   "calendar_date_group": "2026-12-08",
+   "calendar_id": "4a75ca32-c2b0-4baa-a0ee-703cd9e53b03",
+   "calendar_name": "By the Lake Book Club",
+   "calendar_time_of_day": "Night Event",
+   "cost_notes": null,
+   "event_category": [
+    "Literary"
+   ],
+   "event_dates": [
+    {
+     "date": 1796774400000,
+     "locations": [
+      "Assembly Hall: 1 Colonel Samuel Smith Park Dr, Etobicoke, ON, M8V 4B6"
+     ],
+     "sdate": "Dec 08, 2026 - 7 p.m."
+    }
+   ],
+   "event_description": "Held, by 2024 Scotiabank Giller Prize winner Anne Michaels, is a luminous, fragmented novel about love, memory, and the ",
+   "event_email": "assembly@toronto.ca",
+   "event_enddate": "2026-12-08T19:00:00-05:00",
+   "event_expirydate": "2026-12-08T20:45:00-05:00",
+   "event_features": [
+    "Free Parking",
+    "Paid Parking",
+    "Bike Racks",
+    "Public Washrooms"
+   ],
+   "event_image": [
+    {
+     "bin_id": "yFdcXkah7XICEeFv7n5Q3A",
+     "fields": {
+      "alt": "Person with curly hair wearing layered dark clothing, standing indoors with wooden furniture and soft lighting.",
+      "credit": "Derek Shapton"
+     },
+     "file_name": "e1a35b04-0892-4079-88e6-b9073d04b60b-2025_11_07-Dec_8_-_AnneMichaels_Headshot_Credit_Derek_Shapton-f5f39145-d711-4ef4-a715-53d40b172b84.JPG",
+     "name": "Dec 8 - AnneMichaels Headshot_Credit_Derek Shapton.JPG",
+     "size": 1394692,
+     "status": "success",
+     "type": "image/jpeg",
+     "uploadDate": "2025-11-07T10:02:09.094-05:00"
+    }
+   ],
+   "event_locations": [
+    {
+     "date_notes": "",
+     "geo_lat": "",
+     "geo_long": "",
+     "location_address": "1 Colonel Samuel Smith Park Dr, Etobicoke, ON, M8V 4B6",
+     "location_dates": "[{\"date_title\":\"\",\"startdate\":\"2026-12-08\",\"starttime\":\"07:00 PM\",\"enddate\":\"2026-12-08\",\"endtime\":\"08:45 PM\",\"allday_chk\":\"\",\"midnight_chk\":\"\",\"event_frequency\":\"Single Date\",\"repeat_month\":\"\",\"repeat_day\":\"\",\"repeat_enddate\":\"\",\"repeat_weekdays\":[],\"multiple_dates\":[]}]",
+     "location_gps": "[{\"gps_lat\":43.59766044,\"gps_lng\":-79.515824559}]",
+     "location_name": "Assembly Hall",
+     "location_notes": "",
+     "location_type": "Address",
+     "location_url": "",
+     "same_location_dates_chk": "",
+     "ticketing_location": ""
+    }
+   ],
+   "event_name": "Held by Anne Michaels - By the Lake Book Club",
+   "event_price": null,
+   "event_price_adult": null,
+   "event_price_child": null,
+   "event_price_high": "21.00",
+   "event_price_low": "10.00",
+   "event_price_pwyc": null,
+   "event_price_senior": null,
+   "event_price_student": null,
+   "event_price_youth": null,
+   "event_startdate": "2026-12-08T19:00:00-05:00",
+   "event_status": "Approved",
+   "event_sub_category": [],
+   "event_telephone": "416-338-7255",
+   "event_telephone_ext": null,
+   "event_theme": [],
+   "event_website": "https://www.toronto.ca/explore-enjoy/history-art-culture/cultural-centres-galleries/assembly-hall/",
+   "facebook_url": null,
+   "featured_event": "No",
+   "free_event": "No",
+   "id": "5757e741-816e-4790-b342-1d410b43a152",
+   "instagram_url": null,
+   "other_event_category": null,
+   "other_event_sub_category": null,
+   "partnerships": [
+    {
+     "text": "City of Toronto",
+     "value": "event_presented_by"
+    },
+    {
+     "text": "Humber Polytechnic, Faculty of Media",
+     "value": "event_presented_by"
+    },
+    {
+     "text": "Creative Arts, and Design",
+     "value": "event_presented_by"
+    }
+   ],
+   "reservations_required": "Yes",
+   "short_description": "Held, by 2024 Scotiabank Giller Prize winner Anne Michaels, is a luminous, fragmented novel about love, memory, and the ",
+   "short_name": "Held by Anne Michaels - By the Lake Book Club",
+   "submission_id": "be3a894c-a801-4a36-a350-c707e4db780e",
+   "ticket_email": null,
+   "ticket_telephone": "4163387355",
+   "ticket_telephone_ext": null,
+   "ticket_website": "https://secure.toronto.ca/webapps/feps_edc-ticketing/#events/216644f0-d05b-410f-a0d0-be3b766b93a8",
+   "twitter_url": null
+  }
+ ]
+}
