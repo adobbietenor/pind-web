@@ -43,8 +43,8 @@ const weeks = Number(flag("weeks") ?? 8);
 const BATCH = 25;
 const TZ = "America/Toronto";
 
-if (!like === !source) {
-  console.error('Give one of --like "<part of the classification>" (e.g. --like "Comedy") or --source <source> (e.g. --source city).');
+if (!like && !source) {
+  console.error('Give --like "<part of the classification>" (e.g. --like "Comedy"), --source <source> (e.g. --source city), or both.');
   process.exit(1);
 }
 
@@ -81,7 +81,8 @@ const rows = (data as any[]).filter(
     !r.is_seed &&
     !r.dismissed_at &&
     !r.slug &&
-    (source ? r.source === source : classification(r).toLowerCase().includes(like.toLowerCase())),
+    (!source || r.source === source) &&
+    (!like || classification(r).toLowerCase().includes(like.toLowerCase())),
 );
 const rubric = rubricFor(source || "ticketmaster");
 if (like && rows.some((r) => rubricFor(r.source) !== rubric)) {

@@ -75,6 +75,7 @@ describe("Scores — a failed or malformed answer leaves drafts unscored", () =>
     // The caps that keep the tab what it is.
     assert.match(COMMUNITY_SCORING_SYSTEM, /mostly under 19: at most 10/);
     assert.match(COMMUNITY_SCORING_SYSTEM, /exhibitions and installations: at most 35/);
+    assert.match(COMMUNITY_SCORING_SYSTEM, /A market or fair you browse is middling, 15-20./);
   });
 
   it("A10 a Community draft carries how often, free and organiser; an Events draft is sent exactly as before", () => {

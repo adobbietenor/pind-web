@@ -4744,3 +4744,11 @@ markets 42–50; one weekly tour 45 on six Sundays and 60 on two. Alex decided, 
    ("Tourism"). Drafts already imported were renamed once. CY17, CY18.
 8. **The hold stays on until Alex switches it from the admin**, after seeing the exact list
    (`scripts/city-preview.ts`, which plans from tonight's inputs and writes nothing).
+9. **"A market you browse" is 15-20 of the 30 social points** (was 10-15, which held every
+   Saturday farmers' market at 27-32), and the City markets were re-scored with it.
+10. **Two City listings at one venue within 90 minutes are one gathering** — the duplicate rule
+    the import already applied against other sources, now between City listings too. The
+    lower event key keeps it; the other copy is not seen, so its drafts are dismissed (Toronto
+    Sunday Market was listed twice). CY20.
+11. **Play Mobile is left out**: its drafts are marked "never".
+12. **The hold came off on 30 Oct 2026** (Alex: "switch it on yourself, run the publisher").

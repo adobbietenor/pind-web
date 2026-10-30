@@ -219,6 +219,31 @@ describe("the plan", () => {
     assert.deepEqual(p.seenIds, [known]);
     assert.equal(p.skipped.no_time, 1);
   });
+
+  it("CY20 two City listings at one venue within 90 minutes are one gathering; two hours apart, or one event's own dates, are not (Alex, 30 Oct 2026)", () => {
+    // Toronto Sunday Market's shape: two listings, same hall, same time. Fed in either order,
+    // the lower event key keeps it.
+    const a = row({ eventKey: "aaa", name: "Toronto Sunday Market" });
+    const b = row({ eventKey: "bbb", name: "Toronto Sunday Market", startsAt: "2026-11-07T15:30:00.000Z" });
+    for (const rows of [[a, b], [b, a]]) {
+      const p = planCity(input({ rows }));
+      assert.deepEqual(p.newDrafts.map((d) => d.externalId), [cityExternalId(a)], "the second copy was made");
+      assert.equal(p.skipped.duplicate, 1);
+      assert.ok(!p.seenIds.includes(cityExternalId(b)), "the second copy was seen, so it would never be dismissed");
+    }
+    // Both already drafts: the second is not seen, so a complete read dismisses it.
+    const both = planCity(input({ rows: [b, a], knownIds: [cityExternalId(a), cityExternalId(b)] }));
+    assert.deepEqual(both.seenIds, [cityExternalId(a)]);
+    // Two hours apart at the same venue: two gatherings.
+    const later = row({ eventKey: "ccc", startsAt: "2026-11-07T17:00:00.000Z" });
+    assert.equal(planCity(input({ rows: [a, later] })).newDrafts.length, 2);
+    // A different venue at the same time: two gatherings.
+    const elsewhere = row({ eventKey: "ddd", place: { name: "Allan Gardens", address: "160 Gerrard St E", lat: 43.6619, lng: -79.3747 } });
+    assert.equal(planCity(input({ rows: [a, elsewhere] })).newDrafts.length, 2);
+    // One event's two dates are never each other's copy.
+    const nextWeek = row({ eventKey: "aaa", name: "Toronto Sunday Market", startsAt: "2026-11-14T15:00:00.000Z", localDate: "2026-11-14" });
+    assert.equal(planCity(input({ rows: [a, nextWeek] })).newDrafts.length, 2);
+  });
 });
 
 describe("titles and events (Alex, 30 Oct 2026)", () => {

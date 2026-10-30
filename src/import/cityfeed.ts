@@ -442,13 +442,29 @@ export function planCity(input: CityPlanInput): CityPlan {
   }
   const takenTonight = new Set<string>();
 
-  for (const r of input.rows) {
+  // And second copies inside the feed itself (Alex, 30 Oct 2026): the same rule between
+  // two City listings — one venue, within 90 minutes, different events. Toronto Sunday
+  // Market is two listings of one market. The lower event key keeps it, the same way
+  // every night, and the other is not seen, so a complete read dismisses its drafts.
+  const ordered = [...input.rows].sort((a, b) => a.eventKey.localeCompare(b.eventKey) || a.startsAt.localeCompare(b.startsAt));
+  const cityAt = new Map<string, { t: number; eventKey: string }[]>();
+
+  for (const r of ordered) {
     const id = cityExternalId(r);
     const reason = citySkipReason(r);
     if (reason) {
       skip(reason);
       continue;
     }
+    const { venueId, venueKey: newKey } = resolve(r.place!);
+    const t = Date.parse(r.startsAt);
+    const place = venueId ?? `new:${newKey}`;
+    const here = cityAt.get(place) ?? [];
+    if (here.some((x) => x.eventKey !== r.eventKey && Math.abs(x.t - t) <= SAME_TIME_MS)) {
+      skip("duplicate");
+      continue;
+    }
+    cityAt.set(place, [...here, { t, eventKey: r.eventKey }]);
     // Every row that passes the rules is "seen", including ones we already have:
     // that is what keeps them from being dismissed as gone.
     plan.seenIds.push(id);
@@ -457,8 +473,6 @@ export function planCity(input: CityPlanInput): CityPlan {
       continue;
     }
     if (takenTonight.has(id)) continue; // the feed listing the same day twice
-    const { venueId, venueKey: newKey } = resolve(r.place!);
-    const t = Date.parse(r.startsAt);
     const clash =
       sameNameDay.has(`${nameKey(r.name)}|${r.localDate}`) ||
       (venueId !== null && (atVenue.get(venueId) ?? []).some((x) => Math.abs(x - t) <= SAME_TIME_MS));
