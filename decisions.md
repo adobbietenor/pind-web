@@ -149,7 +149,7 @@ screenshot the plan.
 |--------|-----------|
 | Pins | Deleted 30 days after the gathering; aggregate counts kept |
 | Crew threads | Read-only 24h after the gathering; deleted at +30 days (Q11) |
-| Keep-in-touch ticks | Expire 72h after the gathering if not mutual (Q6) — *superseded 29 Sept 2026: open 7 days after the effective end ("The night and after")* |
+| Keep-in-touch requests | Open 7 days after the effective end, then they lapse unanswered (UI pass 1, replacing Q6's ticks: "Keep-in-touch ticks · expire 72h… superseded 29 Sept: 7 days"). Old ticks stay where they are, read only by the badge |
 | Gender | Kept on the person; never shown per-person, only in the aggregate chip and women-only eligibility |
 | Reports and moderation decisions | Kept 12 months |
 | Reported message content | **None kept since 16 Oct 2026** — a report is on the person and records where and when, never the words. Snapshots taken before then stay with their reports, read-only, until a later migration drops the column |
@@ -4785,3 +4785,33 @@ birth, no count on the women-only card). The calls on the rest:
 
 Also from the review: a squad stays capped (a full squad says "This squad is full."), and
 "Not now" on any request never tells the sender.
+
+### UI pass 1, group 2: how it was built (30 Oct 2026)
+
+Built and harness-proved on `ui/pass-1` (P278–P297, `tests/policies/ui-pass-1.test.ts`);
+**flagged for the independent review before real users see it** (`docs/ui-pass-1-review-brief.md`).
+What the build added to the calls above, so nobody has to rediscover it:
+
+- **E** "How was it?": a new column; the insert grant narrowed so the old questions and the
+  comment can no longer be written; past rows untouched.
+- **D** "I'm here" on the night: its own table (`arrivals`, no grants), read only through
+  `here_now`; one switch also marks the squad's arrival (A13 now goes through it). "N here
+  now" is a count for anyone pinned there; who and their line only for someone sharing a room
+  or a squad with them.
+- **C** a squad's words: **the whole card is the name check's text** (`squad_card_text`), so
+  details and time are listed only once that exact text has passed, and an edit goes back to
+  the check. A filter refuses handles, links, emails and phone numbers first. A squad's
+  `meet_at` is now the gathering's start (its time is words).
+- **A** 1-on-1: the account switch is read in one place (`solo_choice`); **the old pin flag is
+  kept only as a narrower, per-gathering override** for app builds already installed, cleared
+  everywhere by the migration and by switching the account off. A request no longer needs the
+  venue to have spots (a place is optional).
+- **B** keep in touch: its own table (`keep_requests`, no grants). A room counts as crossing
+  paths only when both spoke in it (call d). The badge counts an accepted keep-in-touch, and
+  keeps one earned by a matched "we met".
+- **Two instruments moved with the rules**: `solo_people` and the admin's 1-on-1 metrics read
+  the pin flag and would have listed or counted nobody on the account switch; both now ask
+  `solo_choice` (`20261030174802`).
+- **Checks rewritten to walk the new flows**: `check:pair` (two sessions, a silent "Not
+  now"), `check:after` (a request accepted by the other person as themselves), plus
+  `scripts/ui-shots*.mjs` for the mockup comparisons.
