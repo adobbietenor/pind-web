@@ -8,7 +8,7 @@
 import { useRouter } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
-import { colors as palette, landingAfterSignIn, spacing } from "@pind/shared";
+import { colors as palette, landingAfterSignIn, OPTIN_COPY, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { YouStep } from "@/components/profile/YouStep";
 import { Trouble } from "@/components/Trouble";
@@ -138,9 +138,9 @@ export default function You() {
 
   return (
     <AppScreen edges={["top", "bottom"]}>
-      <Heading>A bit about you</Heading>
+      <Heading>{OPTIN_COPY.heading}</Heading>
       <View style={{ marginBottom: spacing.lg }}>
-        <Body muted>Your first name is what people see. Nothing else here is on your profile.</Body>
+        <Body muted>{OPTIN_COPY.lede}</Body>
       </View>
       {/* The photo is optional here: a photo is needed to meet people at a gathering
           (A27, Q2 revised) — never to pin, and never to have a profile. */}
@@ -149,6 +149,7 @@ export default function You() {
         hasPrivate={false}
         hasPhoto={hasPhoto}
         photoRequired={false}
+        continueLabel="Next"
         onSaved={({ photo }) => {
           track("profile_created", { photo });
           router.replace("/where");

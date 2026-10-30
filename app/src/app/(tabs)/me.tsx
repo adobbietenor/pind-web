@@ -30,6 +30,8 @@ import {
 } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
+import { AlreadyOnPind } from "@/components/AlreadyOnPind";
+import { ProfileOffer } from "@/components/ProfileOffer";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
 import { oneLine, failed, type Described } from "@/lib/errors";
 import { loadMe, photoUrl, saveInstagram, type Me } from "@/lib/profile";
@@ -91,17 +93,16 @@ export default function Profile() {
 
   if (me === null) {
     return (
-      <AppScreen edges={["top"]}>
+      // Signed out (UI pass 1, 038): the short "Already on Pin'd?" at the top, the same
+      // profile offer as A5 at the foot.
+      <AppScreen edges={["top"]} contentStyle={{ flexGrow: 1 }}>
         <Heading>Profile</Heading>
-          <View style={styles.card}>
-            <Body muted>
-              Nothing here yet. Set yourself up and the people you meet will have a face and a first name to go on.
-            </Body>
-            <View style={{ marginTop: spacing.md }}>
-              <Button label="Set up your profile" onPress={() => router.push("/sign-in")} />
-            </View>
-          </View>
-        </AppScreen>
+        <View style={{ marginBottom: spacing.md }}>
+          <Body muted>You&#39;re not signed in.</Body>
+        </View>
+        <AlreadyOnPind onSignIn={() => router.push("/sign-in")} />
+        <ProfileOffer onSetUp={() => router.push("/sign-in")} />
+      </AppScreen>
     );
   }
 

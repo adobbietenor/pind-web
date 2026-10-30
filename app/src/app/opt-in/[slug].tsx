@@ -39,7 +39,7 @@ import { IdentityStep } from "@/components/profile/IdentityStep";
 import { WhereStep } from "@/components/profile/WhereStep";
 import { YouStep } from "@/components/profile/YouStep";
 import type { Picked } from "@/components/TagPicker";
-import { Tap } from "@/components/Tap";
+import { AlreadyOnPind } from "@/components/AlreadyOnPind";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Tick } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
@@ -307,12 +307,7 @@ export default function OptIn() {
           forgot them signs in first and is asked nothing they already gave. Step 1 only,
           in the short form: one bold line and Sign in (UI pass 1, 024). */}
       {step === "you" && mine && !mine.permanent && !signInFirst ? (
-        <View style={[styles.why, styles.already]}>
-          <Text style={styles.alreadyLine}>{OPTIN_COPY.alreadyOnPind}</Text>
-          <Tap accessibilityRole="button" onPress={() => setSignInFirst(true)} style={styles.alreadyButton}>
-            <Text style={styles.alreadyButtonLabel}>{OPTIN_COPY.signIn}</Text>
-          </Tap>
-        </View>
+        <AlreadyOnPind onSignIn={() => setSignInFirst(true)} />
       ) : null}
 
       {signInFirst && step !== "identity" ? (
@@ -398,10 +393,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     marginBottom: spacing.md,
   },
-  already: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
-  alreadyLine: { fontFamily: fonts.headline, fontSize: 18, color: palette.text, flexShrink: 1 },
-  alreadyButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.sm, backgroundColor: palette.accent },
-  alreadyButtonLabel: { fontFamily: fonts.headline, fontSize: 15, color: palette.onAccent },
   sheet: {
     gap: spacing.sm,
     padding: spacing.md,
