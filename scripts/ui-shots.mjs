@@ -3,10 +3,10 @@
 // it walks a real session, saves PNGs to the directory given, prints each page's text,
 // and removes everything it made.
 //
-//   node --env-file=.dev.vars scripts/ui-shots.mjs <out-dir> [open]
+//   node --env-file=.dev.vars scripts/ui-shots.mjs <out-dir> [open|bare]
 //
-// Without "open" the pin is not open to meeting (A9's 023); with it, the pin opts in as
-// far as an anonymous person can (the A9 that asks for a profile).
+// Without an option the pin is not open to meeting (A9's 023); "open" opts in as far as
+// an anonymous person can; "bare" pins nothing and shoots the empty tabs (049, 050).
 import { spawn } from "node:child_process";
 import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -62,6 +62,16 @@ try {
   await send("Emulation.setDeviceMetricsOverride", { width: 393, height: 852, deviceScaleFactor: 2, mobile: true });
   await send("Network.setCookie", { name: "pind_pin", value: cookie, domain: new URL(SITE).hostname, path: "/", secure: true, httpOnly: true, sameSite: "Lax" });
 
+  if (process.argv[3] === "bare") {
+    await send("Page.navigate", { url: `${SITE}/crowd/${crowd.slug}` });
+    await until("Test crowd");
+    for (const [name, path, text] of [["a19-empty", "/my-events", "My Events"], ["a20-empty", "/connections", "Connections"]]) {
+      await send("Page.navigate", { url: `${SITE}${path}` });
+      await until(text);
+      await snap(name);
+    }
+    throw new Error("done");
+  }
   // The app's own A26, as a stranger would fill it: a name, the 19+ tick, the button.
   await send("Page.navigate", { url: `${SITE}/pin/${crowd.slug}` });
   await until("I'm 19 or older");

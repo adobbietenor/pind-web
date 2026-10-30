@@ -72,8 +72,10 @@ export const MY_EVENTS_COPY = {
   title: "My Events",
   upcoming: "Coming up",
   past: "Been",
-  empty: "Nothing pinned yet",
-  emptyLink: "This week’s crowds →",
+  // UI pass 1 (049), copy as drawn.
+  emptyHeading: "You haven't Pin'd in to any events yet!",
+  empty: "Check out this week's crowds and events. When you tap **Pin in, I'm going**, the event and everyone else going will show up here.",
+  emptyLink: "See this week's crowds",
   solo: (spot: string, time: string) => `Your 1-on-1: ${spot}, ${time}`,
   status: (s: MyEventStatus, clock: (iso: string) => string): string => {
     switch (s.kind) {

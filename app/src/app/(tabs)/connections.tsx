@@ -6,11 +6,12 @@
 // ("Maya's going to X — want to come?"). The database holds the limits (V23, #7): only a
 // connection, only a gathering you are pinned to, one per pair per gathering, five a
 // day — and a block ends the connection on both sides.
-import { useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { colors as palette, CONNECTIONS_COPY, fonts, radius, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
+import { EmptyCard } from "@/components/EmptyCard";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice } from "@/components/ui";
 import { invite, inviteOptions, isFiveADay, myConnections, type Connection, type InviteOption } from "@/lib/after";
@@ -72,7 +73,15 @@ export default function Connections() {
       {list === undefined ? (
         <ActivityIndicator color={palette.text} />
       ) : list.length === 0 ? (
-        <Notice>{CONNECTIONS_COPY.empty}</Notice>
+        <EmptyCard
+          icon="handshake"
+          heading={CONNECTIONS_COPY.emptyHeading}
+          line={CONNECTIONS_COPY.empty}
+          steps={CONNECTIONS_COPY.emptyHow}
+          button={CONNECTIONS_COPY.emptyButton}
+          buttonInside={false}
+          onPress={() => router.push("/crowds")}
+        />
       ) : (
         list.map((c, i) => (
           <Rise key={c.personId} index={i} style={styles.card}>

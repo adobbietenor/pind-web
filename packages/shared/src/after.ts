@@ -45,8 +45,20 @@ export const AFTER_COPY = {
 
 export const CONNECTIONS_COPY = {
   heading: "Connections",
+  // UI pass 1 (050). The drawn copy said "you can message them": A20 has no messages
+  // (only "invite", by design), so it says what a connection can do today.
+  emptyHeading: "No connections yet",
   empty:
-    "Connections come from groups: after a night out, tick who you met, and keep in touch with anyone who ticks you back.",
+    "Connections are people you've met through Pin'd and want to see again. Keep someone as a connection and you can invite them to the next event you're going to.",
+  emptyHow: {
+    heading: "How it works",
+    items: [
+      "**Pin in** to an event you're going to.",
+      "**Say you're open to meeting** and start chatting with people going.",
+      "**Keep them as a connection** after the event. They'll show up here.",
+    ],
+  },
+  emptyButton: "Find an event",
   metAt: (where: string) => `Met at ${where}`,
   invite: "Invite",
   pickHeading: (name: string) => `Invite ${name} to…`,

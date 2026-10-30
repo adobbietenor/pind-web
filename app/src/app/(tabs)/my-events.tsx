@@ -43,6 +43,7 @@ import {
   type OpenSquad,
 } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
+import { EmptyCard } from "@/components/EmptyCard";
 import { Rise } from "@/components/Motion";
 import { Tap } from "@/components/Tap";
 import { Trouble } from "@/components/Trouble";
@@ -89,12 +90,13 @@ export default function MyEvents() {
     <AppScreen>
       <Heading>{MY_EVENTS_COPY.title}</Heading>
       {chats.data.length === 0 ? (
-        <View style={{ marginTop: spacing.md }}>
-          <Body muted>{MY_EVENTS_COPY.empty}</Body>
-          <Text accessibilityRole="link" onPress={() => router.push("/crowds")} style={styles.link}>
-            {MY_EVENTS_COPY.emptyLink}
-          </Text>
-        </View>
+        <EmptyCard
+          icon="pin"
+          heading={MY_EVENTS_COPY.emptyHeading}
+          line={MY_EVENTS_COPY.empty}
+          button={MY_EVENTS_COPY.emptyLink}
+          onPress={() => router.push("/crowds")}
+        />
       ) : null}
       {tonight.map(section)}
       {upcoming.map((e, i) => section(e, tonight.length + i))}
