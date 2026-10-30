@@ -124,5 +124,5 @@ export function WhereStep({ personId, neighbourhood, tags, onDone }: WhereStepPr
 const styles = StyleSheet.create({
   countRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "baseline", marginTop: spacing.xs, marginBottom: spacing.md },
   rule: { fontFamily: fonts.headline, fontSize: 15, color: palette.text },
-  count: { fontSize: 15, color: palette.textTint },
+  count: { fontSize: 15, color: palette.accentText },
 });

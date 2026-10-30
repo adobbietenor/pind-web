@@ -338,6 +338,7 @@ export default function OptIn() {
           hasPhoto={mine.hasPhoto}
           photoRequired
           onUnder19={removeUnder19}
+          continueLabel="Next"
           onSaved={() => afterStep()}
         />
       ) : null}

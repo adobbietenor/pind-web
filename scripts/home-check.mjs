@@ -12,7 +12,7 @@ import { spawn } from "node:child_process";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { CITIES, HOME_COPY, homeList } from "../packages/shared/src/cities.ts";
+import { CITIES, HOME_COPY, homeList, PROFILE_OFFER } from "../packages/shared/src/cities.ts";
 import { fixture, needChrome } from "./fixture.mjs";
 
 const SITE = process.env.PIND_SITE || "https://pind.social";
@@ -57,7 +57,7 @@ try {
     await sleep(600);
     step(`a tap on ${c.name} goes nowhere`, (await path()) === "/crowds");
   }
-  step("profile setup is offered, optional", home.includes(HOME_COPY.profileButton));
+  step("profile setup is offered, optional", home.includes(PROFILE_OFFER.button));
 
   // A6/A7 — Toronto's list is W1's list.
   await click("Toronto");
@@ -139,7 +139,7 @@ try {
   // #1: the header is the way home, on every Expo screen — here from A8, reached through
   // the list, and again from A8 opened cold from a link with nothing underneath it.
   // Home is Toronto's list, not the city picker (29 Oct: the picker was a dead end).
-  const goHome = () => evaluate(`(() => { const e=[...document.querySelectorAll('[role=link]')].find((x) => x.getAttribute('aria-label') === ${JSON.stringify("Pin'd — home")}); if(!e) return false; e.click(); return true; })()`);
+  const goHome = () => evaluate(`(() => { const e=[...document.querySelectorAll('[role=link]')].find((x) => x.getAttribute('aria-label') === ${JSON.stringify("Pin'd, home")}); if(!e) return false; e.click(); return true; })()`);
   const HOME = homeList();
   // The path and the list's own heading. Not "no 'Coming soon' on the page": the web keeps
   // the picker's tab mounted underneath, so its text stays in innerText — the first
@@ -173,10 +173,10 @@ try {
 
   // Profile setup goes to sign-in, the same place Profile's own button goes.
   await send("Page.navigate", { url: `${SITE}/crowds` });
-  await until(HOME_COPY.profileButton);
-  await click(HOME_COPY.profileButton);
+  await until(PROFILE_OFFER.button);
+  await click(PROFILE_OFFER.button);
   for (let t = 0; t < 30 && (await path()) !== "/sign-in"; t++) await sleep(500);
-  step("'Set up my profile' opens sign-in", (await path()) === "/sign-in");
+  step("'Set Up Your Profile' opens sign-in", (await path()) === "/sign-in");
   ws.close();
 } catch (err) {
   console.log(String(err.message ?? err));

@@ -34,7 +34,7 @@
 // the end, with their files. Addresses are delivered+…@resend.dev: nothing bounces.
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { mkdtempSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { seal } from "../src/public/sealed.ts";
@@ -43,7 +43,7 @@ import { NEIGHBOURHOODS } from "../packages/shared/src/neighbourhoods.ts";
 import { CODE_SENT_TO, PROFILE_GAP_ACTION, profileGapLine, profileGaps } from "../packages/shared/src/profile.ts";
 import { OPTIN_COPY } from "../packages/shared/src/optin.ts";
 import { QUICKPIN_COPY } from "../packages/shared/src/quickpin.ts";
-import { HOME_COPY } from "../packages/shared/src/cities.ts";
+import { HOME_COPY, PROFILE_OFFER } from "../packages/shared/src/cities.ts";
 import { needChrome, needEnv, sessionSecretMatches, testCrowd } from "./fixture.mjs";
 
 // Fixtures first: a check whose ground moved says so in a sentence (scripts/fixture.mjs).
@@ -144,6 +144,23 @@ async function walk(kind) {
       await send("Input.insertText", { text });
       await sleep(150);
     };
+    // A dropdown (UI pass 1's date of birth): open the box by its placeholder, then tap
+    // the option in the sheet that opens.
+    const choose = async (box, option) => {
+      if (!(await click(box))) throw new Error(`no dropdown "${box}"`);
+      await sleep(300);
+      if (!(await click(option))) throw new Error(`no option "${option}" in "${box}"`);
+      await sleep(200);
+    };
+    // SHOTS=<dir> keeps a screenshot of each A27 step, for comparing with the mockups.
+    const snap = async (name) => {
+      if (!process.env.SHOTS) return;
+      mkdirSync(process.env.SHOTS, { recursive: true });
+      const h = await evaluate("document.documentElement.scrollHeight");
+      await send("Emulation.setDeviceMetricsOverride", { width: 393, height: Math.min(Math.max(h, 852), 4000), deviceScaleFactor: 2, mobile: true });
+      await sleep(400);
+      writeFileSync(join(process.env.SHOTS, `${kind}-${name}.png`), Buffer.from((await send("Page.captureScreenshot", { format: "png" })).result.data, "base64"));
+    };
     const until = async (text, ms = 15000) => {
       for (let t = 0; t < ms; t += 500) { if ((await body()).includes(text)) return true; await sleep(500); }
       return false;
@@ -175,8 +192,8 @@ async function walk(kind) {
       const pins = async () => (await must(await rest(`/rest/v1/pins?gathering_id=eq.${crowd.id}&select=id`), "pins")).length;
       step("the anonymous pin counts once more, as it did for Tatiana", (await pins()) === pinnedBefore + 1);
       await send("Page.navigate", { url: `${SITE}/crowds` });
-      step("Crowds offers 'Set up my profile' to the anonymous pinner", await until(HOME_COPY.profileButton, 20000));
-      await click(HOME_COPY.profileButton);
+      step("Crowds offers 'Set Up Your Profile' to the anonymous pinner", await until(PROFILE_OFFER.button, 20000));
+      await click(PROFILE_OFFER.button);
       step("A1 opens", await until("Email me a code", 20000));
       await type("Email me a code", email);
       await click("Send the code");
@@ -239,9 +256,10 @@ async function walk(kind) {
     step("A27 asks date of birth first", await until("Date of birth"));
     const firstName = await evaluate(`[...document.querySelectorAll('input')][0]?.value`);
     step("A27 carries the first name from the pin", firstName === "Walker");
-    await type("Day", "14");
-    await type("Month", "6");
-    await type("Year", "1995");
+    await snap("a27-you");
+    await choose("Month", "June");
+    await choose("Day", "14");
+    await choose("Year", "1995");
     await click("Woman");
     events.length = 0;
     await click("Choose a photo");
@@ -250,7 +268,7 @@ async function walk(kind) {
     step("the photo picker opens", !!chooser);
     await send("DOM.setFileInputFiles", { files: [PHOTO], backendNodeId: chooser.params.backendNodeId });
     step("the photo is chosen", await until("Remove photo"));
-    await click("Continue");
+    await click("Next");
 
     // "where": a neighbourhood and three tags.
     step("A27 asks where, after you", await until("Where in the city?", 20000));
@@ -258,10 +276,16 @@ async function walk(kind) {
     if (kind === "skip") {
       await click("Skip for now");
     } else {
+      // Two pages since UI pass 1: the neighbourhood, then the tags.
       await click(HOOD.name);
+      await snap("a27-where");
+      await click("Next");
+      step("A27 asks for tags on their own page", await until("A few things to say"));
       for (const t of TAGS) await click(t.name);
       await sleep(300);
-      await click("Continue");
+      step("the live count says how many of ten", (await body()).includes(`${TAGS.length} of 10`));
+      await snap("a27-tags");
+      await click("Next");
     }
 
     // "identity": Apple and Google offered; the email code names its address.
