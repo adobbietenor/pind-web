@@ -86,8 +86,10 @@ describe("The squad screens use the rules, not their own (M3.7)", () => {
     assert.match(section, /const times = squadTimes\(view\.startsAt, view\.endsAt\)/, "the sheet makes its own times");
     assert.match(section, /const problem = squadNameProblem\(name\)/, "the sheet checks the name its own way");
     assert.match(section, /disabled=\{!!problem \|\| !time \|\| !spotReady\}/, "Start is not stopped on a bad name where it is tapped");
-    assert.match(section, /squadSeatsLabel\(squad\.seats\)/);
-    assert.match(section, /\{!squad\.full \? <Button label=\{SQUAD_COPY\.join\}/, "a full squad offers Join");
+    // UI pass 1 (069): no "N of 8" on a card; a full squad says so in words and offers no
+    // Join. The cap itself is the database's (join_squad), unchanged.
+    assert.match(section, /squad\.full \? SQUAD_COPY\.fullLine : SQUAD_COPY\.count\(/, "a full squad does not say it is full");
+    assert.match(section, /\{!squad\.full \? \(\s*<Tap[^>]*onPress=\{onJoin\}/, "a full squad offers Join");
   });
 
   it("SQ07 every write goes through the database's functions, and a refusal is said where the tap was", () => {

@@ -33,6 +33,7 @@ import { useCallback, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Share, StyleSheet, Text, View } from "react-native";
 import { AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, SQUAD_COPY, type Convening, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
+import { AvatarStack } from "@/components/Avatar";
 import { Composer } from "@/components/Composer";
 import { GetTheApp } from "@/components/GetTheApp";
 import { PairSpot } from "@/components/PairSpot";
@@ -267,22 +268,28 @@ export default function Group() {
         ) : undefined
       }
     >
-      <Heading>{view.solo ? (view.state === "forming" ? SOLO_COPY.pairHeading(names[0] ?? "") : SOLO_COPY.planHeading(names[0] ?? "")) : view.squad ? view.squad.name : GROUP_COPY.heading}</Heading>
-      <Body muted>{view.squad ? `${SQUAD_COPY.heading} · ${view.gathering.name}` : view.gathering.name}</Body>
+      {/* The squad's header in the room's style (UI pass 1, 071): its faces, its name, how
+          many of you and the event. */}
+      <View style={styles.header}>
+        <AvatarStack
+          size={30}
+          max={3}
+          people={view.members.map((m) => ({ id: m.personId, name: m.personId === view.meId ? "You" : m.firstName, source: m.photoUrl && m.photoPath ? faceSource(m.photoUrl, m.photoPath) : null }))}
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.headTitle} numberOfLines={2}>
+            {view.solo ? (view.state === "forming" ? SOLO_COPY.pairHeading(names[0] ?? "") : SOLO_COPY.planHeading(names[0] ?? "")) : view.squad ? view.squad.name : GROUP_COPY.heading}
+          </Text>
+          <Text style={styles.meta} numberOfLines={1}>
+            {view.squad ? SQUAD_COPY.headerLine(view.members.length, view.gathering.name) : view.gathering.name}
+          </Text>
+        </View>
+      </View>
       {view.squad?.nameStatus === "pending" ? <Body muted>{SQUAD_COPY.checking}</Body> : null}
       {view.squad?.nameStatus === "rejected" ? <Text accessibilityRole="alert" style={styles.refusal}>{SQUAD_COPY.rejected}</Text> : null}
       {/* Once per person, the first time they are in a group (M3.3). */}
       {me && view.state !== "dissolved" && view.state !== "done" ? <GetTheApp /> : null}
 
-      <View style={styles.faces}>
-        {view.members.map((m) =>
-          m.photoUrl && m.photoPath ? (
-            <Image key={m.personId} source={faceSource(m.photoUrl, m.photoPath)} style={styles.face} />
-          ) : (
-            <View key={m.personId} style={[styles.face, styles.faceEmpty]} />
-          ),
-        )}
-      </View>
 
       {trouble ? <Trouble what={trouble} onRetry={refresh} busy={busy} /> : null}
 
@@ -409,6 +416,10 @@ export default function Group() {
               messages={thread.messages}
               meId={view.meId}
               nameOf={(a) => view.members.find((x) => x.personId === a)?.firstName ?? "Someone"}
+              faceOf={(a) => {
+                const x = view.members.find((m) => m.personId === a);
+                return x?.photoUrl && x.photoPath ? faceSource(x.photoUrl, x.photoPath) : null;
+              }}
               hasOlder={thread.hasOlder}
               olderBusy={thread.olderBusy}
               onOlder={() => void thread.loadOlder().catch((err) => setTrouble(failed("load earlier messages", err)))}
@@ -443,6 +454,8 @@ export default function Group() {
 }
 
 const styles = StyleSheet.create({
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4, paddingBottom: spacing.sm, marginBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: palette.border },
+  headTitle: { fontFamily: fonts.headline, fontSize: 18, color: palette.text },
   faces: { flexDirection: "row", gap: 6, marginVertical: spacing.md },
   face: { width: 44, height: 44, borderRadius: 22 },
   faceEmpty: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },

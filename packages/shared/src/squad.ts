@@ -38,7 +38,13 @@ export function squadSeatsLabel(seats: number): string {
 export const SQUAD_COPY = {
   // A15 — the list on A9.
   sectionHeading: "Squads",
-  sectionHint: "Small groups going together. Tap one to join.",
+  sectionHint: "Smaller groups from this crowd. Join one to start chatting.",
+  startShort: "Start a squad",
+  // A full squad says so in words (UI pass 1, open question 1: the cap stays).
+  fullLine: "This squad is full.",
+  // The count on a card (UI pass 1, 069), never "of 8".
+  count: (n: number, first?: string) => (n === 1 && first ? `Just ${first} so far` : `${n} in this squad`),
+  openChat: "Open chat",
   none: "No squads here yet. Start one and anyone open to meeting can join.",
   start: "Start a squad",
   join: "Join",
@@ -67,6 +73,8 @@ export const SQUAD_COPY = {
   rename: "Use this name",
   meets: (spot: string, time: string) => `You meet at ${spot}, ${time}.`,
   members: (n: number) => (n === 1 ? "Just you so far." : `${n} of you so far.`),
+  // The squad page's header line (UI pass 1, 071): "Squad · 3 of you · Leafs vs Bruins".
+  headerLine: (n: number, event: string) => `Squad · ${n === 1 ? "just you" : `${n} of you`} · ${event}`,
   leave: "Leave this squad",
   leaveConfirm: "Leave this squad? You can join another one here afterwards.",
 } as const;

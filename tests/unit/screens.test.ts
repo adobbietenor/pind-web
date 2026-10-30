@@ -631,7 +631,7 @@ describe("One way to press, and motion that respects the person (the 'feel alive
     const motion = read("lib/motion.ts");
     assert.match(motion, /export function haptic\(kind: HapticKind\): void \{\s*if \(Platform\.OS === "web"\) return;/, "the web gets haptics");
     assert.match(read("components/Composer.tsx"), /const submit = \(\) => \{\s*if \(!can\) return;\s*onSend\(\);\s*haptic\("action"\);/, "send has no haptic (or fires one for an empty box)");
-    assert.match(read("components/SquadSection.tsx"), /label=\{SQUAD_COPY\.join\} haptic="action"/, "join has no haptic");
+    assert.match(read("components/SquadSection.tsx"), /<Tap accessibilityRole="button" haptic="action"[^>]*onPress=\{onJoin\}/, "join has no haptic");
     assert.match(read("components/SoloSection.tsx"), /label=\{SOLO_COPY\.accept\} haptic="action"/, "accept has no haptic");
     // #17: proposing is "Let's meet up!" now (the sheet is gone).
     assert.match(read("components/SoloSection.tsx"), /label=\{SOLO_COPY\.letsMeetUp\}\s*haptic="action"/, "'Let's meet up!' has no haptic");

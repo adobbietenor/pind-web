@@ -20,6 +20,8 @@ import { Body, Button } from "@/components/ui";
 import { failed } from "@/lib/errors";
 import { soloClock } from "@/lib/solo";
 import { joinSquad, loadSquads, renameSquad, startSquad, type SquadCard, type SquadsView } from "@/lib/squads";
+import { AvatarStack } from "./Avatar";
+import { Icon } from "./Icon";
 import { Tap } from "./Tap";
 import { Rise } from "./Motion";
 
@@ -79,9 +81,14 @@ export function SquadSection({ gatheringId, meId, faces, ended }: { gatheringId:
   if (mine) {
     const nameProblem = squadNameProblem(rename);
     return (
-      <View style={[styles.card, styles.mine]}>
+      <View style={[styles.squad, styles.mine]}>
         <Text style={styles.kicker}>{mine.legacy ? "Your group" : SQUAD_COPY.heading}</Text>
-        {!mine.legacy ? <Text style={styles.title}>{mine.name}</Text> : null}
+        {!mine.legacy ? (
+          <View style={styles.nameRow}>
+            <Text style={styles.squadName}>{mine.name}</Text>
+            {mine.womenOnly ? <Text style={styles.tag}>{SQUAD_COPY.womenOnly}</Text> : null}
+          </View>
+        ) : null}
         {mine.nameStatus === "pending" ? <Body muted>{SQUAD_COPY.checking}</Body> : null}
         {mine.nameStatus === "rejected" ? (
           <>
@@ -108,11 +115,13 @@ export function SquadSection({ gatheringId, meId, faces, ended }: { gatheringId:
             ) : null}
           </>
         ) : null}
-        {mine.meetAt ? <Body>{SQUAD_COPY.meets(mine.spot ?? SQUAD_COPY.atTheGathering.toLowerCase(), at(mine.meetAt))}</Body> : null}
-        {mine.womenOnly ? <Text style={styles.tag}>{SQUAD_COPY.womenOnly}</Text> : null}
-        <Tap accessibilityRole="button" onPress={() => router.push({ pathname: "/group/[id]", params: { id: mine.crewId } })}>
-          <Text style={styles.link}>{mine.legacy ? "Open your group" : "Open your squad"}</Text>
-        </Tap>
+        {mine.meetAt ? <PlaceLine text={`${mine.spot ?? SQUAD_COPY.atTheGathering} · ${at(mine.meetAt)}`} /> : null}
+        <View style={styles.cardFoot}>
+          <View style={{ flex: 1 }} />
+          <Tap accessibilityRole="button" onPress={() => router.push({ pathname: "/group/[id]", params: { id: mine.crewId } })} style={styles.openChat}>
+            <Text style={styles.openChatLabel}>{mine.legacy ? "Open your group" : SQUAD_COPY.openChat}</Text>
+          </Tap>
+        </View>
       </View>
     );
   }
@@ -120,8 +129,15 @@ export function SquadSection({ gatheringId, meId, faces, ended }: { gatheringId:
   if (ended) return null;
 
   return (
-    <View style={styles.card}>
-      <Text style={styles.heading}>{SQUAD_COPY.sectionHeading}</Text>
+    <View style={styles.section}>
+      {/* UI pass 1 (069): the crowd page's style. "Squads" with Start beside it, then one
+          plain box per squad, so the Meeting Room stays the one purple card. */}
+      <View style={styles.headRow}>
+        <Text style={styles.heading}>{SQUAD_COPY.sectionHeading}</Text>
+        <Tap accessibilityRole="button" onPress={() => { setSaid(null); setSheet(true); }} style={styles.startButton}>
+          <Text style={styles.startLabel}>{`+ ${SQUAD_COPY.startShort}`}</Text>
+        </Tap>
+      </View>
       <Body muted>{SQUAD_COPY.sectionHint}</Body>
       {view.squads.length === 0 ? <Body muted>{SQUAD_COPY.none}</Body> : null}
       {view.squads.map((s, i) => (
@@ -129,7 +145,6 @@ export function SquadSection({ gatheringId, meId, faces, ended }: { gatheringId:
         <Squad squad={s} faces={faces} time={at(s.meetAt)} busy={busy === s.crewId} onJoin={() => void act(s.crewId, () => joinSquad(s.crewId))} refusal={saidAt(s.crewId)} />
         </Rise>
       ))}
-      <Button kind="quiet" label={SQUAD_COPY.start} onPress={() => { setSaid(null); setSheet(true); }} />
       {sheet ? (
         <StartSheet
           view={view}
@@ -148,33 +163,36 @@ function Squad({ squad, faces, time, busy, onJoin, refusal }: { squad: SquadCard
   const shown = squad.members.map((m) => faces.find((f) => f.id === m.personId)).filter((f): f is SquadFace => !!f);
   return (
     <View style={[styles.squad, squad.full && styles.dim]}>
-      <View style={{ flexDirection: "row", alignItems: "flex-start", gap: spacing.sm }}>
-        <View style={{ flex: 1, gap: 2 }}>
-          <Text style={styles.squadName}>{squad.name}</Text>
-          <Text style={styles.meta}>{`${squad.spot ?? SQUAD_COPY.atTheGathering} · ${time}`}</Text>
-        </View>
-        <Text style={[styles.seats, squad.full && { color: palette.textMuted }]}>{squadSeatsLabel(squad.seats)}</Text>
-      </View>
-      <View style={styles.faces}>
-        {shown.slice(0, 6).map((f) =>
-          f.photoUrl ? (
-            <Image key={f.id} source={{ uri: f.photoUrl }} style={styles.face} accessibilityLabel={f.firstName} />
-          ) : (
-            <View key={f.id} style={[styles.face, styles.faceEmpty]}>
-              <Text style={styles.faceLetter}>{f.firstName.slice(0, 1).toUpperCase()}</Text>
-            </View>
-          ),
-        )}
-        {shown.length ? <Text style={styles.meta}>{shown.map((f) => f.firstName).slice(0, 3).join(", ")}</Text> : null}
+      <View style={styles.nameRow}>
+        <Text style={styles.squadName}>{squad.name}</Text>
         {squad.womenOnly ? <Text style={styles.tag}>{SQUAD_COPY.womenOnly}</Text> : null}
       </View>
-      {!squad.full ? <Button label={SQUAD_COPY.join} haptic="action" busy={busy} onPress={onJoin} /> : null}
+      <PlaceLine text={`${squad.spot ?? SQUAD_COPY.atTheGathering} · ${time}`} />
+      <View style={styles.cardFoot}>
+        <AvatarStack size={26} max={4} people={shown.map((f) => ({ id: f.id, name: f.firstName, source: f.photoUrl }))} />
+        <Text style={[styles.meta, { flex: 1 }]}>{squad.full ? SQUAD_COPY.fullLine : SQUAD_COPY.count(squad.members.length, squad.members[0]?.firstName)}</Text>
+        {!squad.full ? (
+          <Tap accessibilityRole="button" haptic="action" disabled={busy} onPress={onJoin} style={styles.join}>
+            {busy ? <ActivityIndicator color={palette.onAccent} /> : <Text style={styles.joinLabel}>{SQUAD_COPY.join}</Text>}
+          </Tap>
+        ) : null}
+      </View>
       {refusal}
     </View>
   );
 }
 
 // Start a squad: a name (the one thing typed), a spot, a time, and who can join.
+// Where and when, one grey line with a pin, only when it is set (UI pass 1, 069).
+function PlaceLine({ text }: { text: string }) {
+  return (
+    <View style={styles.placeLine}>
+      <Icon name="pin" size={14} color={palette.textMuted} />
+      <Text style={styles.meta}>{text}</Text>
+    </View>
+  );
+}
+
 function StartSheet({
   view,
   busy,
@@ -271,12 +289,24 @@ function Chips({ options, value, onChange }: { options: { key: string; name: str
 
 const styles = StyleSheet.create({
   card: { marginTop: spacing.md, padding: spacing.lg, borderWidth: 1, borderColor: palette.border, borderRadius: radius.lg, backgroundColor: palette.surface, gap: spacing.sm },
-  mine: { borderColor: palette.accent },
+  // Your squad: the same box, outlined in purple (069).
+  mine: { borderColor: palette.accent, marginTop: spacing.md },
+  section: { marginTop: spacing.lg, gap: spacing.sm },
+  headRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm },
+  startButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: 14, borderRadius: radius.md, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
+  startLabel: { fontFamily: fonts.headline, fontSize: 14, color: palette.text },
+  nameRow: { flexDirection: "row", alignItems: "center", flexWrap: "wrap", gap: spacing.sm },
+  placeLine: { flexDirection: "row", alignItems: "center", gap: 6 },
+  cardFoot: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.xs },
+  join: { minHeight: 44, minWidth: 72, alignItems: "center", justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.md, backgroundColor: palette.accent },
+  joinLabel: { fontFamily: fonts.headline, fontSize: 15, color: palette.onAccent },
+  openChat: { minHeight: 44, justifyContent: "center", paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: palette.accent },
+  openChatLabel: { fontFamily: fonts.headline, fontSize: 15, color: palette.text },
   kicker: { fontFamily: fonts.headline, fontSize: 14, color: palette.textMuted },
   title: { fontFamily: fonts.headline, fontSize: 22, color: palette.text },
   heading: { fontFamily: fonts.headline, fontSize: 20, color: palette.text },
   link: { color: palette.accentText, fontSize: 15, marginTop: spacing.xs },
-  squad: { padding: spacing.md, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, backgroundColor: palette.background, gap: spacing.sm },
+  squad: { padding: spacing.md, borderWidth: 1, borderColor: palette.border, borderRadius: radius.lg, backgroundColor: palette.surface, gap: spacing.xs + 2 },
   dim: { opacity: 0.55 },
   squadName: { fontFamily: fonts.headline, fontSize: 17, color: palette.text },
   seats: { fontSize: 13, color: palette.textTint, fontWeight: "600" },
@@ -284,7 +314,8 @@ const styles = StyleSheet.create({
   face: { width: 30, height: 30, borderRadius: 15 },
   faceEmpty: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, alignItems: "center", justifyContent: "center" },
   faceLetter: { fontFamily: fonts.headline, fontSize: 13, color: palette.textMuted },
-  tag: { fontSize: 12, color: palette.textTint, borderWidth: 1, borderColor: palette.border, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, alignSelf: "flex-start" },
+  // Women only: a small pink tag (UI pass 1, section 9's soft accent).
+  tag: { fontSize: 12, color: "#F7C6DE", backgroundColor: "#3A1F2E", borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2, overflow: "hidden", alignSelf: "flex-start" },
   meta: { fontSize: 13, color: palette.textMuted },
   refusal: { fontSize: 14, color: "#E06B6B" },
   input: { borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, padding: spacing.md, fontSize: 16, color: palette.text, backgroundColor: palette.surface },
