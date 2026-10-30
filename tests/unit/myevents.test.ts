@@ -145,12 +145,12 @@ describe("A19 as the home for your chats (Alex, 16 Oct 2026)", () => {
     assert.match(tabs, /unreadTotal\(chats\.data\)/);
   });
 
-  it("M16 the inbox's order under an event: the event's own row (the room), then my squad, then my 1-on-1; no join from here; pinned-only leads to A27", () => {
+  it("M16 the inbox's order under an event: the Meeting Room (round 3), then my squad, then my 1-on-1; no join from here; pinned-only leads to A27", () => {
     // UI pass 1 (107): one row per chat. The open squads to join left My Events for the
     // crowd page (A15); a join here would be a second way to do one thing.
     const screen = readFileSync("app/src/app/(tabs)/my-events.tsx", "utf8").replace(/^\s*\/\/.*$/gm, "");
     const at = (s: string) => screen.indexOf(s);
-    const order = ['kind: "event"', "for (const c of [squad, plan])"].map(at);
+    const order = ['kind: "room"', "for (const c of [squad, plan])"].map(at);
     assert.ok(order.every((i) => i > 0) && order[0] < order[1], "the rows under an event are out of order");
     assert.match(screen, /const squad = e\.crews\.find\(\(c\) => c\.kind === "crew"\);\s*const plan = e\.crews\.find\(\(c\) => c\.kind === "solo"\);/);
     assert.doesNotMatch(screen, /joinSquad|openSquads/, "My Events offers a join again");

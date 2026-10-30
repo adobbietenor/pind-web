@@ -17,8 +17,8 @@ const chatsOf = (over: Partial<Parameters<typeof endedChats>[0]> = {}) => ({
     { roomId: "r2", womenOnly: true, members: 1, open: false, last: null, unread: 0 },
   ],
   crews: [
-    { crewId: "c1", kind: "crew" as const, name: "Dog & Bear first", legacy: false, state: "done", spot: null, meetAt: null, partner: null, last: null, unread: 0 },
-    { crewId: "c2", kind: "solo" as const, name: null, legacy: false, state: "done", spot: null, meetAt: null, partner: "Sam", last: null, unread: 0 },
+    { crewId: "c1", kind: "crew" as const, name: "Dog & Bear first", legacy: false, state: "done", spot: null, meetAt: null, partner: null, members: 2, faces: [], last: null, unread: 0 },
+    { crewId: "c2", kind: "solo" as const, name: null, legacy: false, state: "done", spot: null, meetAt: null, partner: "Sam", members: 2, faces: [], last: null, unread: 0 },
   ],
   ...over,
 });

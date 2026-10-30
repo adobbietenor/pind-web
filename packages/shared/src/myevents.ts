@@ -141,6 +141,10 @@ export interface CrewChat {
   meetAt: string | null;
   // A 1-on-1 plan's other person, by first name.
   partner: string | null;
+  // How many are in it, in seats, and up to three of the others (UI pass 1, round 3): a
+  // squad row shows their circles, a 1-on-1 row the other person.
+  members: number;
+  faces: { id: string; firstName: string; photoPath: string | null }[];
   last: ChatLast | null;
   unread: number;
 }
@@ -189,6 +193,8 @@ export function readMyChats(json: unknown): MyChatsEvent[] {
       spot: str(c.spot),
       meetAt: str(c.meet_at),
       partner: str(c.partner),
+      members: num(c.members),
+      faces: list(c.faces).map((f) => ({ id: String(f.person_id), firstName: str(f.first_name) ?? "", photoPath: str(f.photo_path) })),
       last: last(c.last),
       unread: num(c.unread),
     }));
@@ -389,6 +395,12 @@ export const INBOX_COPY = {
   showAllPast: "Show all past events",
   hidePast: "Show fewer",
   womenOnlyRoom: "Women-only room",
+  // What kind of chat a row is, at a glance (UI pass 1, round 3, item 11).
+  meetingRoom: "Pin'd Meeting Room",
+  everyoneTag: "Everyone going",
+  womenOnlyTag: "Women only",
+  squadTag: (n: number) => (n === 1 ? "Squad · just you" : `Squad · ${n} of you`),
+  oneOnOneTag: "1-on-1",
   nothingUnread: "Nothing unread.",
   noSquads: "No squads yet.",
 } as const;

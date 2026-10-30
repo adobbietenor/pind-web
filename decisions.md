@@ -4873,3 +4873,18 @@ and each is now a rule in shared code with a test that fails when a screen goes 
 - **Not done: the staging app's Apple ID** for `submit.internal.ascAppId` (item 7). The
   number did not come through in the message, and Alex chose to build without auto-submit
   rather than wait.
+
+### UI pass 1, round 3 (Alex, 30 Oct 2026)
+
+- **My Events says what kind of chat each row is** (item 11). The event is a heading (date
+  badge, name, Live) and its chats sit under it, each told apart by a picture and a small tag,
+  never by colour alone: the Pin'd Meeting Room first under every event, every time (the
+  purple room icon, "Everyone going"); the women-only room (the pink room icon, "Women
+  only"); a squad (its members' circles, its name, "Squad · 3 of you", counted in seats as
+  squads() counts them; "Squad · just you" alone); a 1-on-1 (the other person's photo, their
+  first name, "1-on-1"). The All / Unread / Squads chips stay; under a filter an event shows
+  only when one of its chats does. my_chats gained each squad's size and up to three of the
+  others' faces, read as the person under RLS like the chat itself; a face is still only a
+  signed URL after can_see_photo. Who sees what is unchanged. M30, S62.
+- **Not done yet: the Apple ID** (item 12). The message again carried `<number>` rather than
+  the number.

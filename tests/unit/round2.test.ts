@@ -9,6 +9,7 @@ import { join } from "node:path";
 import { CROWD_COPY } from "../../packages/shared/src/crowd.ts";
 import { HERE_COPY, ROOM_COPY } from "../../packages/shared/src/room.ts";
 import { oneOnOneLine, oneOnOneState, type OneOnOneState } from "../../packages/shared/src/solo.ts";
+import { INBOX_COPY, readMyChats } from "../../packages/shared/src/myevents.ts";
 
 const APP = join("app", "src");
 function files(dir: string, out: string[] = []): string[] {
@@ -214,5 +215,33 @@ describe("The chat leads (item 9)", () => {
     assert.ok(faces > infoAt, "the row of faces is on the page above the conversation");
     const goTogether = room.indexOf("ROOM_COPY.enoughToGo");
     assert.ok(goTogether > 0 && !room.slice(goTogether - 400, goTogether).includes("styles.go}"), "go-together is a card again, not a line");
+  });
+});
+
+// UI pass 1, round 3, item 11: A19 says what kind of chat each row is, at a glance.
+describe("My Events says what kind of chat each row is (round 3, item 11)", () => {
+  const inbox = read("app/(tabs)/my-events.tsx");
+
+  it("M30 my_chats' answer carries a squad's size and faces, and a 1-on-1's other person", () => {
+    const [e] = readMyChats([{ gathering_id: "g", slug: "s", starts_at: "2026-10-31T00:00:00Z", crews: [
+      { crew_id: "c", kind: "crew", name: "Section 314", members: 3, faces: [{ person_id: "p", first_name: "Ari", photo_path: "a/1.jpg" }] },
+      { crew_id: "d", kind: "solo", partner: "Sam" },
+    ] }]);
+    assert.equal(e.crews[0].members, 3);
+    assert.deepEqual(e.crews[0].faces, [{ id: "p", firstName: "Ari", photoPath: "a/1.jpg" }]);
+    assert.deepEqual(e.crews[1].faces, [], "a missing list is empty, never a crash");
+    assert.equal(INBOX_COPY.squadTag(3), "Squad · 3 of you");
+    assert.equal(INBOX_COPY.meetingRoom, "Pin'd Meeting Room");
+  });
+
+  it("S62 every chat row has its tag and picture; the Meeting Room is first under its event", () => {
+    assert.ok(inbox.length > 0, "cannot read A19");
+    for (const tag of ["INBOX_COPY.everyoneTag", "INBOX_COPY.squadTag(", "INBOX_COPY.oneOnOneTag", "INBOX_COPY.womenOnlyTag"]) {
+      assert.ok(inbox.includes(tag), `a row lost its tag: ${tag}`);
+    }
+    const first = inbox.indexOf("const rows: Row[] = [");
+    assert.ok(first > 0 && /kind: "room"/.test(inbox.slice(first, first + 200)), "the Meeting Room is not the first row under its event");
+    assert.match(inbox, /function KindMark\b/, "rows are told apart by colour alone");
+    assert.match(inbox, /<KindMark row=\{row\}/, "a row does not draw its kind");
   });
 });
