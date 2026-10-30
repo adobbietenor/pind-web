@@ -363,13 +363,18 @@ describe("The web app claims a handed-over session before any screen renders (M3
     const composer = files.find((f) => f.path === "components/Composer.tsx")!.src;
     assert.equal((composer.match(/onSend\(\)/g) ?? []).length, 1, "the composer calls onSend from more than one place");
     assert.match(composer, /const submit = \(\) => \{\s*if \(!can\) return;\s*onSend\(\);/, "onSend is called from somewhere other than submit");
-    assert.match(composer, /<Button label=\{THREAD_COPY\.send\}[^>]*onPress=\{submit\}/, "the composer's Send button does not submit");
+    // Since UI pass 1 the Send is a round arrow (a Tap), still named Send and still submit.
+    assert.match(composer, /<Tap accessibilityRole="button" accessibilityLabel=\{THREAD_COPY\.send\}[^>]*onPress=\{submit\}/, "the composer's Send button does not submit");
     const bubbles = files.find((f) => f.path === "components/ThreadMessages.tsx")!.src;
     assert.match(bubbles, /onPress=\{failed \? \(\) => onTakeBack\(m\.id\) : undefined\}/, "a failed message's tap does something other than take it back");
     assert.doesNotMatch(bubbles, /onSend|post\(|insert/, "the thread's bubbles can send");
-    // An opener's tap fills the box and does nothing else.
-    assert.match(room, /openers\.map\(\(o\) => \([\s\S]{0,200}onPress=\{\(\) => setDraft\(o\)\}/, "an opener does something other than fill the box");
-    assert.doesNotMatch(room.slice(room.indexOf("openers.map"), room.indexOf("openers.map") + 400), /send|insert/i, "an opener sends");
+    // An opener's tap fills the box and does nothing else. Since UI pass 1 the openers are
+    // the composer's chips, the row just over the box: the room hands them over, and a chip
+    // only sets the box's text.
+    assert.match(room, /<Composer[\s\S]{0,400}chips=\{[^}]*openers/, "the room's openers are not the composer's chips");
+    const chip = composer.slice(composer.indexOf("chips.map"), composer.indexOf("chips.map") + 300);
+    assert.match(chip, /onPress=\{\(\) => onChangeText\(c\)\}/, "an opener does something other than fill the box");
+    assert.doesNotMatch(chip, /onSend|submit|insert/i, "an opener sends");
   });
 });
 
@@ -494,7 +499,7 @@ describe("Threads: a message costs a row, and the box rides the keyboard (the th
     const keys = composer.slice(composer.indexOf("const onKeyPress"), composer.indexOf("\n  };", composer.indexOf("const onKeyPress")));
     assert.match(keys, /key\.key !== "Enter" \|\| key\.shiftKey \|\| key\.isComposing \|\| key\.keyCode === 229\) return;/, "Shift+Enter or a half-composed word would send");
     assert.match(keys, /e\.preventDefault\(\);\s*submit\(\);/, "Enter sends and ALSO types a new line");
-    assert.match(composer, /<Button label=\{THREAD_COPY\.send\}/, "the Send button is gone");
+    assert.match(composer, /accessibilityLabel=\{THREAD_COPY\.send\}/, "the Send button is gone");
   });
 
   it("S40 the frame keeps a footer on the keyboard and the newest message in view — in the shared frame, not a screen", () => {

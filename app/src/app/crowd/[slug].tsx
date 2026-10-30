@@ -36,7 +36,10 @@ import {
   WOMEN_ONLY_COPY,
 } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
+import { Avatar, AvatarStack } from "@/components/Avatar";
 import { Counters } from "@/components/Counters";
+import { Icon } from "@/components/Icon";
+import { PersonSheet, type SheetPerson } from "@/components/PersonSheet";
 import { HouseRules } from "@/components/HouseRules";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading } from "@/components/ui";
@@ -216,6 +219,8 @@ export default function CrowdPage() {
   const [view, setView] = useState<View9 | null | undefined>(undefined);
   const [trouble, setTrouble] = useState<Described | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sheet, setSheet] = useState<SheetPerson | null>(null);
+  const [allFaces, setAllFaces] = useState(false);
 
   const refresh = useCallback(() => {
     setTrouble(null);
@@ -366,13 +371,24 @@ export default function CrowdPage() {
                 </View>
               );
             }
+            // The Pin'd Meeting Room, the main card (UI pass 1, 055): solid purple, its
+            // faces and how many are in it, one white button. Squads below are plain boxes.
             return (
-              <View style={[styles.oneStep, { marginTop: spacing.md }]}>
-                <Text style={styles.oneStepHeading}>{general.womenOnly ? WOMEN_ONLY_COPY.room : ROOM_COPY.inRoom(general.members)}</Text>
-                {view.lastLines.map((l, n) => (
-                  <Body key={n} muted>{`${l.who}: ${l.body}`}</Body>
-                ))}
-                <Button label={view.lastLines.length ? ROOM_COPY.openRoom : ROOM_COPY.sayHi} onPress={() => router.push({ pathname: "/room/[id]", params: { id: general.roomId } })} />
+              <View style={{ gap: spacing.sm }}>
+              <View style={styles.roomCard}>
+                <View style={styles.roomKicker}>
+                  <Icon name="chat" size={18} color={palette.onAccent} />
+                  <Text style={styles.roomKickerLabel}>{general.womenOnly ? WOMEN_ONLY_COPY.room : CROWD_COPY.roomKicker}</Text>
+                </View>
+                <Text style={styles.roomTitle}>{CROWD_COPY.roomTitle}</Text>
+                <View style={styles.roomFaces}>
+                  <AvatarStack size={36} people={view.faces.map((f) => ({ id: f.id, name: f.firstName, source: f.photoUrl }))} />
+                  <Text style={styles.roomCount}>{CROWD_COPY.roomCount(general.members)}</Text>
+                </View>
+                <Tap accessibilityRole="button" onPress={() => router.push({ pathname: "/room/[id]", params: { id: general.roomId } })} style={styles.roomButton}>
+                  <Text style={styles.roomButtonLabel}>{view.lastLines.length ? ROOM_COPY.openRoom : CROWD_COPY.roomSayHi}</Text>
+                </Tap>
+              </View>
                 {/* No count on it: next to the public mix, one would tell how many nonbinary
                     people opted in (decisions Q9, "never a number"). */}
                 {wo ? <Button kind="quiet" label={WOMEN_ONLY_COPY.room} onPress={() => router.push({ pathname: "/room/[id]", params: { id: wo.roomId } })} /> : null}
@@ -391,35 +407,56 @@ export default function CrowdPage() {
               faces={view.faces.map((f) => ({ id: f.id, firstName: f.firstName, photoUrl: f.photoUrl, tags: f.tags.map(tagName).join(" · ") }))}
             />
           ) : null}
-          <Text style={[styles.sectionName, { marginTop: spacing.lg }]}>{CROWD_COPY.listHeading}</Text>
+          {/* The open-to-meeting list: people you can tap (UI pass 1, 055), the profile
+              sheet rather than leaving the page. Three, then "See all". */}
+          <Text style={[styles.listHeading, { marginTop: spacing.lg }]}>{CROWD_COPY.listHeading}</Text>
           {view.faces.length === 0 ? (
             <Body muted>{CROWD_COPY.listEmpty}</Body>
           ) : (
-            view.faces.map((f) => (
+            (allFaces ? view.faces : view.faces.slice(0, 3)).map((f) => (
               <Tap
                 key={f.id}
                 accessibilityRole="button"
-                onPress={() => router.push(`/person/${f.id}`)}
+                onPress={() =>
+                  setSheet({ id: f.id, firstName: f.firstName, photo: f.photoUrl, area: hoodName(f.neighbourhood), tags: f.tags.map(tagName).filter(Boolean) as string[] })
+                }
                 style={({ pressed }) => [styles.row, pressed && { opacity: 0.7 }]}
               >
-                {f.photoUrl ? (
-                  <Image source={{ uri: f.photoUrl }} style={styles.face} />
-                ) : (
-                  <View style={[styles.face, styles.faceEmpty]}>
-                    <Text style={styles.faceLetter}>{f.firstName.slice(0, 1).toUpperCase()}</Text>
-                  </View>
-                )}
+                <Avatar name={f.firstName} source={f.photoUrl} size={44} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.name}>
                     {f.firstName}
                     {f.party > 1 ? <Text style={styles.plus}>{`  +${f.party - 1} friend${f.party > 2 ? "s" : ""}`}</Text> : null}
                   </Text>
                   {hoodName(f.neighbourhood) ? <Text style={styles.hood}>{hoodName(f.neighbourhood)}</Text> : null}
-                  {f.tags.length ? <Text style={styles.tags}>{f.tags.map(tagName).join(" · ")}</Text> : null}
                 </View>
+                <Text style={styles.rowChevron}>›</Text>
               </Tap>
             ))
           )}
+          {!allFaces && view.faces.length > 3 ? (
+            <Text accessibilityRole="button" onPress={() => setAllFaces(true)} style={styles.seeAll}>
+              {CROWD_COPY.seeAll(view.faces.length)}
+            </Text>
+          ) : null}
+          <PersonSheet
+            person={sheet}
+            onClose={() => setSheet(null)}
+            onSayHi={(() => {
+              const room = view.rooms.find((r) => !r.womenOnly && r.open) ?? view.rooms.find((r) => r.open);
+              return room
+                ? () => {
+                    setSheet(null);
+                    router.push({ pathname: "/room/[id]", params: { id: room.roomId } });
+                  }
+                : undefined;
+            })()}
+            onProfile={() => {
+              const id = sheet?.id;
+              setSheet(null);
+              if (id) router.push(`/person/${id}`);
+            }}
+          />
           {!ended ? (
             <View style={{ marginTop: spacing.lg }}>
               <Button kind="quiet" label={CROWD_COPY.turnOff} busy={busy} onPress={() => void setOpen(false)} />
@@ -495,14 +532,30 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   oneStepHeading: { fontFamily: fonts.headline, fontSize: 22, color: palette.text },
+  roomCard: { marginTop: spacing.md, padding: spacing.lg - 4, borderRadius: 18, backgroundColor: palette.accent, gap: spacing.sm + 4 },
+  roomKicker: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
+  roomKickerLabel: { fontFamily: fonts.headline, fontSize: 14, color: "#E9DDF6" },
+  roomTitle: { fontFamily: fonts.headline, fontSize: 26, lineHeight: 31, color: palette.onAccent },
+  roomFaces: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4 },
+  roomCount: { flex: 1, fontFamily: fonts.headline, fontSize: 16, color: palette.onAccent },
+  roomButton: { minHeight: 52, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: "#FFFFFF" },
+  roomButtonLabel: { fontFamily: fonts.headline, fontSize: 18, color: palette.accent },
+  listHeading: { fontFamily: fonts.headline, fontSize: 17, color: palette.text, marginBottom: spacing.sm },
+  rowChevron: { fontSize: 22, color: palette.textMuted },
+  seeAll: { color: palette.accentText, fontSize: 15, textDecorationLine: "underline", marginTop: spacing.sm, paddingVertical: spacing.sm },
   sectionName: { fontFamily: fonts.headline, fontSize: 14, color: palette.textMuted, marginBottom: spacing.sm },
   row: {
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.md,
+    minHeight: 60,
     paddingVertical: spacing.sm + 2,
-    borderBottomWidth: 1,
-    borderBottomColor: palette.border,
+    paddingHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: palette.border,
+    borderRadius: radius.md,
+    backgroundColor: palette.surface,
   },
   face: { width: 52, height: 52, borderRadius: 26 },
   faceEmpty: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border, alignItems: "center", justifyContent: "center" },

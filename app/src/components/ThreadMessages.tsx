@@ -13,7 +13,9 @@
 //     copy (a new id) takes its place without sliding again.
 import { memo, useCallback, useEffect, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import { colors as palette, radius, spacing, THREAD_COPY, type ThreadMessage } from "@pind/shared";
+import type { ImageSource } from "expo-image";
+import { colors as palette, fonts, radius, spacing, THREAD_COPY, type ThreadMessage } from "@pind/shared";
+import { Avatar } from "./Avatar";
 import { Button } from "./ui";
 import { Arrive } from "./Motion";
 import { Tap } from "./Tap";
@@ -23,6 +25,19 @@ import { Tap } from "./Tap";
 const CLOCK = new Intl.DateTimeFormat("en-CA", { hour: "numeric", minute: "2-digit" });
 const clock = (iso: string) => CLOCK.format(new Date(iso));
 
+// The day a run of messages belongs to, as a pill between them (UI pass 1, 057): "Today",
+// "Yesterday", or the date.
+const DAY = new Intl.DateTimeFormat("en-CA", { weekday: "short", month: "short", day: "numeric" });
+function dayOf(iso: string, now = new Date()): string {
+  const d = new Date(iso);
+  const key = (x: Date) => `${x.getFullYear()}-${x.getMonth()}-${x.getDate()}`;
+  if (key(d) === key(now)) return "Today";
+  const y = new Date(now);
+  y.setDate(now.getDate() - 1);
+  if (key(d) === key(y)) return "Yesterday";
+  return DAY.format(d);
+}
+
 // One message. Memoised: sending or receiving one message renders that bubble, not all
 // fifty — the merge functions keep an unchanged message the same object, and the handlers
 // it gets are stable. Without this, the press and entrance wrappers made every Send ~20 ms
@@ -31,6 +46,9 @@ const Bubble = memo(function Bubble({
   m,
   mine,
   who,
+  face,
+  showName,
+  showFace,
   animate,
   holdable,
   onTakeBack,
@@ -39,24 +57,34 @@ const Bubble = memo(function Bubble({
   m: ThreadMessage;
   mine: boolean;
   who: string;
+  face: ImageSource | string | null | undefined;
+  showName: boolean;
+  showFace: boolean;
   animate: boolean;
   holdable: boolean;
   onTakeBack: (localId: string) => void;
   onLongPress: (m: ThreadMessage) => void;
 }) {
   const failed = m.status === "failed";
-  const meta = m.status === "sending" ? `You · ${THREAD_COPY.sending}` : failed ? THREAD_COPY.notSent : `${who} · ${clock(m.createdAt)}`;
+  // A group chat's bubble (UI pass 1, 057): theirs on the left with their face and name,
+  // mine on the right in purple, the time tucked in the corner of each.
+  const time = m.status === "sending" ? THREAD_COPY.sending : failed ? THREAD_COPY.notSent : clock(m.createdAt);
   return (
     <Arrive fromRight={mine} animate={animate}>
-      <Tap
-        accessibilityRole={failed ? "button" : undefined}
-        onPress={failed ? () => onTakeBack(m.id) : undefined}
-        onLongPress={!m.status && holdable ? () => onLongPress(m) : undefined}
-        style={[styles.bubble, mine ? styles.mine : styles.theirs, m.status === "sending" && styles.sending, failed && styles.failed]}
-      >
-        <Text style={[styles.who, failed && styles.failedText]}>{meta}</Text>
-        <Text style={styles.body}>{m.body}</Text>
-      </Tap>
+      <View style={[styles.line, mine && styles.lineMine]}>
+        {!mine ? <View style={styles.faceSlot}>{showFace ? <Avatar name={who} source={face} size={28} /> : null}</View> : null}
+        <Tap
+          accessibilityRole={failed ? "button" : undefined}
+          accessibilityLabel={`${mine ? "You" : who}, ${time}: ${m.body}`}
+          onPress={failed ? () => onTakeBack(m.id) : undefined}
+          onLongPress={!m.status && holdable ? () => onLongPress(m) : undefined}
+          style={[styles.bubble, mine ? styles.mine : styles.theirs, m.status === "sending" && styles.sending, failed && styles.failed]}
+        >
+          {!mine && showName ? <Text style={styles.who}>{who}</Text> : null}
+          <Text style={styles.body}>{m.body}</Text>
+          <Text style={[styles.time, mine && styles.timeMine, failed && styles.failedText]}>{time}</Text>
+        </Tap>
+      </View>
     </Arrive>
   );
 });
@@ -70,10 +98,13 @@ export function ThreadMessages({
   onOlder,
   onTakeBack,
   onLongPress,
+  faceOf,
 }: {
   messages: ThreadMessage[];
   meId: string;
   nameOf: (authorId: string) => string;
+  // The author's face, for the bubble's left edge; a letter when there is none.
+  faceOf?: (authorId: string) => ImageSource | string | null | undefined;
   hasOlder: boolean;
   olderBusy: boolean;
   onOlder: () => void;
@@ -104,17 +135,36 @@ export function ThreadMessages({
       {hasOlder ? <Button kind="quiet" label={THREAD_COPY.earlier} busy={olderBusy} onPress={onOlder} /> : null}
       {messages.map((m, i) => {
         const mine = m.authorId === meId;
-        return (
+        const prev = messages[i - 1];
+        const next = messages[i + 1];
+        const day = dayOf(m.createdAt);
+        const newDay = !prev || dayOf(prev.createdAt) !== day;
+        // A run of one person's messages carries their name once at the top and their
+        // face once at the bottom, as a group chat does.
+        const startsRun = newDay || prev.authorId !== m.authorId;
+        const endsRun = !next || next.authorId !== m.authorId || dayOf(next.createdAt) !== day;
+        const bubble = (
           <Bubble
             key={m.id}
             m={m}
             mine={mine}
             who={mine ? "You" : nameOf(m.authorId)}
+            face={faceOf?.(m.authorId)}
+            showName={startsRun}
+            showFace={endsRun}
             animate={arrives(m, i)}
             holdable={!!onLongPress}
             onTakeBack={takeBack}
             onLongPress={hold}
           />
+        );
+        return newDay ? (
+          <View key={m.id} style={{ gap: spacing.sm }}>
+            <Text style={styles.day}>{day}</Text>
+            {bubble}
+          </View>
+        ) : (
+          bubble
         );
       })}
     </View>
@@ -122,13 +172,19 @@ export function ThreadMessages({
 }
 
 const styles = StyleSheet.create({
-  list: { marginTop: spacing.md, gap: spacing.sm },
-  bubble: { padding: spacing.sm, borderRadius: radius.md, maxWidth: "88%" },
-  mine: { alignSelf: "flex-end", backgroundColor: palette.accent },
-  theirs: { alignSelf: "flex-start", backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },
+  list: { marginTop: spacing.md, gap: 6 },
+  line: { flexDirection: "row", alignItems: "flex-end", gap: spacing.sm },
+  lineMine: { justifyContent: "flex-end" },
+  faceSlot: { width: 28 },
+  bubble: { paddingVertical: spacing.sm, paddingHorizontal: 12, borderRadius: radius.md + 2, maxWidth: "80%", flexShrink: 1 },
+  mine: { backgroundColor: palette.accent, borderBottomRightRadius: 4 },
+  theirs: { backgroundColor: "#1C1A22", borderBottomLeftRadius: 4 },
   sending: { opacity: 0.7 },
   failed: { backgroundColor: palette.surface, borderWidth: 1, borderColor: "#E06B6B" },
-  who: { fontSize: 12, color: palette.textMuted, marginBottom: 2 },
+  who: { fontFamily: fonts.headline, fontSize: 13, color: palette.accentText, marginBottom: 2 },
   failedText: { color: "#F3B4B4" },
-  body: { fontSize: 15, color: palette.text },
+  body: { fontSize: 15, lineHeight: 21, color: palette.text },
+  time: { fontSize: 11, color: palette.textMuted, alignSelf: "flex-end", marginTop: 2 },
+  timeMine: { color: "#E2CFFA" },
+  day: { alignSelf: "center", fontSize: 12, color: palette.textMuted, backgroundColor: "#1C1A22", paddingVertical: 4, paddingHorizontal: 12, borderRadius: 999, overflow: "hidden", marginVertical: spacing.xs },
 });

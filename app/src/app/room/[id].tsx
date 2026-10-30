@@ -23,7 +23,12 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { colors as palette, fonts, NEIGHBOURHOODS, openersFor, radius, ROOM_COPY, spacing, SQUAD_COPY, WOMEN_ONLY_COPY, type ThreadMessage } from "@pind/shared";
+import { colors as palette, fonts, GO_TOGETHER_AT, NEIGHBOURHOODS, openersFor, radius, ROOM_COPY, spacing, SQUAD_COPY, WOMEN_ONLY_COPY, type ThreadMessage } from "@pind/shared";
+import { Sheet, SideScroll } from "@/components/Sheet";
+import { Avatar, AvatarStack } from "@/components/Avatar";
+import { HouseRules } from "@/components/HouseRules";
+import { Icon } from "@/components/Icon";
+import { PersonSheet, type SheetPerson } from "@/components/PersonSheet";
 import { leaveWomenOnlyRoom } from "@/lib/after";
 import { AppScreen } from "@/components/AppScreen";
 import { Composer } from "@/components/Composer";
@@ -88,6 +93,8 @@ export default function Room() {
   const [focused, setFocused] = useState(false);
   // The women-only room's Leave: asked once, then done.
   const [leavingWo, setLeavingWo] = useState(false);
+  const [info, setInfo] = useState(false);
+  const [sheet, setSheet] = useState<SheetPerson | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const shell = useQuery({
@@ -131,7 +138,7 @@ export default function Room() {
   }, [id]);
   // Seen the moment it is shown — it stays for this visit, and never comes back.
   useEffect(() => {
-    if (view && goDismissed === false && view.members.length + 1 >= 3 && !view.me.inGroup) void markGoSeen(id);
+    if (view && goDismissed === false && view.members.length + 1 === GO_TOGETHER_AT && !view.me.inGroup) void markGoSeen(id);
   }, [view, goDismissed, id]);
 
   // Seen when the room comes into view and when you leave it — then My Events and its
@@ -168,7 +175,12 @@ export default function Room() {
 
   const people = view.members;
   const count = people.length + 1;
-  const showGo = count >= 3 && goDismissed === false && !view.me.inGroup;
+  // **Only at exactly the number it describes** (UI pass 1): "There are three of you" is
+  // said at three, never at four or forty.
+  const showGo = count === GO_TOGETHER_AT && goDismissed === false && !view.me.inGroup;
+  const faceOf = (m: Member | undefined) => (m?.photoUrl && m.photoPath ? faceSource(m.photoUrl, m.photoPath) : null);
+  const open = (p: Member) =>
+    setSheet({ id: p.personId, firstName: p.firstName, photo: faceOf(p), area: hoodName(p.neighbourhood), tags: p.tags.map(tagName).filter(Boolean) as string[] });
   const byId = new Map(people.map((p) => [p.personId, p]));
   const closed = Date.now() >= Date.parse(view.gathering.closesAt);
   const firstShared = people.map((p) => sharedTag(view.me.tags, p.tags)).find(Boolean) ?? null;
@@ -204,19 +216,55 @@ export default function Room() {
         closed ? (
           <Notice>{ROOM_COPY.readOnly}</Notice>
         ) : (
-          <Composer value={draft} onChangeText={setDraft} onSend={() => void send()} placeholder={ROOM_COPY.placeholder} note={sendNote} ready={!!thread.messages} />
+          <Composer
+            value={draft}
+            onChangeText={setDraft}
+            onSend={() => void send()}
+            placeholder={ROOM_COPY.placeholder}
+            note={sendNote}
+            ready={!!thread.messages}
+            // Openers until you've said something, just over the box: they fill it, never send it.
+            chips={!posted && thread.messages ? openers : undefined}
+          />
         )
       }
     >
-      <Heading>{view.gathering.name}</Heading>
-      <Body muted>{view.womenOnly ? `Women-only room · ${ROOM_COPY.inRoom(count)}` : ROOM_COPY.inRoom(count)}</Body>
-      {/* At 5, the mix (Q3's floor) — the gathering's public numbers, never the room's own. */}
-      {count >= 5 && view.mix ? <Body muted>{view.mix}</Body> : null}
-
-      <View style={{ marginTop: spacing.md }}>
-        <PushAsk />
+      {/* The room's header (UI pass 1, 057): its faces, its name, the event and how many
+          are here, and the info button, which holds the house rules and the rest. */}
+      <View style={styles.header}>
+        <AvatarStack size={30} max={3} people={people.map((p) => ({ id: p.personId, name: p.firstName, source: faceOf(p) }))} />
+        <View style={{ flex: 1 }}>
+          <Text style={styles.title} numberOfLines={1}>{view.womenOnly ? WOMEN_ONLY_COPY.room : ROOM_COPY.title}</Text>
+          <Text style={styles.meta} numberOfLines={1}>{`${view.gathering.name} · ${ROOM_COPY.here(count)}`}</Text>
+        </View>
+        <Tap accessibilityRole="button" accessibilityLabel={ROOM_COPY.about} onPress={() => setInfo(true)} style={styles.infoButton}>
+          <Icon name="info" size={22} color={palette.text} />
+        </Tap>
       </View>
 
+      {/* Everyone here, a face each, you last. Tap anyone for their profile sheet. */}
+      <SideScroll>
+        {people.map((p) => (
+          <Tap key={p.personId} accessibilityRole="button" accessibilityLabel={p.firstName} onPress={() => open(p)} style={styles.faceCell}>
+            <Avatar name={p.firstName} source={faceOf(p)} size={52} />
+            <Text style={styles.faceName} numberOfLines={1}>{p.firstName}</Text>
+          </Tap>
+        ))}
+        <View style={styles.faceCell}>
+          <View style={styles.you}>
+            <Text style={styles.youLabel}>You</Text>
+          </View>
+          <Text style={styles.faceName}>You</Text>
+        </View>
+      </SideScroll>
+
+      <Sheet visible={info} onClose={() => setInfo(false)}>
+            <Text style={styles.title}>{ROOM_COPY.about}</Text>
+            <Body muted>{`${view.gathering.name} · ${ROOM_COPY.inRoom(count)}`}</Body>
+            {/* At 5, the mix (Q3's floor): the gathering's public numbers, never the room's own. */}
+            {count >= 5 && view.mix ? <Body muted>{view.mix}</Body> : null}
+            <HouseRules />
+            <PushAsk />
       {/* The women-only room's Leave (M4.2): you stay in the general room, and nobody is told. */}
       {view.womenOnly && !closed ? (
         leavingWo ? (
@@ -250,32 +298,17 @@ export default function Room() {
           <Button kind="quiet" label={WOMEN_ONLY_COPY.leave} onPress={() => setLeavingWo(true)} />
         )
       ) : null}
-
-      {/* The arrivals: who is here, with what you share. At 5 in the room, you included, a strip. */}
-      {count <= 4 ? (
-        people.map((p, i) => {
-          const shared = sharedTag(view.me.tags, p.tags);
-          return (
-            <Rise key={p.personId} index={i}>
-            <Tap feel="card" onPress={() => router.push(`/person/${p.personId}`)} style={styles.arrival}>
-              <Face member={p} style={styles.face} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles.name}>{`${p.firstName} ${ROOM_COPY.arrived}`}</Text>
-                <Text style={styles.meta}>{[hoodName(p.neighbourhood), ...p.tags.map(tagName)].filter(Boolean).join(" · ")}</Text>
-                {shared ? <Text style={styles.shared}>{ROOM_COPY.sharedTag(shared)}</Text> : null}
-              </View>
-            </Tap>
-            </Rise>
-          );
-        })
-      ) : (
-        <View style={styles.strip}>
-          {people.slice(0, 8).map((p) => (
-            <Face key={p.personId} member={p} style={styles.stripFace} />
-          ))}
-          <Text style={styles.meta}>{ROOM_COPY.morePeople(count)}</Text>
-        </View>
-      )}
+            <Button kind="quiet" label="Close" onPress={() => setInfo(false)} />
+      </Sheet>
+      <PersonSheet
+        person={sheet}
+        onClose={() => setSheet(null)}
+        onProfile={() => {
+          const pid = sheet?.id;
+          setSheet(null);
+          if (pid) router.push(`/person/${pid}`);
+        }}
+      />
 
       {/* At 3, once: the next step, never pushed. */}
       {showGo ? (
@@ -311,6 +344,7 @@ export default function Room() {
           messages={messages}
           meId={view.me.personId}
           nameOf={(a) => byId.get(a)?.firstName ?? "Someone"}
+          faceOf={(a) => faceOf(byId.get(a))}
           hasOlder={thread.hasOlder}
           olderBusy={thread.olderBusy}
           onOlder={() => void thread.loadOlder().catch((err) => setTrouble(failed("load earlier messages", err)))}
@@ -349,16 +383,6 @@ export default function Room() {
         />
       ) : null}
 
-      {/* Openers until you've said something, just over the box: they fill it, never send it. */}
-      {!closed && !posted && thread.messages ? (
-        <View style={{ gap: spacing.xs, marginTop: spacing.lg }}>
-          {openers.map((o) => (
-            <Tap key={o} accessibilityRole="button" haptic="select" onPress={() => setDraft(o)} style={styles.opener}>
-              <Text style={styles.openerText}>{o}</Text>
-            </Tap>
-          ))}
-        </View>
-      ) : null}
     </AppScreen>
   );
 }
@@ -373,6 +397,14 @@ const styles = StyleSheet.create({
   strip: { flexDirection: "row", alignItems: "center", gap: 4, marginVertical: spacing.sm },
   stripFace: { width: 28, height: 28, borderRadius: 14 },
   go: { padding: spacing.md, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, backgroundColor: palette.surface, marginTop: spacing.md, gap: spacing.sm },
-  opener: { paddingVertical: 8, paddingHorizontal: 12, borderWidth: 1, borderColor: palette.accent, borderRadius: 999, alignSelf: "flex-start" },
+  opener: { minHeight: 40, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderColor: palette.accent, borderRadius: 999 },
+  header: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4, paddingBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: palette.border },
+  title: { fontFamily: fonts.headline, fontSize: 18, color: palette.text },
+  infoButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  faceCell: { alignItems: "center", gap: 4, width: 60 },
+  faceName: { fontSize: 13, color: palette.textMuted },
+  you: { width: 52, height: 52, borderRadius: 26, alignItems: "center", justifyContent: "center", backgroundColor: "#2A2236" },
+  youLabel: { fontFamily: fonts.headline, fontSize: 15, color: palette.accentText },
+
   openerText: { fontSize: 14, color: palette.text },
 });

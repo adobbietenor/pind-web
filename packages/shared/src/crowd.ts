@@ -24,7 +24,14 @@ export const CROWD_COPY = {
   openToMeetingHint:
     "You'll set up a quick profile and join a room with everyone else who wants to meet. You can switch it off at any time to hide your profile.",
   // Pinned and open.
-  listHeading: "Going & open to meeting",
+  listHeading: "Open to meeting",
+  // UI pass 1 (055): the Meeting Room is the main card. "N in the room" rather than the
+  // drawn "here right now": the count is who is in the room, not who is looking at it (H6).
+  roomKicker: "Main room",
+  roomTitle: "The Pin'd Meeting Room",
+  roomCount: (n: number) => `${n} ${n === 1 ? "person" : "people"} in the room`,
+  roomSayHi: "Say hi",
+  seeAll: (n: number) => `See all ${n}`,
   listEmpty: "Nobody else has said yes yet. You're the first. They'll appear here as they do.",
   turnOff: "Stop being open to meeting here",
   turnedOff: "You're still going, just not on the list.",

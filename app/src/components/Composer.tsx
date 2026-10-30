@@ -14,15 +14,19 @@
 //     the box is measured on every change, shrinking included.
 //   * Focusing the box or sending brings the conversation to its newest message.
 import { useLayoutEffect, useRef } from "react";
-import { Platform, StyleSheet, Text, TextInput, View, type NativeSyntheticEvent, type TextInputKeyPressEventData } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, TextInput, View, type NativeSyntheticEvent, type TextInputKeyPressEventData } from "react-native";
 import { colors as palette, radius, spacing, THREAD_COPY } from "@pind/shared";
 import { haptic } from "@/lib/motion";
 import { useScrollToEnd } from "./AppScreen";
-import { Button } from "./ui";
+import { Icon } from "./Icon";
+import { Tap } from "./Tap";
 
+// **The field and Send share a centre line and a height** (UI pass 1, 057): one line of
+// text sits vertically centred in a 48-point pill, the round Send beside it is 48 too, and
+// the row aligns to its bottom, so as the field grows upward Send stays where the thumb is.
 const LINE = 21;
-const PAD = 12;
-const MIN = 52;
+const MIN = 48;
+const PAD = (MIN - 2 - LINE) / 2;
 // About five lines, then the box scrolls.
 const MAX = LINE * 5 + PAD * 2 + 2;
 
@@ -33,6 +37,7 @@ export function Composer({
   placeholder,
   note,
   ready = true,
+  chips,
 }: {
   value: string;
   onChangeText: (text: string) => void;
@@ -42,6 +47,9 @@ export function Composer({
   note?: string;
   // False until the thread has loaded: nothing to send into yet.
   ready?: boolean;
+  // Lines that fill the box when tapped, in a row just above it (the room's openers).
+  // They never send: S29.
+  chips?: readonly string[];
 }) {
   const toEnd = useScrollToEnd();
   const box = useRef<TextInput>(null);
@@ -78,6 +86,15 @@ export function Composer({
           {note}
         </Text>
       ) : null}
+      {chips?.length ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          {chips.map((c) => (
+            <Tap key={c} accessibilityRole="button" haptic="select" onPress={() => onChangeText(c)} style={styles.chip}>
+              <Text style={styles.chipText}>{c}</Text>
+            </Tap>
+          ))}
+        </ScrollView>
+      ) : null}
       <View style={styles.row}>
         <TextInput
           ref={box}
@@ -97,9 +114,9 @@ export function Composer({
           onKeyPress={Platform.OS === "web" ? onKeyPress : undefined}
           onFocus={toEnd}
         />
-        <View style={styles.send}>
-          <Button label={THREAD_COPY.send} disabled={!can} onPress={submit} />
-        </View>
+        <Tap accessibilityRole="button" accessibilityLabel={THREAD_COPY.send} accessibilityState={{ disabled: !can }} disabled={!can} onPress={submit} style={[styles.send, !can && styles.sendOff]}>
+          <Icon name="arrowRight" size={22} color={palette.onAccent} />
+        </Tap>
       </View>
     </View>
   );
@@ -113,16 +130,20 @@ const styles = StyleSheet.create({
     maxHeight: MAX,
     borderWidth: 1,
     borderColor: palette.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.sm + 4,
+    borderRadius: MIN / 2,
+    paddingHorizontal: spacing.md,
     paddingTop: PAD,
     paddingBottom: PAD,
     color: palette.text,
     backgroundColor: palette.surface,
     fontSize: 16,
     lineHeight: LINE,
-    textAlignVertical: "top",
+    textAlignVertical: "center",
   },
-  send: { width: 88 },
+  send: { width: MIN, height: MIN, borderRadius: MIN / 2, alignItems: "center", justifyContent: "center", backgroundColor: palette.accent },
+  sendOff: { opacity: 0.45 },
+  chips: { gap: spacing.sm, paddingBottom: spacing.sm },
+  chip: { minHeight: 40, justifyContent: "center", paddingHorizontal: 14, borderWidth: 1, borderColor: palette.accent, borderRadius: 999 },
+  chipText: { fontSize: 14, color: palette.text },
   note: { fontSize: 14, lineHeight: 19, color: "#F3B4B4", marginBottom: spacing.xs + 2 },
 });

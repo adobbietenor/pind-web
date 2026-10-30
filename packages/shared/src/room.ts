@@ -17,6 +17,10 @@ export const ROOM_COPY = {
   firstShare: "Know someone else going? Send them this crowd.",
   // 2+ — the room.
   inRoom: (n: number) => `${n} in the room`,
+  // The room's own header (UI pass 1, 057).
+  title: "Pin'd Meeting Room",
+  here: (n: number) => `${n} here`,
+  about: "About this room",
   sayHi: "Say hi in the room",
   openRoom: "Open the room",
   arrived: "is here",
