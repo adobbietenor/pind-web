@@ -26,6 +26,7 @@ import {
   colors as palette,
   fonts,
   nextOptInStep,
+  ONE_ON_ONE_COPY,
   OPTIN_COPY,
   optInMissing,
   POLICY_VERSION,
@@ -40,6 +41,8 @@ import { WhereStep } from "@/components/profile/WhereStep";
 import { YouStep } from "@/components/profile/YouStep";
 import type { Picked } from "@/components/TagPicker";
 import { AlreadyOnPind } from "@/components/AlreadyOnPind";
+import { OneOnOneSwitch } from "@/components/OneOnOneSwitch";
+import { SwitchRow } from "@/components/SwitchRow";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Tick } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
@@ -51,7 +54,10 @@ import { loadTags } from "@/lib/tags";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL || "https://pind.social";
 
-type Step = "loading" | OptInStep | "removed" | "lost";
+// "meet": after the safety sheet, the 073 choice (UI pass 1, Alex 30 Oct 2026) — the link
+// path's person gets the 1-on-1 switch too, the same one Settings has. Nothing on it is
+// required; Done goes on to A9.
+type Step = "loading" | OptInStep | "removed" | "lost" | "meet";
 
 // Why there is nothing here to fill in — never a blank page (M3.2 walk: after a merge
 // into an account that is not a tester, the test crowd vanished and A27 showed only its
@@ -238,8 +244,8 @@ export default function OptIn() {
         if (!("lost" in again) && optInMissing(again).missing.length) return sendBack(again);
         throw error ?? new Error("the pin did not open");
       }
-      // Into the who's-going page (A9): the faces this opens up.
-      router.replace(`/crowd/${slug}`);
+      // Open to meeting now: then "How do you want to meet?" (073), then A9.
+      setStep("meet");
     } catch (err) {
       setTrouble(failed("open you to meeting", err));
     } finally {
@@ -266,8 +272,8 @@ export default function OptIn() {
 
   return (
     <AppScreen>
-      {step !== "where" ? <Heading>{step === "identity" ? OPTIN_COPY.contactHeading : step === "safety" ? OPTIN_COPY.safetyHeading : OPTIN_COPY.heading}</Heading> : null}
-      {step !== "where" ? (
+      {step !== "where" && step !== "meet" ? <Heading>{step === "identity" ? OPTIN_COPY.contactHeading : step === "safety" ? OPTIN_COPY.safetyHeading : OPTIN_COPY.heading}</Heading> : null}
+      {step !== "where" && step !== "meet" ? (
         <View style={{ marginBottom: spacing.lg }}>
           {step !== "you" ? <Body muted>{mine ? `${mine.firstName} · ${mine.gatheringName}` : ""}</Body> : null}
           {step === "you" ? <Body muted>{OPTIN_COPY.lede}</Body> : null}
@@ -297,7 +303,7 @@ export default function OptIn() {
         </View>
       ) : null}
 
-      {why && step !== "safety" && step !== "lost" ? (
+      {why && step !== "safety" && step !== "lost" && step !== "meet" ? (
         <View style={styles.why}>
           <Body>{why}</Body>
         </View>
@@ -363,6 +369,19 @@ export default function OptIn() {
             afterStep({ whereNow: true });
           }}
         />
+      ) : null}
+
+      {step === "meet" ? (
+        <>
+          <Heading>{ONE_ON_ONE_COPY.sheetTitle}</Heading>
+          <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
+            <SwitchRow icon="chat" label={ONE_ON_ONE_COPY.roomAndSquads} line={ONE_ON_ONE_COPY.roomAndSquadsLine} value disabled onChange={() => undefined} />
+            <OneOnOneSwitch />
+            <Body muted>{ONE_ON_ONE_COPY.sheetFoot}</Body>
+            {/* Into the who's-going page (A9): the faces this opens up. */}
+            <Button label={ONE_ON_ONE_COPY.done} onPress={() => router.replace(`/crowd/${slug}`)} />
+          </View>
+        </>
       ) : null}
 
       {step === "safety" ? (

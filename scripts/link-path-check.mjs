@@ -42,6 +42,7 @@ import { ALL_TAGS } from "../packages/shared/src/tags.ts";
 import { NEIGHBOURHOODS } from "../packages/shared/src/neighbourhoods.ts";
 import { CODE_SENT_TO, PROFILE_GAP_ACTION, profileGapLine, profileGaps } from "../packages/shared/src/profile.ts";
 import { OPTIN_COPY } from "../packages/shared/src/optin.ts";
+import { ONE_ON_ONE_COPY } from "../packages/shared/src/solo.ts";
 import { QUICKPIN_COPY } from "../packages/shared/src/quickpin.ts";
 import { HOME_COPY, PROFILE_OFFER } from "../packages/shared/src/cities.ts";
 import { needChrome, needEnv, sessionSecretMatches, testCrowd } from "./fixture.mjs";
@@ -161,6 +162,25 @@ async function walk(kind) {
       await sleep(400);
       writeFileSync(join(process.env.SHOTS, `${kind}-${name}.png`), Buffer.from((await send("Page.captureScreenshot", { format: "png" })).result.data, "base64"));
     };
+    // A27 ends on "How do you want to meet?" (073, UI pass 1): the 1-on-1 switch, the same as
+    // Settings; Done goes on to A9. The fresh walk turns it on and reads it back.
+    const finishA27 = async () => {
+      await click(OPTIN_COPY.finish);
+      step("A27 ends on 'How do you want to meet?'", await until(ONE_ON_ONE_COPY.sheetTitle, 20000));
+      step("…with the 1-on-1 switch", await until(ONE_ON_ONE_COPY.switchLabel));
+      if (kind === "fresh") {
+        await evaluate(`(() => { const s=[...document.querySelectorAll('[role=switch]')].find(e=>e.innerText.includes(${JSON.stringify(ONE_ON_ONE_COPY.switchLabel)})); s && s.click(); return !!s; })()`);
+        let on = false;
+        for (let t = 0; t < 20 && !on; t++) {
+          await sleep(500);
+          const [priv] = await must(await rest(`/rest/v1/people_private?select=one_on_one,people!inner(auth_user_id)&people.auth_user_id=eq.${anonId}`), "the switch");
+          on = priv?.one_on_one === true;
+        }
+        step("…which switches 1-on-1 on for the account", on);
+      }
+      await click(ONE_ON_ONE_COPY.done);
+      for (let t = 0; t < 30; t++) { if ((await evaluate("location.pathname")) === `/crowd/${crowd.slug}`) break; await sleep(500); }
+    };
     const until = async (text, ms = 15000) => {
       for (let t = 0; t < ms; t += 500) { if ((await body()).includes(text)) return true; await sleep(500); }
       return false;
@@ -231,10 +251,9 @@ async function walk(kind) {
       step("the merge recorded itself: email, web, through 'Already on Pin'd?'", JSON.stringify(await mergeRecord(accountId)) === JSON.stringify([{ method: "email", platform: "web", via: "already_on_pind" }]));
       await click(OPTIN_COPY.accept);
       await sleep(300);
-      await click(OPTIN_COPY.finish);
-      for (let t = 0; t < 30; t++) { if ((await evaluate("location.pathname")) === `/crowd/${crowd.slug}`) break; await sleep(500); }
+      await finishA27();
       step("lands on A9", (await evaluate("location.pathname")) === `/crowd/${crowd.slug}`);
-      step("…in the room: A9 offers it, nothing asked again", await (async () => { for (let t = 0; t < 40; t++) { if (/\d+ in the room/.test(await body())) return true; await sleep(500); } return false; })());
+      step("…in the room: A9 offers it, nothing asked again", await (async () => { for (let t = 0; t < 40; t++) { if (/\d+ (people |person )?in the room/.test(await body())) return true; await sleep(500); } return false; })());
       // The second pin: another gathering, one tap.
       const [second] = await must(await rest("/rest/v1/gatherings", { method: "POST", body: JSON.stringify({ name: `Second pin ${Date.now()}`, starts_at: new Date(Date.now() + 5 * 86_400_000).toISOString(), venue_id: (await must(await rest(`/rest/v1/gatherings?slug=eq.${crowd.slug}&select=venue_id`), "venue"))[0].venue_id, published_at: new Date().toISOString(), source: "manual" }) }), "second gathering");
       secondGathering = second.id;
@@ -330,8 +349,7 @@ async function walk(kind) {
     step("after sign-in the test crowd is still visible", afterSignIn.includes("Test crowd") && !afterSignIn.includes("isn't open to the account") && !afterSignIn.includes("Not on Pin'd"));
     await click(OPTIN_COPY.accept);
     await sleep(300);
-    await click(OPTIN_COPY.finish);
-    for (let t = 0; t < 30; t++) { if ((await evaluate("location.pathname")) === `/crowd/${crowd.slug}`) break; await sleep(500); }
+    await finishA27();
     step("lands on A9", (await evaluate("location.pathname")) === `/crowd/${crowd.slug}`);
     step("A9 shows the test crowd, not 'Not on Pin'd'", (await until("Test crowd", 15000)) && !(await body()).includes("Not on Pin'd"));
 
