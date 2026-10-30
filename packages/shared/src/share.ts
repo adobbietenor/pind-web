@@ -39,7 +39,8 @@ export function readShareCard<S extends { name: string }>(
 }
 
 export const SHARE_COPY = {
-  button: "Share spot & time with a friend",
+  // The card it opens is the venue's since UI pass 1 (009): no spot, no time (rule 3).
+  button: "Share the event with a friend",
   meeting: "Meeting at",
   others: "The other spots",
   // PROPOSED — Tatiana's to rewrite.

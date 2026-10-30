@@ -10,6 +10,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { needChrome, needEnv, testCrowd } from "./fixture.mjs";
+import { squadTimes } from "../packages/shared/src/squad.ts";
 
 needEnv("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_PUBLISHABLE_KEY");
 const SITE = process.env.PIND_SITE || "https://pind.social";
@@ -55,6 +56,9 @@ async function person(label, i) {
   const session = await must(await fetch(`${base}/auth/v1/token?grant_type=password`, { method: "POST", headers: { apikey: pub, "content-type": "application/json" }, body: JSON.stringify({ email, password }) }), "sign in");
   people[label] = { authId: u.id, personId: p.id, photo, session };
 }
+// A call as one of the people, through their own session (every rule applies).
+const as = async (label, fn, args) =>
+  must(await fetch(`${base}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: pub, authorization: `Bearer ${people[label].session.access_token}`, "content-type": "application/json" }, body: JSON.stringify(args) }), `${label} ${fn}`);
 const says = async (label, roomId, body) => (await sleep(3200), true) &&
   must(await fetch(`${base}/rest/v1/room_messages`, { method: "POST", headers: { apikey: pub, authorization: `Bearer ${people[label].session.access_token}`, "content-type": "application/json", prefer: "return=minimal" }, body: JSON.stringify({ room_id: roomId, author_id: people[label].personId, body }) }), `${label} says`);
 
@@ -82,6 +86,9 @@ try {
   const evaluate = async (expr) => (await send("Runtime.evaluate", { expression: expr, awaitPromise: true, returnByValue: true })).result?.result?.value;
   const body = () => evaluate("document.body.innerText").then(String);
   const until = async (text, ms = 20000) => { for (let t = 0; t < ms; t += 500) { if ((await body()).includes(text)) return true; await sleep(500); } return false; };
+  // The app scrolls inside its own frame, so a shot of a lower part scrolls it into view.
+  const scrollTo = (text) =>
+    evaluate(`(() => { const e=[...document.querySelectorAll("div")].reverse().find(x=>x.childElementCount===0&&x.innerText&&x.innerText.trim()===${JSON.stringify(text)}); if(e) e.scrollIntoView({block:"start"}); return !!e; })()`);
   const snap = async (name, full = true) => {
     await sleep(1500);
     if (full) {
@@ -99,9 +106,31 @@ try {
   await sleep(1500);
   await evaluate(`localStorage.setItem(${JSON.stringify(`sb-${ref}-auth-token`)}, ${JSON.stringify(JSON.stringify(people.Ari.session))}); true`);
 
+  // A squad of two, started by Priya, its name passed as the check would pass it.
+  let squadId = null;
+  if (NAMES.includes("Dev")) {
+    const [spot] = await must(await rest(`/rest/v1/meeting_spots?venue_id=eq.${crowd.venue_id}&active=eq.true&select=id&limit=1`), "a spot");
+    squadId = await as("Priya", "start_squad", { p_gathering: gathering.id, p_name: "Pre-game at the 300 level", p_spot: spot?.id ?? null, p_meet_at: squadTimes(gathering.starts_at, gathering.ends_at ?? null)[2], p_women_only: false });
+    await rest(`/rest/v1/crews?id=eq.${squadId}`, { method: "PATCH", body: JSON.stringify({ name_status: "approved" }) });
+    await as("Dev", "join_squad", { p_crew: squadId });
+  }
   await send("Page.navigate", { url: `${SITE}/crowd/${g.slug}` });
   await until("Open to meeting");
   await snap("a9-open");
+  await scrollTo("Squads");
+  await snap("a9-squads", false);
+  if (squadId) {
+    await as("Ari", "join_squad", { p_crew: squadId });
+    await sleep(3200);
+    await must(await fetch(`${base}/rest/v1/crew_messages`, { method: "POST", headers: { apikey: pub, authorization: `Bearer ${people.Dev.session.access_token}`, "content-type": "application/json", prefer: "return=minimal" }, body: JSON.stringify({ crew_id: squadId, author_id: people.Dev.personId, kind: "user", body: "Hey! Where are you two sitting?" }) }), "Dev in the squad");
+    await send("Page.navigate", { url: `${SITE}/crowd/${g.slug}` });
+    await until("Open to meeting");
+    await scrollTo("Your squad");
+    await snap("a9-my-squad", false);
+    await send("Page.navigate", { url: `${SITE}/group/${squadId}` });
+    await until("Where are you two sitting");
+    await snap("a11-squad", false);
+  }
   await send("Page.navigate", { url: `${SITE}/room/${roomId}` });
   await until("Love it, see you there.") || await until(NAMES[1]);
   await snap("a10-room", false);

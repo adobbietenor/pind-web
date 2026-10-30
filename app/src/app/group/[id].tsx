@@ -34,6 +34,7 @@ import { ActivityIndicator, Platform, Share, StyleSheet, Text, View } from "reac
 import { AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, radius, shareCardUrl, SHARE_COPY, SOLO_COPY, spacing, SQUAD_COPY, type Convening, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { AvatarStack } from "@/components/Avatar";
+import { Icon } from "@/components/Icon";
 import { Composer } from "@/components/Composer";
 import { GetTheApp } from "@/components/GetTheApp";
 import { PairSpot } from "@/components/PairSpot";
@@ -304,9 +305,7 @@ export default function Group() {
           {view.solo && view.state === "forming" ? (
             <PairSpot crewId={view.id} gatheringId={view.gathering.id} meId={view.meId} partner={names[0] ?? ""} onChanged={refresh} />
           ) : null}
-          {view.solo ? null : view.squad ? (
-            <Body>{names.length ? `${SQUAD_COPY.members(view.members.length)} You and ${names.join(", ")}.` : SQUAD_COPY.members(1)}</Body>
-          ) : (
+          {view.solo || view.squad ? null : (
             <Body>{GROUP_COPY.on(names)}</Body>
           )}
           {!view.solo && view.state === "forming" && view.convening !== "at_the_gathering" ? (
@@ -332,13 +331,18 @@ export default function Group() {
             </>
           ) : view.meetAt ? (
             <>
-              <Body>{view.spot ? GROUP_COPY.meets(view.spot, dayClock(view.meetAt)) : GROUP_COPY.atTheStart}</Body>
+              {/* The plan as one line (UI pass 1, 071), never the lead. */}
+              <View style={styles.planLine}>
+                <Icon name="pin" size={16} color={palette.textMuted} />
+                <Text style={styles.meta}>{`${view.spot ?? SQUAD_COPY.atTheGathering} · ${dayClock(view.meetAt)}`}</Text>
+              </View>
               <Button
                 kind="quiet"
                 label={shared === "copied" ? "Link copied" : shared === "failed" ? "Couldn't share. Try again" : SHARE_COPY.button}
                 onPress={async () => {
-                  const url = shareCardUrl(SITE, view.gathering.slug, view.spot, view.meetAt);
-                  setShared(await shareCard(SHARE_COPY.message(view.gathering.name, view.spot, view.meetAt ? dayClock(view.meetAt) : null), url).catch(() => "failed" as const));
+                  // The event and its venue card, never the meeting place (UI pass 1, rule 3).
+                  const url = shareCardUrl(SITE, view.gathering.slug, null, null);
+                  setShared(await shareCard(SHARE_COPY.message(view.gathering.name, null, null), url).catch(() => "failed" as const));
                 }}
               />
             </>
@@ -456,6 +460,7 @@ export default function Group() {
 const styles = StyleSheet.create({
   header: { flexDirection: "row", alignItems: "center", gap: spacing.sm + 4, paddingBottom: spacing.sm, marginBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: palette.border },
   headTitle: { fontFamily: fonts.headline, fontSize: 18, color: palette.text },
+  planLine: { flexDirection: "row", alignItems: "center", gap: 6 },
   faces: { flexDirection: "row", gap: 6, marginVertical: spacing.md },
   face: { width: 44, height: 44, borderRadius: 22 },
   faceEmpty: { backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border },
