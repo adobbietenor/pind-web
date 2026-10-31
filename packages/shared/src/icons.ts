@@ -22,14 +22,26 @@ const PATHS = {
 
 export type IconName = keyof typeof PATHS;
 
-export function iconSvg(name: IconName, size: number, color = "currentColor"): string {
+// The active tab's icon is filled (UI pass 1, round 3, item 13). The same outlines with a
+// fill; HOLE is drawn in the background colour so a pin keeps its dot. The handshake is
+// open strokes with nothing to fill, so filled it is the same lines, heavier.
+const FILLED: Partial<Record<IconName, string>> = {
+  pin: `<path d="M12 21s-7-6.2-7-11a7 7 0 0 1 14 0c0 4.8-7 11-7 11z" fill="FILL"/><circle cx="12" cy="10" r="2.5" fill="HOLE" stroke="HOLE"/>`,
+  chat: `<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="FILL"/>`,
+  person: `<circle cx="12" cy="8" r="4" fill="FILL"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1z" fill="FILL"/>`,
+};
+
+export function iconSvg(name: IconName, size: number, color = "currentColor", filled?: { hole: string }): string {
+  const fill = filled ? FILLED[name] : undefined;
+  const body = fill ? fill.split("FILL").join(color).split("HOLE").join(filled!.hole) : PATHS[name];
+  const weight = filled && !fill ? "2.6" : "2";
   return (
-    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" ` +
-    `stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${PATHS[name]}</svg>`
+    `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="${weight}" ` +
+    `stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${body}</svg>`
   );
 }
 
 // For expo-image: the same markup as a data URI.
-export function iconUri(name: IconName, size: number, color: string): string {
-  return `data:image/svg+xml;utf8,${encodeURIComponent(iconSvg(name, size, color).replace(' aria-hidden="true"', ' xmlns="http://www.w3.org/2000/svg"'))}`;
+export function iconUri(name: IconName, size: number, color: string, filled?: { hole: string }): string {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(iconSvg(name, size, color, filled).replace(' aria-hidden="true"', ' xmlns="http://www.w3.org/2000/svg"'))}`;
 }

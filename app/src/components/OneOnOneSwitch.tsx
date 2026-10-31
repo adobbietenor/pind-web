@@ -1,7 +1,8 @@
-// "Open to 1-on-1 chats" (UI pass 1, 073 and 106; Alex, 30 Oct 2026, calls a and b): one
-// switch on the account, with who can see you as its second line. The same control in
-// Settings and in A9's "How do you want to meet?" sheet, which is a shortcut to it. What it
-// opens is the database's rule (set_one_on_one, can_see_solo).
+// "Open to 1-on-1 chats at this event" (UI pass 1, 073; round 3, item 10, Alex, 30 Oct
+// 2026, reversing call a): one switch per event, with who can see you as its second line.
+// The same control on the crowd page under "Open to meeting", in the "How do you want to
+// meet?" sheet and A27's last step, and in the person sheet's "Turn on" line, always for
+// that one event. What it opens is the database's rule (set_event_one_on_one, can_see_solo).
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { colors as palette, ONE_ON_ONE_COPY, spacing } from "@pind/shared";
@@ -10,24 +11,24 @@ import { Tap } from "./Tap";
 import { failed } from "@/lib/errors";
 import { myOneOnOne, setOneOnOne, type SoloChoice } from "@/lib/solo";
 
-export function OneOnOneSwitch({ onChanged }: { onChanged?: (on: boolean) => void }) {
+export function OneOnOneSwitch({ gatheringId, onChanged }: { gatheringId: string; onChanged?: (on: boolean) => void }) {
   const [state, setState] = useState<{ on: boolean; audience: SoloChoice } | null>(null);
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState<string | null>(null);
 
   useEffect(() => {
     let live = true;
-    myOneOnOne().then((s) => live && setState(s), () => live && setState({ on: false, audience: "everyone" }));
+    myOneOnOne(gatheringId).then((s) => live && setState(s), () => live && setState({ on: false, audience: "everyone" }));
     return () => {
       live = false;
     };
-  }, []);
+  }, [gatheringId]);
 
   const save = async (on: boolean, audience: SoloChoice) => {
     setBusy(true);
     setSaid(null);
     try {
-      await setOneOnOne(on, audience);
+      await setOneOnOne(gatheringId, on, audience);
       setState({ on, audience });
       onChanged?.(on);
     } catch (err) {

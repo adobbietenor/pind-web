@@ -34,6 +34,8 @@ export interface SheetPerson {
 }
 
 export interface SheetOneOnOne {
+  // "Turn on 1-on-1 chats" flips the viewer's switch for this event (round 3, item 10).
+  gatheringId: string;
   state: OneOnOneState;
   busy: boolean;
   refusal: string | null;
@@ -57,6 +59,7 @@ export function useOneOnOne(gathering: { id: string; startsAt: string } | null, 
   const forPerson = (personId: string): SheetOneOnOne | null => {
     if (!gathering || !facts) return null;
     return {
+      gatheringId: gathering.id,
       state: oneOnOneState({
         atGathering: true,
         available: facts.available,
@@ -126,7 +129,7 @@ export function PersonSheet({
               <Text style={oneOnOne?.state === "asked" ? styles.sent : styles.why}>{line}</Text>
             ) : null}
             {/* The reason is yours: the switch is right here, not somewhere in Settings. */}
-            {oneOnOne?.state === "turnOn" ? <OneOnOneSwitch onChanged={oneOnOne.onSwitched} /> : null}
+            {oneOnOne?.state === "turnOn" ? <OneOnOneSwitch gatheringId={oneOnOne.gatheringId} onChanged={oneOnOne.onSwitched} /> : null}
             {oneOnOne?.refusal ? <Text accessibilityRole="alert" style={styles.refusal}>{oneOnOne.refusal}</Text> : null}
             {onSayHi ? (
               <Tap accessibilityRole="button" onPress={onSayHi} style={oneOnOne?.state === "ask" ? styles.quiet : styles.primary}>

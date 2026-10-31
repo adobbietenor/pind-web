@@ -469,6 +469,14 @@ export default function CrowdPage() {
           {/* The open-to-meeting list: people you can tap (UI pass 1, 055), the profile
               sheet rather than leaving the page. Three, then "See all". */}
           <Text style={[styles.listHeading, { marginTop: spacing.lg }]}>{CROWD_COPY.listHeading}</Text>
+          {/* Round 3 (item 10): one line, then this event's own 1-on-1 switch, in view. */}
+          <Text style={styles.small}>{ONE_ON_ONE_COPY.tapAnyone}</Text>
+          {!ended ? (
+            <View style={{ marginTop: spacing.sm, marginBottom: spacing.sm }}>
+              {/* Keyed on what the sheet or the person sheet last set, so it reads again. */}
+              <OneOnOneSwitch key={String(solo?.mineOn)} gatheringId={g.id} onChanged={readSolo} />
+            </View>
+          ) : null}
           {view.faces.length === 0 ? (
             <Body muted>{CROWD_COPY.listEmpty}</Body>
           ) : (
@@ -541,7 +549,7 @@ export default function CrowdPage() {
       <Sheet visible={meetSheet} onClose={() => setMeetSheet(false)}>
         <Text style={styles.oneStepHeading}>{ONE_ON_ONE_COPY.sheetTitle}</Text>
         <SwitchRow icon="chat" label={ONE_ON_ONE_COPY.roomAndSquads} line={ONE_ON_ONE_COPY.roomAndSquadsLine} value disabled onChange={() => undefined} />
-        <OneOnOneSwitch onChanged={readSolo} />
+        <OneOnOneSwitch gatheringId={g.id} onChanged={readSolo} />
         <Body muted>{ONE_ON_ONE_COPY.sheetFoot}</Body>
         <Button label={ONE_ON_ONE_COPY.done} onPress={() => setMeetSheet(false)} />
       </Sheet>

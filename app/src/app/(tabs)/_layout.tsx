@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Tabs } from "expo-router";
-import { Easing, StyleSheet, Text, View } from "react-native";
-import { colors as palette, fonts, MY_CHATS_COPY, unreadTotal } from "@pind/shared";
+import { Easing } from "react-native";
+import { MY_CHATS_COPY, unreadTotal } from "@pind/shared";
+import { TabBar, type TabMeta } from "@/components/TabBar";
 import { useReduceMotion } from "@/lib/motion";
 import { loadMyChats, MY_CHATS_KEY } from "@/lib/myevents";
 import { loadRequests, REQUESTS_KEY, requestCount } from "@/lib/requests";
@@ -16,68 +17,40 @@ import { loadRequests, REQUESTS_KEY, requestCount } from "@/lib/requests";
 // **Switching tabs crossfades** (the "feel alive" pass, 16 Oct 2026) — 150 ms, never a hard
 // cut; and a hard cut again under Reduce Motion.
 //
-// **A dot on My Events when any chat of yours has something new** (A19, 16 Oct 2026). It
-// reads the same query as the tab itself (MY_CHATS_KEY — one call, shared), refreshed
-// once a minute; signed out, that call makes no request and the dot stays off. Beside the
-// label, because the tabs have no icons yet for a badge to sit on.
+// **The bar itself is components/TabBar.tsx** (UI pass 1, round 3, item 13): an icon over
+// each label, the active one filled in a soft purple pill, the same on iOS and the web.
+//
+// **My Events' unread count** (A19, 16 Oct 2026; a count on its icon since round 3) reads
+// the same query as the tab itself (MY_CHATS_KEY — one call, shared), refreshed once a
+// minute; signed out, that call makes no request and the count stays off. **Connections'
+// dot when a request is waiting** (UI pass 1, 077) the same way.
 export default function TabsLayout() {
   const reduce = useReduceMotion();
   const chats = useQuery({ queryKey: MY_CHATS_KEY, queryFn: loadMyChats, refetchInterval: 60_000, staleTime: 15_000 });
   const unread = chats.data ? unreadTotal(chats.data) : 0;
-  // A dot on Connections when a request is waiting (UI pass 1, 077), the same way.
   const requests = useQuery({ queryKey: REQUESTS_KEY, queryFn: loadRequests, refetchInterval: 60_000, staleTime: 15_000 });
   const waiting = requestCount(requests.data);
+  const tabs: Record<string, TabMeta> = {
+    crowds: { icon: "pin", label: "Crowds", a11y: "Crowds" },
+    "my-events": { icon: "chat", label: "My Events", count: unread, a11y: unread ? `My Events, ${MY_CHATS_COPY.unreadLabel(unread)}` : "My Events" },
+    connections: { icon: "handshake", label: "Connections", dot: waiting > 0, a11y: waiting ? `Connections, ${waiting} waiting` : "Connections" },
+    me: { icon: "person", label: "Profile", a11y: "Profile" },
+  };
   return (
     <Tabs
       backBehavior="history"
+      tabBar={(props) => <TabBar {...props} tabs={tabs} />}
       screenOptions={{
         headerShown: false,
         animation: reduce ? "none" : "fade",
         transitionSpec: { animation: "timing", config: { duration: 150, easing: Easing.out(Easing.cubic) } },
-        tabBarActiveTintColor: palette.tabActive,
-        tabBarInactiveTintColor: palette.tabInactive,
-        tabBarStyle: { backgroundColor: palette.background, borderTopColor: palette.border },
-        tabBarLabelStyle: { fontFamily: fonts.headline, fontSize: 13 },
-        tabBarLabelPosition: "below-icon",
-        // Labels only until tab icons are decided (spec §3 calls for SF Symbols).
-        tabBarIconStyle: { display: "none" },
       }}
     >
       <Tabs.Screen name="crowds" options={{ title: "Crowds" }} />
-      <Tabs.Screen
-        name="my-events"
-        options={{
-          title: "My Events",
-          tabBarAccessibilityLabel: unread ? `My Events, ${MY_CHATS_COPY.unreadLabel(unread)}` : "My Events",
-          tabBarLabel: ({ color }) => (
-            <View style={styles.label}>
-              <Text style={[styles.labelText, { color }]}>My Events</Text>
-              {unread ? <View style={styles.dot} /> : null}
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="connections"
-        options={{
-          title: "Connections",
-          tabBarAccessibilityLabel: waiting ? `Connections, ${waiting} waiting` : "Connections",
-          tabBarLabel: ({ color }) => (
-            <View style={styles.label}>
-              <Text style={[styles.labelText, { color }]}>Connections</Text>
-              {waiting ? <View style={styles.dot} /> : null}
-            </View>
-          ),
-        }}
-      />
+      <Tabs.Screen name="my-events" options={{ title: "My Events" }} />
+      <Tabs.Screen name="connections" options={{ title: "Connections" }} />
       <Tabs.Screen name="me" options={{ title: "Profile" }} />
       <Tabs.Screen name="city/[slug]" options={{ href: null }} />
     </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  label: { flexDirection: "row", alignItems: "center", gap: 4 },
-  labelText: { fontFamily: fonts.headline, fontSize: 13 },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: palette.accent },
-});

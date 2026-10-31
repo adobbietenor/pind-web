@@ -3952,6 +3952,14 @@ export type Database = {
         Returns: string
       }
       room_seen: { Args: { p_room: string }; Returns: undefined }
+      set_event_one_on_one: {
+        Args: {
+          p_audience: Database["public"]["Enums"]["solo_visibility"]
+          p_gathering: string
+          p_on: boolean
+        }
+        Returns: undefined
+      }
       set_here: {
         Args: { p_gathering: string; p_note: string }
         Returns: undefined

@@ -73,9 +73,10 @@ try {
   await person("Bea", "woman");
   for (const n of ["Ari", "Bea"]) {
     await must(await rest("/rest/v1/pins", { method: "POST", body: JSON.stringify({ gathering_id: gathering.id, person_id: people[n].personId, party_total: 1, open_to_meeting: true }) }), `pin ${n}`);
-    // The account switch (UI pass 1), as the person.
-    await must(await as(n, "set_one_on_one", { p_on: true, p_audience: "everyone" }), `${n} 1-on-1 on`);
   }
+  // The switch is per event (round 3, item 10): Bea's through the database as herself; Ari's
+  // on the crowd page below, through the row under "Open to meeting".
+  await must(await as("Bea", "set_event_one_on_one", { p_gathering: gathering.id, p_on: true, p_audience: "everyone" }), "Bea 1-on-1 on here");
 
   const cookie = await seal(process.env.SESSION_SECRET, { userId: people.Ari.authId, refreshToken: people.Ari.refresh, issuedAt: Date.now() });
   const port = 9500 + Math.floor(Math.random() * 90);
@@ -98,6 +99,13 @@ try {
   // A28/A29 since UI pass 1: Bea wears "Open to 1-on-1" on Ari's list; the request lives on
   // her profile sheet, one tap, nothing asked first.
   await send("Page.navigate", { url: `${SITE}/crowd/${slug}` });
+  step("under 'Open to meeting': the line, and this event's 1-on-1 switch", (await until(ONE_ON_ONE_COPY.switchLabel, 25000)) && (await body()).includes(ONE_ON_ONE_COPY.tapAnyone));
+  const mySolo = async (g) => await must(await as("Ari", "my_solo", { p_gathering: g }), "Ari's switch");
+  step("…off to begin with (nothing carried from anywhere)", (await mySolo(gathering.id)) === null);
+  await evaluate(`(() => { const s=[...document.querySelectorAll('[role=switch]')].find(e=>e.innerText.includes(${JSON.stringify(ONE_ON_ONE_COPY.switchLabel)})); if(!s) return false; s.click(); return true; })()`);
+  let on = null;
+  for (let t = 0; t < 20 && on === null; t++) { await sleep(500); on = await mySolo(gathering.id); }
+  step("tapping it switches Ari on for this event", on === "everyone");
   step("Bea is on Ari's list with 'Open to 1-on-1'", await until(ONE_ON_ONE_COPY.tag, 25000));
   const tapped = await evaluate(`(() => { const r=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.includes("Bea") && e.innerText.includes(${JSON.stringify(ONE_ON_ONE_COPY.tag)})); if(!r) return false; r.click(); return true; })()`);
   step("tapping Bea opens her profile sheet", tapped && (await until(ONE_ON_ONE_COPY.ask)));
@@ -132,11 +140,14 @@ try {
   // "Not now" is silent: Cal's request goes from Bea's Requests, and Cal still sees it sent.
   await person("Cal", "man");
   await must(await rest("/rest/v1/pins", { method: "POST", body: JSON.stringify({ gathering_id: gathering.id, person_id: people.Cal.personId, party_total: 1, open_to_meeting: true }) }), "pin Cal");
-  await must(await as("Cal", "set_one_on_one", { p_on: true, p_audience: "everyone" }), "Cal 1-on-1 on");
   // Bea is in a 1-on-1 here now, so Cal asks her at a second gathering.
   const [second] = await must(await rest("/rest/v1/gatherings", { method: "POST", body: JSON.stringify({ name: `Pair check 2 ${Date.now()}`, starts_at: new Date(Date.now() + 4 * 86_400_000).toISOString(), venue_id: crowd.venue_id, published_at: new Date().toISOString(), source: "manual" }) }), "second gathering");
   extra.push(second.id);
   for (const nm of ["Bea", "Cal"]) await must(await rest("/rest/v1/pins", { method: "POST", body: JSON.stringify({ gathering_id: second.id, person_id: people[nm].personId, party_total: 1, open_to_meeting: true }) }), `pin ${nm} 2`);
+  // On at the first gathering is not on at the second: until each switches on there, Cal is refused.
+  const early = await as("Cal", "propose_solo", { p_gathering: second.id, p_to: people.Bea.personId, p_spot: null, p_meet_at: null, p_line: null });
+  step("Bea, switched on only at the first event, cannot be asked at the second", !early.ok);
+  for (const nm of ["Bea", "Cal"]) await must(await as(nm, "set_event_one_on_one", { p_gathering: second.id, p_on: true, p_audience: "everyone" }), `${nm} 1-on-1 on at the second`);
   await must(await as("Cal", "propose_solo", { p_gathering: second.id, p_to: people.Bea.personId, p_spot: null, p_meet_at: null, p_line: null }), "Cal asks Bea");
   await send("Page.navigate", { url: `${SITE}/connections` });
   step("Cal's request reaches Bea's Requests", await until(ONE_ON_ONE_COPY.wantsToMeet("Cal"), 25000));

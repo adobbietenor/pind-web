@@ -34,6 +34,8 @@ export const colors = {
   accentText: "#A874DB",
   tabActive: "#FFFFFF",
   tabInactive: "#8A8592",
+  // The active tab's pill (UI pass 1, round 3, item 13): the accent, at low strength.
+  tabPill: "rgba(168, 116, 219, 0.2)",
 } as const;
 
 export type Palette = typeof colors;

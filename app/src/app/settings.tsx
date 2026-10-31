@@ -24,7 +24,6 @@ import { useCallback, useState } from "react";
 import { Platform, Share, StyleSheet, Text, View } from "react-native";
 import { colors as palette, fonts, radius, SIGN_OUT, SOLO_COPY, spacing, WOMEN_ONLY_COPY } from "@pind/shared";
 import { NotificationSwitches } from "@/components/NotificationSwitches";
-import { OneOnOneSwitch } from "@/components/OneOnOneSwitch";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice, Tick } from "@/components/ui";
@@ -158,15 +157,10 @@ export default function Settings() {
           </View>
         </View>
 
-        {/* "How you meet" (UI pass 1, 106): the meeting switches together, in the 1-on-1
-            sheet's style. "Open to 1-on-1 chats" is on the account (call a); women-only
-            rooms only for those it applies to. */}
-        {womenOnly && permanent ? <Text style={styles.sectionName}>{WOMEN_ONLY_COPY.howYouMeet}</Text> : null}
-        {womenOnly && permanent ? (
-          <View style={{ marginBottom: spacing.sm }}>
-            <OneOnOneSwitch />
-          </View>
-        ) : null}
+        {/* "How you meet" (UI pass 1, 106): women-only rooms, for those it applies to. The
+            1-on-1 switch left Settings in round 3 (item 10): it is per event, on the crowd
+            page, one switch in one place. */}
+        {womenOnly?.eligible ? <Text style={styles.sectionName}>{WOMEN_ONLY_COPY.howYouMeet}</Text> : null}
 
         {womenOnly?.eligible ? (
           <>

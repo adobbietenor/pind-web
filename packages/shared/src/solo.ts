@@ -138,14 +138,21 @@ export function soloRefusal(refusal: unknown): string {
   if (m.includes("five lines")) return "Pick one of the lines to send.";
   if (m.includes("no longer open")) return "That proposal is no longer open.";
   if (m.includes("solo_no_spots") || m.includes("no meeting spots")) return SOLO_COPY.noSpots;
+  // The per-event switch (round 3, item 10): set_event_one_on_one and the pin's own triggers.
+  if (m.includes("open to meeting first")) return "Turn on Open to meeting at this event first.";
+  if (m.includes("pin in first")) return "Pin in to this event first.";
+  if (m.includes("Women only is for women")) return "Women only is for women, and nonbinary people who chose to be included.";
+  if (m.includes("no longer on Pin'd")) return "This event isn't on Pin'd any more, so this can't change.";
   return "That didn't work. Try again in a moment.";
 }
 
-// 1-on-1 since UI pass 1 (Alex, 30 Oct 2026; 073, 075/076, 077, 079): one account switch,
+// 1-on-1 since UI pass 1 (Alex, 30 Oct 2026; 073, 075/076, 077, 079): one switch per event
+// (round 3, item 10; it was one account switch until then),
 // requests from the profile sheet, requests in Connections, a plain chat whose place and
 // time either of you adds. Copy as drawn.
 export const ONE_ON_ONE_COPY = {
-  switchLabel: "Open to 1-on-1 chats",
+  // Per event since round 3 (item 10): the switch is on the crowd page, for that event only.
+  switchLabel: "Open to 1-on-1 chats at this event",
   switchLine: "Others can send you a Let's meet up request.",
   audienceLabel: "Who can see you for 1-on-1",
   everyone: "Everyone open to meeting",
@@ -154,7 +161,8 @@ export const ONE_ON_ONE_COPY = {
   roomAndSquads: "The room and squads",
   roomAndSquadsLine: "Always on: everyone here who wants to meet.",
   sheetLine: "One person at a time, only if you both say yes.",
-  sheetFoot: "You can change this any time from your profile.",
+  sheetFoot: "You can change this any time on this event's page.",
+  tapAnyone: "Tap anyone to say hi or ask for a 1-on-1.",
   done: "Done",
   tag: "Open to 1-on-1",
   ask: "Let's meet up 1-on-1",

@@ -376,7 +376,7 @@ export default function OptIn() {
           <Heading>{ONE_ON_ONE_COPY.sheetTitle}</Heading>
           <View style={{ gap: spacing.md, marginTop: spacing.sm }}>
             <SwitchRow icon="chat" label={ONE_ON_ONE_COPY.roomAndSquads} line={ONE_ON_ONE_COPY.roomAndSquadsLine} value disabled onChange={() => undefined} />
-            <OneOnOneSwitch />
+            {mine ? <OneOnOneSwitch gatheringId={mine.gatheringId} /> : null}
             <Body muted>{ONE_ON_ONE_COPY.sheetFoot}</Body>
             {/* Into the who's-going page (A9): the faces this opens up. */}
             <Button label={ONE_ON_ONE_COPY.done} onPress={() => router.replace(`/crowd/${slug}`)} />

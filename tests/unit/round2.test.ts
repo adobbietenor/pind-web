@@ -8,8 +8,9 @@ import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { CROWD_COPY } from "../../packages/shared/src/crowd.ts";
 import { HERE_COPY, ROOM_COPY } from "../../packages/shared/src/room.ts";
-import { oneOnOneLine, oneOnOneState, type OneOnOneState } from "../../packages/shared/src/solo.ts";
+import { ONE_ON_ONE_COPY, oneOnOneLine, oneOnOneState, type OneOnOneState } from "../../packages/shared/src/solo.ts";
 import { INBOX_COPY, readMyChats } from "../../packages/shared/src/myevents.ts";
+import { iconSvg } from "../../packages/shared/src/icons.ts";
 
 const APP = join("app", "src");
 function files(dir: string, out: string[] = []): string[] {
@@ -243,5 +244,70 @@ describe("My Events says what kind of chat each row is (round 3, item 11)", () =
     assert.ok(first > 0 && /kind: "room"/.test(inbox.slice(first, first + 200)), "the Meeting Room is not the first row under its event");
     assert.match(inbox, /function KindMark\b/, "rows are told apart by colour alone");
     assert.match(inbox, /<KindMark row=\{row\}/, "a row does not draw its kind");
+  });
+});
+
+// Round 3, item 10: 1-on-1 is one switch per event, on the crowd page.
+describe("1-on-1 is one switch per event (round 3, item 10)", () => {
+  const uses = ALL.filter((f) => /<OneOnOneSwitch\b/.test(f.src));
+
+  it("S63 every switch names its event; Settings has none; nothing asks the old account switch", () => {
+    assert.ok(uses.length >= 3, `can see only ${uses.length} files drawing the switch`);
+    for (const f of uses) {
+      for (const tag of f.src.match(/<OneOnOneSwitch\b[^>]*>/g) ?? []) assert.match(tag, /gatheringId=\{/, `${f.path}: a switch with no event`);
+    }
+    assert.ok(read("app/settings.tsx").length > 0, "cannot read Settings");
+    assert.doesNotMatch(read("app/settings.tsx"), /OneOnOneSwitch/, "the 1-on-1 switch is back in Settings");
+    const lib = read("lib/solo.ts");
+    assert.match(lib, /"set_event_one_on_one"/, "cannot see the per-event write");
+    assert.doesNotMatch(lib, /"set_one_on_one"|"my_one_on_one"/, "the app asks the old account switch");
+  });
+
+  it("S64 under 'Open to meeting': the one line, then this event's switch, before the people", () => {
+    const crowd = read("app/crowd/[slug].tsx");
+    const at = (s: string) => crowd.indexOf(s);
+    const order = ["CROWD_COPY.listHeading}", "ONE_ON_ONE_COPY.tapAnyone", "<OneOnOneSwitch key=", "view.faces.length === 0"].map(at);
+    assert.ok(order.every((i) => i > 0), `cannot find a piece: ${order}`);
+    assert.deepEqual([...order].sort((a, b) => a - b), order, "the line or the switch moved out from under 'Open to meeting'");
+    assert.equal(ONE_ON_ONE_COPY.tapAnyone, "Tap anyone to say hi or ask for a 1-on-1.");
+    assert.equal(ONE_ON_ONE_COPY.switchLabel, "Open to 1-on-1 chats at this event");
+  });
+});
+
+// Round 3, item 13: the bottom tab bar, drawn once (components/TabBar.tsx), iOS and the web.
+describe("The tab bar (round 3, item 13)", () => {
+  const bar = read("components/TabBar.tsx");
+  const layout = read("app/(tabs)/_layout.tsx");
+
+  it("S65 the tabs draw components/TabBar: an icon each, a Tap each, 44 pt or more, the count and the dot from data the tabs hold", () => {
+    assert.ok(bar.length > 0 && layout.length > 0, "cannot read the bar or the layout");
+    assert.match(layout, /tabBar=\{\(props\) => <TabBar \{\.\.\.props\} tabs=\{tabs\} \/>\}/, "the tabs draw their own bar again");
+    for (const [tab, icon] of [["crowds", "pin"], ['"my-events"', "chat"], ["connections", "handshake"], ["me", "person"]]) {
+      assert.match(layout, new RegExp(`${tab}: \{ icon: "${icon}"`), `${tab} lost its ${icon}`);
+    }
+    assert.match(layout, /count: unread/, "My Events lost its unread count");
+    assert.match(layout, /dot: waiting > 0/, "Connections lost its dot");
+    assert.match(bar, /<Tap\b[\s\S]*?accessibilityRole="tab"/, "a tab is not a Tap");
+    assert.doesNotMatch(bar, /Pressable/, "a raw Pressable in the bar (S45)");
+    const min = Number(/tab: \{[^}]*minHeight: (\d+)/.exec(bar)?.[1]);
+    assert.ok(min >= 44, `a tab is ${min} pt tall`);
+    assert.match(bar, /haptic=\{focused \? null : "action"\}/, "no light tap on switching, or one on the open tab");
+  });
+
+  it("S66 the pill moves inside 250 ms and is instant under Reduce Motion (S46)", () => {
+    const ms = Number(/const PILL_MS = (\d+)/.exec(bar)?.[1]);
+    assert.ok(ms > 0 && ms <= 250, `the pill takes ${ms} ms`);
+    assert.match(bar, /if \(reduce\) return v\.setValue/, "the pill moves under Reduce Motion");
+    assert.match(bar, /useNativeDriver: NATIVE_DRIVER/);
+  });
+
+  it("I20 the active icon is filled; the inactive one is lines; the handshake, with nothing to fill, is heavier", () => {
+    const line = iconSvg("pin", 24, "#fff");
+    const full = iconSvg("pin", 24, "#fff", { hole: "#000" });
+    assert.doesNotMatch(line, /fill="#fff"/);
+    assert.match(full, /fill="#fff"/, "the active pin is not filled");
+    assert.match(full, /fill="#000"/, "the pin lost its dot");
+    for (const n of ["chat", "person"] as const) assert.match(iconSvg(n, 24, "#fff", { hole: "#000" }), /fill="#fff"/, `${n} is not filled`);
+    assert.match(iconSvg("handshake", 24, "#fff", { hole: "#000" }), /stroke-width="2.6"/);
   });
 });

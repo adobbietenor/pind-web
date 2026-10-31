@@ -4802,7 +4802,7 @@ What the build added to the calls above, so nobody has to rediscover it:
   details and time are listed only once that exact text has passed, and an edit goes back to
   the check. A filter refuses handles, links, emails and phone numbers first. A squad's
   `meet_at` is now the gathering's start (its time is words).
-- **A** 1-on-1: the account switch is read in one place (`solo_choice`); **the old pin flag is
+- **A** 1-on-1 (**superseded 31 Oct by round 3, item 10: per event again**): the account switch is read in one place (`solo_choice`); **the old pin flag is
   kept only as a narrower, per-gathering override** for app builds already installed, cleared
   everywhere by the migration and by switching the account off. A request no longer needs the
   venue to have spots (a place is optional).
@@ -4876,6 +4876,27 @@ and each is now a rule in shared code with a test that fails when a screen goes 
 
 ### UI pass 1, round 3 (Alex, 30 Oct 2026)
 
+- **1-on-1 is per event again, switched on from the crowd page** (item 10; reverses call a).
+  The account switch lived in Settings, where Tati had it off without knowing; that is the
+  failure. Now one switch per event, "Open to 1-on-1 chats at this event", with who can see you
+  for 1-on-1 as its second line, on the existing pin flag. It sits under "Open to meeting",
+  after one line, "Tap anyone to say hi or ask for a 1-on-1."; the "How do you want to meet?"
+  sheet, A27's last step and the person sheet's "Turn on 1-on-1 chats" set the same switch for
+  that event. Settings has no 1-on-1 switch. Who sees what, approved in plain English before
+  it was built: exactly can_see_solo as before, but solo_choice reads only your pin at that
+  event, so being on at X shows nothing at Y and the old account flag opens nothing. It only
+  narrows. Switching on needs you open to meeting there (`set_event_one_on_one` refuses
+  otherwise; leaving "Open to meeting" turns it off); off at X closes the requests waiting at
+  X and nowhere else. **The move**: anyone with the account switch on was switched on, with
+  their audience (women only only where they still qualify), at every upcoming published event
+  they were already open to meeting at; nothing turns on for an event they open to later. On
+  staging that was one person at one event. The account column is cleared and read by nothing.
+  **Build 20's Settings switch** (Alex): until the next build removes it, `set_one_on_one`
+  turns the per-event switch on or off at every upcoming event where you're open to meeting,
+  and `my_one_on_one` reads those. Harness P300-P304 both ways (on at one event only; the
+  old flag alone; refused where not open or not pinned; off closes only that event's
+  requests; build 20's switch), P288-P292 now per event. S63-S64.
+
 - **My Events says what kind of chat each row is** (item 11). The event is a heading (date
   badge, name, Live) and its chats sit under it, each told apart by a picture and a small tag,
   never by colour alone: the Pin'd Meeting Room first under every event, every time (the
@@ -4886,5 +4907,16 @@ and each is now a rule in shared code with a test that fails when a screen goes 
   only when one of its chats does. my_chats gained each squad's size and up to three of the
   others' faces, read as the person under RLS like the chat itself; a face is still only a
   signed URL after can_see_photo. Who sees what is unchanged. M30, S62.
-- **Not done yet: the Apple ID** (item 12). The message again carried `<number>` rather than
-  the number.
+- **The tab bar** (item 13, Option A on the design canvas), drawn once in
+  `components/TabBar.tsx` and handed to Tabs, so iOS and the web export draw the same bar: an
+  icon over each label (Crowds the map pin, My Events the chat bubble, Connections the
+  handshake, Profile the person), line icons with the active one filled, sitting in a soft
+  purple pill (`tabPill`, the accent at low strength) with a bold label; inactive tabs grey.
+  The handshake is open strokes with nothing to fill, so active it is the same lines, heavier.
+  My Events wears its unread count and Connections a dot when a request waits, both from the
+  queries the tabs layout already held. Switching gives a light haptic (expo-haptics' light
+  impact, Tap's "action"); the open tab gives none. The pill grows in over 200 ms on
+  Animated and is simply there under Reduce Motion. Every tab is a Tap, 52 pt tall. S65-S66,
+  I20.
+- **The Apple ID is dropped** (item 12): Alex submits builds by hand, so no `ascAppId` and no
+  `--auto-submit`.

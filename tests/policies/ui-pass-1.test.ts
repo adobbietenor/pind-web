@@ -3,7 +3,8 @@
 //
 //   D  "I'm here" on the night (A9, 088): set_here / clear_here / here_now, arrivals.
 //   C  a squad's details, place and time (A15/A11): start_squad, edit_squad, squads.
-//   A  1-on-1 (A28/A29/A20): set_one_on_one, my_solo_requests, set_solo_place.
+//   A  1-on-1 (A28/A29/A20): set_event_one_on_one (per event since round 3), my_solo_requests,
+//      set_solo_place; set_one_on_one only as build 20's Settings switch over the events.
 //   B  keep in touch (A16/A20): ask_keep, answer_keep, take_back_keep, keep_people.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -196,20 +197,27 @@ test("P287 C: any member CAN change the card (Cal, who joined); changed words go
 });
 
 // ---------------------------------------------------------------------------
-// A  1-on-1 since UI pass 1 (A28/A29/A20): one account switch with its audience, requests
+// A  1-on-1 since UI pass 1 (A28/A29/A20): one switch per event with its audience (round 3,
+//    item 10; until then one account switch), requests
 //    in Connections, a chat whose place and time either of the two sets (curated spot or
 //    the event itself, never typed), handles once a place is set.
 // ---------------------------------------------------------------------------
+const switchAt = (who: string, G: string, on: boolean, audience: "everyone" | "women_only" = "everyone") =>
+  ppl[who]!.c.rpc("set_event_one_on_one", { p_gathering: g[G], p_on: on, p_audience: audience });
 const oneOnOne = (who: string, on: boolean, audience: "everyone" | "women_only" = "everyone") =>
-  must(ppl[who]!.c.rpc("set_one_on_one", { p_on: on, p_audience: audience }), `${who} 1-on-1 ${on ? "on" : "off"}`);
-const soloList = async (who: string) =>
-  ((await must(ppl[who]!.c.rpc("solo_people", { p_gathering: g.Later }), `${who}'s 1-on-1 list`)) as { person_id: string }[])
+  must(switchAt(who, "Later", on, audience), `${who} 1-on-1 ${on ? "on" : "off"} at Later`);
+const soloListAt = async (who: string, G: string) =>
+  ((await must(ppl[who]!.c.rpc("solo_people", { p_gathering: g[G] }), `${who}'s 1-on-1 list at ${G}`)) as { person_id: string }[])
     .map((r) => Object.keys(ppl).find((n) => ppl[n]!.id === r.person_id)).sort();
+const soloList = (who: string) => soloListAt(who, "Later");
+const mySolo = async (who: string, G: string) => await must(ppl[who]!.c.rpc("my_solo", { p_gathering: g[G] }), `${who}'s switch at ${G}`);
+const askAt = (who: string, to: string, G: string) =>
+  ppl[who]!.c.rpc("propose_solo", { p_gathering: g[G], p_to: ppl[to]!.id, p_spot: null, p_meet_at: null, p_line: null });
 const handleSeen = async (who: string, of: string) =>
   ((await ppl[who]!.c.from("person_handles").select("instagram").eq("person_id", ppl[of]!.id)).data ?? []).length > 0;
 let pairId = "";
 
-test("P288 A: the switch is on the account: on, Ann is in Bob's 1-on-1 list wherever both are open to meeting; off, she CANNOT be; a person not switched on sees nobody", async () => {
+test("P288 A: the switch is per event: on at Later, Ann is in Bob's 1-on-1 list there; off, she CANNOT be; a person not switched on sees nobody", async () => {
   await pin("Dee", "Later");
   await oneOnOne("Bob", true);
   assert.deepEqual(await soloList("Bob"), [], "control: nobody else is switched on");
@@ -227,7 +235,7 @@ test("P289 A: the audience is the switch's second line: women only, Ann CANNOT b
   await oneOnOne("Dee", true);
   assert.deepEqual(await soloList("Bob"), ["Dee"], "Bob saw Ann after she chose women only");
   assert.deepEqual(await soloList("Dee"), ["Ann", "Bob"]);
-  assert.deepEqual(await must(ppl.Ann!.c.rpc("my_one_on_one"), "Ann's switch"), { on: true, audience: "women_only" });
+  assert.equal(await mySolo("Ann", "Later"), "women_only");
 });
 
 test("P290 A: a request is waiting in Dee's Requests and nobody else's; 'Not now' is silent: Bob still sees 'sent'", async () => {
@@ -264,7 +272,7 @@ test("P291 A: accepted, it is a chat; either of the two CAN set a curated place,
   assert.equal(await handleSeen("Bob", "Ann"), false, "someone outside the chat saw the handle");
 });
 
-test("P292 A: switching the account off closes every request still waiting, both ways", async () => {
+test("P292 A: switching off at an event closes every request still waiting there, both ways", async () => {
   await oneOnOne("Cal", true);
   await must(ppl.Cal!.c.rpc("propose_solo", { p_gathering: g.Later, p_to: ppl.Bob!.id, p_spot: null, p_meet_at: null, p_line: null }), "Cal asks Bob");
   assert.equal(((await must(ppl.Bob!.c.rpc("my_solo_requests"), "Bob's requests")) as unknown[]).length, 1, "control: the request is waiting");
@@ -272,6 +280,67 @@ test("P292 A: switching the account off closes every request still waiting, both
   assert.equal(((await must(ppl.Bob!.c.rpc("my_solo_requests"), "Bob's requests")) as unknown[]).length, 0, "a request outlived the switch");
   const cals = (await must(ppl.Cal!.c.rpc("my_solo_proposals", { p_gathering: g.Later }), "Cal's requests")) as unknown[];
   assert.equal(cals.length, 0, "Cal's request stayed open to someone switched off");
+});
+
+// Round 3, item 10: one switch per event. Hal and Ivy are open to meeting at Later and at
+// Other; Ivy switches on at Later only.
+test("P300 A: on at one event is on there only: Hal CAN see and ask Ivy at Later, and CANNOT at Other", async () => {
+  await mk("Hal", "man");
+  await mk("Ivy", "woman");
+  await gathering("Other", Date.now() + 6 * 3_600_000);
+  for (const n of ["Hal", "Ivy"]) for (const G of ["Later", "Other"]) await pin(n, G);
+  for (const G of ["Later", "Other"]) await must(switchAt("Hal", G, true), `Hal on at ${G}`);
+  await must(switchAt("Ivy", "Later", true), "Ivy on at Later");
+  assert.equal(await mySolo("Ivy", "Later"), "everyone");
+  assert.equal(await mySolo("Ivy", "Other"), null, "on at Later turned her on at Other");
+  assert.ok((await soloListAt("Hal", "Later")).includes("Ivy"), "Hal cannot see Ivy where she switched on");
+  assert.ok(!(await soloListAt("Hal", "Other")).includes("Ivy"), "Hal saw Ivy where she never switched on");
+  await refused(askAt("Hal", "Ivy", "Other"));
+  await must(askAt("Hal", "Ivy", "Later"), "Hal asks Ivy at Later");
+});
+
+test("P301 A: the old account switch alone opens nothing: with Ivy's account flag on, Hal still CANNOT see or ask her at Other", async () => {
+  await must(service.from("people_private").update({ one_on_one: true }).eq("person_id", ppl.Ivy!.id), "Ivy's old account flag");
+  assert.ok(!(await soloListAt("Hal", "Other")).includes("Ivy"), "the account flag opened Ivy at Other");
+  await refused(askAt("Hal", "Ivy", "Other"));
+  await must(service.from("people_private").update({ one_on_one: false }).eq("person_id", ppl.Ivy!.id), "tidy");
+});
+
+test("P302 A: switching on CANNOT happen where you're not open to meeting or not pinned (and a direct write stays off); CAN where you are open", async () => {
+  await refused(switchAt("Eve", "Tonight", true), "42501", "one_on_one_needs_meeting");
+  await refused(switchAt("Fox", "Tonight", true), "42501", "one_on_one_no_pin");
+  await ppl.Eve!.c.from("pins").update({ solo_opt_in: true, solo_visibility: "everyone" }).eq("person_id", ppl.Eve!.id).eq("gathering_id", g.Tonight);
+  assert.equal(await mySolo("Eve", "Tonight"), null, "a pin not open to meeting was switched on");
+  // Off is always allowed, even where it was never on.
+  await must(switchAt("Eve", "Tonight", false), "Eve off");
+  await must(switchAt("Ivy", "Other", true), "Ivy on at Other");
+  assert.ok((await soloListAt("Hal", "Other")).includes("Ivy"), "Ivy switched on at Other and Hal still cannot see her");
+});
+
+test("P303 A: switching off at Later closes the request waiting at Later, and NOT the one at Other", async () => {
+  await must(askAt("Hal", "Ivy", "Other"), "Hal asks Ivy at Other too");
+  const before = (await must(ppl.Ivy!.c.rpc("my_solo_requests"), "Ivy's requests")) as { gathering_id: string }[];
+  assert.deepEqual(before.map((r) => r.gathering_id).sort(), [g.Later, g.Other].sort(), "control: both requests are waiting");
+  await must(switchAt("Ivy", "Later", false), "Ivy off at Later");
+  const after = (await must(ppl.Ivy!.c.rpc("my_solo_requests"), "Ivy's requests")) as { gathering_id: string }[];
+  assert.deepEqual(after.map((r) => r.gathering_id), [g.Other], "off at Later closed Other's request, or left Later's");
+  assert.equal(await mySolo("Ivy", "Other"), "everyone", "off at Later switched Other off");
+});
+
+test("P304 A: build 20's Settings switch CAN turn on every upcoming event where you're open to meeting and CANNOT one you open to later; off turns them all off", async () => {
+  await pin("Gus", "Later");
+  await pin("Gus", "Other", false);
+  await must(ppl.Gus!.c.rpc("set_one_on_one", { p_on: true, p_audience: "everyone" }), "Gus, the old switch on");
+  // Tonight has ended by now (D moves it into the past): an event that is over is not turned on.
+  assert.equal(await mySolo("Gus", "Tonight"), null, "turned on at an event that is over");
+  assert.equal(await mySolo("Gus", "Later"), "everyone");
+  assert.equal(await mySolo("Gus", "Other"), null, "turned on where he isn't open to meeting");
+  await must(service.from("pins").update({ open_to_meeting: true }).eq("person_id", ppl.Gus!.id).eq("gathering_id", g.Other), "Gus opens at Other afterwards");
+  assert.equal(await mySolo("Gus", "Other"), null, "an event opened to later came on by itself");
+  assert.deepEqual(await must(ppl.Gus!.c.rpc("my_one_on_one"), "the old switch reads"), { on: true, audience: "everyone" });
+  await must(ppl.Gus!.c.rpc("set_one_on_one", { p_on: false, p_audience: "everyone" }), "Gus, the old switch off");
+  for (const G of ["Tonight", "Later", "Other"]) assert.equal(await mySolo("Gus", G), null, `still on at ${G}`);
+  assert.deepEqual(await must(ppl.Gus!.c.rpc("my_one_on_one"), "the old switch reads"), { on: false, audience: "everyone" });
 });
 
 // ---------------------------------------------------------------------------

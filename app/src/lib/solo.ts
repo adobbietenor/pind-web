@@ -182,20 +182,20 @@ export async function mySoloSummary(): Promise<{ name: string; womenOnly: boolea
 }
 
 // ---------------------------------------------------------------------------
-// UI pass 1 (A28/A29/A20): the account switch, Requests, the chat's place and time.
-// Every rule is the database's (set_one_on_one, can_see_solo, set_solo_place); these
-// only ask.
+// UI pass 1 (A28/A29/A20): the switch, Requests, the chat's place and time. Every rule is
+// the database's (set_event_one_on_one, can_see_solo, set_solo_place); these only ask.
 // ---------------------------------------------------------------------------
 
-export async function myOneOnOne(): Promise<{ on: boolean; audience: SoloChoice }> {
-  const { data, error } = await supabase().rpc("my_one_on_one");
+// "Open to 1-on-1 chats at this event" (round 3, item 10): your own pin's switch, per event.
+export async function myOneOnOne(gatheringId: string): Promise<{ on: boolean; audience: SoloChoice }> {
+  const { data, error } = await supabase().rpc("my_solo", { p_gathering: gatheringId });
   if (error) throw error;
-  const d = (data ?? {}) as { on?: boolean; audience?: SoloChoice };
-  return { on: d.on === true, audience: d.audience ?? "everyone" };
+  const choice = (data as SoloChoice | null) ?? null;
+  return { on: choice !== null, audience: choice ?? "everyone" };
 }
 
-export async function setOneOnOne(on: boolean, audience: SoloChoice): Promise<void> {
-  await said(supabase().rpc("set_one_on_one", { p_on: on, p_audience: audience }));
+export async function setOneOnOne(gatheringId: string, on: boolean, audience: SoloChoice): Promise<void> {
+  await said(supabase().rpc("set_event_one_on_one", { p_gathering: gatheringId, p_on: on, p_audience: audience }));
 }
 
 // Who at this gathering is open to 1-on-1 with me (can_see_solo), and whom I've asked.
@@ -242,7 +242,7 @@ export async function setSoloPlace(crewId: string, spotId: string | null, atEven
 }
 
 // What the person sheet needs to say why, or to show the button (UI pass 1, round 2): all
-// of it the viewer's own (my_one_on_one, my_solo_proposals, my own 1-on-1 membership) or
+// of it the viewer's own (my_solo here, my_solo_proposals, my own 1-on-1 membership) or
 // the database's answer about the other person (solo_people), and the brake.
 export interface SoloFacts {
   open: string[];
@@ -256,7 +256,7 @@ export async function soloFacts(gatheringId: string, meId: string): Promise<Solo
   const db = supabase();
   const [here, mine, brake, sw, plan] = await Promise.all([
     soloHere(gatheringId),
-    myOneOnOne(),
+    myOneOnOne(gatheringId),
     db.rpc("solo_available"),
     db.from("app_switches").select("ios, web").eq("name", "solo").maybeSingle(),
     db.from("crew_members").select("crew_id, crews(state)").eq("person_id", meId).eq("gathering_id", gatheringId).eq("kind", "solo").is("left_at", null),
