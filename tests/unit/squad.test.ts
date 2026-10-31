@@ -80,7 +80,7 @@ describe("The name check's request and answer (M3.7)", () => {
 describe("The squad screens use the rules, not their own (M3.7)", () => {
   const section = readFileSync("app/src/components/SquadSection.tsx", "utf8");
   const lib = readFileSync("app/src/lib/squads.ts", "utf8");
-  const crowd = readFileSync("app/src/app/crowd/[slug].tsx", "utf8");
+  const crowd = readFileSync("app/src/app/(tabs)/crowd/[slug].tsx", "utf8");
 
   it("SQ06 the squad form checks the name with the shared rule, offers only the venue's spots or the event itself as a place, and a full squad says so", () => {
     // UI pass 1 (064/065): one form to start and to edit. The place is never typed (H5):
@@ -113,7 +113,7 @@ describe("The squad screens use the rules, not their own (M3.7)", () => {
     const roomAt = crowd.indexOf("ROOM_COPY.openRoom");
     assert.ok(roomAt > 0 && squadAt > roomAt && listAt > squadAt, "squads are not between the room and the people");
     assert.ok(!crowd.includes("<SoloSection"), "the separate 1-on-1 box is back on the crowd page");
-    const app = ["app/src/app/crowd/[slug].tsx", "app/src/app/group/[id].tsx", "app/src/app/room/[id].tsx", "app/src/lib/room.ts"].map((f) => readFileSync(f, "utf8")).join("\n");
+    const app = ["app/src/app/(tabs)/crowd/[slug].tsx", "app/src/app/group/[id].tsx", "app/src/app/room/[id].tsx", "app/src/lib/room.ts"].map((f) => readFileSync(f, "utf8")).join("\n");
     for (const fn of ["start_group", "invite_more", "respond_to_invite", "my_invites"]) assert.ok(!app.includes(`"${fn}"`), `the app still calls ${fn}`);
   });
 });

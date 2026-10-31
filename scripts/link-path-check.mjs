@@ -173,10 +173,11 @@ async function walk(kind) {
         let on = false;
         for (let t = 0; t < 20 && !on; t++) {
           await sleep(500);
-          const [priv] = await must(await rest(`/rest/v1/people_private?select=one_on_one,people!inner(auth_user_id)&people.auth_user_id=eq.${anonId}`), "the switch");
-          on = priv?.one_on_one === true;
+          // Per event since round 3 (item 10): this crowd's pin, not the account.
+          const [pin] = await must(await rest(`/rest/v1/pins?gathering_id=eq.${crowd.id}&select=solo_opt_in,people!inner(auth_user_id)&people.auth_user_id=eq.${anonId}`), "the switch");
+          on = pin?.solo_opt_in === true;
         }
-        step("…which switches 1-on-1 on for the account", on);
+        step("…which switches 1-on-1 on for this event", on);
       }
       await click(ONE_ON_ONE_COPY.done);
       for (let t = 0; t < 30; t++) { if ((await evaluate("location.pathname")) === `/crowd/${crowd.slug}`) break; await sleep(500); }

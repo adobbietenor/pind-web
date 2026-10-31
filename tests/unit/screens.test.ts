@@ -143,7 +143,7 @@ describe("A8 never leaves someone with no way forward (Alex, 6 Oct 2026)", () =>
   it("S31 not pinned at a gathering that has finished: A8 says pinning has closed, in place of the button", () => {
     // On the phone: tonight's Leafs game, tapped from the list after its effective end,
     // showed no "Pin in" and nothing else — the button had silently gone.
-    const a8 = readFileSync("app/src/app/crowd/[slug].tsx", "utf8").split("\r\n").join("\n");
+    const a8 = readFileSync("app/src/app/(tabs)/crowd/[slug].tsx", "utf8").split("\r\n").join("\n");
     const branch = a8.slice(a8.indexOf("// A8 — not pinned here."), a8.indexOf(") : !view.mine.open ?"));
     assert.ok(branch.includes("label={PIN_IN}"), "could not find A8's not-pinned branch — this test would pass by finding nothing");
     assert.match(branch, /\) : \([\s\S]*QUICKPIN_COPY\.closed/, "A8 shows nothing when a gathering has finished");

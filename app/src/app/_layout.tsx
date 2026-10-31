@@ -8,6 +8,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
 import { Alert, Platform, View } from "react-native";
 import { colors as palette, PUSH_TAKEN } from "@pind/shared";
+import { Intro } from "@/components/Intro";
 import { initAnalytics, track } from "@/lib/analytics";
 import { queryClient } from "@/lib/query";
 import { initSentry, wrapRoot } from "@/lib/sentry";
@@ -99,6 +100,8 @@ function RootLayout() {
       <ThemeProvider value={theme}>
         <StatusBar style="light" />
         <Stack screenOptions={{ headerShown: false }} />
+        {/* The launch intro, over the app as it loads (round 3, item 15; components/Intro). */}
+        <Intro />
       </ThemeProvider>
     </QueryClientProvider>
   );

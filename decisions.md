@@ -4918,5 +4918,22 @@ and each is now a rule in shared code with a test that fails when a screen goes 
   impact, Tap's "action"); the open tab gives none. The pill grows in over 200 ms on
   Animated and is simply there under Reduce Motion. Every tab is a Tap, 52 pt tall. S65-S66,
   I20.
+- **Where the tab bar shows is one rule in the layout** (item 14): exactly the routes inside
+  `(tabs)`, which are the four tabs, a city's list and, since this item, the crowd page
+  (A8/A9, moved in with `href: null`; its URL is unchanged, a group is not part of the path).
+  Every chat, sign-in and profile setup, A27, Settings and its pages stay outside the group,
+  stacked over it, so the bar is not there; a sheet is a modal over everything. On a crowd page
+  or a city's list, Crowds is the lit tab. Screens inside take the bottom edge from the bar
+  (`InTabs`, read by AppScreen), so no screen decides that either. S67 fails if a route joins
+  or leaves the group.
+- **The launch intro** (item 15): on iOS, after the native splash, the same logo where the
+  splash drew it, then ONE_LINER (W1's line, from packages/shared) fades in beneath it, then the
+  app, which loads underneath: 2 seconds in all, Animated only. Only on a cold start (module
+  state, so coming back from the background never replays it). Under Reduce Motion nothing
+  fades: both are there at once and it cuts to the app at the same moment. Not on the web,
+  which has no native splash and where a visitor from a Reddit tab gets the page at once. S68.
+- **check:after's night is three days back** (31 Oct): "two days ago at 23:00 UTC" is only about
+  26 hours back just after midnight UTC, so the chats were still in their last day and the
+  read-only step failed by the clock: a fixture, not the product.
 - **The Apple ID is dropped** (item 12): Alex submits builds by hand, so no `ascAppId` and no
   `--auto-submit`.

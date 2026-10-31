@@ -121,7 +121,7 @@ describe("In the room is not at the venue (item 5)", () => {
   });
 
   it("S59 the crowd page: the Meeting Room under the counters, then squads, then 'I've arrived' with its count; the counters carry no arrivals", () => {
-    const a9 = read("app/crowd/[slug].tsx");
+    const a9 = read("app/(tabs)/crowd/[slug].tsx");
     const counters = a9.indexOf("<Counters ");
     const room = a9.indexOf("styles.roomCard");
     const squads = a9.indexOf("<SquadSection ");
@@ -264,7 +264,7 @@ describe("1-on-1 is one switch per event (round 3, item 10)", () => {
   });
 
   it("S64 under 'Open to meeting': the one line, then this event's switch, before the people", () => {
-    const crowd = read("app/crowd/[slug].tsx");
+    const crowd = read("app/(tabs)/crowd/[slug].tsx");
     const at = (s: string) => crowd.indexOf(s);
     const order = ["CROWD_COPY.listHeading}", "ONE_ON_ONE_COPY.tapAnyone", "<OneOnOneSwitch key=", "view.faces.length === 0"].map(at);
     assert.ok(order.every((i) => i > 0), `cannot find a piece: ${order}`);
@@ -291,7 +291,7 @@ describe("The tab bar (round 3, item 13)", () => {
     assert.doesNotMatch(bar, /Pressable/, "a raw Pressable in the bar (S45)");
     const min = Number(/tab: \{[^}]*minHeight: (\d+)/.exec(bar)?.[1]);
     assert.ok(min >= 44, `a tab is ${min} pt tall`);
-    assert.match(bar, /haptic=\{focused \? null : "action"\}/, "no light tap on switching, or one on the open tab");
+    assert.match(bar, /haptic=\{state\.index === index \? null : "action"\}/, "no light tap on switching, or one on the open tab");
   });
 
   it("S66 the pill moves inside 250 ms and is instant under Reduce Motion (S46)", () => {
@@ -309,5 +309,40 @@ describe("The tab bar (round 3, item 13)", () => {
     assert.match(full, /fill="#000"/, "the pin lost its dot");
     for (const n of ["chat", "person"] as const) assert.match(iconSvg(n, 24, "#fff", { hole: "#000" }), /fill="#fff"/, `${n} is not filled`);
     assert.match(iconSvg("handshake", 24, "#fff", { hole: "#000" }), /stroke-width="2.6"/);
+  });
+});
+
+// Round 3, item 14: where the tab bar shows is one rule, the (tabs) group.
+describe("The tab bar shows on the tabs and the crowd page, nowhere else (round 3, item 14)", () => {
+  const inGroup = ALL.filter((f) => f.path.includes("app/src/app/(tabs)/") && !f.path.endsWith("_layout.tsx")).map((f) => f.path.split("app/src/app/(tabs)/")[1]).sort();
+
+  it("S67 inside (tabs): the four tabs, a city's list and the crowd page; every chat, sign-in, A27 and Settings outside", () => {
+    assert.deepEqual(inGroup, ["city/[slug].tsx", "connections.tsx", "crowd/[slug].tsx", "crowds.tsx", "me.tsx", "my-events.tsx"], "a route joined or left the tabs, so the bar shows where it shouldn't or vanishes where it should be");
+    for (const outside of ["app/room/[id].tsx", "app/group/[id].tsx", "app/opt-in/[slug].tsx", "app/(onboarding)/sign-in.tsx", "app/settings.tsx", "app/pin/[slug].tsx"]) {
+      assert.ok(ALL.some((f) => f.path.endsWith(`src/${outside}`)), `cannot find ${outside} outside the tabs`);
+    }
+    const layout = read("app/(tabs)/_layout.tsx");
+    assert.match(layout, /<Tabs\.Screen name="crowd\/\[slug\]" options=\{\{ href: null \}\} \/>/, "the crowd page grew a tab of its own");
+    assert.match(layout, /<InTabs\.Provider value>/, "screens in the tabs don't know the bar holds the bottom edge");
+    assert.doesNotMatch(ALL.filter((f) => isRoute(f.path)).map((f) => f.src).join("\n"), /tabBarStyle|tabBarVisible|display: "none"[^\n]*tab/i, "a screen hides or shows the bar itself");
+  });
+});
+
+// Round 3, item 15: the launch intro.
+describe("The launch intro (round 3, item 15)", () => {
+  const intro = read("components/Intro.tsx");
+  it("S68 the shared tagline, about two seconds, cold start only, iOS only, instant under Reduce Motion, Animated only", () => {
+    assert.ok(intro.length > 0, "cannot read the intro");
+    assert.match(intro, /\{ONE_LINER\}/, "the tagline is not packages/shared's");
+    assert.doesNotMatch(intro, /See who's going/, "the tagline is retyped");
+    const t = /taglineAt: (\d+), taglineMs: (\d+), leaveAt: (\d+), leaveMs: (\d+)/.exec(intro);
+    assert.ok(t, "cannot read the timeline");
+    const total = Number(t![3]) + Number(t![4]);
+    assert.ok(total >= 1500 && total <= 2500, `the intro takes ${total} ms`);
+    assert.match(intro, /^let played = false;$/m, "'only on a cold start' is not module state");
+    assert.match(intro, /Platform\.OS === "ios" && !played/);
+    assert.match(intro, /isReduceMotionEnabled\(\)[\s\S]*if \(reduce\) \{\s*tagline\.setValue\(1\)/, "it fades under Reduce Motion");
+    assert.doesNotMatch(intro, /reanimated|Lottie/i);
+    assert.match(read("app/_layout.tsx"), /<Intro \/>/, "the intro is not mounted");
   });
 });

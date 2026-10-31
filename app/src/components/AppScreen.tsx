@@ -58,9 +58,13 @@ function useKeyboardRoom(edges: Edge[]): { inset: number; room: number } {
   return { inset, room: Math.max(0, inset - (edges.includes("bottom") ? bottom : 0)) };
 }
 
+// Inside the tabs (round 3, item 14), the tab bar holds the bottom edge: a screen there keeps
+// only the top. Provided by app/(tabs)/_layout.tsx, so no screen decides it for itself.
+export const InTabs = createContext(false);
+
 export function AppScreen({
   children,
-  edges = ["top", "bottom"],
+  edges: asked,
   contentStyle,
   scroll = true,
   footer,
@@ -76,6 +80,8 @@ export function AppScreen({
   // A conversation's box: kept on the keyboard, outside the scroll (see above).
   footer?: ReactNode;
 }) {
+  const inTabs = useContext(InTabs);
+  const edges: Edge[] = asked ?? (inTabs ? ["top"] : ["top", "bottom"]);
   if (footer && scroll) return <Conversation edges={edges} contentStyle={contentStyle} footer={footer}>{children}</Conversation>;
   if (!scroll) {
     return (

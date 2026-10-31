@@ -85,8 +85,10 @@ try {
   crew = await must(await as("Ari", "start_squad", { p_gathering: X.id, p_name: "After check squad", p_spot: spot?.id ?? null, p_meet_at: meetAt, p_women_only: false }), "start");
   await must(await rest("/rest/v1/rpc/admin_record_squad_name_check", { method: "POST", body: JSON.stringify({ p_crew: crew, p_name: "After check squad", p_outcome: "approved", p_source: "after-check" }) }), "approve the name");
   for (const n of ["Bea", "Cal"]) await must(await as(n, "join_squad", { p_crew: crew }), `${n} joins`);
-  // The night happens: two days ago, then the lifecycle job finishes the group.
-  const past = new Date(Date.now() - 2 * 86_400_000);
+  // The night happens: 23:00 UTC three days ago, then the lifecycle job finishes the group.
+  // (Two days ago at 23:00 is only ~26 h back when the check runs just after midnight UTC,
+  // so the chats were still in their last day and "read-only" failed by the clock, 31 Oct.)
+  const past = new Date(Date.now() - 3 * 86_400_000);
   past.setUTCHours(23, 0, 0, 0);
   await must(await rest(`/rest/v1/gatherings?id=eq.${X.id}`, { method: "PATCH", body: JSON.stringify({ starts_at: past.toISOString() }) }), "the night");
   // A squad is done an hour after it meets at the earliest (M3.7): its time moves with the night.
@@ -154,7 +156,7 @@ try {
   step("…and thanked", await until(AFTER_COPY.thanks));
 
   // #18 — A9 for the ended event: it says so, offers the room and the squad to read (the
-  // night was two days ago, so read-only), keeps "Who did you meet?" — and never the
+  // night was days ago, so read-only), keeps "Who did you meet?" — and never the
   // room's "you're the first here", a squad to start, or the 1-on-1 list.
   await send("Page.navigate", { url: `${SITE}/crowd/${slug}` });
   step("A9 says the event has ended (#18)", await until(ENDED_COPY.heading));

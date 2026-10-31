@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Tabs } from "expo-router";
 import { Easing } from "react-native";
 import { MY_CHATS_COPY, unreadTotal } from "@pind/shared";
+import { InTabs } from "@/components/AppScreen";
 import { TabBar, type TabMeta } from "@/components/TabBar";
 import { useReduceMotion } from "@/lib/motion";
 import { loadMyChats, MY_CHATS_KEY } from "@/lib/myevents";
@@ -16,6 +17,13 @@ import { loadRequests, REQUESTS_KEY, requestCount } from "@/lib/requests";
 //
 // **Switching tabs crossfades** (the "feel alive" pass, 16 Oct 2026) — 150 ms, never a hard
 // cut; and a hard cut again under Reduce Motion.
+//
+// **Where the bar shows is this file, and only this file** (round 3, item 14): on every
+// route inside (tabs), which is the four tabs, a city's list and the crowd page (A8/A9),
+// and nowhere else. Every chat (room, squad, 1-on-1, the women-only room), sign-in and
+// profile setup (A1-A3, A27), Settings and its pages are routes outside the group, stacked
+// over it, so the bar is not there; a sheet is a modal over everything. tests/unit S67 fails
+// if a route joins or leaves the group. Screens inside take the bottom edge from InTabs.
 //
 // **The bar itself is components/TabBar.tsx** (UI pass 1, round 3, item 13): an icon over
 // each label, the active one filled in a soft purple pill, the same on iOS and the web.
@@ -37,6 +45,7 @@ export default function TabsLayout() {
     me: { icon: "person", label: "Profile", a11y: "Profile" },
   };
   return (
+    <InTabs.Provider value>
     <Tabs
       backBehavior="history"
       tabBar={(props) => <TabBar {...props} tabs={tabs} />}
@@ -51,6 +60,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="connections" options={{ title: "Connections" }} />
       <Tabs.Screen name="me" options={{ title: "Profile" }} />
       <Tabs.Screen name="city/[slug]" options={{ href: null }} />
+      <Tabs.Screen name="crowd/[slug]" options={{ href: null }} />
     </Tabs>
+    </InTabs.Provider>
   );
 }

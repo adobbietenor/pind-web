@@ -61,7 +61,7 @@ describe("An ended event's phases (#18)", () => {
 });
 
 describe("A9 checks the end before anything about the room (#18)", () => {
-  const a9 = readFileSync("app/src/app/crowd/[slug].tsx", "utf8");
+  const a9 = readFileSync("app/src/app/(tabs)/crowd/[slug].tsx", "utf8");
 
   it("EN06 the ended branch comes before both pinned branches, so no first-here card, squad or 1-on-1 list is reachable after the end", () => {
     const endedAt = a9.indexOf(") : ended ? (");

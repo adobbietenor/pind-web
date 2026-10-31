@@ -62,11 +62,13 @@ export function TabBar({ state, descriptors, navigation, insets, tabs }: BarProp
         const meta = tabs[route.name];
         // Routes inside the tabs with no tab of their own (a city's list, #2).
         if (!meta) return null;
-        const focused = state.index === index;
+        // A city's list and a crowd page have no tab of their own: Crowds is where they sit.
+        const here = state.routes[state.index]?.name ?? "";
+        const focused = state.index === index || (route.name === "crowds" && !tabs[here]);
         const { options } = descriptors[route.key]!;
         const go = () => {
           const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
-          if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+          if (state.index !== index && !event.defaultPrevented) navigation.navigate(route.name, route.params);
         };
         return (
           <Tap
@@ -76,7 +78,7 @@ export function TabBar({ state, descriptors, navigation, insets, tabs }: BarProp
             accessibilityLabel={meta.a11y}
             testID={options.tabBarButtonTestID}
             // A light tap on switching; nothing on the tab already open.
-            haptic={focused ? null : "action"}
+            haptic={state.index === index ? null : "action"}
             onPress={go}
             onLongPress={() => navigation.emit({ type: "tabLongPress", target: route.key })}
             style={styles.tab}
