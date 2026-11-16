@@ -4031,6 +4031,14 @@ function torontoAt(ymd: string, h: number, m = 0): string {
   return new Date(guess - (shown - guess)).toISOString();
 }
 
+// The calendar day after a Toronto date, as a Toronto date. P174 used to take the UTC date
+// of (7pm Toronto + 24h): in EDT that is 23:00Z, the right day; in EST (from 1 Nov) it is
+// 00:00Z, a day late — so its "8:30 the morning after" was 8:30 the morning after THAT,
+// inside #5's real window, and it reported "#5 went before 9am" about a rule that was right.
+function dayAfter(ymd: string): string {
+  return new Date(Date.parse(`${ymd}T12:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+}
+
 
 describe("The night and after — #4, A16, connections (V23), the question, #5 (M3.3)", () => {
   let A = "";
@@ -4108,7 +4116,7 @@ describe("The night and after — #4, A16, connections (V23), the question, #5 (
     await ok(w.service.from("gatherings").update({ starts_at: starts, ends_at: null }).eq("id", A));
     // A squad is done an hour after it meets at the earliest (M3.7): its time moves too.
     await ok(w.service.from("crews").update({ meet_at: starts }).eq("id", crew));
-    endDay = new Date(Date.parse(starts) + 86_400_000).toISOString().slice(0, 10);
+    endDay = dayAfter(twoAgo);
     await ok(w.service.rpc("admin_groups_tick"));
     assert.equal((await serviceRow("crews", "id", crew, "state")).state, "done");
 
@@ -4204,6 +4212,31 @@ describe("The night and after — #4, A16, connections (V23), the question, #5 (
     assert.doesNotMatch(eve[0].body, /meet up|group|didn't|alone/i, "the non-group line implied something");
     assert.equal((await notes("Fox", "next_morning")).length, 0);
     for (const client of [cl("Ann"), w.anon]) assert.ok((await client.rpc("admin_next_morning_tick", {})).error, "a visitor ran #5");
+  });
+
+  // #5 is "9am Toronto", all year. The rule is computed in the gathering's zone
+  // (next_morning_at, gathering_tz → America/Toronto), so it moves with the clocks; a rule
+  // written in UTC or a fixed offset would be an hour out on one side of every change. So:
+  // a night on each side of each change, the morning after asked at 8:59 and at 9:00 local.
+  // The ruler is checked first against hand-written instants — a wrong torontoAt would
+  // otherwise pass a wrong rule (CLAUDE.md, the instrument rule).
+  it("P307 #5 follows Toronto's clock across both changes: not at 8:59 local, yes at 9:00, the morning after a night either side of 1 Nov 2026 and 14 Mar 2027", async () => {
+    assert.equal(torontoAt("2026-10-31", 9), "2026-10-31T13:00:00.000Z", "ruler: 9am EDT");
+    assert.equal(torontoAt("2026-11-01", 9), "2026-11-01T14:00:00.000Z", "ruler: 9am EST on the change day");
+    assert.equal(torontoAt("2027-03-14", 9), "2027-03-14T13:00:00.000Z", "ruler: 9am EDT on the change day");
+    assert.equal(dayAfter("2026-10-31"), "2026-11-01");
+    const before = (await ok(w.service.from("gatherings").select("starts_at").eq("id", A).single())).starts_at as string;
+    // [the night, Toronto date] — before and after each change; the morning after is the next day.
+    for (const night of ["2026-10-30", "2026-10-31", "2026-11-01", "2027-03-13", "2027-03-14"]) {
+      await ok(w.service.from("notifications").delete().eq("gathering_id", A).eq("kind", "next_morning").select("id"));
+      await ok(w.service.from("gatherings").update({ starts_at: torontoAt(night, 19) }).eq("id", A).select("id"));
+      const morning = dayAfter(night);
+      await ok(w.service.rpc("admin_next_morning_tick", { p_now: torontoAt(morning, 8, 59) }));
+      assert.equal((await notes("Ann", "next_morning")).length, 0, `#5 went before 9am Toronto on ${morning}`);
+      await ok(w.service.rpc("admin_next_morning_tick", { p_now: torontoAt(morning, 9) }));
+      assert.equal((await notes("Ann", "next_morning")).length, 1, `#5 did not go at 9am Toronto on ${morning}`);
+    }
+    await ok(w.service.from("gatherings").update({ starts_at: before }).eq("id", A).select("id"));
   });
 
   it("P175 after A16's 7 days: ticks close, and a crewmate who isn't a connection stops seeing you — a connection doesn't", async () => {
