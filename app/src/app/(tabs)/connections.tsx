@@ -1,8 +1,9 @@
 // A20 — Connections (M3.3; spec A20, Alex 29 Sept 2026).
 //
-// People you met and both chose to keep in touch with (A16), with where you met. **The
-// only verb is "invite"** — deliberately not an inbox: no messages, no profile browsing.
-// Invite opens the gatherings you are pinned to, and sends the seventh notification
+// Everyone you are connected with (build 23, Alex 16 Nov 2026): a yes to a 1-on-1, or keeping
+// in touch after the night (A16). Each has ONE chat, mutual both ways (never a cold DM, H2):
+// its last line is on the row, and the row opens their profile, whose "Message" opens it.
+// Requests come first. "Invite" still opens the gatherings you are pinned to, and sends the seventh notification
 // ("Maya's going to X — want to come?"). The database holds the limits (V23, #7): only a
 // connection, only a gathering you are pinned to, one per pair per gathering, five a
 // day — and a block ends the connection on both sides.
@@ -10,10 +11,11 @@ import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
 import { useQuery } from "@tanstack/react-query";
-import { chatPreview, colors as palette, CONNECTIONS_COPY, fonts, MY_CHATS_COPY, ONE_ON_ONE_COPY, radius, spacing } from "@pind/shared";
+import { chatPreview, colors as palette, CONNECTIONS_COPY, fonts, ONE_ON_ONE_COPY, radius, spacing } from "@pind/shared";
 import { RequestCard } from "@/components/RequestCard";
 import { Tap } from "@/components/Tap";
-import { loadMyChats, MY_CHATS_KEY } from "@/lib/myevents";
+import { MY_CHATS_KEY } from "@/lib/myevents";
+import { connectionWith } from "@/lib/connections";
 import { queryClient } from "@/lib/query";
 import { loadRequests, REQUESTS_KEY } from "@/lib/requests";
 import { answerSolo } from "@/lib/solo";
@@ -34,22 +36,21 @@ export default function Connections() {
   const [busy, setBusy] = useState<string | null>(null);
   const [said, setSaid] = useState<{ personId: string; line: string } | null>(null);
   const [refused, setRefused] = useState<{ personId: string; what: Described } | null>(null);
-  // UI pass 1 (077): Requests first, then 1-on-1 chats, then kept connections.
+  // Requests first, then everyone you are connected with.
   const requests = useQuery({ queryKey: REQUESTS_KEY, queryFn: loadRequests, staleTime: 5_000 });
-  const chats = useQuery({ queryKey: MY_CHATS_KEY, queryFn: loadMyChats, staleTime: 15_000 });
   const [answering, setAnswering] = useState<string | null>(null);
   const [answerRefusal, setAnswerRefusal] = useState<{ id: string; says: string } | null>(null);
-  const soloChats = (chats.data ?? []).flatMap((e) =>
-    e.crews.filter((c) => c.kind === "solo").map((c) => ({ ...c, event: e.name })),
-  );
-  const answer = async (proposalId: string, accept: boolean) => {
+  const answer = async (proposalId: string, personId: string, accept: boolean) => {
     setAnswering(proposalId);
     setAnswerRefusal(null);
     try {
-      const crew = await answerSolo(proposalId, accept);
+      await answerSolo(proposalId, accept);
       void queryClient.invalidateQueries({ queryKey: REQUESTS_KEY });
       void queryClient.invalidateQueries({ queryKey: MY_CHATS_KEY });
-      if (accept && crew) router.push({ pathname: "/group/[id]", params: { id: crew } });
+      refresh();
+      // Accept opens the chat: the pair's one chat, made by the yes.
+      const chat = accept ? await connectionWith(personId) : null;
+      if (chat) router.push({ pathname: "/chat/[id]", params: { id: chat } });
     } catch (err) {
       setAnswerRefusal({ id: proposalId, says: failed("answer that", err).says });
     } finally {
@@ -144,27 +145,16 @@ export default function Connections() {
               line={ONE_ON_ONE_COPY.at(r.gatheringName)}
               busy={answering === r.proposalId}
               refusal={answerRefusal?.id === r.proposalId ? answerRefusal.says : null}
-              onAccept={() => void answer(r.proposalId, true)}
-              onNotNow={() => void answer(r.proposalId, false)}
+              onAccept={() => void answer(r.proposalId, r.personId, true)}
+              onNotNow={() => void answer(r.proposalId, r.personId, false)}
             />
           ))}
         </>
       ) : null}
-      {soloChats.length ? (
-        <>
-          <Text style={styles.section}>{ONE_ON_ONE_COPY.chats}</Text>
-          {soloChats.map((c) => (
-            <Tap key={c.crewId} feel="card" accessibilityRole="button" onPress={() => router.push({ pathname: "/group/[id]", params: { id: c.crewId } })} style={styles.chat}>
-              <Text style={styles.name}>{MY_CHATS_COPY.plan(c.partner)}</Text>
-              <Text numberOfLines={1} style={styles.chatLine}>{c.last ? chatPreview(c.last, ONE_ON_ONE_COPY.firstLine) : `${c.event} · ${ONE_ON_ONE_COPY.firstLine}`}</Text>
-            </Tap>
-          ))}
-        </>
-      ) : null}
-      {list?.length && (waiting.length || keepWaiting.length || soloChats.length) ? <Text style={styles.section}>{CONNECTIONS_COPY.kept}</Text> : null}
+      {list?.length && (waiting.length || keepWaiting.length) ? <Text style={styles.section}>{CONNECTIONS_COPY.kept}</Text> : null}
       {list === undefined ? (
         <ActivityIndicator color={palette.text} />
-      ) : list.length === 0 && !waiting.length && !keepWaiting.length && !soloChats.length ? (
+      ) : list.length === 0 && !waiting.length && !keepWaiting.length ? (
         <EmptyCard
           icon="handshake"
           heading={CONNECTIONS_COPY.emptyHeading}
@@ -177,13 +167,18 @@ export default function Connections() {
       ) : list.length === 0 ? null : (
         list.map((c, i) => (
           <Rise key={c.personId} index={i} style={styles.card}>
-            <View style={styles.row}>
+            {/* Tap them: their profile, with "Message" (build 23). */}
+            <Tap feel="card" accessibilityRole="button" onPress={() => router.push(`/person/${c.personId}`)} style={styles.row}>
               {c.photoUrl ? <Image source={{ uri: c.photoUrl }} style={styles.face} /> : <View style={[styles.face, styles.faceEmpty]} />}
               <View style={{ flex: 1 }}>
                 <Text style={styles.name}>{c.firstName}</Text>
-                {c.metAt ? <Body muted>{CONNECTIONS_COPY.metAt(c.metAt)}</Body> : null}
+                <Text numberOfLines={1} style={[styles.chatLine, c.unread > 0 && styles.unread]}>
+                  {c.last ? chatPreview({ ...c.last, authorId: null, author: c.firstName }, ONE_ON_ONE_COPY.firstLine) : c.metAt ? (c.oneOnOne ? ONE_ON_ONE_COPY.oneOnOneAt(c.metAt) : CONNECTIONS_COPY.metAt(c.metAt)) : ONE_ON_ONE_COPY.firstLine}
+                </Text>
               </View>
-            </View>
+              {c.unread > 0 ? <View style={styles.dot} /> : null}
+            </Tap>
+            <Button label={ONE_ON_ONE_COPY.message} onPress={() => router.push({ pathname: "/chat/[id]", params: { id: c.connectionId } })} />
             <Button kind="quiet" label={open?.personId === c.personId ? CONNECTIONS_COPY.close : CONNECTIONS_COPY.invite} onPress={() => void pick(c)} />
             {open?.personId === c.personId ? (
               open.options === undefined ? (
@@ -221,7 +216,9 @@ export default function Connections() {
 const styles = StyleSheet.create({
   section: { fontFamily: fonts.headline, fontSize: 16, color: palette.text, marginTop: spacing.lg },
   chat: { padding: spacing.md, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, backgroundColor: palette.surface, marginTop: spacing.sm, gap: 2 },
-  chatLine: { fontSize: 14, color: palette.textMuted },
+  chatLine: { fontSize: 14, color: palette.textMuted, marginTop: 1 },
+  unread: { color: palette.text, fontFamily: fonts.headline },
+  dot: { width: 10, height: 10, borderRadius: 5, backgroundColor: palette.accent },
   card: { padding: spacing.md, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md, backgroundColor: palette.surface, gap: spacing.sm, marginTop: spacing.md },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md },
   face: { width: 52, height: 52, borderRadius: 26 },

@@ -4,7 +4,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
-import { SOLO_LINES, soloLinesFor, soloRefusal, soloTimes } from "../../packages/shared/src/solo.ts";
+import { soloRefusal, soloTimes } from "../../packages/shared/src/solo.ts";
 
 describe("The way back into 1-on-1 is wired, end to end (M3.4)", () => {
   const routes = readFileSync("src/admin/routes.ts", "utf8");
@@ -39,13 +39,6 @@ describe("1-on-1's times, lines and refusals (M3.4)", () => {
     assert.equal(soloTimes(start, null, new Date("2026-11-02T23:30:00.000Z"))[0], "2026-11-02T23:45:00.000Z");
   });
 
-  it("SO04 a time after the start offers only the lines worded for any time; before it, all five", () => {
-    assert.deepEqual(soloLinesFor("2026-11-02T23:00:00.000Z", start).map((l) => l.n), [1, 2, 3, 4, 5]);
-    assert.deepEqual(soloLinesFor("2026-11-03T04:00:00.000Z", start).map((l) => l.n), [3, 4]);
-    assert.equal(SOLO_LINES.length, 5);
-    for (const l of SOLO_LINES) assert.ok(l.text("North Gate", "6:00 pm").includes("North Gate") && l.text("North Gate", "6:00 pm").includes("6:00 pm"), `line ${l.n} drops the spot or the time`);
-  });
-
   it("SO05 every refusal the database can give a proposal has its own sentence, and none says why someone is unavailable", () => {
     const dir = "supabase/migrations";
     const sql = readdirSync(dir).filter((f) => f.includes("m3_4_")).map((f) => readFileSync(`${dir}/${f}`, "utf8")).join(String.fromCharCode(10));
@@ -61,44 +54,46 @@ describe("1-on-1's times, lines and refusals (M3.4)", () => {
   });
 });
 
-describe("The 1-on-1 screens use the rules, not their own (M3.4)", () => {
-  const section = readFileSync("app/src/components/SoloSection.tsx", "utf8");
+describe("The 1-on-1 screens use the rules, not their own (build 23)", () => {
   const lib = readFileSync("app/src/lib/solo.ts", "utf8");
+  const sheet = readFileSync("app/src/components/PersonSheet.tsx", "utf8");
+  const here = readFileSync("app/src/components/OneOnOneHere.tsx", "utf8");
+  const connections = readFileSync("app/src/app/(tabs)/connections.tsx", "utf8");
+  const appFiles = (function walk(dir: string): string[] {
+    return readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(`${dir}/${e.name}`) : /\.tsx?$/.test(e.name) ? [`${dir}/${e.name}`] : []));
+  })("app/src");
 
-  // #17 (29 Oct 2026): "Let's meet up!" replaced the proposal sheet. An invite carries nothing
-  // at all; the spot is picked after, in the pair (components/PairSpot.tsx), from the venue's
-  // curated spots and the shared times — so still nowhere to type, and only curated spots.
-  const pairSpot = readFileSync("app/src/components/PairSpot.tsx", "utf8");
-
-  it("SO06 there is nowhere to type: an invite carries nothing, and a pair's spot is one of the venue's, at one of the shared times", () => {
-    // The pattern must see the controls it does use first, or "no TextInput" proves nothing.
-    assert.match(section, /label=\{SOLO_COPY\.letsMeetUp\}/, "the section does not offer 'Let's meet up!'");
-    assert.match(section, /inviteSolo\(gatheringId, id\)/, "an invite carries something");
-    assert.match(lib, /rpc\("propose_solo", \{ p_gathering: gatheringId, p_to: to, p_spot: null as unknown as string, p_meet_at: null as unknown as string, p_line: null as unknown as number \}\)/, "an invite sends a spot, a time or a line");
-    assert.match(pairSpot, /options=\{o\.spots\.map\(/, "the pair's spot is not chosen from the venue's spots");
-    for (const [where, src] of [["the 1-on-1 section", section], ["the pair's spot step", pairSpot]] as const) {
-      assert.doesNotMatch(src, /TextInput|<Field|multiline/, `${where} has a free-text field`);
+  it("SO06 nothing asks for a place or a time before a chat: a request carries nothing, and the spot confirmation is gone", () => {
+    // The pattern must see the real request first, or "nothing" proves nothing.
+    assert.match(lib, /rpc\("propose_solo", \{ p_gathering: gatheringId, p_to: to, p_spot: null as unknown as string, p_meet_at: null as unknown as string, p_line: null as unknown as number \}\)/, "a request sends a spot, a time or a line");
+    assert.ok(appFiles.length > 50, `the scan sees only ${appFiles.length} files`);
+    for (const f of appFiles) {
+      const src = readFileSync(f, "utf8");
+      assert.doesNotMatch(src, /suggest_solo_spot|confirm_solo_spot|solo_spot_suggestions|PairSpot|SoloSection/, `${f} still reaches the removed spot confirmation`);
+    }
+    for (const [where, src] of [["the person sheet", sheet], ["the 1-on-1 section", here]] as const) {
+      assert.doesNotMatch(src, /TextInput|<Field|multiline|SoloPlace/, `${where} asks for something before the chat`);
     }
   });
 
-  it("SO07 the pair offers the shared times, never its own; the fourth invite is stopped where it is tapped", () => {
-    assert.match(pairSpot, /soloTimes\(o\.startsAt, o\.endsAt\)/, "the pair's spot step makes its own list of times");
-    assert.match(section, /disabled=\{view\.sent\.length >= SOLO_MAX_OPEN\}/, "the fourth invite is not stopped where it is tapped");
+  it("SO07 Accept opens the chat for the one who accepts, wherever the request is answered", () => {
+    for (const [where, src] of [["Connections", connections], ["the crowd page's requests", here]] as const) {
+      assert.match(src, /await answerSolo\(proposalId, accept\)/, `${where} does not answer through respond_to_solo`);
+      assert.match(src, /accept \? await connectionWith\(personId\) : null|if \(accept\) \{[\s\S]{0,200}connectionWith\(personId\)/, `${where} does not find the chat the yes made`);
+      assert.match(src, /pathname: "\/chat\/\[id\]"/, `${where} does not open the chat`);
+    }
   });
 
   it("SO08 every write goes through the database's functions, and a refusal comes back in words, where the tap was", () => {
-    for (const fn of ["propose_solo", "respond_to_solo", "withdraw_solo"]) assert.ok(lib.includes(`rpc("${fn}"`), `${fn} is not how the app writes`);
+    for (const fn of ["propose_solo", "respond_to_solo", "withdraw_solo", "set_event_one_on_one"]) assert.ok(lib.includes(`rpc("${fn}"`), `${fn} is not how the app writes`);
     assert.match(lib, /throw new Said\(soloRefusal\(error\)\)/, "a refusal reaches the screen as the database's raw words");
-    assert.doesNotMatch(section, /supabase\(\)/, "the section writes around lib/solo");
-    assert.match(section, /saidAt\(p\.id\)/, "a refusal on a proposal is not said beside it");
-    // The A28 sheet's choice starts empty: no default.
-    assert.match(section, /setChoice\(null\); setSaid\(null\); setSheet\(true\)/, "the sheet opens with a choice already made");
-    assert.match(section, /disabled=\{!choice\}/, "1-on-1 can be turned on without choosing who can see you");
+    assert.doesNotMatch(here, /supabase\(\)/, "the section writes around lib/solo");
+    assert.match(here, /refusal=\{refusal\?\.id === r\.proposalId \? refusal\.says : null\}/, "a refusal on a request is not said beside it");
+    // Requests run to the end now: the refusal after it has its own sentence.
+    assert.notEqual(soloRefusal("refused: requests closed at the end"), soloRefusal("something else"));
   });
 
-  it("SO09 nothing shows where 1-on-1 is not offered, and a person with both plans keeps both", () => {
-    assert.match(section, /if \(\(!view\.offered \|\| ended\) && !view\.choice\) return null;/);
-    // The crowd page's group read moved to the squads section (M3.7).
+  it("SO09 a person with both plans keeps both", () => {
     const squads = readFileSync("app/src/lib/squads.ts", "utf8");
     assert.match(squads, /\.eq\("kind", "crew"\)\s*\.is\("left_at", null\)\s*\.maybeSingle\(\)/, "the squad read would fail with a 1-on-1 plan beside it");
     assert.match(readFileSync("app/src/lib/room.ts", "utf8"), /\.eq\("kind", "crew"\)\.in\("state"/, "a 1-on-1 plan stops 'go together' in the room");

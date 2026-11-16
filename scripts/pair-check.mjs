@@ -1,25 +1,31 @@
-// 1-on-1, walked in real headless Chrome (A28, A29, A20; UI pass 1, Alex, 30 Oct 2026).
+// 1-on-1, walked end to end in two real headless Chromes, one per person, each signed in as
+// themselves (A9, A28, A29, A20, A22; build 23, Alex 16 Nov 2026).
 //
-//   Ari (the browser, signed in through the sealed hand-off as the app is) sees Bea wear
-//   "Open to 1-on-1", taps her, and sends "Let's meet up 1-on-1" from her profile sheet:
-//   one tap, nothing asked first. Bea, in her own session, finds it in Connections →
-//   Requests and accepts: the chat opens. She adds a place (a curated spot; nothing can be
-//   typed) and a time, and it holds with no confirmation. Cal's request, answered "Not
-//   now", leaves Bea's Requests and still reads as sent to Cal.
+//   Ari (signed in through the sealed hand-off, as the app is) opens the crowd page: the
+//   question "Open to meeting people 1-on-1 at this event?" is there, and with it off she sees
+//   only "Turn this on to see who's open to 1-on-1" — nobody (H3). She turns it on: "Open to
+//   1-on-1 here" lists Bea. She taps Bea and sends "Request to chat": "Request sent".
+//   Bea, in her own browser, sees it on the event's crowd page and in Connections → Requests
+//   (and was sent #8). She accepts in Connections: her chat opens, with nothing asked about a
+//   place or a time; Ari is told (#3). They write to each other and each reads the other.
+//   Ari finds Bea in Connections, taps her: her profile, with "Message", opens the same chat.
+//   Cal's request, answered "Not now", leaves Bea's Requests and still reads as sent to Cal.
+//   Ari calls off the 1-on-1: the chat and the connection end for both, silently.
 //
 //   npm run check:pair
 //
-// Fixtures first (scripts/fixture.mjs): 1-on-1 needs the venue's curated spots, so a test
-// crowd venue without any is a FIXTURE, not product failure. Every person is a harness user,
-// removed at the end with their account.
+// Fixtures first (scripts/fixture.mjs). The test crowd's venue is used for its city only: a
+// 1-on-1 no longer needs meeting spots. Every person is a harness user, removed at the end
+// with their account.
 import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { seal } from "../src/public/sealed.ts";
-import { ONE_ON_ONE_COPY } from "../packages/shared/src/solo.ts";
-import { fixture, needChrome, needEnv, sessionSecretMatches, testCrowd } from "./fixture.mjs";
+import { ONE_ON_ONE_COPY, SOLO_COPY } from "../packages/shared/src/solo.ts";
+import { THREAD_COPY } from "../packages/shared/src/thread.ts";
+import { needChrome, needEnv, sessionSecretMatches, testCrowd } from "./fixture.mjs";
 
 needEnv("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_PUBLISHABLE_KEY", "SESSION_SECRET");
 
@@ -41,13 +47,11 @@ const must = async (res, what) => {
 };
 
 const crowd = await testCrowd({ pinnable: false });
-const spots = await must(await rest(`/rest/v1/meeting_spots?venue_id=eq.${crowd.venue_id}&active=eq.true&select=id,name&order=name`), "spots");
-if (!spots.length) fixture("the test crowd's venue has no active meeting spots, so 1-on-1 is not offered there — approve one on /admin/venues.");
 
 const people = {};
 const extra = [];
+const chromes = [];
 let gathering = null;
-let chrome;
 let ok = true;
 const step = (name, pass) => { console.log(`${pass ? "ok  " : "FAIL"} ${name}`); if (!pass) { ok = false; throw new Error(`stopped at: ${name}`); } };
 
@@ -66,21 +70,11 @@ async function person(label, gender) {
 const as = (label, fn, args) =>
   fetch(`${base}/rest/v1/rpc/${fn}`, { method: "POST", headers: { apikey: pub, authorization: `Bearer ${people[label].access}`, "content-type": "application/json" }, body: JSON.stringify(args) });
 
-try {
-  [gathering] = await must(await rest("/rest/v1/gatherings", { method: "POST", body: JSON.stringify({ name: `Pair check ${Date.now()}`, starts_at: new Date(Date.now() + 3 * 86_400_000).toISOString(), venue_id: crowd.venue_id, published_at: new Date().toISOString(), source: "manual" }) }), "gathering");
-  const slug = await must(await rest("/rest/v1/rpc/admin_mint_slug", { method: "POST", body: JSON.stringify({ p_gathering: gathering.id }) }), "slug");
-  await person("Ari", "woman");
-  await person("Bea", "woman");
-  for (const n of ["Ari", "Bea"]) {
-    await must(await rest("/rest/v1/pins", { method: "POST", body: JSON.stringify({ gathering_id: gathering.id, person_id: people[n].personId, party_total: 1, open_to_meeting: true }) }), `pin ${n}`);
-  }
-  // The switch is per event (round 3, item 10): Bea's through the database as herself; Ari's
-  // on the crowd page below, through the row under "Open to meeting".
-  await must(await as("Bea", "set_event_one_on_one", { p_gathering: gathering.id, p_on: true, p_audience: "everyone" }), "Bea 1-on-1 on here");
-
-  const cookie = await seal(process.env.SESSION_SECRET, { userId: people.Ari.authId, refreshToken: people.Ari.refresh, issuedAt: Date.now() });
-  const port = 9500 + Math.floor(Math.random() * 90);
-  chrome = spawn(CHROME, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), "pind-pair-"))}`, "about:blank"], { stdio: "ignore" });
+// One person's own browser: its own Chrome, profile and session.
+async function browser() {
+  const port = 9300 + Math.floor(Math.random() * 600);
+  const proc = spawn(CHROME, ["--headless=new", `--remote-debugging-port=${port}`, `--user-data-dir=${mkdtempSync(join(tmpdir(), "pind-pair-"))}`, "about:blank"], { stdio: "ignore" });
+  chromes.push(proc);
   let ws;
   for (let i = 0; i < 60 && !ws; i++) { await sleep(250); try { const p = (await (await fetch(`http://127.0.0.1:${port}/json`)).json()).find((t) => t.type === "page"); if (p) ws = new WebSocket(p.webSocketDebuggerUrl); } catch {} }
   await new Promise((r) => ws.addEventListener("open", r, { once: true }));
@@ -92,87 +86,135 @@ try {
   const until = async (text, ms = 20000) => { for (let t = 0; t < ms; t += 500) { if ((await body()).includes(text)) return true; await sleep(500); } return false; };
   const click = (text) => evaluate(`(() => { const els=[...document.querySelectorAll('[role=button],[role=radio],button,div,a')].filter(e=>e.innerText&&e.innerText.trim()===${JSON.stringify(text)}); const e=els[els.length-1]; if(!e) return false; e.click(); return true; })()`);
   const path = () => evaluate("location.pathname").then(String);
+  const go = (url) => send("Page.navigate", { url });
+  const type = async (placeholder, text) => {
+    const focused = await evaluate(`(() => { const i=[...document.querySelectorAll('textarea,input')].find(x=>x.placeholder===${JSON.stringify(placeholder)}); i && i.focus(); return !!i; })()`);
+    if (focused) await send("Input.insertText", { text });
+    return focused;
+  };
+  const sendMessage = () => evaluate(`(() => { const b=[...document.querySelectorAll('[aria-label=${JSON.stringify(THREAD_COPY.send)}]')].pop(); if(!b) return false; b.click(); return true; })()`);
   await send("Page.enable");
   await send("Emulation.setDeviceMetricsOverride", { width: 390, height: 1800, deviceScaleFactor: 2, mobile: true });
-  await send("Network.setCookie", { name: "pind_pin", value: cookie, domain: new URL(SITE).hostname, path: "/", secure: true, httpOnly: true, sameSite: "Lax" });
+  return { send, evaluate, body, until, click, path, go, type, sendMessage, close: () => ws.close() };
+}
 
-  // A28/A29 since UI pass 1: Bea wears "Open to 1-on-1" on Ari's list; the request lives on
-  // her profile sheet, one tap, nothing asked first.
-  await send("Page.navigate", { url: `${SITE}/crowd/${slug}` });
-  step("under 'Open to meeting': the line, and this event's 1-on-1 switch", (await until(ONE_ON_ONE_COPY.switchLabel, 25000)) && (await body()).includes(ONE_ON_ONE_COPY.tapAnyone));
-  const mySolo = async (g) => await must(await as("Ari", "my_solo", { p_gathering: g }), "Ari's switch");
-  step("…off to begin with (nothing carried from anywhere)", (await mySolo(gathering.id)) === null);
-  await evaluate(`(() => { const s=[...document.querySelectorAll('[role=switch]')].find(e=>e.innerText.includes(${JSON.stringify(ONE_ON_ONE_COPY.switchLabel)})); if(!s) return false; s.click(); return true; })()`);
+try {
+  [gathering] = await must(await rest("/rest/v1/gatherings", { method: "POST", body: JSON.stringify({ name: `Pair check ${Date.now()}`, starts_at: new Date(Date.now() + 3 * 86_400_000).toISOString(), venue_id: crowd.venue_id, published_at: new Date().toISOString(), source: "manual" }) }), "gathering");
+  const slug = await must(await rest("/rest/v1/rpc/admin_mint_slug", { method: "POST", body: JSON.stringify({ p_gathering: gathering.id }) }), "slug");
+  await person("Ari", "woman");
+  await person("Bea", "woman");
+  for (const n of ["Ari", "Bea"]) {
+    await must(await rest("/rest/v1/pins", { method: "POST", body: JSON.stringify({ gathering_id: gathering.id, person_id: people[n].personId, party_total: 1, open_to_meeting: true }) }), `pin ${n}`);
+  }
+  // Bea's switch as herself; Ari's on the crowd page below.
+  await must(await as("Bea", "set_event_one_on_one", { p_gathering: gathering.id, p_on: true, p_audience: "everyone" }), "Bea 1-on-1 on here");
+
+  // Ari's browser: the sealed hand-off, as the quick pin leaves it.
+  const ari = await browser();
+  const cookie = await seal(process.env.SESSION_SECRET, { userId: people.Ari.authId, refreshToken: people.Ari.refresh, issuedAt: Date.now() });
+  await ari.send("Network.setCookie", { name: "pind_pin", value: cookie, domain: new URL(SITE).hostname, path: "/", secure: true, httpOnly: true, sameSite: "Lax" });
+  // Bea's browser: her own session, in her own profile.
+  const bea = await browser();
+  await bea.go(`${SITE}/privacy`);
+  await sleep(1500);
+  await bea.evaluate(`(() => { localStorage.setItem(${JSON.stringify(`sb-${ref}-auth-token`)}, ${JSON.stringify(JSON.stringify(people.Bea.session))}); return true; })()`);
+
+  // A9: the question, and with it off, nobody (H3).
+  await ari.go(`${SITE}/crowd/${slug}`);
+  step("A9 asks 'Open to meeting people 1-on-1 at this event?'", await ari.until(ONE_ON_ONE_COPY.switchLabel, 25000));
+  step("…off to begin with: one line, and no list", (await ari.until(ONE_ON_ONE_COPY.offLine)) && !(await ari.body()).includes(ONE_ON_ONE_COPY.sectionHeading));
+  await ari.evaluate(`(() => { const s=[...document.querySelectorAll('[role=switch]')].find(e=>e.innerText.includes(${JSON.stringify(ONE_ON_ONE_COPY.switchLabel)})); if(!s) return false; s.click(); return true; })()`);
   let on = null;
-  for (let t = 0; t < 20 && on === null; t++) { await sleep(500); on = await mySolo(gathering.id); }
-  step("tapping it switches Ari on for this event", on === "everyone");
-  step("Bea is on Ari's list with 'Open to 1-on-1'", await until(ONE_ON_ONE_COPY.tag, 25000));
-  const tapped = await evaluate(`(() => { const r=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.includes("Bea") && e.innerText.includes(${JSON.stringify(ONE_ON_ONE_COPY.tag)})); if(!r) return false; r.click(); return true; })()`);
-  step("tapping Bea opens her profile sheet", tapped && (await until(ONE_ON_ONE_COPY.ask)));
-  await click(ONE_ON_ONE_COPY.ask);
-  step("one tap sends it: 'Request sent'", await until(ONE_ON_ONE_COPY.sent("Bea")));
+  for (let t = 0; t < 20 && on === null; t++) { await sleep(500); on = await must(await as("Ari", "my_solo", { p_gathering: gathering.id }), "Ari's switch"); }
+  step("turning it on switches Ari on for this event", on === "everyone");
+  step("'Open to 1-on-1 here' appears", await ari.until(ONE_ON_ONE_COPY.sectionHeading, 25000));
+  const tapped = await ari.evaluate(`(() => {
+    const h=[...document.querySelectorAll('div')].find(e=>e.innerText===${JSON.stringify(ONE_ON_ONE_COPY.sectionHeading)});
+    if(!h) return "no heading";
+    const rows=[...document.querySelectorAll('[role=button]')].filter(r=>r.innerText.includes("Bea") && (h.compareDocumentPosition(r) & Node.DOCUMENT_POSITION_FOLLOWING));
+    if(!rows.length) return "no Bea"; rows[0].click(); return "ok"; })()`);
+  step("…with Bea in it; tapping her opens her sheet with 'Request to chat'", tapped === "ok" && (await ari.until(ONE_ON_ONE_COPY.ask)));
+  await ari.click(ONE_ON_ONE_COPY.ask);
+  step("one tap: 'Request sent'", await ari.until(ONE_ON_ONE_COPY.sent("Bea")));
   const [inv] = await must(await rest(`/rest/v1/solo_proposals?gathering_id=eq.${gathering.id}&from_person=eq.${people.Ari.personId}&select=id,spot_id,meet_at,status`), "the request");
-  step("…a request with no spot and no time", inv && inv.spot_id === null && inv.meet_at === null && inv.status === "open");
+  step("…a request with no place and no time", inv && inv.spot_id === null && inv.meet_at === null && inv.status === "open");
+  const push = await must(await rest(`/rest/v1/notifications?person_id=eq.${people.Bea.personId}&kind=eq.solo_proposal&select=body`), "Bea's #8");
+  step("Bea is sent the request (#8, push or its email)", push.some((x) => x.body.includes(ONE_ON_ONE_COPY.wantsToMeet("Ari").replace(" 1-on-1", ""))));
 
-  // A20: Bea, in her own session, finds it in Connections → Requests and accepts.
-  await evaluate(`(() => { localStorage.clear(); localStorage.setItem(${JSON.stringify(`sb-${ref}-auth-token`)}, ${JSON.stringify(JSON.stringify(people.Bea.session))}); return true; })()`);
-  await send("Network.deleteCookies", { name: "pind_pin", domain: new URL(SITE).hostname });
-  await send("Page.navigate", { url: `${SITE}/connections` });
-  step("Bea's Connections has the request under Requests", (await until(ONE_ON_ONE_COPY.wantsToMeet("Ari"), 25000)) && (await body()).includes(ONE_ON_ONE_COPY.requests));
-  await click(ONE_ON_ONE_COPY.accept);
+  // Bea, in her own browser: on the event's page, and in Connections → Requests.
+  await bea.go(`${SITE}/crowd/${slug}`);
+  step("Bea sees it on the event's crowd page", (await bea.until(ONE_ON_ONE_COPY.wantsToMeet("Ari"), 25000)) && (await bea.body()).includes(ONE_ON_ONE_COPY.requestsHere));
+  await bea.go(`${SITE}/connections`);
+  step("…and in Connections → Requests", (await bea.until(ONE_ON_ONE_COPY.wantsToMeet("Ari"), 25000)) && (await bea.body()).includes(ONE_ON_ONE_COPY.requests));
+  await bea.click(ONE_ON_ONE_COPY.accept);
   let at = "";
-  for (let t = 0; t < 30 && !at.startsWith("/group/"); t++) { await sleep(500); at = await path(); }
-  const crew = at.replace("/group/", "");
-  // The chat leads (UI pass 1, round 2): its header, then one line, "Add a place or time".
-  step("Accept opens the chat", at.startsWith("/group/") && (await until(ONE_ON_ONE_COPY.addPlace)));
+  for (let t = 0; t < 30 && !at.startsWith("/chat/"); t++) { await sleep(500); at = await bea.path(); }
+  const chatId = at.replace("/chat/", "");
+  step("Accept opens Bea's chat", at.startsWith("/chat/") && (await bea.until(ONE_ON_ONE_COPY.firstLine)));
+  step("…with nothing asked about a place or time (the row is optional, nothing is open)", (await bea.body()).includes(ONE_ON_ONE_COPY.addPlace) && !(await bea.body()).includes(ONE_ON_ONE_COPY.timePlaceholder));
+  const [conn] = await must(await rest(`/rest/v1/connections?id=eq.${chatId}&select=person_a,person_b`), "the connection");
+  step("the yes made them connections", conn && [conn.person_a, conn.person_b].sort().join() === [people.Ari.personId, people.Bea.personId].sort().join());
+  const told = await must(await rest(`/rest/v1/notifications?person_id=eq.${people.Ari.personId}&kind=eq.plan_status&select=body`), "Ari's #3");
+  step("Ari is told Bea said yes (#3), with no spot to pick", told.some((x) => /said yes\. Say hi\.$/.test(x.body)));
 
-  // A29: either of them adds a place and a time; nobody confirms.
-  await click(ONE_ON_ONE_COPY.addPlace);
-  step("'Add a place or time' offers the venue's spots and the event itself, no address", (await until(ONE_ON_ONE_COPY.atTheEvent)) && (await evaluate("document.querySelectorAll('input').length")) === 1);
-  await click(spots[0].name);
-  await evaluate(`(() => { const i=[...document.querySelectorAll('input')].find(x=>x.placeholder===${JSON.stringify(ONE_ON_ONE_COPY.timePlaceholder)}); i && i.focus(); return !!i; })()`);
-  await send("Input.insertText", { text: "around 7" });
-  await click(ONE_ON_ONE_COPY.save);
-  step("the row shows the place and the time", await until(`${spots[0].name} · around 7`));
-  const [c] = await must(await rest(`/rest/v1/crews?id=eq.${crew}&select=state,spot_id,time_note`), "the chat");
-  step("…held at once, with no confirmation step", c.state === "spot_set" && c.spot_id === spots[0].id && c.time_note === "around 7");
+  // They write to each other, each in their own browser.
+  step("Bea writes", (await bea.type(SOLO_COPY.threadPlaceholder("Ari"), "hi Ari")) && (await bea.sendMessage()));
+  step("…and sees it", await bea.until("hi Ari"));
+  await ari.go(`${SITE}/connections`);
+  step("Ari's Connections lists Bea, with the chat's last line", (await ari.until("Bea", 25000)) && (await ari.until("Bea: hi Ari")));
+  const toProfile = await ari.evaluate(`(() => { const r=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.includes("Bea: hi Ari")); if(!r) return false; r.click(); return true; })()`);
+  step("tapping Bea opens her profile, with 'Message'", toProfile && (await ari.until(ONE_ON_ONE_COPY.message)) && (await ari.path()).startsWith("/person/"));
+  await ari.click(ONE_ON_ONE_COPY.message);
+  let ariAt = "";
+  for (let t = 0; t < 30 && !ariAt.startsWith("/chat/"); t++) { await sleep(500); ariAt = await ari.path(); }
+  step("'Message' opens the same chat — one chat per pair", ariAt === `/chat/${chatId}` && (await ari.until("hi Ari")));
+  step("Ari answers", (await ari.type(SOLO_COPY.threadPlaceholder("Bea"), "hey Bea")) && (await ari.sendMessage()));
+  step("…and Bea reads it in her open chat", await bea.until("hey Bea", 30000));
 
   // "Not now" is silent: Cal's request goes from Bea's Requests, and Cal still sees it sent.
   await person("Cal", "man");
-  await must(await rest("/rest/v1/pins", { method: "POST", body: JSON.stringify({ gathering_id: gathering.id, person_id: people.Cal.personId, party_total: 1, open_to_meeting: true }) }), "pin Cal");
-  // Bea is in a 1-on-1 here now, so Cal asks her at a second gathering.
   const [second] = await must(await rest("/rest/v1/gatherings", { method: "POST", body: JSON.stringify({ name: `Pair check 2 ${Date.now()}`, starts_at: new Date(Date.now() + 4 * 86_400_000).toISOString(), venue_id: crowd.venue_id, published_at: new Date().toISOString(), source: "manual" }) }), "second gathering");
   extra.push(second.id);
   for (const nm of ["Bea", "Cal"]) await must(await rest("/rest/v1/pins", { method: "POST", body: JSON.stringify({ gathering_id: second.id, person_id: people[nm].personId, party_total: 1, open_to_meeting: true }) }), `pin ${nm} 2`);
-  // On at the first gathering is not on at the second: until each switches on there, Cal is refused.
   const early = await as("Cal", "propose_solo", { p_gathering: second.id, p_to: people.Bea.personId, p_spot: null, p_meet_at: null, p_line: null });
   step("Bea, switched on only at the first event, cannot be asked at the second", !early.ok);
   for (const nm of ["Bea", "Cal"]) await must(await as(nm, "set_event_one_on_one", { p_gathering: second.id, p_on: true, p_audience: "everyone" }), `${nm} 1-on-1 on at the second`);
   await must(await as("Cal", "propose_solo", { p_gathering: second.id, p_to: people.Bea.personId, p_spot: null, p_meet_at: null, p_line: null }), "Cal asks Bea");
-  await send("Page.navigate", { url: `${SITE}/connections` });
-  step("Cal's request reaches Bea's Requests", await until(ONE_ON_ONE_COPY.wantsToMeet("Cal"), 25000));
-  await click(ONE_ON_ONE_COPY.notNow);
+  await bea.go(`${SITE}/connections`);
+  step("Cal's request reaches Bea's Requests", await bea.until(ONE_ON_ONE_COPY.wantsToMeet("Cal"), 25000));
+  await bea.click(ONE_ON_ONE_COPY.notNow);
   let gone = false;
-  for (let t = 0; t < 20 && !gone; t++) { await sleep(500); gone = !(await body()).includes(ONE_ON_ONE_COPY.wantsToMeet("Cal")); }
+  for (let t = 0; t < 20 && !gone; t++) { await sleep(500); gone = !(await bea.body()).includes(ONE_ON_ONE_COPY.wantsToMeet("Cal")); }
   step("'Not now' takes it off Bea's Requests", gone);
   const cals = await must(await as("Cal", "my_solo_proposals", { p_gathering: second.id }), "Cal's requests");
   step("…and Cal is not told: his request still reads as sent", cals.length === 1 && cals[0].direction === "sent");
-  ws.close();
+
+  // Calling it off ends the chat and the connection, for both, silently.
+  await ari.go(`${SITE}/chat/${chatId}`);
+  await ari.until("hey Bea");
+  await ari.evaluate(`(() => { const b=[...document.querySelectorAll('[aria-label=More]')].pop(); b && b.click(); return !!b; })()`);
+  step("Ari's chat offers 'Call off this 1-on-1'", await ari.until(SOLO_COPY.callOff));
+  await ari.click(SOLO_COPY.callOff);
+  let left = [];
+  for (let t = 0; t < 20; t++) { await sleep(500); left = await must(await rest(`/rest/v1/connections?id=eq.${chatId}&select=id`), "the connection"); if (!left.length) break; }
+  step("the connection is gone", left.length === 0);
+  await bea.go(`${SITE}/chat/${chatId}`);
+  step("…and Bea's chat has ended", await bea.until(ONE_ON_ONE_COPY.chatEnded, 25000));
+  const offNotes = await must(await rest(`/rest/v1/notifications?person_id=eq.${people.Bea.personId}&kind=eq.plan_status&select=body`), "Bea's notifications");
+  step("…and Bea was not told", !offNotes.some((x) => / is off\.$/.test(x.body)));
+  ari.close();
+  bea.close();
 } catch (err) {
   console.log(String(err.message ?? err));
   ok = false;
 } finally {
-  chrome?.kill();
-  for (const id of extra) {
-    await rest(`/rest/v1/solo_proposals?gathering_id=eq.${id}`, { method: "DELETE" });
-    await rest(`/rest/v1/gatherings?id=eq.${id}`, { method: "DELETE" });
-  }
-  if (gathering) {
-    const crews = await (await rest(`/rest/v1/crews?gathering_id=eq.${gathering.id}&select=id`)).json().catch(() => []);
+  for (const c of chromes) c.kill();
+  for (const id of [...extra, ...(gathering ? [gathering.id] : [])]) {
+    const crews = await (await rest(`/rest/v1/crews?gathering_id=eq.${id}&select=id`)).json().catch(() => []);
     for (const c of Array.isArray(crews) ? crews : []) await rest(`/rest/v1/notifications?crew_id=eq.${c.id}`, { method: "DELETE" });
-    await rest(`/rest/v1/solo_proposals?gathering_id=eq.${gathering.id}`, { method: "DELETE" });
-    await rest(`/rest/v1/crews?gathering_id=eq.${gathering.id}`, { method: "DELETE" });
-    await rest(`/rest/v1/gatherings?id=eq.${gathering.id}`, { method: "DELETE" });
+    await rest(`/rest/v1/solo_proposals?gathering_id=eq.${id}`, { method: "DELETE" });
+    await rest(`/rest/v1/crews?gathering_id=eq.${id}`, { method: "DELETE" });
+    await rest(`/rest/v1/gatherings?id=eq.${id}`, { method: "DELETE" });
   }
   for (const p of Object.values(people)) {
     await rest(`/rest/v1/notifications?person_id=eq.${p.personId}`, { method: "DELETE" });

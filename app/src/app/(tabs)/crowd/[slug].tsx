@@ -59,6 +59,8 @@ import { Body, Button, Heading } from "@/components/ui";
 import { failed, type Described } from "@/lib/errors";
 import { PushAsk } from "@/components/PushAsk";
 import { OneOnOneSwitch } from "@/components/OneOnOneSwitch";
+import { OneOnOneHere } from "@/components/OneOnOneHere";
+import { setOneOnOne } from "@/lib/solo";
 import { Sheet } from "@/components/Sheet";
 import { SwitchRow } from "@/components/SwitchRow";
 import { SquadSection } from "@/components/SquadSection";
@@ -252,7 +254,7 @@ export default function CrowdPage() {
   // The person sheet always says something where the 1-on-1 button goes (useOneOnOne).
   const [meetSheet, setMeetSheet] = useState(false);
   const soloAt = view?.gathering && view.mine?.open && Date.now() < Date.parse(view.gathering.effectiveEnd) ? view.gathering : null;
-  const oneOnOne = useOneOnOne(soloAt ? { id: soloAt.id, startsAt: soloAt.startsAt } : null, view?.meId ?? null);
+  const oneOnOne = useOneOnOne(soloAt ? { id: soloAt.id, startsAt: soloAt.startsAt, endsAt: soloAt.effectiveEnd } : null, view?.meId ?? null);
   const solo = oneOnOne.facts;
   const readSolo = oneOnOne.read;
   const [here, setHereNow] = useState<HereNow | null>(null);
@@ -280,6 +282,28 @@ export default function CrowdPage() {
       if (open) setMeetSheet(true);
     } catch (err) {
       setTrouble(failed(open ? "open you to meeting" : "take you off the list", err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // "Open to meeting people 1-on-1 at this event?" turned on before you're open to meeting:
+  // that comes first — A27 when you have no profile, which lands back here with 1-on-1 on
+  // (?oneOnOne=1); otherwise one tap opens you and turns it on. No "How do you want to meet?"
+  // sheet on this path: you have already said how.
+  const turnOnFirst = async () => {
+    if (!view?.mine) return;
+    if (!view.mayMeet) return router.push(`/opt-in/${slug}?oneOnOne=1`);
+    setBusy(true);
+    setTrouble(null);
+    try {
+      const { error } = await supabase().from("pins").update({ open_to_meeting: true }).eq("id", view.mine.pinId);
+      if (error) throw error;
+      await setOneOnOne(view.gathering.id, true, "everyone");
+      refresh();
+      readSolo();
+    } catch (err) {
+      setTrouble(failed("turn on 1-on-1", err));
     } finally {
       setBusy(false);
     }
@@ -369,6 +393,8 @@ export default function CrowdPage() {
               </View>
             </View>
           ) : null}
+          {/* The 1-on-1 question, there as soon as you've pinned in (build 23). */}
+          <OneOnOneHere gatheringId={g.id} openToMeeting={false} facts={null} faces={[]} busy={busy} onTurnOnFirst={() => void turnOnFirst()} onChanged={readSolo} onPerson={() => undefined} />
         </View>
       ) : (
         // A9 — open: the room first (M3.3), then the people the database lets you see.
@@ -464,19 +490,27 @@ export default function CrowdPage() {
               <ImHere gatheringId={g.id} note={here.me} people={here.people} count={here.count} onChanged={readHere} />
             </View>
           ) : null}
-          {/* No separate 1-on-1 box (UI pass 1, 055): who is open to it wears a tag below,
-              and the request lives on their profile sheet. */}
+          {/* 1-on-1 at this event (build 23): the question, your requests here, and "Open to
+              1-on-1 here" — its own section, reciprocal (H3). */}
+          {!ended ? (
+            <OneOnOneHere
+              gatheringId={g.id}
+              openToMeeting
+              facts={solo}
+              faces={view.faces.map((f) => ({ id: f.id, firstName: f.firstName, photoUrl: f.photoUrl, area: hoodName(f.neighbourhood) }))}
+              busy={busy}
+              onTurnOnFirst={() => void turnOnFirst()}
+              onChanged={readSolo}
+              onPerson={(f) => {
+                const face = view.faces.find((x) => x.id === f.id);
+                setSheet({ id: f.id, firstName: f.firstName, photo: f.photoUrl, area: f.area, tags: (face?.tags ?? []).map(tagName).filter(Boolean) as string[] });
+              }}
+            />
+          ) : null}
           {/* The open-to-meeting list: people you can tap (UI pass 1, 055), the profile
               sheet rather than leaving the page. Three, then "See all". */}
           <Text style={[styles.listHeading, { marginTop: spacing.lg }]}>{CROWD_COPY.listHeading}</Text>
-          {/* Round 3 (item 10): one line, then this event's own 1-on-1 switch, in view. */}
           <Text style={styles.small}>{ONE_ON_ONE_COPY.tapAnyone}</Text>
-          {!ended ? (
-            <View style={{ marginTop: spacing.sm, marginBottom: spacing.sm }}>
-              {/* Keyed on what the sheet or the person sheet last set, so it reads again. */}
-              <OneOnOneSwitch key={String(solo?.mineOn)} gatheringId={g.id} onChanged={readSolo} />
-            </View>
-          ) : null}
           {view.faces.length === 0 ? (
             <Body muted>{CROWD_COPY.listEmpty}</Body>
           ) : (
@@ -493,7 +527,6 @@ export default function CrowdPage() {
                 <View style={{ flex: 1 }}>
                   <Text style={styles.name}>
                     {f.firstName}
-                    {solo?.open.includes(f.id) ? <Text style={styles.soloTag}>{`  ${ONE_ON_ONE_COPY.tag}`}</Text> : null}
                     {f.party > 1 ? <Text style={styles.plus}>{`  +${f.party - 1} friend${f.party > 2 ? "s" : ""}`}</Text> : null}
                   </Text>
                   {hoodName(f.neighbourhood) ? <Text style={styles.hood}>{hoodName(f.neighbourhood)}</Text> : null}

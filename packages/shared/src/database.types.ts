@@ -480,8 +480,49 @@ export type Database = {
           },
         ]
       }
+      connection_messages: {
+        Row: {
+          author_id: string
+          body: string
+          connection_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          author_id: string
+          body: string
+          connection_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          author_id?: string
+          body?: string
+          connection_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "connection_messages_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "people"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "connection_messages_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "connections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       connections: {
         Row: {
+          a_seen_at: string | null
+          b_seen_at: string | null
           created_at: string
           id: string
           person_a: string
@@ -490,6 +531,8 @@ export type Database = {
           source_gathering_id: string | null
         }
         Insert: {
+          a_seen_at?: string | null
+          b_seen_at?: string | null
           created_at?: string
           id?: string
           person_a: string
@@ -498,6 +541,8 @@ export type Database = {
           source_gathering_id?: string | null
         }
         Update: {
+          a_seen_at?: string | null
+          b_seen_at?: string | null
           created_at?: string
           id?: string
           person_a?: string
@@ -2791,52 +2836,6 @@ export type Database = {
           },
         ]
       }
-      solo_spot_suggestions: {
-        Row: {
-          created_at: string
-          crew_id: string
-          meet_at: string
-          spot_id: string
-          suggested_by: string
-        }
-        Insert: {
-          created_at?: string
-          crew_id: string
-          meet_at: string
-          spot_id: string
-          suggested_by: string
-        }
-        Update: {
-          created_at?: string
-          crew_id?: string
-          meet_at?: string
-          spot_id?: string
-          suggested_by?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "solo_spot_suggestions_crew_id_fkey"
-            columns: ["crew_id"]
-            isOneToOne: true
-            referencedRelation: "crews"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "solo_spot_suggestions_spot_id_fkey"
-            columns: ["spot_id"]
-            isOneToOne: false
-            referencedRelation: "meeting_spots"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "solo_spot_suggestions_suggested_by_fkey"
-            columns: ["suggested_by"]
-            isOneToOne: false
-            referencedRelation: "people"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       spot_suggestions: {
         Row: {
           address: string | null
@@ -3728,7 +3727,19 @@ export type Database = {
         Returns: Database["public"]["Enums"]["gathering_category"]
       }
       clear_here: { Args: { p_gathering: string }; Returns: undefined }
-      confirm_solo_spot: { Args: { p_crew: string }; Returns: undefined }
+      connection_chat: {
+        Args: { p_connection: string }
+        Returns: {
+          connection_id: string
+          first_name: string
+          my_seen_at: string
+          person_id: string
+          photo_path: string
+          since: string
+        }[]
+      }
+      connection_seen: { Args: { p_connection: string }; Returns: undefined }
+      connection_with: { Args: { p_other: string }; Returns: string }
       convening_of: {
         Args: { p_gathering: string }
         Returns: Database["public"]["Enums"]["convening"]
@@ -3794,12 +3805,17 @@ export type Database = {
       my_connections: {
         Args: never
         Returns: {
+          connection_id: string
           first_name: string
           gathering_id: string
+          last: Json
           met_at: string
+          neighbourhood: string
+          one_on_one: boolean
           person_id: string
           photo_path: string
           since: string
+          unread: number
         }[]
       }
       my_invites: {
@@ -3938,6 +3954,7 @@ export type Database = {
         Args: { p_platform: string; p_token: string }
         Returns: undefined
       }
+      remove_connection: { Args: { p_other: string }; Returns: undefined }
       remove_me_under_19: { Args: never; Returns: undefined }
       rename_squad: {
         Args: { p_crew: string; p_name: string }
@@ -4039,10 +4056,6 @@ export type Database = {
             }
             Returns: string
           }
-      suggest_solo_spot: {
-        Args: { p_crew: string; p_meet_at: string; p_spot: string }
-        Returns: undefined
-      }
       tab_for_classification: {
         Args: { p_classification: string }
         Returns: Database["public"]["Enums"]["list_tab"]

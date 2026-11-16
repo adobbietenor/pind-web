@@ -249,12 +249,15 @@ test("P290 A: a request is waiting in Dee's Requests and nobody else's; 'Not now
   assert.deepEqual(bobs.map((r) => r.direction), ["sent"], "Bob learned of the 'Not now'");
 });
 
-test("P291 A: accepted, it is a chat; either of the two CAN set a curated place, the event itself or a time, nobody confirms; a stranger and another venue's spot CANNOT; handles show once a place is set, and go when it's taken away", async () => {
+// Since build 23 (16 Nov 2026) the yes makes the two connections, so the handle shows from the
+// yes (V17 through the connection), whatever the place, and goes when the connection is removed.
+test("P291 A: accepted, it is a chat; either of the two CAN set a curated place, the event itself or a time, nobody confirms; a stranger and another venue's spot CANNOT; handles show from the yes and go with the connection", async () => {
   await must(service.from("person_handles").upsert({ person_id: ppl.Ann!.id, instagram: `${run}ann` }), "Ann's handle");
   await must(ppl.Ann!.c.rpc("propose_solo", { p_gathering: g.Later, p_to: ppl.Dee!.id, p_spot: null, p_meet_at: null, p_line: null }), "Ann asks Dee");
   const req = ((await must(ppl.Dee!.c.rpc("my_solo_requests"), "Dee's requests")) as { proposal_id: string }[])[0]!;
   pairId = (await must(ppl.Dee!.c.rpc("respond_to_solo", { p_proposal: req.proposal_id, p_accept: true }), "Dee says yes")) as string;
-  assert.equal(await handleSeen("Dee", "Ann"), false, "a handle showed before any place");
+  assert.equal(await handleSeen("Dee", "Ann"), true, "the yes made no connection: no handle");
+  assert.equal(await handleSeen("Bob", "Ann"), false, "someone outside the chat saw the handle");
   const place = (who: string, s: string | null, atEvent: boolean, time: string | null) =>
     ppl[who]!.c.rpc("set_solo_place", { p_crew: pairId, p_spot: s, p_at_event: atEvent, p_time_note: time });
   await refused(place("Cal", spot, false, null), "42501", "solo_not_member");
@@ -263,12 +266,15 @@ test("P291 A: accepted, it is a chat; either of the two CAN set a curated place,
   await must(place("Dee", spot, false, "around 5:30"), "Dee sets the place");
   const c1 = await must(service.from("crews").select("state, spot_id, at_event, time_note").eq("id", pairId).single(), "the chat");
   assert.deepEqual(c1, { state: "spot_set", spot_id: spot, at_event: false, time_note: "around 5:30" }, "the place needed a confirmation");
-  assert.equal(await handleSeen("Dee", "Ann"), true, "no handle once a place was set");
+  assert.equal(await handleSeen("Dee", "Ann"), true, "the handle went when a place was set");
   await must(place("Ann", null, true, "around 6"), "Ann changes it to the event itself");
   const c2 = await must(service.from("crews").select("state, spot_id, at_event, time_note").eq("id", pairId).single(), "the chat");
   assert.deepEqual(c2, { state: "spot_set", spot_id: null, at_event: true, time_note: "around 6" });
   await must(place("Ann", null, false, null), "Ann takes the place away");
-  assert.equal(await handleSeen("Dee", "Ann"), false, "the handle stayed once the place was taken away");
+  assert.equal(await handleSeen("Dee", "Ann"), true, "the handle went with the place: it is the connection's");
+  // Dee removes the connection: the handle goes, and part B starts from two people not connected.
+  await must(ppl.Dee!.c.rpc("remove_connection", { p_other: ppl.Ann!.id }), "Dee removes Ann");
+  assert.equal(await handleSeen("Dee", "Ann"), false, "the handle stayed after the connection went");
   assert.equal(await handleSeen("Bob", "Ann"), false, "someone outside the chat saw the handle");
 });
 

@@ -1136,3 +1136,17 @@ own cases (`review-m3.4`, `review-m3.7`) and P255–P263 (`m4-2-fixes`) hold the
   night or after it keeps your "Who did you meet?" with everyone else in it for its 7 days (they still see
   you), never with the person you blocked, and neither of you sees the other. A hide keeps
   its cost: the hidden person keeps nothing.
+
+## Since 16 Nov 2026 — connections and their one chat (build 23)
+
+Explained to Alex and decided by him before it was built (decisions, "Build 23: the 1-on-1
+rebuild"). **Flagged for the independent review before real users see it.**
+
+| Rule | Who CAN | Who CANNOT | Proof |
+|---|---|---|---|
+| "Open to 1-on-1 here" (A9) | unchanged: `can_see_solo` — both pinned and open to meeting at that event, both switched on there, no block, nobody hidden, each inside the other's women-only choice, the brake up, neither already in a 1-on-1 there | anyone switched off (they see one line, no list), anyone at another event | P268–P269, P209–P215 |
+| An accept makes a connection | the two who said yes, at once | anyone else; nobody before the yes | P268, P270 |
+| A connection sees the other's profile, photo and handle (V17) | the pair, at any event | anyone not connected | P270 (handle before and after) |
+| The pair's chat (`connection_messages`) | its two, reading and writing, while neither blocked the other and neither is hidden | anyone else (read, write, write as another, read who is in it), a visitor, the partner of someone H9 hid | P268, P311, P312 |
+| It ends, for both, silently | — | the pair after: a removal by either (P309), a call-off (P308), a block (P274), a report (P310) | each asserts the connection gone and the chat unreadable to both |
+| Requests | sent and answered until the effective end | after it ("closed at the end") | P272 |

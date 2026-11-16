@@ -564,12 +564,20 @@ A16's ticks are open. **No per-gathering day-of toggle**: #4's switch stays in S
 Empty: "Nothing pinned yet — this week's crowds →".
 
 ### A20 — Connections
+**Since build 23 (Alex, 16 Nov 2026):** everyone you are connected with — a yes to a 1-on-1,
+or keeping in touch after the night — each with your one chat's last line. Requests first.
+Tap a person: their profile (A22) with "Message". No longer "not an inbox"; the rest below
+is the original.
+
 People from your crews, with where you met them. The **only verb is "invite"**, which
 opens the gatherings you are pinned to (until M3.2b brings this week's crowds into the
 app) and sends #7. Deliberately not an inbox. Empty state explains
 that connections come from crews.
 
 ### A21–A22 — Profile
+**Since build 23:** A22 has "Message" for a connection (your one chat), and remove the
+connection, report and block for anyone you can see; each ends your chat, silently.
+
 - **A21 self** — photo, first name + initial, neighbourhood, their tags, gatherings count,
   crews-met count, the **"showed up" badge** (the only badge in Pin'd), and the
   optional Instagram handle (add, edit, remove). Edit profile; preview what others
@@ -642,25 +650,25 @@ opt-in survive. Then **one safety sheet** (the link path's version of A4): *crew
 taps away; women-only crews on every gathering.* Accepting the privacy policy and terms
 happens here.
 
-### A28 — Solo opt-in sheet *(new)*
-A second toggle on the **pinned** crowd page, below the crews section, labelled
-**"Meet 1-on-1"** ("solo crew" is the internal name only). Off by default, separate from
-the crew opt-in. Tapping it opens a sheet: what it is, that it is optional, that
-meetings happen only at the venue's public spots, and a **forced choice** of who can
-see you — "everyone who opted in" or "women only" (no default). Never in onboarding,
-never in the digest, never in the store listing or screenshots.
+### A28 — 1-on-1 at an event *(rebuilt for build 23, Alex, 16 Nov 2026)*
+On the crowd page, as soon as you have pinned in: "Open to meeting people 1-on-1 at this
+event?", a switch, per event (no account-wide setting). Not open to meeting yet, turning it
+on takes you there first (A27 with no profile) and back with it on. On, "Open to 1-on-1 here"
+lists everyone else there with it on that the database lets you see (`can_see_solo`): photo,
+first name, area. Off: one line, "Turn this on to see who's open to 1-on-1" (H3). Women only
+stays as the switch's second line.
 
-### A29 — Proposals and plan *(new)*
-- **The 1-on-1 section** of the pinned crowd page, below crews, rendered only for
-  solo-opted people: the solo-opted people the database lets you see (§1 pin, decisions
-  Part 1 exception).
-- **A proposal**: a spot from the venue's list, a time, and one of **five preset lines**
-  (§5). No free-text field. The recipient accepts or declines; a decline sends nothing.
-  Limits and expiry as §1 proposal.
-- **The plan card**: on accept, a solo plan (a crew with `kind = 'solo'`) with the same
-  card, thread (A14), "I'm here" (A13) and after-event flow (A16) as a crew.
-- Block and report two taps away; any report removes the person from every solo list
-  immediately.
+### A29 — Requests and the chat *(rebuilt for build 23)*
+- **A request**: tap a person, their sheet, "Request to chat", "Request sent". No place, no
+  time, no line. They get #8 and see it in Connections → Requests and on that event's crowd
+  page, until the event's effective end. Accept opens the chat for both; "Not now" is silent.
+- **The chat**: an accept makes the two of you connections, with one chat per pair
+  (`connection_messages`), the same one "Message" opens from A20/A22. It lasts as long as the
+  connection. Its optional "Add a place or time" is the only place a place or time is ever
+  asked for, and nothing depends on it; "I've arrived" on the night and A16 after it reach
+  every 1-on-1, with or without a place.
+- **Ending it**: remove the connection, call off the 1-on-1, block or report the other — each
+  ends the chat and the connection for both, silently (H9).
 
 ---
 

@@ -162,7 +162,8 @@ function eventFor(e: MyChatsEvent, now: Date): EventHead {
       line: MY_CHATS_COPY.noMessages,
       last: c.last,
       unread: readOnly ? 0 : c.unread,
-      href: { pathname: "/group/[id]", params: { id: c.crewId } },
+      // A 1-on-1 opens the pair's chat (build 23); a squad, its own.
+      href: c.kind === "solo" && c.connectionId ? { pathname: "/chat/[id]", params: { id: c.connectionId } } : { pathname: "/group/[id]", params: { id: c.crewId } },
     });
   }
   return {

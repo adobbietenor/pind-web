@@ -45,7 +45,7 @@ export function RequestCard({
         </View>
       </View>
       <View style={styles.buttons}>
-        <Tap accessibilityRole="button" disabled={busy} onPress={onAccept} style={[styles.button, styles.accept]}>
+        <Tap accessibilityRole="button" haptic="action" disabled={busy} onPress={onAccept} style={[styles.button, styles.accept]}>
           <Text style={styles.acceptLabel}>{ONE_ON_ONE_COPY.accept}</Text>
         </Tap>
         <Tap accessibilityRole="button" disabled={busy} onPress={onNotNow} style={[styles.button, styles.notNow]}>

@@ -141,6 +141,8 @@ export interface CrewChat {
   meetAt: string | null;
   // A 1-on-1 plan's other person, by first name.
   partner: string | null;
+  // A 1-on-1's chat is the pair's connection chat (build 23); null for a squad, or once ended.
+  connectionId?: string | null;
   // How many are in it, in seats, and up to three of the others (UI pass 1, round 3): a
   // squad row shows their circles, a 1-on-1 row the other person.
   members: number;
@@ -193,6 +195,7 @@ export function readMyChats(json: unknown): MyChatsEvent[] {
       spot: str(c.spot),
       meetAt: str(c.meet_at),
       partner: str(c.partner),
+      connectionId: str(c.connection_id),
       members: num(c.members),
       faces: list(c.faces).map((f) => ({ id: String(f.person_id), firstName: str(f.first_name) ?? "", photoPath: str(f.photo_path) })),
       last: last(c.last),

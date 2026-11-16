@@ -1,13 +1,12 @@
-// 1-on-1 (A28, A29; M3.4): its words, its five lines, and the times on offer.
+// 1-on-1 (A9, A28, A29, A20, A22): its words, its refusals, and the times squads still offer.
 //
-// PROPOSED COPY (spec §5 calls it Draft): only the label "Meet 1-on-1" and preset line 1 are final; the
-// sheet's words and lines 2–5 are Alex's and Tatiana's to replace, and Tatiana writes the
-// final five. The database stores a line by number (1–5), so her copy replaces these with
-// no migration (decisions, "M3.4: the 1-on-1 lifecycle").
+// Since build 23 (Alex, 16 Nov 2026) a 1-on-1 asks for nothing: a request carries no spot,
+// time or line; an accept makes the two of you connections with one chat; a place or time is
+// an optional row in that chat. The old proposal sheet, its five lines and the spot
+// confirmation are gone. PROPOSED COPY throughout: Tatiana rewords.
 //
-// **The database is the rule.** propose_solo refuses a spot, a time or a line this file
-// would not offer; these copies only decide what the sheet shows. P216 proposes at the
-// first and the last of soloTimes(), so the two cannot drift apart unnoticed.
+// **The database is the rule** (propose_solo, respond_to_solo, can_see_solo, the pair chat's
+// policies); these only decide what a screen says.
 
 import { effectiveEnd } from "./copy.ts";
 
@@ -16,31 +15,9 @@ export const SOLO_STEP_MINUTES = 15;
 export const SOLO_BEFORE_MINUTES = 180; // from 3 h before the start…
 export const SOLO_AFTER_END_MINUTES = 120; // …to 2 h after the effective end (Alex, 14 Oct 2026)
 
-// "before": worded for meeting before it starts ("walk in together", "before it starts",
-// "then head in"); offered only for a time at or before the start. "any": fits any time.
-// Until Tatiana's five arrive, a time after the start offers lines 3 and 4 only — her five
-// need to cover meeting afterwards (decisions).
-export const SOLO_LINES: { n: 1 | 2 | 3 | 4 | 5; fits: "before" | "any"; text: (spot: string, time: string) => string }[] = [
-  { n: 1, fits: "before", text: (s, t) => `Meet at ${s} at ${t} and walk in together?` },
-  { n: 2, fits: "before", text: (s, t) => `Grab a drink at ${s} at ${t} before it starts?` },
-  { n: 3, fits: "any", text: (s, t) => `I'll be at ${s} at ${t}. Want to meet there?` },
-  { n: 4, fits: "any", text: (s, t) => `Going alone too. Meet at ${s} at ${t}?` },
-  { n: 5, fits: "before", text: (s, t) => `Quick hello at ${s} at ${t}, then head in?` },
-];
-
-export function soloLine(n: number, spot: string, time: string): string {
-  const line = SOLO_LINES.find((l) => l.n === n);
-  return line ? line.text(spot, time) : `Meet at ${spot} at ${time}?`;
-}
-
-// The lines that read true for a meeting time.
-export function soloLinesFor(meetAt: string, startsAt: string): typeof SOLO_LINES {
-  const before = Date.parse(meetAt) <= Date.parse(startsAt);
-  return SOLO_LINES.filter((l) => l.fits === "any" || before);
-}
-
 // The times on offer: every quarter hour from 3 h before the start to 2 h after the
-// effective end, never in the past — what private.solo_time_ok accepts.
+// effective end, never in the past — what private.solo_time_ok accepts. Squads use it; a
+// 1-on-1 no longer offers times.
 export function soloTimes(startsAt: string, endsAt: string | null, now: Date = new Date()): string[] {
   const step = SOLO_STEP_MINUTES * 60_000;
   const from = Math.ceil((Date.parse(startsAt) - SOLO_BEFORE_MINUTES * 60_000) / step) * step;
@@ -50,73 +27,13 @@ export function soloTimes(startsAt: string, endsAt: string | null, now: Date = n
   return out;
 }
 
-// Proposals close at the start (they "vanish at the gathering's start").
-export function soloProposalsOpen(startsAt: string, now: Date = new Date()): boolean {
-  return now.getTime() < Date.parse(startsAt);
-}
-
 export const SOLO_COPY = {
-  // A28 — the switch and the sheet. "Meet 1-on-1" is final; the rest is Draft (spec §5).
-  label: "Meet 1-on-1",
-  sheetTitle: "Meet 1-on-1",
-  sheetLine:
-    "Meet 1-on-1 is optional. You'll only see, and be seen by, people who also turned it on for this gathering. Meetings happen only at this venue's public spots. Choose who can see you:",
-  groupsVsSolo:
-    "Squads are small groups anyone here can join. 1-on-1 is one person you choose, at a spot and a time, and they choose you back.",
-  everyone: "Everyone who opted in",
-  womenOnly: "Women only",
-  womenOnlyNote: "Women and nonbinary people who chose to be included in women-only spaces. They see you, and you see only them.",
-  turnOn: "Turn on",
-  turnOff: "Turn 1-on-1 off",
-  offNote: "Your open proposals close when you turn it off.",
-  // A29 — the section.
-  sectionHeading: "1-on-1",
-  nobodyYet: "Nobody else here has turned on 1-on-1 yet. You'll see them here when they do.",
-  propose: "Propose a meet",
-  sent: "Sent",
-  sentNote: "They'll see it until the start. If they say yes, you'll get a plan here.",
-  withdraw: "Withdraw",
-  received: "wants to meet",
-  accept: "Yes, let's meet",
-  decline: "No thanks",
-  declineNote: "They aren't told.",
-  openCount: (n: number) => `${n} of ${SOLO_MAX_OPEN} proposals open`,
-  closedAtStart: "Proposals closed when it started.",
-  // The proposal sheet: a spot, a time and a line — nothing to type.
-  sheetSpot: "Where",
-  sheetTime: "When",
-  sheetLinePick: "Say",
-  sheetSend: "Send",
-  yourGroup: (spot: string, time: string) => `Your group meets at ${spot}, ${time}.`,
-  yourGroupAtStart: "Your group meets at the start.",
-  // The plan card.
+  // The chat's own words (A29).
   planHeading: (name: string) => `Your 1-on-1 with ${name}`,
-  planWhere: (spot: string, time: string) => `${spot}, ${time}`,
-  openPlan: "Open",
   planOff: "This 1-on-1 is off.",
   callOff: "Call off this 1-on-1",
-  callOffNote: "They'll be told it's off, not why. You can't send each other another proposal here.",
+  callOffNote: "Your chat ends and you're no longer connected. They aren't told.",
   threadPlaceholder: (name: string) => `Say something to ${name}`,
-  // #17 (Tatiana's "Let's meet up!", Alex, 29 Oct 2026): connect first, pick the spot after.
-  // A pair is not a plan until one of you suggests a spot and the other says yes. PROPOSED.
-  letsMeetUp: "Let's meet up!",
-  invited: "wants to meet up",
-  inviteNote: "If they say yes, you can say hi and pick a spot together.",
-  pairHeading: (name: string) => `You and ${name} are meeting up`,
-  pairLine: "Say hi, then pick a spot together. It's a plan once you both agree on one.",
-  pairPick: "Pick a spot",
-  pairSuggest: "Suggest a spot",
-  pairSuggestAnother: "Suggest another",
-  pairTheirs: (name: string, spot: string, time: string) => `${name} suggested ${spot}, ${time}.`,
-  pairMine: (name: string, spot: string, time: string) => `You suggested ${spot}, ${time}. It's ${name}'s to say yes to.`,
-  pairConfirm: "Sounds good",
-  pairSend: "Suggest it",
-  pairClosed: "It started before you two picked a spot, so this one won't become a plan.",
-  // A23: a summary only; it is switched at each gathering (spec A23).
-  settingsHeading: "Meet 1-on-1",
-  settingsNone: "Off everywhere. You turn it on at a gathering, on its crowd page.",
-  settingsAt: (name: string, womenOnly: boolean) => `On at ${name}: ${womenOnly ? "women only" : "everyone who opted in"}`,
-  noSpots: "1-on-1 isn't offered here: this venue has no meeting spots yet.",
 } as const;
 
 // A refusal from the database, in words, put where the tap was. Every refusal names what
@@ -124,20 +41,15 @@ export const SOLO_COPY = {
 // Takes the database's error (or its words) and classifies it; its own text is never shown.
 export function soloRefusal(refusal: unknown): string {
   const m = typeof refusal === "string" ? refusal : String((refusal as { message?: unknown } | null)?.message ?? "");
-  if (m.includes("three open")) return `You have ${SOLO_MAX_OPEN} proposals open. Withdraw one to send another.`;
-  if (m.includes("already asked")) return "You've already asked each other here. One proposal per person per gathering.";
-  if (m.includes("closed at the start")) return SOLO_COPY.closedAtStart;
-  // #17's pair (29 Oct 2026), above "spot": its stale-spot refusal names a spot too.
-  if (m.includes("pair is not open")) return SOLO_COPY.pairClosed;
-  if (m.includes("the other person confirms")) return "That one's theirs to say yes to, or suggest another.";
-  if (m.includes("no longer on offer")) return "That spot or time isn't on offer any more. Suggest another.";
-  if (m.includes("a spot and a time together")) return "Pick a spot and a time together, or neither.";
+  if (m.includes("three open")) return `You have ${SOLO_MAX_OPEN} requests waiting. One needs an answer before you send another.`;
+  if (m.includes("already asked")) return "You've already asked each other here. One request per person per event.";
+  if (m.includes("closed at the end") || m.includes("closed at the start")) return ONE_ON_ONE_COPY.closedAtEnd;
+  if (m.includes("a spot and a time together")) return "That didn't go through. Try again.";
   if (m.includes("not available")) return "They're not available for 1-on-1 now.";
-  if (m.includes("spot")) return "Pick one of the spots on the list.";
+  if (m.includes("spot")) return "Pick one of the places on the list.";
   if (m.includes("times on offer")) return "Pick one of the times on the list.";
-  if (m.includes("five lines")) return "Pick one of the lines to send.";
-  if (m.includes("no longer open")) return "That proposal is no longer open.";
-  if (m.includes("solo_no_spots") || m.includes("no meeting spots")) return SOLO_COPY.noSpots;
+  if (m.includes("five lines")) return "That didn't go through. Try again.";
+  if (m.includes("no longer open")) return "That request is no longer open.";
   // The per-event switch (round 3, item 10): set_event_one_on_one and the pin's own triggers.
   if (m.includes("open to meeting first")) return "Turn on Open to meeting at this event first.";
   if (m.includes("pin in first")) return "Pin in to this event first.";
@@ -146,34 +58,43 @@ export function soloRefusal(refusal: unknown): string {
   return "That didn't work. Try again in a moment.";
 }
 
-// 1-on-1 since UI pass 1 (Alex, 30 Oct 2026; 073, 075/076, 077, 079): one switch per event
-// (round 3, item 10; it was one account switch until then),
-// requests from the profile sheet, requests in Connections, a plain chat whose place and
-// time either of you adds. Copy as drawn.
 export const ONE_ON_ONE_COPY = {
-  // Per event since round 3 (item 10): the switch is on the crowd page, for that event only.
-  switchLabel: "Open to 1-on-1 chats at this event",
-  switchLine: "Others can send you a Let's meet up request.",
+  // A9: one question per event, visible as soon as you've pinned in.
+  switchLabel: "Open to meeting people 1-on-1 at this event?",
+  switchLine: "Only people who turn this on here too can see you, and a chat starts only if you both say yes.",
   audienceLabel: "Who can see you for 1-on-1",
   everyone: "Everyone open to meeting",
   womenOnly: "Women only",
+  // The section, once it is on (reciprocal, H3: with it off you see nobody).
+  sectionHeading: "Open to 1-on-1 here",
+  offLine: "Turn this on to see who's open to 1-on-1",
+  nobodyYet: "Nobody else here has turned this on yet. They'll show up here when they do.",
+  youHaveOne: (name: string) => `You have a 1-on-1 with ${name} here`,
+  openChat: "Open your chat",
+  requestsHere: "Requests for you here",
+  // "How do you want to meet?" (073), after "I'd like to meet people" and at A27's end.
   sheetTitle: "How do you want to meet?",
   roomAndSquads: "The room and squads",
   roomAndSquadsLine: "Always on: everyone here who wants to meet.",
   sheetLine: "One person at a time, only if you both say yes.",
   sheetFoot: "You can change this any time on this event's page.",
-  tapAnyone: "Tap anyone to say hi or ask for a 1-on-1.",
+  tapAnyone: "Tap anyone to say hi.",
   done: "Done",
   tag: "Open to 1-on-1",
-  ask: "Let's meet up 1-on-1",
-  sent: (name: string) => `Request sent ✓ You'll see ${name}'s reply in Connections.`,
+  // The person sheet.
+  ask: "Request to chat",
+  sent: (_name: string) => "Request sent",
+  message: "Message",
+  // Requests (Connections, and the event's crowd page).
   requests: "Requests",
-  wantsToMeet: (name: string) => `${name} wants to meet up 1-on-1`,
+  wantsToMeet: (name: string) => `${name} wants to chat 1-on-1`,
   at: (event: string) => `At ${event}`,
   accept: "Accept",
   notNow: "Not now",
-  chats: "1-on-1 chats",
-  firstLine: "You're both pinned in and open to chatting. Say hi!",
+  // The chat (A29) and Connections (A20).
+  firstLine: "You both said yes. Say hi!",
+  chatEnded: "This chat has ended.",
+  oneOnOneAt: (event: string) => `1-on-1 at ${event}`,
   addPlace: "Add a place or time",
   place: "A place",
   time: "A time",
@@ -181,48 +102,63 @@ export const ONE_ON_ONE_COPY = {
   timePlaceholder: "e.g. around 7",
   save: "Save",
   clear: "Take the place away",
+  removeConnection: "Remove connection",
+  removeNote: "Your chat ends for both of you. They aren't told.",
+  seeProfile: "See their profile",
+  // Block and report, on a profile (H9).
+  report: (name: string) => `Report ${name}`,
+  reportHint: "Pick what happened. Your chat with them ends.",
+  block: (name: string) => `Block ${name}`,
+  blockNote: "You won't see each other on Pin'd any more, and your chat ends. They aren't told.",
+  blockConfirm: "Block",
+  blocked: (name: string) => `You've blocked ${name}.`,
+  reported: "Thanks. A person reads every report.",
   // Where the button would be, when it can't be (UI pass 1, round 2: never a missing
   // button with no reason). One line each; oneOnOneState picks which.
   notTaking: (name: string) => `${name} isn't taking 1-on-1 requests`,
-  turnOnToAsk: "Turn on 1-on-1 chats to send requests",
-  closedAtStart: "Requests close when the event starts",
+  turnOnToAsk: "Turn on 1-on-1 at this event to send requests",
+  closedAtEnd: "Requests closed when the event ended",
   paused: "1-on-1 chats are paused right now",
   alreadyHave: "You already have a 1-on-1 at this event",
   fromAnEvent: "1-on-1 requests are sent from an event's page",
   openEvent: (event: string) => `Open ${event}`,
 } as const;
 
-// What the person sheet shows where "Let's meet up 1-on-1" goes (UI pass 1, round 2). Every
-// fact is the viewer's own or public: their switch, their requests and their 1-on-1, the
-// start time, the brake. Whether the other person can be asked is solo_people's answer
-// (can_see_solo), and when it is no, the reason on their side (their switch, who they take
-// requests from, a 1-on-1 they already have) is one line, "isn't taking 1-on-1 requests",
-// so the sheet tells nobody which of those it is.
-export type OneOnOneState = "ask" | "asked" | "theirs" | "turnOn" | "closed" | "paused" | "planned" | "elsewhere";
+// What the person sheet shows where "Request to chat" goes (UI pass 1, round 2). Every fact is
+// the viewer's own or public: their switch, their requests, their 1-on-1, their connections,
+// the end time, the brake. Whether the other person can be asked is solo_people's answer
+// (can_see_solo), and when it is no, the reason on their side is one line, "isn't taking
+// 1-on-1 requests", so the sheet tells nobody which it is. Someone you're already connected
+// with gets "Message" — the one chat you already share — whatever else is true.
+export type OneOnOneState = "connected" | "ask" | "asked" | "theirs" | "turnOn" | "closed" | "paused" | "planned" | "elsewhere";
 
 export function oneOnOneState(f: {
   atGathering: boolean;
   available: boolean;
   asked: boolean;
-  started: boolean;
+  // Requests run to the effective end (16 Nov 2026; was the start).
+  ended: boolean;
   inPlan: boolean;
   mineOn: boolean;
   open: boolean;
+  connected?: boolean;
 }): OneOnOneState {
+  if (f.connected) return "connected";
   if (!f.atGathering) return "elsewhere";
   // A request already sent stays "sent" whatever happens next (a "Not now" is silent).
   if (f.asked) return "asked";
   if (!f.available) return "paused";
-  if (f.started) return "closed";
+  if (f.ended) return "closed";
   if (f.inPlan) return "planned";
   if (!f.mineOn) return "turnOn";
   return f.open ? "ask" : "theirs";
 }
 
-// The line for every state but "ask" (which is the button).
+// The line for every state but "ask" and "connected" (which are buttons).
 export function oneOnOneLine(state: OneOnOneState, name: string): string | null {
   switch (state) {
     case "ask":
+    case "connected":
       return null;
     case "asked":
       return ONE_ON_ONE_COPY.sent(name);
@@ -231,7 +167,7 @@ export function oneOnOneLine(state: OneOnOneState, name: string): string | null 
     case "turnOn":
       return ONE_ON_ONE_COPY.turnOnToAsk;
     case "closed":
-      return ONE_ON_ONE_COPY.closedAtStart;
+      return ONE_ON_ONE_COPY.closedAtEnd;
     case "paused":
       return ONE_ON_ONE_COPY.paused;
     case "planned":

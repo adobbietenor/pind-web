@@ -1,103 +1,19 @@
-// 1-on-1 (A28, A29; M3.4), read and written as the signed-in person.
+// 1-on-1 (A9, A28, A29, A20), read and written as the signed-in person.
 //
 // Every read is a door the database opened on purpose: your own switch (my_solo), the
-// people the rule lets you see (solo_people), your proposals as you may know them
-// (my_solo_proposals — to a sender a declined proposal is a sent one), your plan through
-// the group tables' member-only policies. Nothing here filters people or decides who
-// sees whom (H11). Every write is a function that checks again; a refusal comes back in
-// words from packages/shared (soloRefusal), never "not allowed".
+// people the rule lets you see (solo_people: can_see_solo), your requests as you may know
+// them (my_solo_proposals — to a sender a declined request is a sent one), your 1-on-1
+// through the group tables' member-only policies, your connections (my_connections). Nothing
+// here filters people or decides who sees whom (H11). Every write is a function that checks
+// again; a refusal comes back in words from packages/shared (soloRefusal), never "not allowed".
+//
+// Since build 23 (Alex, 16 Nov 2026) a request carries nothing, an accept makes the two of
+// you connections with one chat (lib/connections.ts), and nothing asks for a place or time.
 import { Platform } from "react-native";
 import { houseClock, Said, soloRefusal, type Database } from "@pind/shared";
 import { supabase } from "./supabase";
 
 export type SoloChoice = Database["public"]["Enums"]["solo_visibility"];
-
-export interface SoloProposal {
-  id: string;
-  personId: string;
-  firstName: string;
-  // Null for "Let's meet up!" (#17): an invite names no spot or time.
-  spot: string | null;
-  meetAt: string | null;
-  line: number | null;
-}
-
-export interface SoloView {
-  // The brake pulled (the database's, which also empties every list), off on this platform
-  // (the admin's cosmetic switch), or no meeting spots: no 1-on-1 here.
-  offered: boolean;
-  choice: SoloChoice | null;
-  startsAt: string;
-  endsAt: string | null;
-  tz: string;
-  spots: { id: string; name: string }[];
-  plan: { crewId: string; partner: string; spot: string | null; meetAt: string | null; state: string } | null;
-  // Your group's plan here, if it has one — shown on the proposal sheet (decisions).
-  group: { spot: string | null; meetAt: string | null } | null;
-  people: string[];
-  received: SoloProposal[];
-  sent: SoloProposal[];
-}
-
-export async function loadSolo(gatheringId: string, meId: string): Promise<SoloView> {
-  const db = supabase();
-  const [g, sw, choice, available] = await Promise.all([
-    db.from("gatherings").select("starts_at, ends_at, venue_id, venues(cities(timezone))").eq("id", gatheringId).maybeSingle(),
-    db.from("app_switches").select("ios, web").eq("name", "solo").maybeSingle(),
-    db.rpc("my_solo", { p_gathering: gatheringId }),
-    db.rpc("solo_available"),
-  ]);
-  if (g.error) throw g.error;
-  if (!g.data) throw new Said("This gathering is not on Pin'd any more.");
-  const tz = (g.data as unknown as { venues: { cities: { timezone: string } | null } | null }).venues?.cities?.timezone ?? "America/Toronto";
-  const platformOn = sw.data ? (Platform.OS === "web" ? sw.data.web : sw.data.ios) : true;
-  const { data: spots } = g.data.venue_id
-    ? await db.from("meeting_spots").select("id, name").eq("venue_id", g.data.venue_id).eq("active", true).order("name")
-    : { data: [] as { id: string; name: string }[] };
-  const base = {
-    offered: available.data !== false && platformOn && (spots ?? []).length > 0,
-    choice: (choice.data as SoloChoice | null) ?? null,
-    startsAt: g.data.starts_at,
-    endsAt: g.data.ends_at,
-    tz,
-    spots: spots ?? [],
-  };
-  if (!base.choice) return { ...base, plan: null, group: null, people: [], received: [], sent: [] };
-
-  const [mem, people, props] = await Promise.all([
-    db.from("crew_members").select("crew_id, kind, crews(state, meet_at, meeting_spots(name))").eq("person_id", meId).eq("gathering_id", gatheringId).is("left_at", null),
-    db.rpc("solo_people", { p_gathering: gatheringId }),
-    db.rpc("my_solo_proposals", { p_gathering: gatheringId }),
-  ]);
-  type Mem = { crew_id: string; kind: string; crews: { state: string; meet_at: string | null; meeting_spots: { name: string } | null } | null };
-  const rows = (mem.data ?? []) as unknown as Mem[];
-  const soloRow = rows.find((r) => r.kind === "solo");
-  const groupRow = rows.find((r) => r.kind === "crew");
-  let plan: SoloView["plan"] = null;
-  if (soloRow) {
-    const { data: partner } = await db.from("crew_members").select("person_id, people(first_name)").eq("crew_id", soloRow.crew_id).is("left_at", null).neq("person_id", meId).maybeSingle();
-    plan = {
-      crewId: soloRow.crew_id,
-      partner: (partner as unknown as { people: { first_name: string } | null } | null)?.people?.first_name ?? "",
-      spot: soloRow.crews?.meeting_spots?.name ?? null,
-      meetAt: soloRow.crews?.meet_at ?? null,
-      state: soloRow.crews?.state ?? "spot_set",
-    };
-  }
-  const group = groupRow && groupRow.crews?.meet_at ? { spot: groupRow.crews.meeting_spots?.name ?? null, meetAt: groupRow.crews.meet_at } : null;
-  const all = ((props.data ?? []) as { proposal_id: string; direction: string; person_id: string; first_name: string; spot_name: string | null; meet_at: string | null; line: number | null }[]).map((p) => ({
-    direction: p.direction,
-    p: { id: p.proposal_id, personId: p.person_id, firstName: p.first_name, spot: p.spot_name, meetAt: p.meet_at, line: p.line },
-  }));
-  return {
-    ...base,
-    plan,
-    group,
-    people: ((people.data ?? []) as { person_id: string }[]).map((r) => r.person_id),
-    received: all.filter((x) => x.direction === "received").map((x) => x.p),
-    sent: all.filter((x) => x.direction === "sent").map((x) => x.p),
-  };
-}
 
 async function said<T>(run: PromiseLike<{ data: T; error: unknown }>): Promise<T> {
   const { data, error } = await run;
@@ -105,57 +21,12 @@ async function said<T>(run: PromiseLike<{ data: T; error: unknown }>): Promise<T
   return data;
 }
 
-// The switch (A28): on only with a choice; off forgets the choice, so on asks again.
-export async function setSolo(pinId: string, choice: SoloChoice | null): Promise<void> {
-  await said(supabase().from("pins").update(choice ? { solo_opt_in: true, solo_visibility: choice } : { solo_opt_in: false }).eq("id", pinId).select("id"));
-}
-
-export async function proposeSolo(gatheringId: string, to: string, spotId: string, meetAt: string, line: number): Promise<void> {
-  await said(supabase().rpc("propose_solo", { p_gathering: gatheringId, p_to: to, p_spot: spotId, p_meet_at: meetAt, p_line: line }));
-}
-
-// "Let's meet up!" (#17): an invite with no spot and no time. Said yes, it is a pair.
+// "Request to chat": no spot, no time, no line. Said yes, it is a chat.
 export async function inviteSolo(gatheringId: string, to: string): Promise<void> {
   await said(supabase().rpc("propose_solo", { p_gathering: gatheringId, p_to: to, p_spot: null as unknown as string, p_meet_at: null as unknown as string, p_line: null as unknown as number }));
 }
 
-// A pair's one pending spot (#17): suggested by either, a plan only on the other's yes.
-export interface PairSuggestion {
-  spotId: string;
-  spot: string;
-  meetAt: string;
-  mine: boolean;
-}
-
-export async function loadPairSuggestion(crewId: string, meId: string): Promise<PairSuggestion | null> {
-  const { data, error } = await supabase().from("solo_spot_suggestions").select("spot_id, meet_at, suggested_by, meeting_spots(name)").eq("crew_id", crewId).maybeSingle();
-  if (error) throw error;
-  if (!data) return null;
-  const d = data as unknown as { spot_id: string; meet_at: string; suggested_by: string; meeting_spots: { name: string } | null };
-  return { spotId: d.spot_id, spot: d.meeting_spots?.name ?? "", meetAt: d.meet_at, mine: d.suggested_by === meId };
-}
-
-// What a pair picks from: the venue's curated spots, and the gathering's times and zone.
-export async function loadPairOptions(gatheringId: string): Promise<{ spots: { id: string; name: string }[]; tz: string; startsAt: string; endsAt: string | null }> {
-  const db = supabase();
-  const { data: g, error } = await db.from("gatherings").select("starts_at, ends_at, venue_id, venues(cities(timezone))").eq("id", gatheringId).maybeSingle();
-  if (error) throw error;
-  if (!g) throw new Said("This gathering is not on Pin'd any more.");
-  const tz = (g as unknown as { venues: { cities: { timezone: string } | null } | null }).venues?.cities?.timezone ?? "America/Toronto";
-  const { data: spots } = g.venue_id
-    ? await db.from("meeting_spots").select("id, name").eq("venue_id", g.venue_id).eq("active", true).order("name")
-    : { data: [] as { id: string; name: string }[] };
-  return { spots: spots ?? [], tz, startsAt: g.starts_at, endsAt: g.ends_at };
-}
-
-export async function suggestSpot(crewId: string, spotId: string, meetAt: string): Promise<void> {
-  await said(supabase().rpc("suggest_solo_spot", { p_crew: crewId, p_spot: spotId, p_meet_at: meetAt }));
-}
-
-export async function confirmSpot(crewId: string): Promise<void> {
-  await said(supabase().rpc("confirm_solo_spot", { p_crew: crewId }));
-}
-
+// Accept returns the 1-on-1's id; its chat is the pair's connection chat (connectionWith).
 export async function answerSolo(proposalId: string, accept: boolean): Promise<string | null> {
   return (await said(supabase().rpc("respond_to_solo", { p_proposal: proposalId, p_accept: accept }))) as string | null;
 }
@@ -169,24 +40,7 @@ export function soloClock(iso: string, tz: string): string {
   return houseClock(iso, tz);
 }
 
-// A23: where 1-on-1 is on, and who can see you there — a summary only; it is switched on
-// each gathering's crowd page (spec A23). Read through the export's own door.
-export async function mySoloSummary(): Promise<{ name: string; womenOnly: boolean }[]> {
-  const db = supabase();
-  const { data, error } = await db.rpc("my_solo_export");
-  if (error) throw error;
-  const on = ((data as { settings: { gathering_id: string; who_can_see_you: SoloChoice }[] } | null)?.settings ?? []);
-  if (!on.length) return [];
-  const { data: gs } = await db.from("gatherings").select("id, name, starts_at").in("id", on.map((s) => s.gathering_id)).order("starts_at");
-  return (gs ?? []).map((g) => ({ name: g.name, womenOnly: on.find((s) => s.gathering_id === g.id)?.who_can_see_you === "women_only" }));
-}
-
-// ---------------------------------------------------------------------------
-// UI pass 1 (A28/A29/A20): the switch, Requests, the chat's place and time. Every rule is
-// the database's (set_event_one_on_one, can_see_solo, set_solo_place); these only ask.
-// ---------------------------------------------------------------------------
-
-// "Open to 1-on-1 chats at this event" (round 3, item 10): your own pin's switch, per event.
+// "Open to meeting people 1-on-1 at this event?": your own pin's switch, per event.
 export async function myOneOnOne(gatheringId: string): Promise<{ on: boolean; audience: SoloChoice }> {
   const { data, error } = await supabase().rpc("my_solo", { p_gathering: gatheringId });
   if (error) throw error;
@@ -213,6 +67,7 @@ export async function soloHere(gatheringId: string): Promise<{ open: string[]; a
 
 export interface SoloRequest {
   proposalId: string;
+  gatheringId: string;
   gatheringName: string;
   slug: string;
   startsAt: string;
@@ -221,11 +76,14 @@ export interface SoloRequest {
   photoPath: string | null;
 }
 
+// Requests waiting for my answer, at every event not yet over (Connections, and filtered to
+// one event on its crowd page).
 export async function soloRequests(): Promise<SoloRequest[]> {
   const { data, error } = await supabase().rpc("my_solo_requests");
   if (error) throw error;
-  return ((data ?? []) as { proposal_id: string; gathering_name: string; gathering_slug: string; starts_at: string; person_id: string; first_name: string; photo_path: string | null }[]).map((r) => ({
+  return ((data ?? []) as { proposal_id: string; gathering_id: string; gathering_name: string; gathering_slug: string; starts_at: string; person_id: string; first_name: string; photo_path: string | null }[]).map((r) => ({
     proposalId: r.proposal_id,
+    gatheringId: r.gathering_id,
     gatheringName: r.gathering_name,
     slug: r.gathering_slug,
     startsAt: r.starts_at,
@@ -235,38 +93,54 @@ export async function soloRequests(): Promise<SoloRequest[]> {
   }));
 }
 
-// Either of the two, no confirmation (UI pass 1): a curated spot, the event itself, or
+// Either of the two, no confirmation, never required: a curated spot, the event itself, or
 // neither; a time in words.
 export async function setSoloPlace(crewId: string, spotId: string | null, atEvent: boolean, timeNote: string): Promise<void> {
   await said(supabase().rpc("set_solo_place", { p_crew: crewId, p_spot: spotId as string, p_at_event: atEvent, p_time_note: timeNote }));
 }
 
-// What the person sheet needs to say why, or to show the button (UI pass 1, round 2): all
-// of it the viewer's own (my_solo here, my_solo_proposals, my own 1-on-1 membership) or
-// the database's answer about the other person (solo_people), and the brake.
+// What the crowd page and the person sheet need: all of it the viewer's own (my_solo here,
+// my_solo_proposals, my own 1-on-1 membership, my connections) or the database's answer about
+// the other person (solo_people), and the brake.
 export interface SoloFacts {
   open: string[];
   asked: string[];
   mineOn: boolean;
   available: boolean;
   inPlan: boolean;
+  // My 1-on-1 here, if I have one still on: who with, and our chat.
+  plan: { crewId: string; personId: string; firstName: string; connectionId: string | null } | null;
+  // Everyone I'm connected with, to their chat: the sheet offers "Message" instead of a request.
+  connected: Record<string, string>;
 }
 
 export async function soloFacts(gatheringId: string, meId: string): Promise<SoloFacts> {
   const db = supabase();
-  const [here, mine, brake, sw, plan] = await Promise.all([
+  const [here, mine, brake, sw, plan, conns] = await Promise.all([
     soloHere(gatheringId),
     myOneOnOne(gatheringId),
     db.rpc("solo_available"),
     db.from("app_switches").select("ios, web").eq("name", "solo").maybeSingle(),
     db.from("crew_members").select("crew_id, crews(state)").eq("person_id", meId).eq("gathering_id", gatheringId).eq("kind", "solo").is("left_at", null),
+    db.rpc("my_connections"),
   ]);
   const platformOn = sw.data ? (Platform.OS === "web" ? sw.data.web : sw.data.ios) : true;
-  const states = ((plan.data ?? []) as unknown as { crews: { state: string } | null }[]).map((r) => r.crews?.state);
+  const rows = (plan.data ?? []) as unknown as { crew_id: string; crews: { state: string } | null }[];
+  const on = rows.find((r) => ["forming", "spot_set", "live", "done"].includes(r.crews?.state ?? ""));
+  const connected: Record<string, string> = {};
+  for (const c of (conns.data ?? []) as { person_id: string; connection_id: string }[]) connected[c.person_id] = c.connection_id;
+  let mine1: SoloFacts["plan"] = null;
+  if (on) {
+    const { data: other } = await db.from("crew_members").select("person_id, people(first_name)").eq("crew_id", on.crew_id).is("left_at", null).neq("person_id", meId).maybeSingle();
+    const o = other as unknown as { person_id: string; people: { first_name: string } | null } | null;
+    if (o) mine1 = { crewId: on.crew_id, personId: o.person_id, firstName: o.people?.first_name ?? "", connectionId: connected[o.person_id] ?? null };
+  }
   return {
     ...here,
     mineOn: mine.on,
     available: brake.data !== false && platformOn,
-    inPlan: states.some((s) => s === "forming" || s === "spot_set" || s === "live" || s === "done"),
+    inPlan: !!on,
+    plan: mine1,
+    connected,
   };
 }

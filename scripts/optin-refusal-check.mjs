@@ -9,7 +9,8 @@
 //   2. its photo is taken away underneath the page (the state a merge left Alex in);
 //   3. "I'm in" must say what is missing — the photo — and show the photo picker, never
 //      "not allowed", and the pin must stay closed;
-//   4. the other side: photo back, reload, "I'm in" must open the pin and land on A9;
+//   4. the other side: photo back, reload, "I'm in" must open the pin, show A27's last step
+//      ("How do you want to meet?", 073), and its Done must land on A9;
 //   5. the crowd stops being visible to the account → A27 says so, with a way on (never
 //      blank — the walk's hang after a merge into an account that is not a tester).
 //
@@ -24,6 +25,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { seal } from "../src/public/sealed.ts";
 import { OPTIN_COPY, optInMissing } from "../packages/shared/src/optin.ts";
+import { ONE_ON_ONE_COPY } from "../packages/shared/src/solo.ts";
 import { needChrome, needEnv, sessionSecretMatches, testCrowd } from "./fixture.mjs";
 
 // Fixtures first: a check whose ground moved says so in a sentence (scripts/fixture.mjs).
@@ -117,8 +119,12 @@ try {
   await sleep(300);
   await click(OPTIN_COPY.finish);
   await sleep(6000);
+  // A27 ends on "How do you want to meet?" (fd3d5ea, 30 Oct 2026); its Done goes to A9.
+  const lastStep = (await body()).includes(ONE_ON_ONE_COPY.sheetTitle);
+  await click(ONE_ON_ONE_COPY.done);
+  await sleep(5000);
   const landed = await evaluate("location.pathname");
-  const opened = { landed, open: await pinOpen() };
+  const opened = { lastStep, landed, open: await pinOpen() };
   console.log(`4. complete → opens: ${JSON.stringify(opened)}`);
 
   // 5. The walk's hang: the crowd stops being visible to this account (a merge into an
@@ -130,7 +136,7 @@ try {
   const notBlank = { says: blank.includes("This crowd isn't open to the account you're signed in as."), wayOn: blank.includes("This week's crowds") };
   console.log(`5. crowd gone from under A27 → a sentence and a way on: ${JSON.stringify(notBlank)}`);
 
-  ok = atSheet && Object.values(refusal).every(Boolean) && opened.landed === `/crowd/${crowd.slug}` && opened.open === true && notBlank.says && notBlank.wayOn;
+  ok = atSheet && Object.values(refusal).every(Boolean) && opened.lastStep && opened.landed === `/crowd/${crowd.slug}` && opened.open === true && notBlank.says && notBlank.wayOn;
   ws.close();
 } finally {
   chrome?.kill();

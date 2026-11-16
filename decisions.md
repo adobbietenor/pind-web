@@ -137,6 +137,10 @@ shown with the threshold as explanation ("3 pinned · crews open at 5").
 then deleted** (A17).
 **Alternative:** hard delete at close. Stronger privacy story, punishes whoever did not
 screenshot the plan.
+**Amended (Alex, 16 Nov 2026, build 23):** Q11 governs event chats — rooms and squads. A
+1-on-1's chat is the connected pair's one chat (`connection_messages`): it lasts as long as
+the two are connected, and ends with the connection (either removes it, calls off the
+1-on-1, blocks or reports the other). See Part 5, "Build 23: the 1-on-1 rebuild".
 
 ---
 
@@ -156,8 +160,9 @@ screenshot the plan.
 | Profiles, connections, gatherings-attended counts | Persist |
 | Date of birth | Year kept after the 19+ check; full date discarded |
 | Device location | Never collected (H4) |
-| Solo proposals | Expire at the gathering's `starts_at`; deleted with the pin (Alex, revised build plan) |
-| Solo plans | Follow crew retention: thread read-only 24h after, deleted at +30 days (Q11) |
+| Solo proposals | Expire at the gathering's effective end (since 16 Nov 2026; was `starts_at`); deleted with the pin (Alex, revised build plan) |
+| Solo plans | The plan row follows crew retention; its chat is the pair's connection chat since 16 Nov 2026, not Q11's |
+| Connection chats (`connection_messages`) | Kept while the two are connected; deleted with the connection — removed by either, a call-off, a block or a report — or with either account (16 Nov 2026) |
 | Anonymous people (pinned, never opted in) | Deleted with their last pin, 30 days after the gathering |
 | `gathering_stats` snapshots | Persist (aggregates only; what survives pin deletion for §7 of the spec) |
 | Instagram handle | Kept on the profile until the person removes it or deletes their account |
@@ -4937,3 +4942,59 @@ and each is now a rule in shared code with a test that fails when a screen goes 
   read-only step failed by the clock: a fixture, not the product.
 - **The Apple ID is dropped** (item 12): Alex submits builds by hand, so no `ascAppId` and no
   `--auto-submit`.
+
+### Build 23: the 1-on-1 rebuild (Alex, 16 Nov 2026)
+
+The 1-on-1 has to work end to end with no confusion. Explained to Alex in plain English and
+decided by him before it was built (who sees what, the states, what was removed). Migrations
+`20261116185711_a28_a20_one_on_one_connections_and_pair_chat` and
+`20261116190324_a29_pair_goes_live_at_the_start`.
+
+- **One question per event, as soon as you've pinned in** (A9): "Open to meeting people
+  1-on-1 at this event?", a switch. Not open to meeting yet: turning it on takes you there
+  first — A27 when you have no profile, which lands back on the crowd page with it on
+  (`?oneOnOne=1`); otherwise one tap. No account-wide setting anywhere.
+- **"Open to 1-on-1 here"** is its own section once it's on: everyone else at the event the
+  database lets you see for 1-on-1 (`can_see_solo`, unchanged), photo, first name, area.
+  Reciprocal (H3): with it off you see one line, "Turn this on to see who's open to 1-on-1".
+- **Request to chat** from their sheet; "Request sent". They get #8, and the request in
+  Connections → Requests and on that event's crowd page. **Requests run to the effective end**
+  (they used to close at the start). Accept opens the chat for both (#3 to the sender, "said
+  yes. Say hi."); "Not now" stays silent.
+- **An accept makes the two of you connections at once** (it used to take keep-in-touch after
+  the night). Connections see each other's profile, photo and Instagram handle (V17 through the
+  connection) until the connection ends. Visibility widened: flagged for the independent review.
+- **One chat per pair** (`connection_messages`): the 1-on-1's chat, and the one "Message" opens
+  for any connection, a keep-in-touch one included. Only its two read or write it, while
+  neither has blocked the other and neither is hidden. Mutual both ways, so not a cold DM (H2).
+  It lasts as long as the connection — **Q11 is amended**: it now governs event chats only.
+  A20 is no longer "deliberately not an inbox": its rows show each chat's last line, and a
+  person's profile (A22) has "Message" for a connection.
+- **Ending it is silent and ends both**: either can remove the connection; calling off the
+  1-on-1 ends the chat and the connection; a block does the same; so does a report on the
+  person. Nobody is told. H9's moderation hides and the brake still end a 1-on-1 and tell both,
+  and leave the connection (a moderation stop is not either person's choice to part).
+- **A report by the partner ends it, silently** (Alex, 16 Nov 2026, settling R4c; not in the
+  five answers): your report on the person you have a 1-on-1 with ends the 1-on-1 and the
+  connection at once, exactly like calling it off, and the reported person is told nothing.
+  The report still takes them out of 1-on-1 lists, and H9's thresholds still apply. A
+  stranger's non-safety report below H9 still leaves someone else's plan standing (P221).
+- **No place or time is ever required.** Removed: the "no meeting spots" refusal of the switch
+  (`pins_solo_needs_spots`); the spot suggest/confirm (`suggest_solo_spot`,
+  `confirm_solo_spot`, `solo_spot_suggestions`, `PairSpot`, `SoloSection`, never rendered since
+  UI pass 1); the five preset lines and the proposal sheet's copy; "Say hi, and pick a spot
+  together". A pair now goes live 3 h before the start and done at the end with or without a
+  place (its time is the start when none was set), so "I've arrived", the day-of push ("your
+  1-on-1 is on") and A16 reach every pair. The chat keeps its optional "Add a place or time";
+  nothing depends on it. `propose_solo` still accepts a spot and time from an older build;
+  that goes once build 23 has replaced them.
+- **Block and report on every profile** (A22), not behind A24: report with the four reasons
+  (a report on the person), block with "They aren't told". `SAFETY_TODAY.app` says so.
+- **Not built, said plainly:** a new chat message sends no notification (as squads and 1-on-1s
+  never did; only rooms have #6). A tenth kind would change A18's list: Alex's call.
+- **#19 (black screen after "back", iOS)**: not reproduced on the web. The leading explanation,
+  unverified, is the tab crossfade leaving a hidden route (`city/[slug]`, `crowd/[slug]`) at
+  opacity 0 on the native side. Those two no longer fade (S69); the four tabs still do. Walked
+  on build 23.
+- Harness: P267–P275 rewritten, P308–P312 new (a28-pairs.test.ts). Browser: `check:pair`
+  rewritten — two real browsers, one per person, end to end.

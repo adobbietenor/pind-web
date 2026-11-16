@@ -3,8 +3,9 @@
 // that was tapped already holds, read through RLS by the screen that drew the row, so it
 // adds no visibility (H3, H11).
 //
-// "Let's meet up 1-on-1" (076) shows only for someone the database lets you ask
-// (solo_people: can_see_solo), and becomes "Request sent ✓" once you have.
+// "Request to chat" (build 23) shows only for someone the database lets you ask
+// (solo_people: can_see_solo), and becomes "Request sent" once you have. Someone you are
+// already connected with gets "Message": your one chat with them.
 //
 // **Never a missing button with no reason** (UI pass 1, round 2). Alex opened Tati's sheet
 // and there was simply no button: her switch was off, and nothing said so. Now the place
@@ -14,10 +15,11 @@
 //
 // Report and Block wait on A24, as on A22 (A24_EXISTS there); until then the sheet links to
 // the full profile, where A24's ⋯ will be.
+import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import type { ImageSource } from "expo-image";
-import { colors as palette, fonts, ONE_ON_ONE_COPY, oneOnOneLine, oneOnOneState, radius, spacing, type OneOnOneState } from "@pind/shared";
+import { colors as palette, effectiveEnd, fonts, ONE_ON_ONE_COPY, oneOnOneLine, oneOnOneState, radius, spacing, type OneOnOneState } from "@pind/shared";
 import { failed } from "@/lib/errors";
 import { inviteSolo, soloFacts, type SoloFacts } from "@/lib/solo";
 import { Avatar } from "./Avatar";
@@ -40,12 +42,14 @@ export interface SheetOneOnOne {
   busy: boolean;
   refusal: string | null;
   onAsk: () => void;
+  // "Message": the pair's chat, for someone you are already connected with.
+  chatId: string | null;
   // The switch was turned on or off in the sheet: read everything again.
   onSwitched: () => void;
 }
 
 // The 1-on-1 facts at one gathering, and the sheet's part for any person there.
-export function useOneOnOne(gathering: { id: string; startsAt: string } | null, meId: string | null) {
+export function useOneOnOne(gathering: { id: string; startsAt: string; endsAt?: string | null } | null, meId: string | null) {
   const [facts, setFacts] = useState<SoloFacts | null>(null);
   const [busy, setBusy] = useState(false);
   const [refusal, setRefusal] = useState<string | null>(null);
@@ -64,11 +68,14 @@ export function useOneOnOne(gathering: { id: string; startsAt: string } | null, 
         atGathering: true,
         available: facts.available,
         asked: facts.asked.includes(personId),
-        started: Date.now() >= Date.parse(gathering.startsAt),
+        // Requests run to the effective end (16 Nov 2026).
+        ended: Date.now() >= Date.parse(effectiveEnd(gathering.startsAt, gathering.endsAt ?? null)),
+        connected: !!facts.connected[personId],
         inPlan: facts.inPlan,
         mineOn: facts.mineOn,
         open: facts.open.includes(personId),
       }),
+      chatId: facts.connected[personId] ?? null,
       busy,
       refusal,
       onAsk: async () => {
@@ -103,6 +110,7 @@ export function PersonSheet({
   // Null only while it is being read; once read, always a button or a reason.
   oneOnOne: SheetOneOnOne | null;
 }) {
+  const router = useRouter();
   const line = person && oneOnOne ? oneOnOneLine(oneOnOne.state, person.firstName) : null;
   return (
     <SheetFrame visible={!!person} onClose={onClose} contentStyle={{ alignItems: "center", gap: spacing.sm }}>
@@ -121,8 +129,20 @@ export function PersonSheet({
             </View>
           ) : null}
           <View style={{ alignSelf: "stretch", gap: spacing.sm, marginTop: spacing.sm }}>
-            {oneOnOne?.state === "ask" ? (
-              <Tap accessibilityRole="button" disabled={oneOnOne.busy} onPress={oneOnOne.onAsk} style={styles.primary}>
+            {oneOnOne?.state === "connected" && oneOnOne.chatId ? (
+              <Tap
+                accessibilityRole="button"
+                onPress={() => {
+                  const chat = oneOnOne.chatId!;
+                  onClose();
+                  router.push({ pathname: "/chat/[id]", params: { id: chat } });
+                }}
+                style={styles.primary}
+              >
+                <Text style={styles.primaryLabel}>{ONE_ON_ONE_COPY.message}</Text>
+              </Tap>
+            ) : oneOnOne?.state === "ask" ? (
+              <Tap accessibilityRole="button" haptic="action" disabled={oneOnOne.busy} onPress={oneOnOne.onAsk} style={styles.primary}>
                 <Text style={styles.primaryLabel}>{ONE_ON_ONE_COPY.ask}</Text>
               </Tap>
             ) : line ? (
@@ -137,7 +157,7 @@ export function PersonSheet({
               </Tap>
             ) : null}
             <Tap accessibilityRole="button" onPress={onProfile} style={styles.quiet}>
-              <Text style={styles.quietLabel}>See their profile</Text>
+              <Text style={styles.quietLabel}>{ONE_ON_ONE_COPY.seeProfile}</Text>
             </Tap>
           </View>
         </>

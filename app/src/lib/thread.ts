@@ -51,7 +51,8 @@ import {
 import { queryClient } from "./query";
 import { supabase } from "./supabase";
 
-export type ThreadKind = "room" | "group";
+// "pair": a connected pair's one chat (connection_messages, 16 Nov 2026).
+export type ThreadKind = "room" | "group" | "pair";
 
 const POLL_HEALTHY_MS = 60_000;
 const POLL_FALLBACK_MS = 10_000;
@@ -63,6 +64,7 @@ const SINCE_LIMIT = 100;
 const SOURCE = {
   room: { table: "room_messages", column: "room_id" },
   group: { table: "crew_messages", column: "crew_id" },
+  pair: { table: "connection_messages", column: "connection_id" },
 } as const;
 
 // The few PostgREST calls a thread read makes. Two tables with different row types,
@@ -77,6 +79,7 @@ interface Rows extends PromiseLike<{ data: ThreadRow[] | null; error: unknown }>
 function read(kind: ThreadKind, id: string, columns: string): Rows {
   const db = supabase();
   if (kind === "room") return db.from("room_messages").select(columns).eq("room_id", id) as unknown as Rows;
+  if (kind === "pair") return db.from("connection_messages").select(columns).eq("connection_id", id) as unknown as Rows;
   // A group's thread never showed its system lines; they are left out of the read.
   return db.from("crew_messages").select(columns).eq("crew_id", id).neq("kind", "system") as unknown as Rows;
 }

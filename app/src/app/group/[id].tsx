@@ -99,6 +99,8 @@ interface GroupView {
   spot: string | null;
   meetAt: string | null;
   proposals: { id: string; spot: string; meetAt: string; votes: number; mine: boolean }[];
+  // A 1-on-1's chat is the pair's connection chat (build 23): this screen hands over to it.
+  pairChat: string | null;
 }
 
 // The card: everything on this screen except the thread.
@@ -132,6 +134,8 @@ async function loadGroupShell(id: string): Promise<GroupView | null> {
   const ids = active.map((m) => m.person_id);
   const { data: people } = await db.from("people").select("id, first_name, photo_path").in("id", ids);
   const urlFor = await signedPhotoUrls((people ?? []).map((p) => p.photo_path));
+  const partner = c.kind === "solo" ? ids.find((p) => p !== meId) : undefined;
+  const pairChat = partner ? (((await db.rpc("connection_with", { p_other: partner })).data as string | null) ?? null) : null;
   const myProps = new Set((props.data ?? []).map((p) => p.id));
   const v = (votes.data ?? []).filter((x) => myProps.has(x.proposal_id));
   return {
@@ -170,6 +174,7 @@ async function loadGroupShell(id: string): Promise<GroupView | null> {
       votes: v.filter((x) => x.proposal_id === p.id).length,
       mine: v.some((x) => x.proposal_id === p.id && x.person_id === meId),
     })),
+    pairChat,
   };
 }
 
@@ -238,6 +243,11 @@ export default function Group() {
       };
     }, [seen]),
   );
+
+  // A 1-on-1 lives in its pair chat now: one chat per pair (notifications and My Events still link here).
+  useEffect(() => {
+    if (view?.solo && view.pairChat) router.replace({ pathname: "/chat/[id]", params: { id: view.pairChat } });
+  }, [view?.solo, view?.pairChat, router]);
 
   const shellTrouble = shell.error ? failed("open your group", shell.error) : null;
   const threadTrouble = thread.error ? failed("open your group", thread.error) : null;
@@ -321,7 +331,7 @@ export default function Group() {
         />
         <View style={{ flex: 1 }}>
           <Text style={styles.headTitle} numberOfLines={1}>
-            {view.solo ? (view.state === "forming" ? SOLO_COPY.pairHeading(names[0] ?? "") : SOLO_COPY.planHeading(names[0] ?? "")) : view.squad ? view.squad.name : GROUP_COPY.heading}
+            {view.solo ? SOLO_COPY.planHeading(names[0] ?? "") : view.squad ? view.squad.name : GROUP_COPY.heading}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
             {[view.squad ? SQUAD_COPY.headerLine(view.members.length, view.gathering.name) : view.gathering.name, planText].filter(Boolean).join(" · ")}

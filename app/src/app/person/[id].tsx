@@ -16,19 +16,25 @@
 // because a page that acknowledges someone exists has already answered the question
 // (H3, V1).
 //
-// **No message button, no like, no follow.** The absence is the design (spec A22).
-// There are no DMs in Pin'd; copy that implies you could message first and decide
-// later describes a different app (spec §5).
+// **No like, no follow, and no message to a stranger.** "Message" shows only for a
+// connection (build 23, Alex 16 Nov 2026): someone you said yes to for a 1-on-1, or kept in
+// touch with. It opens your one chat — mutual both ways, never a cold DM (H2). Remove the
+// connection, block or report from here, and it ends, silently, for both (H9).
 //
 // **The Instagram handle appears only when V17 allows it** — a shared crew, a 1-on-1
 // plan, or a connection. Never from the open list. And again, that is not decided
 // here: `person_handles` simply returns nothing to someone it is not for.
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Image, StyleSheet, Text, View } from "react-native";
-import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, ONE_ON_ONE_COPY, oneOnOneLine, radius, spacing } from "@pind/shared";
+import { ALL_TAGS, colors as palette, fonts, NEIGHBOURHOODS, ONE_ON_ONE_COPY, oneOnOneLine, radius, REPORT_REASONS, spacing } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
-import { Body, Heading } from "@/components/ui";
+import { Body, Button, Heading, Notice } from "@/components/ui";
+import { Sheet } from "@/components/Sheet";
+import { Trouble } from "@/components/Trouble";
+import { blockPerson, connectionWith, removeConnection } from "@/lib/connections";
+import { failed, type Described } from "@/lib/errors";
+import { myPersonId, reportPerson } from "@/lib/room";
 import { supabase } from "@/lib/supabase";
 import { Tap } from "@/components/Tap";
 
@@ -46,12 +52,20 @@ interface Them {
   photoUrl: string | null;
   instagram: string | null;
   tags: string[];
+  // Our one chat, when we are connected (connection_with: null for anyone else).
+  chatId: string | null;
+  meId: string | null;
 }
 
 export default function Person() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [them, setThem] = useState<Them | null | undefined>(undefined);
+  const [sheet, setSheet] = useState<"report" | "block" | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [trouble, setTrouble] = useState<Described | null>(null);
+  const [done, setDone] = useState<string | null>(null);
+  const [reload, setReload] = useState(0);
 
   useEffect(() => {
     let live = true;
@@ -65,12 +79,14 @@ export default function Person() {
       if (!live) return;
       if (!person) return setThem(null);
 
-      const [handle, tags, theirPins] = await Promise.all([
+      const [handle, tags, theirPins, chatId, meId] = await Promise.all([
         db.from("person_handles").select("instagram").eq("person_id", id).maybeSingle(),
         db.from("person_tags").select("tag").eq("person_id", id),
         // The shared context: their pins the database shows you are exactly the
         // gatherings where you can see each other. Nothing is filtered here.
         db.from("pins").select("gatherings(slug, name, starts_at)").eq("person_id", id),
+        connectionWith(id).catch(() => null),
+        myPersonId(),
       ]);
       // **The database decides, alone** (H11). Storage issues a signed URL only when
       // `can_see_photo` allows it — a rejected or invisible photo simply has no URL.
@@ -95,12 +111,33 @@ export default function Person() {
         photoUrl: url,
         instagram: handle.data?.instagram ?? null,
         tags: (tags.data ?? []).map((t) => t.tag),
+        chatId,
+        meId,
       });
     })();
     return () => {
       live = false;
     };
-  }, [id]);
+  }, [id, reload]);
+
+  // Remove, block or report: each ends our connection and chat for both, and tells nobody.
+  const act = useCallback(
+    async (what: string, run: () => Promise<void>, after: string | null) => {
+      setBusy(true);
+      setTrouble(null);
+      try {
+        await run();
+        setSheet(null);
+        setDone(after);
+        setReload((n) => n + 1);
+      } catch (err) {
+        setTrouble(failed(what, err));
+      } finally {
+        setBusy(false);
+      }
+    },
+    [],
+  );
 
   if (them === undefined) {
     return (
@@ -154,6 +191,13 @@ export default function Person() {
             (UI pass 1, round 2: never a missing button with no reason). The next event you
             share is one tap away. */}
         {(() => {
+          if (them.chatId) {
+            return (
+              <View style={styles.oneOnOne}>
+                <Button label={ONE_ON_ONE_COPY.message} onPress={() => router.push({ pathname: "/chat/[id]", params: { id: them.chatId! } })} />
+              </View>
+            );
+          }
           const next = them.shared.find((g) => Date.parse(g.startsAt) > Date.now());
           return (
             <View style={styles.oneOnOne}>
@@ -191,6 +235,41 @@ export default function Person() {
           </View>
         ) : null}
 
+        {/* H9 on the profile (build 23): remove the connection, report, block. Each ends our
+            chat for both and tells nobody. */}
+        {done ? <Notice>{done}</Notice> : null}
+        {trouble ? <Trouble what={trouble} /> : null}
+        {them.meId && them.meId !== id ? (
+          <View style={styles.safety}>
+            {them.chatId ? (
+              <>
+                <Button kind="quiet" label={ONE_ON_ONE_COPY.removeConnection} busy={busy} onPress={() => void act("remove the connection", () => removeConnection(id), null)} />
+                <Body muted>{ONE_ON_ONE_COPY.removeNote}</Body>
+              </>
+            ) : null}
+            <Button kind="quiet" label={ONE_ON_ONE_COPY.report(them.firstName)} onPress={() => setSheet("report")} />
+            <Button kind="quiet" label={ONE_ON_ONE_COPY.block(them.firstName)} onPress={() => setSheet("block")} />
+          </View>
+        ) : null}
+        <Sheet visible={sheet !== null} onClose={() => setSheet(null)}>
+          {sheet === "report" ? (
+            <>
+              <Text style={styles.name}>{ONE_ON_ONE_COPY.report(them.firstName)}</Text>
+              <Body muted>{ONE_ON_ONE_COPY.reportHint}</Body>
+              {REPORT_REASONS.map((r) => (
+                <Button key={r.value} kind="quiet" label={r.label} busy={busy} onPress={() => void act("report that", () => reportPerson(them.meId!, id, r.value), ONE_ON_ONE_COPY.reported)} />
+              ))}
+            </>
+          ) : sheet === "block" ? (
+            <>
+              <Text style={styles.name}>{ONE_ON_ONE_COPY.block(them.firstName)}</Text>
+              <Body muted>{ONE_ON_ONE_COPY.blockNote}</Body>
+              <Button label={ONE_ON_ONE_COPY.blockConfirm} busy={busy} onPress={() => void act("block them", () => blockPerson(them.meId!, id), ONE_ON_ONE_COPY.blocked(them.firstName))} />
+            </>
+          ) : null}
+          <Button kind="quiet" label="Cancel" onPress={() => setSheet(null)} />
+        </Sheet>
+
         {/* Report and block are two taps from everywhere (H9). The sheet itself is
             A24, in M3.5, and until it exists the tap is HIDDEN, not pointed at a
             "coming soon" (Alex, M3.2: "H9 isn't satisfied by a promise"). S24 names
@@ -216,6 +295,7 @@ const A24_EXISTS = false;
 
 const styles = StyleSheet.create({
   oneOnOne: { marginBottom: spacing.md, gap: spacing.xs },
+  safety: { marginTop: spacing.lg, gap: spacing.sm },
   oneOnOneLine: { fontSize: 15, color: palette.textMuted },
   oneOnOneLink: { minHeight: 44, justifyContent: "center" },
   oneOnOneLinkLabel: { fontFamily: fonts.headline, fontSize: 15, color: palette.accentText },

@@ -348,9 +348,12 @@ describe("The web app claims a handed-over session before any screen renders (M3
     assert.deepEqual(files.filter((f) => inserts.test(f.src)).map((f) => f.path), ["lib/room.ts"], "a message is written somewhere other than the two send functions");
     const room = files.find((f) => f.path === "app/room/[id].tsx")!.src;
     const group = files.find((f) => f.path === "app/group/[id].tsx")!.src;
+    // Build 23: a connected pair's one chat sends the same way.
+    const pair = files.find((f) => f.path === "app/chat/[id].tsx")!.src;
+    assert.deepEqual(files.filter((f) => /from\("connection_messages"\)\s*\.insert/.test(f.src)).map((f) => f.path), ["lib/room.ts"], "a pair message is written somewhere other than its send function");
     // Each send function is called once, from the code behind that screen's Send — which,
     // since the thread pass, is the shared Composer's `onSend` (its button, or Enter).
-    for (const [name, src, fn] of [["the room", room, "sendRoomMessage"], ["the group", group, "sendGroupMessage"]] as const) {
+    for (const [name, src, fn] of [["the room", room, "sendRoomMessage"], ["the group", group, "sendGroupMessage"], ["the pair chat", pair, "sendPairMessage"]] as const) {
       assert.equal((src.match(new RegExp(`${fn}\\(`, "g")) ?? []).length, 1, `${name} calls ${fn} more than once`);
       assert.match(src, new RegExp(`const send = async \\(\\) => \\{[\\s\\S]{0,300}${fn}\\(`), `${name} sends from somewhere other than its Send`);
       assert.match(src, /<Composer[^>]*onSend=\{\(\) => void send\(\)\}/, `${name}'s box does not send through send()`);
@@ -635,9 +638,9 @@ describe("One way to press, and motion that respects the person (the 'feel alive
     assert.match(motion, /export function haptic\(kind: HapticKind\): void \{\s*if \(Platform\.OS === "web"\) return;/, "the web gets haptics");
     assert.match(read("components/Composer.tsx"), /const submit = \(\) => \{\s*if \(!can\) return;\s*onSend\(\);\s*haptic\("action"\);/, "send has no haptic (or fires one for an empty box)");
     assert.match(read("components/SquadSection.tsx"), /<Tap accessibilityRole="button" haptic="action"[^>]*onPress=\{onJoin\}/, "join has no haptic");
-    assert.match(read("components/SoloSection.tsx"), /label=\{SOLO_COPY\.accept\} haptic="action"/, "accept has no haptic");
-    // #17: proposing is "Let's meet up!" now (the sheet is gone).
-    assert.match(read("components/SoloSection.tsx"), /label=\{SOLO_COPY\.letsMeetUp\}\s*haptic="action"/, "'Let's meet up!' has no haptic");
+    // Build 23: accepting is the request card's Accept; asking is the sheet's "Request to chat".
+    assert.match(read("components/RequestCard.tsx"), /<Tap accessibilityRole="button" haptic="action" disabled=\{busy\} onPress=\{onAccept\}/, "accept has no haptic");
+    assert.match(read("components/PersonSheet.tsx"), /<Tap accessibilityRole="button" haptic="action" disabled=\{oneOnOne\.busy\} onPress=\{oneOnOne\.onAsk\}/, "'Request to chat' has no haptic");
     assert.match(read("app/pin/[slug].tsx"), /if \(!pinId && !written\.already\) haptic\("success"\);/, "a new pin is not felt as it lands");
     // A selection, not an act: chips, radios, checkboxes and tabs tick by their role.
     assert.match(read("components/Tap.tsx"), /const SELECTS = new Set\(\["radio", "checkbox", "tab", "switch", "togglebutton"\]\)/, "a chip's tap is no longer a selection tick");

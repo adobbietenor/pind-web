@@ -212,3 +212,23 @@ export async function sendGroupMessage(crewId: string, personId: string, body: s
   if (error) throw error;
   return data;
 }
+
+// The only write of a pair-chat message (A29/A20, 16 Nov 2026): called from the chat's Send (S29).
+export async function sendPairMessage(connectionId: string, personId: string, body: string): Promise<ThreadRow> {
+  const { data, error } = await supabase().from("connection_messages").insert({ connection_id: connectionId, author_id: personId, body: body.trim() }).select("id, author_id, body, created_at").single();
+  if (error) throw error;
+  return data;
+}
+
+// "I've looked at this chat": what Connections and My Events count unread from.
+export async function markPairSeen(connectionId: string): Promise<void> {
+  await supabase().rpc("connection_seen", { p_connection: connectionId });
+}
+
+// "Report <name>" from a profile or from the pair chat: a report on the PERSON, with no place
+// (reports_insert_on_visible_person — the pair chat is not a room or a squad). It ends the
+// connection and the chat (reports_end_connection).
+export async function reportPerson(reporterId: string, personId: string, reason: ReportReason): Promise<void> {
+  const { error } = await supabase().from("reports").insert({ reporter_id: reporterId, target_kind: "person", target_person_id: personId, reason });
+  if (error) throw error;
+}

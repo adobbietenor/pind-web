@@ -59,8 +59,12 @@ export default function TabsLayout() {
       <Tabs.Screen name="my-events" options={{ title: "My Events" }} />
       <Tabs.Screen name="connections" options={{ title: "Connections" }} />
       <Tabs.Screen name="me" options={{ title: "Profile" }} />
-      <Tabs.Screen name="city/[slug]" options={{ href: null }} />
-      <Tabs.Screen name="crowd/[slug]" options={{ href: null }} />
+      {/* #19 (black screen, iOS): a hidden route starts its fade at opacity 0, and on iOS the
+          visible value lives only on the native side, so a re-commit after "back" can leave the
+          whole screen invisible under a drawn tab bar. These two never fade; the four tabs do.
+          Native-only: walked on build 23. S69 fails if a hidden route fades again. */}
+      <Tabs.Screen name="city/[slug]" options={{ href: null, animation: "none" }} />
+      <Tabs.Screen name="crowd/[slug]" options={{ href: null, animation: "none" }} />
     </Tabs>
     </InTabs.Provider>
   );

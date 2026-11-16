@@ -123,14 +123,33 @@ export interface Connection {
   firstName: string;
   photoUrl: string | null;
   metAt: string | null;
+  // The pair's one chat (16 Nov 2026), its last line, and what I haven't read.
+  connectionId: string;
+  oneOnOne: boolean;
+  neighbourhood: string | null;
+  last: { body: string; at: string; mine: boolean } | null;
+  unread: number;
 }
 
 export async function myConnections(): Promise<Connection[]> {
   const { data, error } = await supabase().rpc("my_connections");
   if (error) throw error;
-  const rows = (data ?? []) as { person_id: string; first_name: string; photo_path: string | null; met_at: string | null }[];
+  const rows = (data ?? []) as {
+    person_id: string; first_name: string; photo_path: string | null; met_at: string | null;
+    connection_id: string; one_on_one: boolean; neighbourhood: string | null; last: Connection["last"]; unread: number;
+  }[];
   const urls = await signed(rows.map((r) => r.photo_path).filter((x): x is string => !!x));
-  return rows.map((r) => ({ personId: r.person_id, firstName: r.first_name, photoUrl: r.photo_path ? urls.get(r.photo_path) ?? null : null, metAt: r.met_at }));
+  return rows.map((r) => ({
+    personId: r.person_id,
+    firstName: r.first_name,
+    photoUrl: r.photo_path ? urls.get(r.photo_path) ?? null : null,
+    metAt: r.met_at,
+    connectionId: r.connection_id,
+    oneOnOne: r.one_on_one,
+    neighbourhood: r.neighbourhood,
+    last: r.last,
+    unread: r.unread ?? 0,
+  }));
 }
 
 export interface InviteOption {

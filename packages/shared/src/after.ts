@@ -72,7 +72,7 @@ export const CONNECTIONS_COPY = {
     ],
   },
   emptyButton: "Find an event",
-  kept: "Kept connections",
+  kept: "Your connections",
   // Keep-in-touch requests in Requests (UI pass 1, 095), the same card as 1-on-1.
   wantsToKeep: (name: string) => `${name} wants to keep in touch`,
   youMetAt: (event: string) => `You met at ${event}`,

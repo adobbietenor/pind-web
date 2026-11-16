@@ -137,7 +137,8 @@ describe("In the room is not at the venue (item 5)", () => {
 });
 
 describe("A missing 1-on-1 button always says why (item 8)", () => {
-  const base = { atGathering: true, available: true, asked: false, started: false, inPlan: false, mineOn: true, open: true };
+  // Requests run to the effective end since build 23 (16 Nov 2026): `ended`, not `started`.
+  const base = { atGathering: true, available: true, asked: false, ended: false, inPlan: false, mineOn: true, open: true, connected: false };
 
   it("O01 the button shows exactly when everything allows it, and each fact on its own turns it into its reason", () => {
     assert.equal(oneOnOneState(base), "ask");
@@ -145,7 +146,8 @@ describe("A missing 1-on-1 button always says why (item 8)", () => {
       [{ atGathering: false }, "elsewhere"],
       [{ available: false }, "paused"],
       [{ asked: true }, "asked"],
-      [{ started: true }, "closed"],
+      [{ ended: true }, "closed"],
+      [{ connected: true }, "connected"],
       [{ inPlan: true }, "planned"],
       [{ mineOn: false }, "turnOn"],
       [{ open: false }, "theirs"],
@@ -153,10 +155,12 @@ describe("A missing 1-on-1 button always says why (item 8)", () => {
     for (const [f, want] of one) assert.equal(oneOnOneState({ ...base, ...f }), want, JSON.stringify(f));
   });
 
-  it("O02 a request already sent stays 'sent' even after the start; your own reason comes before theirs", () => {
-    assert.equal(oneOnOneState({ ...base, asked: true, started: true, open: false }), "asked");
+  it("O02 a request already sent stays 'sent' even after the end; your own reason comes before theirs; a connection is always Message", () => {
+    assert.equal(oneOnOneState({ ...base, asked: true, ended: true, open: false }), "asked");
     assert.equal(oneOnOneState({ ...base, mineOn: false, open: false }), "turnOn", "it blamed them for your own switch");
-    assert.equal(oneOnOneState({ ...base, started: true, open: false }), "closed");
+    assert.equal(oneOnOneState({ ...base, ended: true, open: false }), "closed");
+    // Someone you are connected with: your chat, whatever else is true (here or elsewhere).
+    assert.equal(oneOnOneState({ ...base, connected: true, atGathering: false, mineOn: false, ended: true }), "connected");
   });
 
   it("O03 every state but the button has a line, one line, with no em dash; theirs names them and nothing else", () => {
@@ -166,9 +170,10 @@ describe("A missing 1-on-1 button always says why (item 8)", () => {
       assert.ok(line && line.length > 10 && !line.includes("\n") && !line.includes("—"), `${s}: ${line}`);
     }
     assert.equal(oneOnOneLine("ask", "Priya"), null);
+    assert.equal(oneOnOneLine("connected", "Priya"), null, "Message is a button, not a line");
     assert.equal(oneOnOneLine("theirs", "Priya"), "Priya isn't taking 1-on-1 requests");
-    assert.equal(oneOnOneLine("turnOn", "Priya"), "Turn on 1-on-1 chats to send requests");
-    assert.equal(oneOnOneLine("closed", "Priya"), "Requests close when the event starts");
+    assert.equal(oneOnOneLine("turnOn", "Priya"), "Turn on 1-on-1 at this event to send requests");
+    assert.equal(oneOnOneLine("closed", "Priya"), "Requests closed when the event ended");
   });
 
   it("O04 the sheet cannot be drawn without its 1-on-1 part, every caller fills it from useOneOnOne, and 'turn on' comes with the switch", () => {
@@ -263,14 +268,30 @@ describe("1-on-1 is one switch per event (round 3, item 10)", () => {
     assert.doesNotMatch(lib, /"set_one_on_one"|"my_one_on_one"/, "the app asks the old account switch");
   });
 
-  it("S64 under 'Open to meeting': the one line, then this event's switch, before the people", () => {
+  // Build 23 (Alex, 16 Nov 2026): the question is there as soon as you have pinned in, and once
+  // it is on, "Open to 1-on-1 here" is its own section, before the people — reciprocal (H3).
+  it("S64 the 1-on-1 question sits on the crowd page pinned or open, before the people; its list shows only with it on", () => {
     const crowd = read("app/(tabs)/crowd/[slug].tsx");
-    const at = (s: string) => crowd.indexOf(s);
-    const order = ["CROWD_COPY.listHeading}", "ONE_ON_ONE_COPY.tapAnyone", "<OneOnOneSwitch key=", "view.faces.length === 0"].map(at);
+    const here = read("components/OneOnOneHere.tsx");
+    const draws = [...crowd.matchAll(/<OneOnOneHere\b[\s\S]*?openToMeeting(=\{false\})?[\s}]/g)].map((m) => (m[1] ? "pinned" : "open"));
+    assert.deepEqual(draws.sort(), ["open", "pinned"], "the question is missing from the pinned or the open state");
+    const at = (x: string) => crowd.indexOf(x);
+    const order = [crowd.search(/openToMeeting\s+facts=\{solo\}/), ...["CROWD_COPY.listHeading}", "ONE_ON_ONE_COPY.tapAnyone", "view.faces.length === 0"].map(at)];
     assert.ok(order.every((i) => i > 0), `cannot find a piece: ${order}`);
-    assert.deepEqual([...order].sort((a, b) => a - b), order, "the line or the switch moved out from under 'Open to meeting'");
-    assert.equal(ONE_ON_ONE_COPY.tapAnyone, "Tap anyone to say hi or ask for a 1-on-1.");
-    assert.equal(ONE_ON_ONE_COPY.switchLabel, "Open to 1-on-1 chats at this event");
+    assert.deepEqual([...order].sort((x, y) => x - y), order, "the 1-on-1 section moved below the people");
+    // In the section: the switch first; the list only when it is on, the one line when it is off.
+    assert.match(here, /\{!on \? \(\s*<Text style=\{styles\.off\}>\{ONE_ON_ONE_COPY\.offLine\}/, "with it off, something other than the one line shows");
+    assert.ok(here.indexOf("<OneOnOneSwitch") < here.indexOf("ONE_ON_ONE_COPY.sectionHeading"), "the list comes before the question");
+    assert.match(here, /const open = faces\.filter\(\(f\) => facts\?\.open\.includes\(f\.id\)\)/, "the list is not what solo_people answered");
+    // Not open to meeting yet: the turn-on walks you there first, never a refusal.
+    assert.match(here, /onChange=\{\(v\) => v && onTurnOnFirst\(\)\}/);
+    assert.match(crowd, /router\.push\(`\/opt-in\/\$\{slug\}\?oneOnOne=1`\)/, "no profile yet: A27 is not where turning it on goes");
+    assert.match(read("app/opt-in/[slug].tsx"), /if \(oneOnOne === "1"\) \{\s*await setOneOnOne\(fresh\.gatheringId, true, "everyone"\);\s*return router\.replace\(`\/crowd\/\$\{slug\}`\);/, "A27 does not land back with 1-on-1 on");
+    assert.equal(ONE_ON_ONE_COPY.switchLabel, "Open to meeting people 1-on-1 at this event?");
+    assert.equal(ONE_ON_ONE_COPY.offLine, "Turn this on to see who's open to 1-on-1");
+    assert.equal(ONE_ON_ONE_COPY.sectionHeading, "Open to 1-on-1 here");
+    assert.equal(ONE_ON_ONE_COPY.ask, "Request to chat");
+    assert.equal(ONE_ON_ONE_COPY.sent("Priya"), "Request sent");
   });
 });
 
@@ -322,7 +343,8 @@ describe("The tab bar shows on the tabs and the crowd page, nowhere else (round 
       assert.ok(ALL.some((f) => f.path.endsWith(`src/${outside}`)), `cannot find ${outside} outside the tabs`);
     }
     const layout = read("app/(tabs)/_layout.tsx");
-    assert.match(layout, /<Tabs\.Screen name="crowd\/\[slug\]" options=\{\{ href: null \}\} \/>/, "the crowd page grew a tab of its own");
+    // #19 added animation: "none" beside href: null (S69); the route is still hidden.
+    assert.match(layout, /<Tabs\.Screen name="crowd\/\[slug\]" options=\{\{ href: null(, animation: "none")? \}\} \/>/, "the crowd page grew a tab of its own");
     assert.match(layout, /<InTabs\.Provider value>/, "screens in the tabs don't know the bar holds the bottom edge");
     assert.doesNotMatch(ALL.filter((f) => isRoute(f.path)).map((f) => f.src).join("\n"), /tabBarStyle|tabBarVisible|display: "none"[^\n]*tab/i, "a screen hides or shows the bar itself");
   });
@@ -344,5 +366,18 @@ describe("The launch intro (round 3, item 15)", () => {
     assert.match(intro, /isReduceMotionEnabled\(\)[\s\S]*if \(reduce\) \{\s*tagline\.setValue\(1\)/, "it fades under Reduce Motion");
     assert.doesNotMatch(intro, /reanimated|Lottie/i);
     assert.match(read("app/_layout.tsx"), /<Intro \/>/, "the intro is not mounted");
+  });
+});
+
+// #19 (black screen after back, iOS): a hidden tab route's fade starts it at opacity 0, and a
+// re-commit on iOS can leave it there under a drawn tab bar. The hidden routes never fade.
+describe("Hidden tab routes never fade (#19)", () => {
+  it("S69 every href: null route in the tabs has animation 'none'; the four tabs keep the crossfade", () => {
+    const layout = read("app/(tabs)/_layout.tsx");
+    const hidden = [...layout.matchAll(/<Tabs\.Screen name="([^"]+)" options=\{\{([^}]*href: null[^}]*)\}\}/g)];
+    // The pattern must see the two real hidden routes, or "every one" passes by finding none.
+    assert.deepEqual(hidden.map((m) => m[1]).sort(), ["city/[slug]", "crowd/[slug]"], "the scan cannot see the hidden routes");
+    for (const [, name, options] of hidden) assert.match(options!, /animation: "none"/, `${name} fades`);
+    assert.match(layout, /animation: reduce \? "none" : "fade"/, "the visible tabs lost their crossfade");
   });
 });

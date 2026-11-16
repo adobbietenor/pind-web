@@ -225,12 +225,13 @@ describe("R2 a decline, read by its sender after the start", () => {
     assert.deepEqual([a.error?.code, a.error?.message], [b.error?.code, b.error?.message], "a re-send to the decliner is refused differently");
   });
 
-  it("R2a INFERENCE: after the start (once the 10-minute job has run), the sender switching their own 1-on-1 off turns the declined one 'closed' and the unanswered one 'not accepted' in their export", async () => {
-    // Time passes: the start moves into the past and the lifecycle job runs, as pg_cron does every 10 minutes.
-    await ok(service.from("gatherings").update({ starts_at: new Date(Date.now() - 60_000).toISOString() }).eq("id", G));
+  it("R2a INFERENCE: after the end (requests run to it since build 23; once the 10-minute job has run), the sender switching their own 1-on-1 off turns the declined one 'closed' and the unanswered one 'not accepted' in their export", async () => {
+    // Time passes: the effective end (start + 180 min) moves into the past and the lifecycle job
+    // runs, as pg_cron does every 10 minutes. Requests lapse at the end since build 23 (16 Nov 2026).
+    await ok(service.from("gatherings").update({ starts_at: new Date(Date.now() - 181 * 60_000).toISOString() }).eq("id", G));
     await ok(service.rpc("admin_groups_tick"), "the lifecycle job");
     const before = (await exportSent("Cal", G)).sort((x, y) => x.line - y.line).map((p) => p.status);
-    assert.deepEqual(before, ["not accepted", "not accepted"], "control: right after the start the export already differed");
+    assert.deepEqual(before, ["not accepted", "not accepted"], "control: right after the end the export already differed");
     // Now the sender acts on their OWN pin — allowed until the effective end.
     const pin = (await rows(P("Cal").c.from("pins").select("id").eq("gathering_id", G).eq("person_id", P("Cal").id)))[0].id;
     await ok(P("Cal").c.from("pins").update({ solo_opt_in: false }).eq("id", pin).select("id"), "Cal switches 1-on-1 off");
@@ -335,11 +336,20 @@ describe("R4 the plan, from outside and inside", () => {
     assert.equal(ownRows.find((r: any) => r.person_id === P("Ivy").id)?.last_seen_at, null, "crew_seen marked the partner's row");
   });
 
-  it("R4c HOLDS: a non-safety report filed from the plan's thread takes the partner out of 1-on-1 and leaves the plan standing (below H9)", async () => {
+  // Since build 23 (Alex, 16 Nov 2026): the PARTNER's report ends the 1-on-1 and the connection
+  // at once, silently — like calling it off — and the reported person is told nothing. A
+  // stranger's non-safety report below H9 still leaves a plan standing (P221).
+  it("R4c HOLDS: the partner's non-safety report from the plan's thread ends the 1-on-1 and the connection, silently; it still takes the reported out of 1-on-1; nobody else can forge one", async () => {
     const m = await ok(P("Ivy").c.from("crew_messages").insert({ crew_id: plan, author_id: P("Ivy").id, kind: "user", body: "by the gate" }).select("created_at").single());
     try {
+      const connected = async () =>
+        (await rows(service.from("connections").select("id").or(`and(person_a.eq.${P("Fox").id},person_b.eq.${P("Ivy").id}),and(person_a.eq.${P("Ivy").id},person_b.eq.${P("Fox").id})`))).length;
+      assert.equal(await connected(), 1, "control: the yes made no connection to end");
       await ok(P("Fox").c.from("reports").insert({ reporter_id: P("Fox").id, target_kind: "person", target_person_id: P("Ivy").id, reason: "spam", context_crew_id: plan, context_at: m.created_at }));
-      assert.equal((await ok(service.from("crews").select("state").eq("id", plan).single())).state, "spot_set", "one non-safety report from the thread ended the plan");
+      assert.equal((await ok(service.from("crews").select("state").eq("id", plan).single())).state, "dissolved", "the partner's report left the 1-on-1 standing");
+      assert.equal(await connected(), 0, "the partner's report left the connection");
+      const told = await rows(service.from("notifications").select("body").eq("person_id", P("Ivy").id).eq("crew_id", plan).eq("kind", "plan_status"));
+      assert.ok(!told.some((n: { body: string }) => / is off\.$/.test(n.body)), "the reported person was told the 1-on-1 is off");
       assert.equal((await ok(service.from("people").select("hidden_from_solo").eq("id", P("Ivy").id).single())).hidden_from_solo, true, "control: the report took nobody out");
       // A third person cannot forge a report from that thread.
       const forged = await P("Ann").c.from("reports").insert({ reporter_id: P("Ann").id, target_kind: "person", target_person_id: P("Ivy").id, reason: "spam", context_crew_id: plan, context_at: m.created_at });

@@ -42,6 +42,7 @@ import { YouStep } from "@/components/profile/YouStep";
 import type { Picked } from "@/components/TagPicker";
 import { AlreadyOnPind } from "@/components/AlreadyOnPind";
 import { OneOnOneSwitch } from "@/components/OneOnOneSwitch";
+import { setOneOnOne } from "@/lib/solo";
 import { SwitchRow } from "@/components/SwitchRow";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Tick } from "@/components/ui";
@@ -124,7 +125,10 @@ function rememberSkip(slug: string) {
 }
 
 export default function OptIn() {
-  const { slug } = useLocalSearchParams<{ slug: string }>();
+  // ?oneOnOne=1: you came from the crowd page's "Open to meeting people 1-on-1?" (build 23),
+  // so the end turns 1-on-1 on and lands you back there, with no question left to answer.
+  const { slug, oneOnOne } = useLocalSearchParams<{ slug: string; oneOnOne?: string }>();
+  const back = oneOnOne === "1" ? `/opt-in/${slug}?oneOnOne=1` : `/opt-in/${slug}`;
   const router = useRouter();
   const [step, setStep] = useState<Step>("loading");
   const [mine, setMine] = useState<Mine | null>(null);
@@ -244,6 +248,10 @@ export default function OptIn() {
         if (!("lost" in again) && optInMissing(again).missing.length) return sendBack(again);
         throw error ?? new Error("the pin did not open");
       }
+      if (oneOnOne === "1") {
+        await setOneOnOne(fresh.gatheringId, true, "everyone");
+        return router.replace(`/crowd/${slug}`);
+      }
       // Open to meeting now: then "How do you want to meet?" (073), then A9.
       setStep("meet");
     } catch (err) {
@@ -320,7 +328,7 @@ export default function OptIn() {
         <IdentityStep
           mode="link"
           via="already_on_pind"
-          returnTo={`/opt-in/${slug}`}
+          returnTo={back}
           hasAccount={hasAccount}
           notice={notice}
           onDone={() => {
@@ -360,7 +368,7 @@ export default function OptIn() {
       {step === "identity" ? (
         <IdentityStep
           mode="link"
-          returnTo={`/opt-in/${slug}`}
+          returnTo={back}
           hasAccount={hasAccount}
           notice={notice}
           onDone={() => {

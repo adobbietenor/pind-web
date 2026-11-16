@@ -37,8 +37,8 @@ body:
         - "A24 - App, report & block"
         - "A26 - Web, quick pin"
         - "A27 - App, opt in"
-        - "A28 - App, solo opt-in sheet"
-        - "A29 - App, proposals and plan"
+        - "A28 - App, 1-on-1 at an event"
+        - "A29 - App, requests and the chat"
         - "T1 - Fan-channel post"
         - "Something new, no screen yet"
     validations:
