@@ -17,11 +17,12 @@ import * as AppleAuthentication from "expo-apple-authentication";
 import * as AuthSession from "expo-auth-session";
 import * as WebBrowser from "expo-web-browser";
 import { Platform } from "react-native";
-import { isStaleSession, SIGNIN_FAILED, signInMethods, signInSays, type SignInMethod, type SignInStep } from "@pind/shared";
+import { A24_COPY, isStaleSession, SIGNIN_FAILED, signInMethods, signInSays, type SignInMethod, type SignInStep } from "@pind/shared";
 import { forgetThisPhone } from "./push";
 import { queryClient } from "./query";
 import { report } from "./sentry";
 import { supabase } from "./supabase";
+import { isBanned } from "./errors";
 
 export type Method = SignInMethod;
 
@@ -144,6 +145,7 @@ export async function signOutHere(): Promise<void> {
 // session is never called an expired code. A stale session is also cleared here, so
 // the next attempt starts clean instead of tripping over it again.
 export function signInError(step: SignInStep, err: unknown): string {
+  if (isBanned(err)) return A24_COPY.suspended;
   const message = err instanceof Error ? err.message : String(err ?? "");
   if (isStaleSession(message)) void supabase().auth.signOut({ scope: "local" });
   const says = signInSays(step, message);

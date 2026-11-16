@@ -160,6 +160,10 @@ try {
   // They write to each other, each in their own browser.
   step("Bea writes", (await bea.type(SOLO_COPY.threadPlaceholder("Ari"), "hi Ari")) && (await bea.sendMessage()));
   step("…and sees it", await bea.until("hi Ari"));
+  // A18 #10: Ari is not in the chat, so she is told, without the words.
+  let ping = [];
+  for (let t = 0; t < 20 && !ping.length; t++) { await sleep(500); ping = await must(await rest(`/rest/v1/notifications?person_id=eq.${people.Ari.personId}&kind=eq.chat_message&select=body,path`), "Ari's #10"); }
+  step("Ari is told: 'Bea sent you a message', never the words, to the chat", ping.length === 1 && ping[0].body === "Bea sent you a message" && ping[0].path === `/chat/${chatId}`);
   await ari.go(`${SITE}/connections`);
   step("Ari's Connections lists Bea, with the chat's last line", (await ari.until("Bea", 25000)) && (await ari.until("Bea: hi Ari")));
   const toProfile = await ari.evaluate(`(() => { const r=[...document.querySelectorAll('[role=button]')].find(e=>e.innerText.includes("Bea: hi Ari")); if(!r) return false; r.click(); return true; })()`);

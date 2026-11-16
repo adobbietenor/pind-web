@@ -22,7 +22,7 @@
 import { useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useState } from "react";
 import { Platform, Share, StyleSheet, Text, View } from "react-native";
-import { colors as palette, fonts, radius, SIGN_OUT, SOLO_COPY, spacing, WOMEN_ONLY_COPY } from "@pind/shared";
+import { A24_COPY, colors as palette, fonts, radius, SIGN_OUT, SOLO_COPY, spacing, WOMEN_ONLY_COPY } from "@pind/shared";
 import { NotificationSwitches } from "@/components/NotificationSwitches";
 import { AppScreen } from "@/components/AppScreen";
 import { Trouble } from "@/components/Trouble";
@@ -183,6 +183,12 @@ export default function Settings() {
           <View style={{ marginTop: spacing.md }}>
             <NotificationSwitches />
           </View>
+        </View>
+
+        {/* A24: the people you blocked, and unblock (with what it does and doesn't give back). */}
+        <Text style={styles.sectionName}>{A24_COPY.blockedHeading}</Text>
+        <View style={styles.card}>
+          <Button kind="quiet" label={A24_COPY.blockedHeading} onPress={() => router.push("/blocked")} />
         </View>
 
         <Text style={styles.sectionName}>Your data</Text>

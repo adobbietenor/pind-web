@@ -19,7 +19,7 @@
 // anything public.** The operator is named once, as OPERATOR, and the contact is
 // privacy@pind.social. After that it is "we" and "Pin'd".
 
-import { CREWS_MEET, POLICY_DRAFT_NOTICE, POLICY_VERSION, PRIVACY_CONTACT, SAFETY_TODAY } from "@pind/shared";
+import { CREWS_MEET, POLICY_DRAFT_NOTICE, POLICY_VERSION, PRIVACY_CONTACT, SAFETY_COPY } from "@pind/shared";
 import { DOT, escape, header, houseRulesRow, page } from "./layout";
 
 const OPERATOR = "Tenor Investments (dba Pin&#39;d)";
@@ -131,7 +131,7 @@ ${draftBanner()}
 ${houseRulesRow()}
 <h2>Where people meet</h2>
 <p>${escape(CREWS_MEET)}</p>
-<p>${escape(SAFETY_TODAY.app)} We may hide or remove anyone who breaks these rules, and remove content without notice. Anything about safety goes to <a href="mailto:${SAFETY}">${SAFETY}</a>, and a person reads it.</p>
+<p>${escape(SAFETY_COPY.app)} We may hide or remove anyone who breaks these rules, and remove content without notice. Anything about safety goes to <a href="mailto:${SAFETY}">${SAFETY}</a>, and a person reads it.</p>
 
 <h2>Your content</h2>
 <p>Your name, photo, tags and messages stay yours. You let us show them to the people these terms and the privacy policy say can see them, for as long as they are on Pin&#39;d.</p>

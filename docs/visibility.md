@@ -1150,3 +1150,13 @@ rebuild"). **Flagged for the independent review before real users see it.**
 | The pair's chat (`connection_messages`) | its two, reading and writing, while neither blocked the other and neither is hidden | anyone else (read, write, write as another, read who is in it), a visitor, the partner of someone H9 hid | P268, P311, P312 |
 | It ends, for both, silently | — | the pair after: a removal by either (P309), a call-off (P308), a block (P274), a report (P310) | each asserts the connection gone and the chat unreadable to both |
 | Requests | sent and answered until the effective end | after it ("closed at the end") | P272 |
+
+## Since 16 Nov 2026 — A24, blocks listed and lifted, the report alert, #10
+
+| Rule | Who CAN | Who CANNOT | Proof |
+|---|---|---|---|
+| Your blocks (`my_blocks`) | you, your own | the person blocked, anyone else, a visitor | P317 |
+| Unblock (`unblock_person`) | you, your own block | the person blocked, a visitor | P317 (and what comes back: seeing each other, never the connection) |
+| The report alert (`report_alert_wanted`, `admin_report_alert`) | the service key | any session or visitor; never fires for harness or seed people | P318 |
+| Ban / unban | the service key (the admin) | any session or visitor | P319 |
+| #10, a new message | the squad's other members; the pair's other person | the author, someone who just looked, someone switched off, across a block, a hidden author | P313–P316 |

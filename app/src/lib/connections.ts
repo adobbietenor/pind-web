@@ -92,3 +92,21 @@ export async function loadOneOnOneCard(crewId: string): Promise<OneOnOneCard | n
     arrived,
   };
 }
+
+// A24 — Settings → Blocked people: yours only (my_blocks), and unblock (yours only).
+export interface Blocked {
+  personId: string;
+  firstName: string;
+  blockedAt: string;
+}
+
+export async function myBlocks(): Promise<Blocked[]> {
+  const { data, error } = await supabase().rpc("my_blocks");
+  if (error) throw error;
+  return ((data ?? []) as { person_id: string; first_name: string; blocked_at: string }[]).map((b) => ({ personId: b.person_id, firstName: b.first_name, blockedAt: b.blocked_at }));
+}
+
+export async function unblockPerson(personId: string): Promise<void> {
+  const { error } = await supabase().rpc("unblock_person", { p_person: personId });
+  if (error) throw error;
+}

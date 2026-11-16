@@ -13,8 +13,8 @@
 // (oneOnOneState, shared and tested), with the switch itself when the reason is yours.
 // `useOneOnOne` is the one way a screen fills it, so the room and the crowd page agree.
 //
-// Report and Block wait on A24, as on A22 (A24_EXISTS there); until then the sheet links to
-// the full profile, where A24's ⋯ will be.
+// A24 (16 Nov 2026): "⋯" in the corner, report or block in two taps. iOS shows one modal at a
+// time, so this sheet closes first and A24's opens after it.
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -23,6 +23,8 @@ import { colors as palette, effectiveEnd, fonts, ONE_ON_ONE_COPY, oneOnOneLine, 
 import { failed } from "@/lib/errors";
 import { inviteSolo, soloFacts, type SoloFacts } from "@/lib/solo";
 import { Avatar } from "./Avatar";
+import { MoreButton, ReportBlockSheet, type ReportTarget } from "./ReportBlock";
+import { Platform } from "react-native";
 import { OneOnOneSwitch } from "./OneOnOneSwitch";
 import { SheetFrame } from "./Sheet";
 import { Tap } from "./Tap";
@@ -111,11 +113,23 @@ export function PersonSheet({
   oneOnOne: SheetOneOnOne | null;
 }) {
   const router = useRouter();
+  const [a24, setA24] = useState<ReportTarget | null>(null);
   const line = person && oneOnOne ? oneOnOneLine(oneOnOne.state, person.firstName) : null;
   return (
+    <>
+    <ReportBlockSheet target={a24} onClose={() => setA24(null)} onDone={() => oneOnOne?.onSwitched()} />
     <SheetFrame visible={!!person} onClose={onClose} contentStyle={{ alignItems: "center", gap: spacing.sm }}>
       {person ? (
         <>
+          <View style={styles.corner}>
+            <MoreButton
+              onPress={() => {
+                const t: ReportTarget = { kind: "person", id: person.id, firstName: person.firstName };
+                onClose();
+                setTimeout(() => setA24(t), Platform.OS === "ios" ? 350 : 0);
+              }}
+            />
+          </View>
           <Avatar name={person.firstName} source={person.photo} size={112} />
           <Text style={styles.name}>{person.firstName}</Text>
           {person.area ? <Text style={styles.area}>{person.area}</Text> : null}
@@ -163,11 +177,13 @@ export function PersonSheet({
         </>
       ) : null}
     </SheetFrame>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
   name: { fontFamily: fonts.headline, fontSize: 24, color: palette.text, marginTop: spacing.xs },
+  corner: { position: "absolute", top: 0, right: 0 },
   area: { fontSize: 15, color: palette.textMuted },
   tags: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: spacing.sm, marginTop: spacing.xs },
   tag: { paddingVertical: 6, paddingHorizontal: 12, borderRadius: 999, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.background },

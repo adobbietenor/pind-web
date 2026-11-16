@@ -204,9 +204,8 @@ describe("The web app claims a handed-over session before any screen renders (M3
 
     // Wired ahead of its screen ON PURPOSE, each named, each for Alex to decide — and each
     // asserted still missing, so the day its screen lands this list must shrink.
-    const PENDING: Record<string, string> = {
-      "/person/x/report": "A24, report and block (M3.5) — A22's ⋯ (H9)",
-    };
+    // A24 shipped 16 Nov 2026: its ⋯ opens a sheet, not a route, so nothing is pending.
+    const PENDING: Record<string, string> = {};
     // Every .tsx under app/src: screens, and the components that navigate (Trouble).
     const all = routeFiles(join(process.cwd(), "app", "src"));
     const found = [...new Set(all)].flatMap((path) => targets(readFileSync(path, "utf8")).map((t) => ({ t, path: path.slice(process.cwd().length + 1) })));
@@ -248,7 +247,8 @@ describe("The web app claims a handed-over session before any screen renders (M3
       "packages/shared/src/session.ts": "sign out in Settings (A23, 10 Oct) — Tatiana's to reword",
       "packages/shared/src/search.ts": "search and interests (M3.2b, 10 Oct) — Tatiana's to reword",
       "packages/shared/src/myevents.ts": "A19 My Events (M3.2b, 10 Oct) — Tatiana's to reword",
-      "packages/shared/src/solo.ts": "1-on-1's sheet, section and lines 2–5 (A28/A29, M3.4) — Alex and Tatiana's; Tatiana writes the final five",
+      "packages/shared/src/solo.ts": "1-on-1's question, section, requests and chat (build 23, 16 Nov) — Tatiana's to reword",
+      "packages/shared/src/a24.ts": "A24 report and block, Blocked people, and the suspended line (16 Nov) — Tatiana's to reword",
       "packages/shared/src/squad.ts": "squads' list, start sheet and card (A15/A11, M3.7) — the one copy pass (decisions, \"Copy deferred to one pass\")",
       "packages/shared/src/copy.ts": "#14 (29 Oct): the count's next step and W2's rule line, written for the room-and-squads design — Tatiana's to reword; CREWS_MEET is the App Review line",
       "src/public/pages.ts": "#14 (29 Oct): W1's 'people meeting up' and the About page's two paragraphs — Tatiana's to reword",

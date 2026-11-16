@@ -31,7 +31,7 @@ import { Image } from "expo-image";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Share, StyleSheet, Text, View } from "react-native";
-import { AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, HERE_COPY, houseClock, radius, shareCardUrl, SHARE_COPY, ONE_ON_ONE_COPY, SOLO_COPY, spacing, SQUAD_COPY, SQUAD_FORM_COPY, type Convening, type ThreadMessage } from "@pind/shared";
+import { A24_COPY, AFTER_COPY, colors as palette, effectiveEnd, fonts, GROUP_COPY, HERE_COPY, houseClock, radius, shareCardUrl, SHARE_COPY, ONE_ON_ONE_COPY, SOLO_COPY, spacing, SQUAD_COPY, SQUAD_FORM_COPY, type Convening, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { AvatarStack } from "@/components/Avatar";
 import { Icon } from "@/components/Icon";
@@ -44,6 +44,7 @@ import { ImHere } from "@/components/ImHere";
 import { Sheet } from "@/components/Sheet";
 import { isPutAway, putAway } from "@/lib/putaway";
 import { MessageSheet } from "@/components/MessageSheet";
+import { MoreButton, ReportBlockSheet, type ReportTarget } from "@/components/ReportBlock";
 import { ThreadMessages } from "@/components/ThreadMessages";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Field, Heading, Notice } from "@/components/ui";
@@ -54,6 +55,7 @@ import { markGroupSeen, myPersonId, reportFromMessage, sendGroupMessage } from "
 import { faceSource, signedPhotoUrls } from "@/lib/signed-photos";
 import { supabase } from "@/lib/supabase";
 import { useThread } from "@/lib/thread";
+import { blockPerson } from "@/lib/connections";
 import { Tap } from "@/components/Tap";
 
 const SITE = process.env.EXPO_PUBLIC_SITE_URL || "https://pind.social";
@@ -193,6 +195,8 @@ export default function Group() {
   // The header's ••• sheet, the 1-on-1's place sheet, and the night's row put away with "Later".
   const [menu, setMenu] = useState(false);
   const [placeOpen, setPlaceOpen] = useState(false);
+  // A24 on someone in this squad (H9): from the ••• sheet's list of people.
+  const [a24, setA24] = useState<ReportTarget | null>(null);
   const [laterHidden, setLaterHidden] = useState<boolean | null>(null);
   useEffect(() => {
     let on = true;
@@ -415,11 +419,29 @@ export default function Group() {
         />
       ) : null}
 
+      <ReportBlockSheet target={a24} onClose={() => setA24(null)} onDone={(what) => (what === "blocked" ? router.replace({ pathname: "/crowd/[slug]", params: { slug: view.gathering.slug } }) : refresh())} />
       {/* The header's ••• : what used to sit above the chat. */}
       <Sheet visible={menu} onClose={() => setMenu(false)}>
         <Text style={styles.headTitle}>{view.solo ? SOLO_COPY.planHeading(names[0] ?? "") : view.squad ? view.squad.name : GROUP_COPY.heading}</Text>
         {view.solo ? <Body muted>{ONE_ON_ONE_COPY.firstLine}</Body> : null}
         {view.squad?.details ? <Body>{view.squad.details}</Body> : null}
+        {/* A24: everyone else in it, each with "⋯" — report or block (H9). */}
+        {others.length ? (
+          <View style={{ gap: 2 }}>
+            {others.map((m) => (
+              <View key={m.personId} style={styles.person}>
+                <Text style={[styles.name, { flex: 1 }]}>{m.firstName}</Text>
+                <MoreButton
+                  label={A24_COPY.report(m.firstName)}
+                  onPress={() => {
+                    setMenu(false);
+                    setTimeout(() => setA24({ kind: "person", id: m.personId, firstName: m.firstName }), Platform.OS === "ios" ? 350 : 0);
+                  }}
+                />
+              </View>
+            ))}
+          </View>
+        ) : null}
         {!view.solo && !view.squad ? <Body>{GROUP_COPY.on(names)}</Body> : null}
         {/* Legacy invite-only groups still forming: their poll. */}
         {!view.solo && !view.squad && view.state === "forming" && view.convening !== "at_the_gathering" ? (
@@ -550,6 +572,12 @@ export default function Group() {
               held={held}
               mine={held.authorId === view.meId}
               authorName={view.members.find((x) => x.personId === held.authorId)?.firstName ?? "them"}
+              onBlock={async () => {
+                // A block takes the blocker out of the squad (blocks_blocker_leaves_group).
+                await blockPerson(view.meId, held.authorId).catch((err) => setTrouble(failed("block them", err)));
+                setHeld(null);
+                router.replace({ pathname: "/crowd/[slug]", params: { slug: view.gathering.slug } });
+              }}
               onReport={async (reason) => {
                 await reportFromMessage(view.meId, held, { crewId: view.id }, reason).catch((err) => setTrouble(failed("report that", err)));
                 setHeld(null);
@@ -584,6 +612,7 @@ const styles = StyleSheet.create({
   pick: { padding: spacing.sm, borderWidth: 1, borderColor: palette.border, borderRadius: radius.md },
   pickOn: { borderColor: palette.accent, backgroundColor: palette.background },
   name: { fontFamily: fonts.headline, fontSize: 15, color: palette.text },
+  person: { flexDirection: "row", alignItems: "center", minHeight: 44, borderBottomWidth: 1, borderBottomColor: palette.border },
   meta: { fontSize: 12, color: palette.textMuted },
   refusal: { fontSize: 14, color: "#E06B6B" },
 });

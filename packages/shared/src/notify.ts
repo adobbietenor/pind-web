@@ -1,13 +1,14 @@
 // The nine notifications (spec A18: six since the room, Alex 28 Sept 2026; the seventh,
 // an invite from someone you've met, 29 Sept; the eighth, a 1-on-1 proposal, 14 Oct; the
-// ninth, a keep-in-touch request, 30 Oct): their
+// ninth, a keep-in-touch request, 30 Oct; the tenth, a new message, 16 Nov): their
 // names, in one place. Settings shows them as switches; the Worker's emails name the one
 // they are stopping. A switch is on unless the person switched it off.
 
-export type NotificationKind = "digest" | "room_open" | "plan_status" | "day_of" | "next_morning" | "room_activity" | "invite" | "solo_proposal" | "keep_request";
+export type NotificationKind = "digest" | "room_open" | "plan_status" | "day_of" | "next_morning" | "room_activity" | "invite" | "solo_proposal" | "keep_request" | "chat_message";
 
 export const NOTIFICATIONS: { kind: NotificationKind; label: string; what: string }[] = [
   { kind: "room_open", label: "Someone else wants to meet", what: "The first time someone else at a gathering you pinned says they'd like to meet." },
+  { kind: "chat_message", label: "Messages", what: "A new message in your 1-on-1 chat or a squad you're in, at most once every few minutes. Never the message itself." },
   { kind: "room_activity", label: "Room activity", what: "New messages in a room since you last looked, at most once an hour." },
   { kind: "solo_proposal", label: "1-on-1 requests", what: "Someone at a gathering you pinned asks to meet you 1-on-1." },
   { kind: "keep_request", label: "Keep in touch requests", what: "Someone you met at a gathering asks to keep in touch." },

@@ -15,7 +15,7 @@
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { ActivityIndicator, Image, Modal, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { colors as palette, fonts, radius, spacing, SQUAD_COPY, SQUAD_FORM_COPY, SQUAD_NAME_MAX, squadNameProblem, squadSeatsLabel, squadTimes } from "@pind/shared";
+import { A24_COPY, colors as palette, fonts, radius, spacing, SQUAD_COPY, SQUAD_FORM_COPY, SQUAD_NAME_MAX, squadNameProblem, squadSeatsLabel, squadTimes } from "@pind/shared";
 import { Body, Button } from "@/components/ui";
 import { failed } from "@/lib/errors";
 import { soloClock } from "@/lib/solo";
@@ -25,6 +25,7 @@ import { AvatarStack } from "./Avatar";
 import { Icon } from "./Icon";
 import { Tap } from "./Tap";
 import { Rise } from "./Motion";
+import { MoreButton, ReportBlockSheet, type ReportTarget } from "./ReportBlock";
 
 export interface SquadFace {
   id: string;
@@ -35,6 +36,7 @@ export interface SquadFace {
 export function SquadSection({ gatheringId, meId, faces, ended }: { gatheringId: string; meId: string; faces: SquadFace[]; ended: boolean }) {
   const router = useRouter();
   const [view, setView] = useState<SquadsView | null>(null);
+  const [a24, setA24] = useState<ReportTarget | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sheet, setSheet] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -162,9 +164,11 @@ export function SquadSection({ gatheringId, meId, faces, ended }: { gatheringId:
       {view.squads.length === 0 ? <Body muted>{SQUAD_COPY.none}</Body> : null}
       {view.squads.map((s, i) => (
         <Rise key={s.crewId} index={i}>
-        <Squad squad={s} faces={faces} busy={busy === s.crewId} onJoin={() => void act(s.crewId, () => joinSquad(s.crewId))} refusal={saidAt(s.crewId)} />
+        <Squad squad={s} faces={faces} busy={busy === s.crewId} onJoin={() => void act(s.crewId, () => joinSquad(s.crewId))} refusal={saidAt(s.crewId)} onMore={() => setA24({ kind: "squad", id: s.crewId, name: s.name })} />
         </Rise>
       ))}
+      {/* A24: a squad you're not in, reported from its card (reports_insert_on_visible_squad). */}
+      <ReportBlockSheet target={a24} onClose={() => setA24(null)} onDone={() => refresh()} />
       {sheet ? (
         <SquadForm
           title={SQUAD_FORM_COPY.startTitle}
@@ -187,7 +191,7 @@ function planLine(spot: string | null, timeNote: string | null): string | null {
   return [spot, timeNote].filter(Boolean).join(" · ") || null;
 }
 
-function Squad({ squad, faces, busy, onJoin, refusal }: { squad: SquadCard; faces: SquadFace[]; busy: boolean; onJoin: () => void; refusal: ReactNode }) {
+function Squad({ squad, faces, busy, onJoin, refusal, onMore }: { squad: SquadCard; faces: SquadFace[]; busy: boolean; onJoin: () => void; refusal: ReactNode; onMore: () => void }) {
   // Faces only for members the people list already shows you; the rest are counted.
   const shown = squad.members.map((m) => faces.find((f) => f.id === m.personId)).filter((f): f is SquadFace => !!f);
   return (
@@ -195,6 +199,8 @@ function Squad({ squad, faces, busy, onJoin, refusal }: { squad: SquadCard; face
       <View style={styles.nameRow}>
         <Text style={styles.squadName}>{squad.name}</Text>
         {squad.womenOnly ? <Text style={styles.tag}>{SQUAD_COPY.womenOnly}</Text> : null}
+        <View style={{ flex: 1 }} />
+        <MoreButton label={A24_COPY.report(A24_COPY.squadNamed(squad.name))} onPress={onMore} />
       </View>
       {squad.details ? <Text style={styles.details}>{squad.details}</Text> : null}
       {planLine(squad.spot, squad.timeNote) ? <PlaceLine text={planLine(squad.spot, squad.timeNote)!} /> : null}

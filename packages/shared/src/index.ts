@@ -1,5 +1,6 @@
 // Everything the Worker and the app share. Source TypeScript, no build step:
 // Metro and Wrangler both bundle it directly.
+export * from "./a24";
 export * from "./a2photo";
 export * from "./after";
 export * from "./age";

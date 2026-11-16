@@ -84,6 +84,8 @@ const ROUTES: [string, AdminHandler][] = [
   ["POST /admin/people/:id/hide", m.hidePerson],
   ["POST /admin/people/:id/dismiss-reports", m.dismissReports],
   ["POST /admin/people/:id/return-to-solo", m.returnToSolo],
+  ["POST /admin/people/:id/ban", m.banPerson],
+  ["POST /admin/people/:id/unban", m.unbanPerson],
   // M3.4 — 1-on-1: where it is offered, its numbers, the switch per platform
   ["GET /admin/squads", squads.squadsPage],
   ["POST /admin/squads/approve", squads.approveSquadName],

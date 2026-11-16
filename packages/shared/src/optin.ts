@@ -7,7 +7,7 @@
 // accepted. The anonymous user becomes permanent with the same id; the pin, the party
 // size and the intent survive, and the pin opens only now (the opt-in gate, P105–P109).
 
-import { SAFETY_TODAY } from "./policy.ts";
+import { SAFETY_COPY } from "./policy.ts";
 
 export const OPTIN_COPY = {
   heading: "A few details",
@@ -34,8 +34,8 @@ export const OPTIN_COPY = {
     "Squads are small groups. 1-on-1 is always your choice.",
     "Leave any time.",
     // "Block and report are two taps away." until A24 ships (Alex, 10 Oct 2026: no
-    // promise the product does not keep) — SAFETY_TODAY in policy.ts; SC01.
-    SAFETY_TODAY.sheet,
+    // promise the product does not keep) — SAFETY_COPY in policy.ts; SC01.
+    SAFETY_COPY.sheet,
     "Women-only rooms on every gathering.",
   ],
   accept: "I've read the privacy policy and terms",

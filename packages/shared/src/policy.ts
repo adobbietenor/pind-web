@@ -18,7 +18,8 @@ export const PRIVACY_CONTACT = "privacy@pind.social";
 // are not in the app yet. **When A24 ships, the stronger wording comes back** ("two taps from
 // any person, group or message") — SC01 fails until it does, and fails if anything claims
 // the taps before then.
-export const SAFETY_TODAY = {
-  app: "Hold anyone's message in a room, a squad or a 1-on-1 chat to report the person who wrote it, or block or report them from their profile. Reporting a squad is coming to the app. Until then, write to safety@pind.social and a person reads it.",
-  sheet: "Hold anyone's message to report the person who wrote it, and safety@pind.social reaches a person.",
+// Since A24 shipped (16 Nov 2026): what is true now, said as strongly as it is true (SC01).
+export const SAFETY_COPY = {
+  app: "Report or block anyone in two taps from any person, squad or message: from their profile, their sheet, a chat, Connections or a squad. Blocking is never told to the other person. A person reviews every report within 24 hours, and safety@pind.social reaches a person.",
+  sheet: "Report or block anyone in two taps from any person or message. A person reviews every report within 24 hours, and safety@pind.social reaches a person.",
 } as const;

@@ -4998,3 +4998,39 @@ decided by him before it was built (who sees what, the states, what was removed)
   on build 23.
 - Harness: P267–P275 rewritten, P308–P312 new (a28-pairs.test.ts). Browser: `check:pair`
   rewritten — two real browsers, one per person, end to end.
+
+### A18 #10, A24 and the ban (Alex, 16 Nov 2026)
+
+Explained to Alex in plain English and approved before it was built (what a block hides and
+from whom, what unblocking restores, what a report does automatically). Migrations
+`20261116214453_a18_chat_message_kind`, `20261116214458_a18_a24_message_push_report_block_ban`.
+
+- **A18 #10, a new message** (`chat_message`), the tenth kind: in your 1-on-1 chat (any
+  connection's) or a squad you're in. Never the words — "Bea sent you a message"; in a squad,
+  "Bea in Section 314". Never the author, never someone who looked at that chat in the last 2
+  minutes, never across a block, never from or to someone hidden; at most one per chat per 5
+  minutes while unread; its own switch, "Messages". Harness and seed people are handed no
+  device and no address (P316, as P162).
+- **A24 ships.** "⋯" on the profile (A24_EXISTS), the person sheet, the 1-on-1 chat's header,
+  each Connections card, a squad's people (in its ••• sheet) and a squad's card (a squad is
+  reported from outside it). The sheet: the four reasons, and Block. The confirmation says a
+  person reviews every report within 24 hours. Long-press in the room, a squad and a 1-on-1
+  chat offers Block beside Report. In the 1-on-1 chat the one "⋯" carries the chat's own
+  options above Report, so a report is still two taps (H9). `SAFETY_TODAY` is retired for
+  `SAFETY_COPY`, which says it as strongly as it is now true (SC01).
+- **A block** hides each from the other everywhere (lists, profiles, photos, room messages,
+  requests), ends the connection and chat, calls off a 1-on-1, takes the blocker out of a squad
+  they share, withdraws what was waiting; it keeps the blocker's after-the-night ticks; it is
+  never told. **Unblocking** (Settings → Blocked people) gives back seeing each other at events
+  both are still going to, each other's room messages, and asking again; it does not give back
+  the chat or connection, a squad left, a called-off 1-on-1 or withdrawn requests, and the
+  screen says so before it is done.
+- **A report** takes the person out of 1-on-1 lists, ends the reporter's connection and chat
+  with them, hides them at once for "uncomfortable" or "under 19" (at two reports from
+  different people otherwise; a squad is delisted at two), and **emails ADMIN_EMAILS within a
+  minute**: a database webhook to `/hooks/report` (the photo check's URL and secret, reused),
+  with the reason and a link to the person's card in `/admin/reports`. Never when a harness or
+  seed person is in it (`report_alert_wanted`, P318 both ways).
+- **Ban** (admin): hide plus a sign-in lock on the account (Auth's `ban_duration`), logged
+  `ban`; **unban** lifts both, logged `unban`. A banned person signing in reads "This account
+  is suspended", never a generic failure (signInSays, errors.ts; R04).

@@ -6,7 +6,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { SAFETY_TODAY } from "../../packages/shared/src/policy.ts";
+import { SAFETY_COPY as SAFETY_TODAY } from "../../packages/shared/src/policy.ts";
 
 const read = (p: string) => readFileSync(p, "utf8");
 const files = [

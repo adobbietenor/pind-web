@@ -5,8 +5,9 @@
 //     removal, gone for everyone). A group's thread has no delete.
 //   * anyone else's: "Report <name>" and the four reasons (H9) — a report on the PERSON,
 //     never on the message (Alex, 16 Oct 2026). Two taps from any message: hold, then a reason.
+//     And, since A24 (16 Nov 2026), "Block <name>": never told to them (H9).
 import { StyleSheet, View } from "react-native";
-import { colors as palette, radius, REPORT_REASONS, ROOM_COPY, spacing, type ThreadMessage } from "@pind/shared";
+import { A24_COPY, colors as palette, radius, REPORT_REASONS, ROOM_COPY, spacing, type ThreadMessage } from "@pind/shared";
 import type { ReportReason } from "@/lib/room";
 import { Body, Button } from "./ui";
 
@@ -16,6 +17,7 @@ export function MessageSheet({
   authorName,
   onDelete,
   onReport,
+  onBlock,
   onCancel,
 }: {
   held: ThreadMessage;
@@ -24,6 +26,8 @@ export function MessageSheet({
   // Only where the thread allows deleting your own message.
   onDelete?: () => void;
   onReport: (reason: ReportReason) => void;
+  // Block the author (A24): every thread passes it.
+  onBlock: () => void;
   onCancel: () => void;
 }) {
   if (mine && !onDelete) return null;
@@ -41,6 +45,8 @@ export function MessageSheet({
           {REPORT_REASONS.map((r) => (
             <Button key={r.value} kind="quiet" label={r.label} onPress={() => onReport(r.value)} />
           ))}
+          <Body muted>{A24_COPY.blockWhat}</Body>
+          <Button kind="quiet" label={A24_COPY.block(authorName)} onPress={onBlock} />
         </>
       )}
       <Button kind="quiet" label="Cancel" onPress={onCancel} />

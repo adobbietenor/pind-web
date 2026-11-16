@@ -232,3 +232,10 @@ export async function reportPerson(reporterId: string, personId: string, reason:
   const { error } = await supabase().from("reports").insert({ reporter_id: reporterId, target_kind: "person", target_person_id: personId, reason });
   if (error) throw error;
 }
+
+// "Report this squad" (A24), from outside it: reports_insert_on_visible_squad lets only
+// someone who can see the squad and is not in it report it; two reports delist it (M4.2).
+export async function reportSquad(reporterId: string, crewId: string, reason: ReportReason): Promise<void> {
+  const { error } = await supabase().from("reports").insert({ reporter_id: reporterId, target_kind: "crew", target_crew_id: crewId, reason });
+  if (error) throw error;
+}

@@ -1688,6 +1688,7 @@ export type Database = {
       }
       notification_settings: {
         Row: {
+          chat_message: boolean
           day_of: boolean
           digest: boolean
           invite: boolean
@@ -1701,6 +1702,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          chat_message?: boolean
           day_of?: boolean
           digest?: boolean
           invite?: boolean
@@ -1714,6 +1716,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          chat_message?: boolean
           day_of?: boolean
           digest?: boolean
           invite?: boolean
@@ -1741,6 +1744,7 @@ export type Database = {
           attempts: number
           body: string
           channel: string | null
+          connection_id: string | null
           created_at: string
           crew_id: string | null
           gathering_id: string | null
@@ -1759,6 +1763,7 @@ export type Database = {
           attempts?: number
           body: string
           channel?: string | null
+          connection_id?: string | null
           created_at?: string
           crew_id?: string | null
           gathering_id?: string | null
@@ -1777,6 +1782,7 @@ export type Database = {
           attempts?: number
           body?: string
           channel?: string | null
+          connection_id?: string | null
           created_at?: string
           crew_id?: string | null
           gathering_id?: string | null
@@ -1792,6 +1798,13 @@ export type Database = {
           title?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "notifications_connection_id_fkey"
+            columns: ["connection_id"]
+            isOneToOne: false
+            referencedRelation: "connections"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "notifications_crew_id_fkey"
             columns: ["crew_id"]
@@ -3264,6 +3277,10 @@ export type Database = {
         Args: { p_actor: string; p_crew: string }
         Returns: undefined
       }
+      admin_ban_person: {
+        Args: { p_actor: string; p_note?: string; p_person: string }
+        Returns: string
+      }
       admin_categorise_gatherings: { Args: never; Returns: number }
       admin_city_import_apply: {
         Args: { p_plan: Json; p_run: number }
@@ -3519,6 +3536,24 @@ export type Database = {
         Args: { p_actor: string; p_suggestion: string }
         Returns: undefined
       }
+      admin_report_alert: {
+        Args: { p_report: string }
+        Returns: {
+          created_at: string
+          crew_name: string
+          first_name: string
+          hidden: boolean
+          person_id: string
+          reason: Database["public"]["Enums"]["report_reason"]
+          report_id: string
+          reports_on_them: number
+          target_kind: Database["public"]["Enums"]["report_target"]
+        }[]
+      }
+      admin_report_alert_wanted: {
+        Args: { p_reporter: string; p_target: string }
+        Returns: boolean
+      }
       admin_report_import_schedule: {
         Args: { p_cron: string; p_scheduled_time: string }
         Returns: undefined
@@ -3677,6 +3712,10 @@ export type Database = {
         Args: { p_gathering: string }
         Returns: undefined
       }
+      admin_unban_person: {
+        Args: { p_actor: string; p_note?: string; p_person: string }
+        Returns: string
+      }
       admin_unhide_person: {
         Args: { p_actor: string; p_note?: string; p_person: string }
         Returns: undefined
@@ -3800,6 +3839,14 @@ export type Database = {
       leave_women_only_room: {
         Args: { p_gathering: string }
         Returns: undefined
+      }
+      my_blocks: {
+        Args: never
+        Returns: {
+          blocked_at: string
+          first_name: string
+          person_id: string
+        }[]
       }
       my_chats: { Args: never; Returns: Json }
       my_connections: {
@@ -4064,6 +4111,7 @@ export type Database = {
         Args: { p_gathering: string; p_to: string }
         Returns: undefined
       }
+      unblock_person: { Args: { p_person: string }; Returns: undefined }
       venue_map_key: { Args: { p_lat: number; p_lng: number }; Returns: string }
       waiting_for_women_only_room: {
         Args: { p_gathering: string }
@@ -4111,6 +4159,7 @@ export type Database = {
         | "invite"
         | "solo_proposal"
         | "keep_request"
+        | "chat_message"
       outbound_kind: "threshold" | "survey"
       photo_status: "pending" | "approved" | "needs_review" | "rejected"
       publish_mark: "publish" | "never"
@@ -4300,6 +4349,7 @@ export const Constants = {
         "invite",
         "solo_proposal",
         "keep_request",
+        "chat_message",
       ],
       outbound_kind: ["threshold", "survey"],
       photo_status: ["pending", "approved", "needs_review", "rejected"],

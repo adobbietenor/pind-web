@@ -32,9 +32,10 @@ import { AppScreen } from "@/components/AppScreen";
 import { Body, Button, Heading, Notice } from "@/components/ui";
 import { Sheet } from "@/components/Sheet";
 import { Trouble } from "@/components/Trouble";
-import { blockPerson, connectionWith, removeConnection } from "@/lib/connections";
+import { connectionWith, removeConnection } from "@/lib/connections";
+import { MoreButton, ReportBlockSheet } from "@/components/ReportBlock";
 import { failed, type Described } from "@/lib/errors";
-import { myPersonId, reportPerson } from "@/lib/room";
+import { myPersonId } from "@/lib/room";
 import { supabase } from "@/lib/supabase";
 import { Tap } from "@/components/Tap";
 
@@ -61,7 +62,7 @@ export default function Person() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const [them, setThem] = useState<Them | null | undefined>(undefined);
-  const [sheet, setSheet] = useState<"report" | "block" | null>(null);
+  const [sheet, setSheet] = useState(false);
   const [busy, setBusy] = useState(false);
   const [trouble, setTrouble] = useState<Described | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -127,7 +128,7 @@ export default function Person() {
       setTrouble(null);
       try {
         await run();
-        setSheet(null);
+        setSheet(false);
         setDone(after);
         setReload((n) => n + 1);
       } catch (err) {
@@ -177,6 +178,8 @@ export default function Person() {
               {them.gatherings === 0 ? "New to Pin'd" : `${them.gatherings} gathering${them.gatherings === 1 ? "" : "s"} on Pin'd`}
             </Text>
           </View>
+          {/* A24: report and block, two taps (H9). A24_EXISTS: S24's exception is gone. */}
+          {A24_EXISTS && them.meId && them.meId !== id ? <MoreButton onPress={() => setSheet(true)} /> : null}
         </View>
 
         {them.shared.length ? (
@@ -239,59 +242,24 @@ export default function Person() {
             chat for both and tells nobody. */}
         {done ? <Notice>{done}</Notice> : null}
         {trouble ? <Trouble what={trouble} /> : null}
-        {them.meId && them.meId !== id ? (
+        {them.meId && them.meId !== id && them.chatId ? (
           <View style={styles.safety}>
-            {them.chatId ? (
-              <>
-                <Button kind="quiet" label={ONE_ON_ONE_COPY.removeConnection} busy={busy} onPress={() => void act("remove the connection", () => removeConnection(id), null)} />
-                <Body muted>{ONE_ON_ONE_COPY.removeNote}</Body>
-              </>
-            ) : null}
-            <Button kind="quiet" label={ONE_ON_ONE_COPY.report(them.firstName)} onPress={() => setSheet("report")} />
-            <Button kind="quiet" label={ONE_ON_ONE_COPY.block(them.firstName)} onPress={() => setSheet("block")} />
+            <Button kind="quiet" label={ONE_ON_ONE_COPY.removeConnection} busy={busy} onPress={() => void act("remove the connection", () => removeConnection(id), null)} />
+            <Body muted>{ONE_ON_ONE_COPY.removeNote}</Body>
           </View>
         ) : null}
-        <Sheet visible={sheet !== null} onClose={() => setSheet(null)}>
-          {sheet === "report" ? (
-            <>
-              <Text style={styles.name}>{ONE_ON_ONE_COPY.report(them.firstName)}</Text>
-              <Body muted>{ONE_ON_ONE_COPY.reportHint}</Body>
-              {REPORT_REASONS.map((r) => (
-                <Button key={r.value} kind="quiet" label={r.label} busy={busy} onPress={() => void act("report that", () => reportPerson(them.meId!, id, r.value), ONE_ON_ONE_COPY.reported)} />
-              ))}
-            </>
-          ) : sheet === "block" ? (
-            <>
-              <Text style={styles.name}>{ONE_ON_ONE_COPY.block(them.firstName)}</Text>
-              <Body muted>{ONE_ON_ONE_COPY.blockNote}</Body>
-              <Button label={ONE_ON_ONE_COPY.blockConfirm} busy={busy} onPress={() => void act("block them", () => blockPerson(them.meId!, id), ONE_ON_ONE_COPY.blocked(them.firstName))} />
-            </>
-          ) : null}
-          <Button kind="quiet" label="Cancel" onPress={() => setSheet(null)} />
-        </Sheet>
-
-        {/* Report and block are two taps from everywhere (H9). The sheet itself is
-            A24, in M3.5, and until it exists the tap is HIDDEN, not pointed at a
-            "coming soon" (Alex, M3.2: "H9 isn't satisfied by a promise"). S24 names
-            this target as its one exception and fails the day A24's route exists —
-            which is when A24_EXISTS flips and the ⋯ comes back. */}
-        {A24_EXISTS ? (
-          <Tap
-            accessibilityRole="button"
-            accessibilityLabel="More"
-            onPress={() => router.push(`/person/${id}/report`)}
-            style={styles.more}
-          >
-            <Text style={styles.moreLabel}>⋯</Text>
-          </Tap>
-        ) : null}
+        <ReportBlockSheet
+          target={sheet ? { kind: "person", id, firstName: them.firstName } : null}
+          onClose={() => setSheet(false)}
+          // Blocked, they are gone from you: back to where you came from, not a "Not here".
+          onDone={(what) => (what === "blocked" ? (router.canGoBack() ? router.back() : router.replace("/connections")) : setReload((n) => n + 1))}
+        />
       </AppScreen>
   );
 }
 
-// A24 (report and block) lands in M3.5. S24 fails when its route exists and this is
-// still false.
-const A24_EXISTS = false;
+// A24 (report and block) shipped 16 Nov 2026: the ⋯ opens its sheet (components/ReportBlock).
+const A24_EXISTS = true;
 
 const styles = StyleSheet.create({
   oneOnOne: { marginBottom: spacing.md, gap: spacing.xs },

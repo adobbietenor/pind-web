@@ -16,7 +16,7 @@
 // failure printed "load failed (mxuajvlrkggrqpntekqt.supabase.co)"). The raw message
 // and code used to ride along as `detail`; they now go to Sentry (`report`), and the
 // screen gets our sentence for the cause, or one plain line (`@pind/shared`, said.ts).
-import { isUnreachable, Said, SESSION_UNREACHABLE, sessionSays, sessionWayOut, WENT_WRONG } from "@pind/shared";
+import { A24_COPY, isUnreachable, Said, SESSION_UNREACHABLE, sessionSays, sessionWayOut, WENT_WRONG } from "@pind/shared";
 import { report } from "./sentry";
 import { SessionProblem } from "./session";
 
@@ -39,6 +39,10 @@ const CODES: Record<string, string> = {
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 
+// A banned account (the admin's ban, 16 Nov 2026): Auth refuses it with code "user_banned".
+// It reads "This account is suspended", whole, wherever it surfaces — never a generic failure.
+export const isBanned = (err: unknown): boolean => isRecord(err) && err.code === "user_banned";
+
 export function describe(err: unknown, doing = "unnamed step"): Described {
   // Already classified — out, unreachable or unsure — by the shared rule.
   if (err instanceof SessionProblem) {
@@ -49,6 +53,7 @@ export function describe(err: unknown, doing = "unnamed step"): Described {
   if (isUnreachable(err)) return { says: SESSION_UNREACHABLE, wayOut: "retry" };
   // A sentence written for a person (PhotoError is one) — the only text shown as is.
   if (err instanceof Said) return { says: err.message };
+  if (isBanned(err)) return { says: A24_COPY.suspended };
 
   report(err, doing);
   const code = isRecord(err) && typeof err.code === "string" ? err.code : undefined;
@@ -60,6 +65,7 @@ export function describe(err: unknown, doing = "unnamed step"): Described {
 // own rather than being folded into "We could not …".
 export function failed(what: string, err: unknown): Described {
   if (err instanceof Said) return { says: err.message };
+  if (isBanned(err)) return { says: A24_COPY.suspended };
   const d = describe(err, what);
   if (d.wayOut) return d;
   return { says: `We could not ${what}: ${d.says}.` };

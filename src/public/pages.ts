@@ -3,7 +3,7 @@
 // Everything here reads through src/public/data.ts, which reads through the anon key
 // and the two public_* database functions. No page filters anything itself (H11).
 
-import { categoryLabel, CITY_ATTRIBUTION, clockLocal, COUNTERS, countNext, entryLine, longWhenLocal, pinNote, WHO_ELSE, CROWD_PAGE_COPY, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, SEARCH_COPY, SEARCH_DAYS, SEARCH_MAX, searchQuery, SAFETY_TODAY, SEE_WHO, SUGGEST_TO, suggestSubject, THRESHOLD_EXPLANATION } from "@pind/shared";
+import { categoryLabel, CITY_ATTRIBUTION, clockLocal, COUNTERS, countNext, entryLine, longWhenLocal, pinNote, WHO_ELSE, CROWD_PAGE_COPY, HOUSE_RULES, ONE_LINER, PIN_IN, pinnedMarker, SEARCH_COPY, SEARCH_DAYS, SEARCH_MAX, searchQuery, SAFETY_COPY, SEE_WHO, SUGGEST_TO, suggestSubject, THRESHOLD_EXPLANATION } from "@pind/shared";
 import type { Env } from "../env";
 import { DEFAULT_TZ, fromLocalInput, localDate } from "../admin/time";
 import { faviconSvg } from "./favicon";
@@ -824,7 +824,7 @@ ${houseRulesRow()}
 <h2 id="safety">Safety</h2>
 <p>Nobody sees your name or your photo until you have both pinned in and said you&#39;d like to meet at the same gathering. Until then there is nothing to browse, which is the point.</p>
 <p>Pin&#39;d is never at the event. The only conversations are about it: its room, for everyone there who would like to meet, and the chat inside a squad or a 1-on-1.</p>
-<p>${escape(SAFETY_TODAY.app)} Some reasons hide the person the moment they are used.</p>
+<p>${escape(SAFETY_COPY.app)} Some reasons hide the person the moment they are used.</p>
 <p>Pin&#39;d never asks where you are. The only coordinates we hold belong to venues and public places near them.</p>
 <p>19+.</p>
 

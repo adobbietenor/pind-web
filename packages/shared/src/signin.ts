@@ -13,6 +13,7 @@
 //            is no native Apple button there, and listing one would be a row that
 //            renders nothing.
 import { isUnreachable } from "./session.ts";
+import { A24_COPY } from "./a24.ts";
 
 export type SignInMethod = "apple" | "google" | "email";
 
@@ -66,6 +67,8 @@ export function isStaleSession(message: string): boolean {
 export function signInSays(step: SignInStep, message: string): string {
   if (/canceled|cancelled|ERR_REQUEST_CANCELED/i.test(message)) return "";
   if (isUnreachable({ message })) return SIGNIN_UNREACHABLE;
+  // A banned account (the admin's ban): Auth says "User is banned". Said as suspended, never a generic failure.
+  if (/user is banned|user_banned/i.test(message)) return A24_COPY.suspended;
   if (isStaleSession(message)) return SIGNIN_STALE;
   if (/rate limit|too many/i.test(message)) return SIGNIN_TOO_MANY;
   if (/provider is not enabled/i.test(message)) return SIGNIN_NOT_ON;

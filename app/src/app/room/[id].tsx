@@ -38,7 +38,8 @@ import { ThreadMessages } from "@/components/ThreadMessages";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading, Notice } from "@/components/ui";
 import { failed, rateRefusal, type Described } from "@/lib/errors";
-import { deleteRoomMessage, loadRoomShell, markSeen, reportFromMessage, sendRoomMessage, sharedTag, tagName, type Member } from "@/lib/room";
+import { deleteRoomMessage, loadRoomShell, markSeen, myPersonId, reportFromMessage, sendRoomMessage, sharedTag, tagName, type Member } from "@/lib/room";
+import { blockPerson } from "@/lib/connections";
 import { MY_CHATS_KEY } from "@/lib/myevents";
 import { queryClient } from "@/lib/query";
 import { faceSource } from "@/lib/signed-photos";
@@ -386,6 +387,13 @@ export default function Room() {
             );
             if (gone) thread.forget(held.id);
             setHeld(null);
+          }}
+          onBlock={async () => {
+            const meId = (await myPersonId()) ?? view.me.personId;
+            await blockPerson(meId, held.authorId).catch((err) => setTrouble(failed("block them", err)));
+            setHeld(null);
+            thread.recheck();
+            refreshShell();
           }}
           onReport={async (reason) => {
             await reportFromMessage(view.me.personId, held, { roomId: view.roomId }, reason).catch((err) => setTrouble(failed("report that", err)));

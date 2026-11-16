@@ -4,6 +4,7 @@ import { page } from "./html";
 import { mergeAccount } from "./account/merge";
 import { stopPage, stopSubmit } from "./notify/stop";
 import { deleteAccount } from "./account/routes";
+import { reportWebhook } from "./notify/report-alert.ts";
 import { photoCheckForMe, photoWebhook } from "./photo/routes";
 import { squadNameCheckForMe, squadNameWebhook } from "./squad/routes";
 import { claimSession, quickPinSubmit } from "./public/quickpin";
@@ -25,6 +26,8 @@ const routes: Record<string, Handler> = {
   // /squad-name-check are in run_worker_first.
   "POST /hooks/squad-name": squadNameWebhook,
   "POST /squad-name-check": squadNameCheckForMe,
+  // A24 (16 Nov 2026): every new report emails the admin; the database posts here. /hooks/* is in run_worker_first.
+  "POST /hooks/report": reportWebhook,
   // M3.1, A23. Deleting the auth user needs the service key, which never goes in a
   // bundle — and a half-finished delete is worse than either state, so it is one
   // server-side call rather than the app doing the parts it can.

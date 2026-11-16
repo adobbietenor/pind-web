@@ -211,9 +211,11 @@ export const reportQueue: AdminHandler = async (request, ctx) => {
       ? actionForm(personId, "unhide", "Unhide") + " " + (theirs.length ? actionForm(personId, "keep-hidden", "Keep hidden", "danger") : "")
       : actionForm(personId, "hide", "Hide now", "danger") + " " + actionForm(personId, "dismiss-reports", "Dismiss reports", "plain");
     const solo = p.hidden_from_solo ? "<br>" + actionForm(personId, "return-to-solo", "Return to 1-on-1", "plain") : "";
-    return `<tr><td><strong>${e(p.first_name ?? "?")}</strong> <span class="muted">${e(one<any>(p.person_handles)?.instagram ?? "")}</span><br>
+    // Ban on every card; Unban where they are hidden (it lifts the sign-in lock and the hide).
+    const ban = "<br>" + actionForm(personId, "ban", "Ban (hide and lock sign-in)", "danger") + (p.hidden_at ? " " + actionForm(personId, "unban", "Unban", "plain") : "");
+    return `<tr id="person-${e(personId)}"><td><strong>${e(p.first_name ?? "?")}</strong> <span class="muted">${e(one<any>(p.person_handles)?.instagram ?? "")}</span><br>
 ${p.hidden_at ? `<span class="bad">hidden since ${e(p.hidden_at.slice(0, 16).replace("T", " "))} UTC</span>` : "visible"} · pins: ${pinCounts.get(personId) ?? 0}${p.hidden_from_solo ? ` · <span class="bad">out of 1-on-1</span>` : ""}
-<ul>${list || `<li class="muted">No open reports (reviewed earlier).</li>`}</ul></td><td>${actions}${solo}</td></tr>`;
+<ul>${list || `<li class="muted">No open reports (reviewed earlier).</li>`}</ul></td><td>${actions}${solo}${ban}</td></tr>`;
   };
 
   const hiddenIds = hidden.map((p: any) => p.id);
@@ -257,3 +259,20 @@ export const keepHidden = personAction("admin_keep_hidden", "Kept hidden: report
 export const hidePerson = personAction("admin_hide_person", "Hidden");
 export const dismissReports = personAction("admin_dismiss_reports", "Reports dismissed");
 export const returnToSolo = personAction("admin_return_to_solo", "Returned to 1-on-1");
+
+// Ban (Alex, 16 Nov 2026): hidden and logged by the database (admin_ban_person), then the
+// account's sign-in is locked through Auth's admin API, so they cannot come back with the same
+// login; the app tells a banned person "This account is suspended". Unban lifts both, logged.
+const BAN_FOREVER = "876000h";
+function banAction(fn: "admin_ban_person" | "admin_unban_person", duration: string, done: string): AdminHandler {
+  return async (request, ctx) => {
+    const form = await request.formData();
+    const { data: authId, error } = await ctx.db.rpc(fn, { p_person: ctx.params.id, p_actor: ctx.email, p_note: str(form, "note") || null });
+    if (error) return back(form, { err: error.message });
+    if (!authId) return back(form, { ok: `${done} (no account to lock: an anonymous person with no sign-in)` });
+    const locked = await ctx.db.auth.admin.updateUserById(String(authId), { ban_duration: duration });
+    return back(form, locked.error ? { err: `${done} in the database, but the sign-in lock failed: ${locked.error.message}` } : { ok: done });
+  };
+}
+export const banPerson = banAction("admin_ban_person", BAN_FOREVER, "Banned: hidden, and sign-in locked");
+export const unbanPerson = banAction("admin_unban_person", "none", "Unbanned: visible again, sign-in unlocked");

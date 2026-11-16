@@ -17,19 +17,20 @@ import { useQuery } from "@tanstack/react-query";
 import { useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, StyleSheet, Text, View } from "react-native";
-import { AFTER_COPY, colors as palette, effectiveEnd, fonts, HERE_COPY, ONE_ON_ONE_COPY, SOLO_COPY, spacing, type ThreadMessage } from "@pind/shared";
+import { A24_COPY, AFTER_COPY, colors as palette, effectiveEnd, fonts, HERE_COPY, ONE_ON_ONE_COPY, SOLO_COPY, spacing, type ThreadMessage } from "@pind/shared";
 import { AppScreen } from "@/components/AppScreen";
 import { Avatar } from "@/components/Avatar";
 import { Composer } from "@/components/Composer";
 import { ImHere } from "@/components/ImHere";
 import { MessageSheet } from "@/components/MessageSheet";
+import { MoreButton, ReportBlockSheet } from "@/components/ReportBlock";
 import { Sheet } from "@/components/Sheet";
 import { SoloPlace } from "@/components/SoloPlace";
 import { Tap } from "@/components/Tap";
 import { ThreadMessages } from "@/components/ThreadMessages";
 import { Trouble } from "@/components/Trouble";
 import { Body, Button, Heading } from "@/components/ui";
-import { loadOneOnOneCard, loadPairChat, removeConnection, sharedOneOnOne } from "@/lib/connections";
+import { blockPerson, loadOneOnOneCard, loadPairChat, removeConnection, sharedOneOnOne } from "@/lib/connections";
 import { failed, type Described } from "@/lib/errors";
 import { MY_CHATS_KEY } from "@/lib/myevents";
 import { isPutAway, putAway } from "@/lib/putaway";
@@ -166,9 +167,7 @@ export default function PairChatScreen() {
             </Text>
           </View>
         </Tap>
-        <Tap accessibilityRole="button" accessibilityLabel="More" onPress={() => setMenu(true)} style={styles.more}>
-          <Text style={styles.moreLabel}>•••</Text>
-        </Tap>
+        <MoreButton onPress={() => setMenu(true)} />
       </View>
 
       {trouble ? <Trouble what={trouble} onRetry={refresh} busy={busy} /> : null}
@@ -210,8 +209,12 @@ export default function PairChatScreen() {
         />
       ) : null}
 
-      <Sheet visible={menu} onClose={() => setMenu(false)}>
-        <Text style={styles.headTitle}>{chat.firstName}</Text>
+      {/* One "⋯" (A24): the chat's options, then report or block — two taps to a report (H9). */}
+      <ReportBlockSheet
+        target={menu ? { kind: "person", id: chat.personId, firstName: chat.firstName } : null}
+        onClose={() => setMenu(false)}
+        onDone={() => { void queryClient.invalidateQueries({ queryKey: MY_CHATS_KEY }); refresh(); }}
+        extra={<View style={{ gap: spacing.sm, marginBottom: spacing.md }}>
         <Button kind="quiet" label={ONE_ON_ONE_COPY.seeProfile} onPress={() => { setMenu(false); router.push(`/person/${chat.personId}`); }} />
         {card && on ? (
           <Button kind="quiet" label={ONE_ON_ONE_COPY.addPlace} onPress={() => { setMenu(false); setTimeout(() => setPlaceOpen(true), Platform.OS === "ios" ? 350 : 0); }} />
@@ -230,8 +233,8 @@ export default function PairChatScreen() {
             <Body muted>{ONE_ON_ONE_COPY.removeNote}</Body>
           </>
         )}
-        <Button kind="quiet" label="Close" onPress={() => setMenu(false)} />
-      </Sheet>
+</View>}
+      />
 
       {thread.error ? <Trouble what={failed("open this chat", thread.error)} onRetry={thread.retry} /> : null}
       {thread.messages ? (
@@ -262,6 +265,10 @@ export default function PairChatScreen() {
           onReport={(reason) => {
             setHeld(null);
             void leave("report that", () => reportPerson(meId, chat.personId, reason));
+          }}
+          onBlock={() => {
+            setHeld(null);
+            void leave("block them", () => blockPerson(meId, chat.personId));
           }}
           onCancel={() => setHeld(null)}
         />

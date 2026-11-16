@@ -465,7 +465,7 @@ comments are on M4.1's rota at the reports' standard (decisions, "A16's comment 
 **Ships only with the privacy page's two lines about it, in the same deploy** (both
 applied on the branch, 14 Oct, so the next deploy carries the field and the copy together).
 
-### A18 — Notifications (nine, under one rule)
+### A18 — Notifications (ten, under one rule)
 
 **The rule is a ban on engagement bait** (Alex, 6 Oct 2026; decisions, "A18: the rule is
 the ban, not the count"). **A notification earns its place only by being something the
@@ -532,6 +532,12 @@ does not name. It was five until 28 Sept; how it became seven, then eight, is re
    person you met asking to stay reachable, and unanswered it lapses with the 7-day window;
    one per pair per gathering, never asked again after a take-back. A request taken back,
    answered or from someone since hidden or blocked is not sent (read at every attempt).
+10. **A new message** (`chat_message`) — "Maya sent you a message" in your 1-on-1 chat, or
+   "Maya in Section 314" in a squad you're in → that chat (Alex, 16 Nov 2026). Never the
+   message's words, never for your own, never to someone who looked at that chat in the last
+   2 minutes, never across a block, and at most one per chat per 5 minutes while unread.
+   *Not bait:* it is a person you said yes to, or a squad you joined, writing to you — the
+   moment you would otherwise miss, and silent once you're reading.
 
 **Nothing else.** Each kind has its own switch in Settings (A23), and every email its stop
 link. **Every notification is mirrored by email to people without a device token**
@@ -610,6 +616,11 @@ out").
 Note on screen: no location permission exists to manage — the app never asks.
 
 ### A24 — Report & block
+**Shipped 16 Nov 2026:** "⋯" on the profile, the person sheet, the 1-on-1 chat, each Connections
+card, a squad's people and a squad's card; long-press offers Report and Block. Settings → Blocked
+people lists your blocks with Unblock, saying what it does and doesn't give back. Every report
+emails the admin within a minute. The original:
+
 Identical sheet from a profile, a crew card, or a long-pressed message. Two taps:
 "⋯" then a reason — made me uncomfortable / not who they said they were / under 19 /
 spam. Confirmation states a human reviews within 24h. Blocking never notifies (H9).
