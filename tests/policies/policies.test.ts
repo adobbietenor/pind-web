@@ -4294,6 +4294,40 @@ describe("The night and after — #4, A16, connections (V23), the question, #5 (
     await removeUser(w.service, people.Gil!.authId);
     await ok(w.service.from("survey_responses").delete().eq("id", answer));
   });
+
+  // A23 returned 500 for anyone with an answer from before 30 Oct (staging reset, 16 Nov
+  // 2026). Those rows have no how_was_it; `survey_responses_answered` is NOT VALID, so it
+  // never judged them — until A23's `on delete set null` updated them. P208 missed it: its
+  // "old" answer had how_was_it set, a setup that granted the thing under test.
+  //
+  // An old row with a person can no longer be made at all (P306 is that refusal), so the
+  // blanking is proved on the row it produces: a check judges only the row it ends with,
+  // and this is exactly what set-null leaves an old answer as. Against the old check this
+  // insert is refused with 23514 — the failure A23 hit.
+  it("P305 A23 deletes a person with an old-style answer: the blanked old answer (no how_was_it, no person) CAN stand, and the person's delete goes through", async () => {
+    const blanked = (await ok(
+      w.service.from("survey_responses").insert({ gathering_id: A, person_id: null, how_was_it: null, would_have_gone: "wasnt_going" }).select("id").single(),
+    )).id;
+    await meeter("Hal", null);
+    await ok(w.service.from("pins").insert({ gathering_id: A, person_id: id("Hal"), party_total: 1, open_to_meeting: true }).select("id").single());
+    const answer = (await ok(w.service.from("survey_responses").insert({ gathering_id: A, person_id: id("Hal"), how_was_it: "okay" }).select("id").single())).id;
+    await ok(w.service.from("pins").delete().eq("person_id", id("Hal")));
+    await ok(w.service.from("people").delete().eq("id", id("Hal")).select("id").single());
+    const kept = await ok(w.service.from("survey_responses").select("person_id, how_was_it").eq("id", answer).single());
+    assert.deepEqual(kept, { person_id: null, how_was_it: "okay" }, "the answer went with its person, or kept the person");
+    await removeUser(w.service, people.Hal!.authId);
+    await ok(w.service.from("survey_responses").delete().in("id", [blanked, answer]));
+  });
+
+  it("P306 the check still refuses a real edit: an answer with a person CANNOT lose its how_was_it, be written without one, or an old blanked answer be given a person", async () => {
+    const answer = (await ok(w.service.from("survey_responses").insert({ gathering_id: A, person_id: id("Fox"), how_was_it: "great" }).select("id").single())).id;
+    await denied(w.service.from("survey_responses").update({ how_was_it: null }).eq("id", answer), "23514");
+    assert.equal((await ok(w.service.from("survey_responses").select("how_was_it").eq("id", answer).single())).how_was_it, "great", "the answer was edited away");
+    await denied(w.service.from("survey_responses").insert({ gathering_id: A, person_id: id("Eve"), how_was_it: null }), "23514");
+    const blanked = (await ok(w.service.from("survey_responses").insert({ gathering_id: A, person_id: null, how_was_it: null }).select("id").single())).id;
+    await denied(w.service.from("survey_responses").update({ person_id: id("Eve") }).eq("id", blanked), "23514");
+    await ok(w.service.from("survey_responses").delete().in("id", [answer, blanked]));
+  });
 });
 
 describe("Women-only rooms only — a real only (Alex, 29 Sept 2026)", () => {
